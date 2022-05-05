@@ -34,7 +34,7 @@ public class ParseInfo {
         put("aload_1", ALOAD);
         put("aload_2", ALOAD);
         put("aload_3", ALOAD);
-        put("anewarray", ANEWARRAY, "index");
+        put("anewarray", ANEWARRAY, "class");
         put("areturn", ARETURN);
         put("arraylength", ARRAYLENGTH);
         put("astore", ASTORE, "index");
@@ -49,7 +49,7 @@ public class ParseInfo {
         put("breakpoint", 0xCA);
         put("caload", CALOAD);
         put("castore", CASTORE);
-        put("checkcast", CHECKCAST, "index");
+        put("checkcast", CHECKCAST, "class");
         put("d2f", D2F);
         put("d2i", D2I);
         put("d2l", D2L);

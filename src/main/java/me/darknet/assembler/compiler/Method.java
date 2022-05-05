@@ -3,8 +3,10 @@ package me.darknet.assembler.compiler;
 import me.darknet.assembler.instructions.ParseInfo;
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +17,17 @@ import static org.objectweb.asm.Opcodes.*;
 import static org.objectweb.asm.Opcodes.BIPUSH;
 
 public class Method {
+
+    public static final Map<String, Integer> newArrayTypes = Map.of(
+            "byte", T_BYTE,
+            "char", T_CHAR,
+            "double", T_DOUBLE,
+            "float", T_FLOAT,
+            "int", T_INT,
+            "long", T_LONG,
+            "short", T_SHORT,
+            "boolean", T_BOOLEAN);
+
 
     public List<String> locals = new ArrayList<>();
     public Map<String, Label> labels = new java.util.HashMap<>();
@@ -90,10 +103,16 @@ public class Method {
         switch (opcode) {
             case INVOKEVIRTUAL:
             case INVOKESTATIC:
+            case INVOKEINTERFACE:
             case INVOKESPECIAL: {
                 MethodDescriptor md = new MethodDescriptor(g.get(0).content());
                 String owner = md.owner == null ? this.md.name : md.owner;
-                mv.visitMethodInsn(opcode, owner, md.name, md.desc, false);
+                mv.visitMethodInsn(
+                        opcode,
+                        owner,
+                        md.name,
+                        md.desc,
+                        opcode == INVOKESPECIAL);
                 break;
             }
             case GETFIELD:
@@ -113,6 +132,15 @@ public class Method {
             case IF_ICMPLE:
             case IF_ACMPEQ:
             case IF_ACMPNE:
+            case IFEQ:
+            case IFNE:
+            case IFLT:
+            case IFGE:
+            case IFGT:
+            case IFLE:
+            case IFNONNULL:
+            case IFNULL:
+            case JSR:
             case GOTO: {
                 mv.visitJumpInsn(opcode, getLabel(g.get(0).content()));
                 break;
@@ -134,6 +162,13 @@ public class Method {
                 mv.visitVarInsn(opcode, getLocal(g.get(0), true));
                 break;
             }
+            case ANEWARRAY:
+            case NEW:
+            case INSTANCEOF:
+            case CHECKCAST: {
+                mv.visitTypeInsn(opcode, g.content());
+                break;
+            }
             case IINC: {
                 mv.visitIincInsn(getLocal(g.get(0), false), Integer.parseInt(g.get(1).content()));
                 break;
@@ -142,6 +177,24 @@ public class Method {
             case BIPUSH: {
                 mv.visitIntInsn(opcode, Integer.parseInt(g.get(0).content()));
                 break;
+            }
+            case NEWARRAY: {
+                Integer type = newArrayTypes.get(g.get(0).content());
+                if (type == null) {
+                    throw new AssemblerException("Unknown array type: " + g.get(0).content(), g.get(0).start().getLocation());
+                }
+                mv.visitIntInsn(opcode, type);
+                break;
+            }
+            case MULTIANEWARRAY: {
+                String desc = g.get(0).content();
+                int dims = Integer.parseInt(g.get(1).content());
+                mv.visitMultiANewArrayInsn(desc, dims);
+                break;
+            }
+            case INVOKEDYNAMIC: {
+                // TODO: implement :(
+                throw new AssemblerException("InvokeDynamic not implemented", g.get(0).start().getLocation());
             }
             default: {
                 mv.visitInsn(opcode);
