@@ -58,13 +58,31 @@ public class Parser {
                 i++;
                 continue;
             }
+            if(c == '#') {
+                while(i < chars.length) {
+                    if(chars[i] == '\n') {
+                        i++;
+                        location.line++;
+                        break;
+                    }
+                    i++;
+                    location.column++;
+                }
+                continue;
+            }
             if(c == '"'){
                 c = chars[++i];
+                location.column++;
                 sb.append(c);
                 while(c != '"'){
                     c = chars[++i];
+                    location.column++;
+                    if(c == '\n'){
+                        location.line++;
+                    }
                     if(c == '"'){
                         i++;
+                        location.column++;
                         break;
                     }
                     sb.append(c);
