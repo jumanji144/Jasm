@@ -66,7 +66,7 @@ public class Compiler {
 
                     boolean isStatic = (access & ACC_STATIC) != 0;
 
-                    Method method = new Method(vs, md, isStatic);
+                    Method method = new Method(vs, md, className, isStatic);
 
                     Group body = g.getChild(GroupType.BODY);
                     method.compile(body);
