@@ -74,6 +74,7 @@ public class Group {
         DEFAULT_LABEL,
 
         TABLE_SWITCH,
+        MACRO_DIRECTIVE,
 
         // higher order abstraction
         CLASS_DECLARATION,

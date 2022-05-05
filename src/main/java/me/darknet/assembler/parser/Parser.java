@@ -26,6 +26,7 @@ public class Parser {
     public static final String KEYWORD_TABLESWITCH = "tableswitch";
     public static final String KEYWORD_DEFAULT = "default";
     public static final String KEYWORD_CASE = "case";
+    public static final String KEYWORD_MACRO = "macro";
     private static final String[] keywords = {
             KEYWORD_CLASS,
             KEYWORD_METHOD,
@@ -42,7 +43,8 @@ public class Parser {
             KEYWORD_SWITCH,
             KEYWORD_TABLESWITCH,
             KEYWORD_DEFAULT,
-            KEYWORD_CASE
+            KEYWORD_CASE,
+            KEYWORD_MACRO
     };
 
     public List<Token> tokenize(String source, String code) {
@@ -195,6 +197,13 @@ public class Parser {
                     return new Group(GroupType.LABEL, token);
                 }
             }
+            if(ctx.macros.containsKey(content)){
+                Group[] groups = ctx.macros.get(content);
+                for (int i = 0; i < groups.length - 1; i++) {
+                    ctx.pushGroup(groups[i]);
+                }
+                return groups[groups.length - 1];
+            }
             return new Group(token.type.toGroupType(), token);
         }
 
@@ -258,6 +267,12 @@ public class Parser {
             case KEYWORD_DEFAULT: {
                 Group label = ctx.nextGroup(GroupType.IDENTIFIER);
                 return new Group(GroupType.DEFAULT_LABEL, token, label);
+            }
+            case KEYWORD_MACRO: {
+                Group macroName = ctx.nextGroup(GroupType.IDENTIFIER);
+                Group[] children = readBody(ctx).children;
+                ctx.macros.put(macroName.content(), children);
+                return new Group(GroupType.MACRO_DIRECTIVE, token, children);
             }
 
             case KEYWORD_PUBLIC:

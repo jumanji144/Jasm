@@ -8,6 +8,7 @@ public class ParserContext {
     public Queue<Token> tokens;
     public Token currentToken;
     public Parser parser;
+    public  Map<String, Group[]> macros = new HashMap<>();
 
     public ParserContext(Queue<Token> tokens, Parser parser) {
         this.groups = new LinkedList<>();
