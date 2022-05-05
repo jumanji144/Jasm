@@ -9,7 +9,7 @@ public class MethodDescriptor {
     public MethodDescriptor(String desc) {
         this.name = desc.substring(0, desc.indexOf('('));
         this.desc = desc.substring(desc.indexOf('('));
-        if(desc.contains("/")){
+        if(name.contains("/")){
             this.owner = name.substring(0, name.lastIndexOf('/'));
             this.name = name.substring(name.lastIndexOf('/')+1);
         }
