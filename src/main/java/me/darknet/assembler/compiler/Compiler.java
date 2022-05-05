@@ -173,6 +173,9 @@ public class Compiler {
                 case Parser.KEYWORD_PRIVATE:
                     accessFlags |= ACC_PRIVATE;
                     break;
+                case Parser.KEYWORD_STATIC:
+                    accessFlags |= ACC_STATIC;
+                    break;
             }
         }
         return accessFlags;

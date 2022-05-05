@@ -240,6 +240,7 @@ public class Parser {
 
             case KEYWORD_PUBLIC:
             case KEYWORD_PRIVATE:
+            case KEYWORD_STATIC:
                 return new Group(GroupType.ACCESS_MOD, token);
 
         }
