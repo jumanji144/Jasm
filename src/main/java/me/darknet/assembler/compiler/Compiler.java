@@ -23,9 +23,10 @@ public class Compiler {
 
     public Map<String, Label> labels = new HashMap<>();
     public List<String> locals = new ArrayList<>();
+    public boolean inStatic = false;
 
     public Compiler(int version) {
-        cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
         // compute max stack and local variables needed because they are not known at compile time
         this.version = version;
     }
@@ -60,6 +61,9 @@ public class Compiler {
                 }
                 case METHOD_DECLARATION: {
                     int access = getAccess(g.getChild(GroupType.ACCESS_MODS));
+                    if((access | ACC_STATIC) == access) {
+                        inStatic = true;
+                    }
                     String methodDesc = g.get(1).content();
 
                     MethodDescriptor md = new MethodDescriptor(methodDesc);
@@ -111,8 +115,12 @@ public class Compiler {
                         }
                     }
 
+
+
                     vs.visitMaxs(0, 0);
                     vs.visitEnd();
+
+                    locals.clear();
                 }
             }
         }
@@ -122,9 +130,18 @@ public class Compiler {
     public void visitInstruction(MethodVisitor mv, Group g) throws AssemblerException {
         ParseInfo info = ParseInfo.get(g.content());
         if (info == null) throw new RuntimeException("Unknown instruction: " + g.content());
+        if(info.name.contains("_")) {
+            if(info.name.contains("store") || info.name.contains("load")) {
+                int opcode = info.opcode;
+                int index = Integer.parseInt(info.name.substring(info.name.indexOf("_") + 1));
+                mv.visitVarInsn(opcode, index);
+                return;
+            }
+        }
         int opcode = info.opcode;
         switch (opcode) {
             case INVOKEVIRTUAL:
+            case INVOKESTATIC:
             case INVOKESPECIAL: {
                 MethodDescriptor md = new MethodDescriptor(g.get(0).content());
                 String owner = md.owner == null ? className : md.owner;
@@ -158,7 +175,14 @@ public class Compiler {
             }
             case ALOAD:
             case ILOAD:
-            case ISTORE: {
+            case FLOAD:
+            case DLOAD:
+            case LLOAD:
+            case ASTORE:
+            case ISTORE:
+            case FSTORE:
+            case DSTORE:
+            case LSTORE: {
                 mv.visitVarInsn(opcode, getLocal(g.get(0), true));
                 break;
             }
@@ -222,6 +246,7 @@ public class Compiler {
                 throw new AssemblerException("Unknown local variable: " + name, g.start().getLocation());
             }
         }
+        if(inStatic) return index;
         return index + 1;
     }
 
