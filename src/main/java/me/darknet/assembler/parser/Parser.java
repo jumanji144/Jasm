@@ -228,6 +228,10 @@ public class Parser {
                 List<Group> labels = readLookupSwitch(ctx);
                 return new Group(GroupType.LOOKUP_SWITCH, token, labels.toArray(new Group[0]));
             }
+            case KEYWORD_TABLESWITCH: {
+                List<Group> labels = readTableSwitch(ctx);
+                return new Group(GroupType.TABLE_SWITCH, token, labels.toArray(new Group[0]));
+            }
             case KEYWORD_CASE: {
                 Group value = ctx.nextGroup(GroupType.NUMBER);
                 Group label = ctx.nextGroup(GroupType.IDENTIFIER);
@@ -277,6 +281,22 @@ public class Parser {
                 return caseLabels;
             }
             if(grp.type != GroupType.CASE_LABEL){
+                throw new AssemblerException("Expected case label", grp.start().location);
+            }
+            caseLabels.add(grp);
+        }
+        throw new AssemblerException("Unexpected end of file", ctx.currentToken.getLocation());
+    }
+
+    private List<Group> readTableSwitch(ParserContext ctx) throws AssemblerException {
+        List<Group> caseLabels = new ArrayList<>();
+        while(ctx.hasNextToken()){
+            Group grp = ctx.parseNext();
+            if(grp.type == GroupType.DEFAULT_LABEL){
+                caseLabels.add(grp);
+                return caseLabels;
+            }
+            if(grp.type != GroupType.IDENTIFIER){
                 throw new AssemblerException("Expected case label", grp.start().location);
             }
             caseLabels.add(grp);

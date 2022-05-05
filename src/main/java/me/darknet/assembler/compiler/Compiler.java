@@ -89,6 +89,20 @@ public class Compiler {
                                     }
                                 }
                                 vs.visitLookupSwitchInsn(defaultLabel, keys, labels);
+                            } else if(inst.type == GroupType.TABLE_SWITCH) {
+                                Group defaultGroup = inst.getChild(GroupType.DEFAULT_LABEL);
+                                if(defaultGroup == null) {
+                                    throw new AssemblerException("Table switch must have a default label", inst.start().getLocation());
+                                }
+                                Label defaultLabel = getLabel(defaultGroup.get(0).content());
+                                List<Label> labels = new ArrayList<>();
+                                for(Group caseGroup : inst.children) {
+                                    if(caseGroup.type == GroupType.IDENTIFIER) {
+                                        Label caseLabel = getLabel(caseGroup.content());
+                                        labels.add(caseLabel);
+                                    }
+                                }
+                                vs.visitTableSwitchInsn(0, labels.size() - 1, defaultLabel, labels.toArray(new Label[0]));
                             } else if (inst.type == GroupType.INSTRUCTION) {
                                 visitInstruction(vs, inst);
                             } else {
