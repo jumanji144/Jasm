@@ -33,12 +33,14 @@ public class Method {
     public Map<String, Label> labels = new java.util.HashMap<>();
     public boolean isStatic;
     public MethodDescriptor md;
+    public String className;
     public MethodVisitor mv;
 
-    public Method(MethodVisitor mv, MethodDescriptor md, boolean isStatic) {
+    public Method(MethodVisitor mv, MethodDescriptor md, String className, boolean isStatic) {
         this.mv = mv;
         this.md = md;
         this.isStatic = isStatic;
+        this.className = className;
     }
 
     public void compile(Group body) throws AssemblerException {
@@ -106,13 +108,13 @@ public class Method {
             case INVOKEINTERFACE:
             case INVOKESPECIAL: {
                 MethodDescriptor md = new MethodDescriptor(g.get(0).content());
-                String owner = md.owner == null ? this.md.name : md.owner;
+                String owner = md.owner == null ? className : md.owner;
                 mv.visitMethodInsn(
                         opcode,
                         owner,
                         md.name,
                         md.desc,
-                        opcode == INVOKESPECIAL);
+                        opcode == INVOKEINTERFACE);
                 break;
             }
             case GETFIELD:
@@ -120,7 +122,7 @@ public class Method {
             case PUTFIELD:
             case PUTSTATIC: {
                 FieldDescriptor fd = new FieldDescriptor(g.get(0).content());
-                String owner = fd.owner == null ? this.md.name : fd.owner;
+                String owner = fd.owner == null ? className : fd.owner;
                 mv.visitFieldInsn(opcode, owner, fd.name, g.get(1).content());
                 break;
             }
@@ -166,7 +168,7 @@ public class Method {
             case NEW:
             case INSTANCEOF:
             case CHECKCAST: {
-                mv.visitTypeInsn(opcode, g.content());
+                mv.visitTypeInsn(opcode, g.get(0).content());
                 break;
             }
             case IINC: {
