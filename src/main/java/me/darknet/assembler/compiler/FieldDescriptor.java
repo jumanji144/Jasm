@@ -8,11 +8,21 @@ public class FieldDescriptor {
     public String owner;
 
     public FieldDescriptor(String desc) {
-        String[] parts = desc.split("\\.");
-        name = parts[0];
-        if(parts.length > 1) {
-            name = parts[1];
-            owner = parts[0];
+        if(desc.contains(".")) {
+            String[] parts = desc.split("\\.");
+            name = parts[0];
+            if (parts.length > 1) {
+                name = parts[1];
+                owner = parts[0];
+            }
+        } else {
+            int lastSlash = desc.lastIndexOf("/");
+            if (lastSlash != -1) {
+                name = desc.substring(lastSlash + 1);
+                owner = desc.substring(0, lastSlash);
+            } else {
+                name = desc;
+            }
         }
     }
 
