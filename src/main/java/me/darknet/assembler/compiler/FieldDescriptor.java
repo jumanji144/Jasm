@@ -6,6 +6,7 @@ public class FieldDescriptor {
 
     public String name;
     public String owner;
+    public String desc;
 
     public FieldDescriptor(String desc) {
         if(desc.contains(".")) {

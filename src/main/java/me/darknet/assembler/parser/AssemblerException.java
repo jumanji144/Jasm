@@ -19,7 +19,7 @@ public class AssemblerException extends Exception {
     }
 
     public String describe() {
-        return where + ": " + getMessage();
+        return "[" + where + "]" + ": " + getMessage();
     }
 
 }
