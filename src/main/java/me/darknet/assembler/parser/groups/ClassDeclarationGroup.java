@@ -10,7 +10,9 @@ public class ClassDeclarationGroup extends Group {
     public IdentifierGroup name;
 
     public ClassDeclarationGroup(Token value, AccessModsGroup accessMods, IdentifierGroup name) {
-        super(GroupType.CLASS_DECLARATION, accessMods, name);
+        super(GroupType.CLASS_DECLARATION, value, accessMods, name);
+        this.accessMods = accessMods;
+        this.name = name;
     }
 
     public AccessModsGroup getAccessMods() {

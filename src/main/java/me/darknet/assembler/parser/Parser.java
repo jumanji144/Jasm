@@ -205,6 +205,9 @@ public class Parser {
                 }
                 return groups[groups.length - 1];
             }
+            if(token.type == NUMBER){
+                return new NumberGroup(token);
+            }
             return new IdentifierGroup(token);
         }
 
@@ -256,7 +259,7 @@ public class Parser {
             case KEYWORD_TABLESWITCH:  return readTableSwitch(token, ctx);
             case KEYWORD_CASE: {
                 NumberGroup value = (NumberGroup) ctx.nextGroup(GroupType.NUMBER);
-                IdentifierGroup label = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                LabelGroup label = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
                 return new CaseLabelGroup(token, value, label);
             }
             case KEYWORD_DEFAULT: {

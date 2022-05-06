@@ -11,6 +11,9 @@ public class MethodDeclarationGroup extends Group {
 
     public MethodDeclarationGroup(Token value, AccessModsGroup accessMods, IdentifierGroup descriptor, BodyGroup body) {
         super(GroupType.METHOD_DECLARATION, value, accessMods, descriptor, body);
+        this.accessMods = accessMods;
+        this.descriptor = descriptor;
+        this.body = body;
     }
 
     public AccessModsGroup getAccessMods() {

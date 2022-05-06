@@ -9,6 +9,7 @@ public class ImplementsGroup extends Group {
 
     public ImplementsGroup(Token value, IdentifierGroup className) {
         super(GroupType.EXTENDS_DIRECTIVE, value, className);
+        this.className = className;
     }
 
     public IdentifierGroup getClassName() {

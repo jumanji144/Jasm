@@ -52,7 +52,7 @@ public class Group {
     @SuppressWarnings("unchecked")
     public <T> T getChild(Class<T> type) {
         for(Group child : children) {
-            if(child.type.getClass() == type) {
+            if(child.getClass() == type) {
                 return (T) child;
             }
         }

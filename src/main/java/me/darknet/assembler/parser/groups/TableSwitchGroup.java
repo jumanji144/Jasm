@@ -6,9 +6,13 @@ import me.darknet.assembler.util.ArrayUtil;
 
 public class TableSwitchGroup extends Group {
 
+    LabelGroup[] labels;
+    DefaultLabelGroup defaultLabel;
 
     public TableSwitchGroup(Token token, DefaultLabelGroup defaultLabel, LabelGroup... labels) {
         super(GroupType.TABLE_SWITCH, token, ArrayUtil.add(labels, defaultLabel));
+        this.defaultLabel = defaultLabel;
+        this.labels = labels;
     }
 
     /**
@@ -16,11 +20,7 @@ public class TableSwitchGroup extends Group {
      * @return the case labels without the default label.
      */
     public LabelGroup[] getLabelGroups() {
-        LabelGroup[] caseGroups = new LabelGroup[this.size() - 1];
-        for(int i = 0; i < caseGroups.length; i++) {
-            caseGroups[i] = (LabelGroup) this.get(i);
-        }
-        return caseGroups;
+        return labels;
     }
 
     /**
@@ -28,7 +28,7 @@ public class TableSwitchGroup extends Group {
      * @return the default label.
      */
     public DefaultLabelGroup getDefaultLabel() {
-        return (DefaultLabelGroup) getChild(GroupType.DEFAULT_LABEL);
+        return defaultLabel;
     }
 
 

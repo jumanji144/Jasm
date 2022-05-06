@@ -6,8 +6,13 @@ import me.darknet.assembler.util.ArrayUtil;
 
 public class LookupSwitchGroup extends Group {
 
+    public CaseLabelGroup[] caseLabels;
+    public DefaultLabelGroup defaultLabel;
+
     public LookupSwitchGroup(Token value, DefaultLabelGroup defaultLable, CaseLabelGroup... caseGroups) {
         super(GroupType.LOOKUP_SWITCH, value, ArrayUtil.add(caseGroups, defaultLable));
+        this.caseLabels = caseGroups;
+        this.defaultLabel = defaultLable;
     }
 
     /**
@@ -15,11 +20,7 @@ public class LookupSwitchGroup extends Group {
      * @return the case labels without the default label.
      */
     public CaseLabelGroup[] getCaseGroups() {
-        CaseLabelGroup[] caseGroups = new CaseLabelGroup[this.size() - 1];
-        for(int i = 0; i < caseGroups.length; i++) {
-            caseGroups[i] = (CaseLabelGroup) this.get(i);
-        }
-        return caseGroups;
+        return caseLabels;
     }
 
     /**
@@ -27,7 +28,7 @@ public class LookupSwitchGroup extends Group {
      * @return the default label.
      */
     public DefaultLabelGroup getDefaultLabel() {
-        return (DefaultLabelGroup) getChild(GroupType.DEFAULT_LABEL);
+        return defaultLabel;
     }
 
 }

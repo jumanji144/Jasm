@@ -6,17 +6,19 @@ import me.darknet.assembler.parser.Token;
 public class CaseLabelGroup extends Group {
 
     public NumberGroup key;
-    public IdentifierGroup value;
+    public LabelGroup value;
 
-    public CaseLabelGroup(Token val, NumberGroup key, IdentifierGroup value) {
+    public CaseLabelGroup(Token val, NumberGroup key, LabelGroup value) {
         super(GroupType.CASE_LABEL, val);
+        this.key = key;
+        this.value = value;
     }
 
     public NumberGroup getKey() {
         return key;
     }
 
-    public IdentifierGroup getVal() {
+    public LabelGroup getVal() {
         return value;
     }
 

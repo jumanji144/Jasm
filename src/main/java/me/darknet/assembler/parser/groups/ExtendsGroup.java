@@ -9,6 +9,7 @@ public class ExtendsGroup extends Group {
 
     public ExtendsGroup(Token value, IdentifierGroup className) {
         super(GroupType.EXTENDS_DIRECTIVE, value, className);
+        this.className = className;
     }
 
     public IdentifierGroup getClassName() {
