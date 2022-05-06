@@ -12,4 +12,5 @@ public class AccessModsGroup extends Group {
         super(GroupType.ACCESS_MODS, accessModGroups);
         this.accessMods = accessModGroups;
     }
+
 }
