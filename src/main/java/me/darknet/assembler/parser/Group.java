@@ -45,6 +45,20 @@ public class Group {
         return children[index];
     }
 
+    public Location location() {
+        return start().location;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T getChild(Class<T> type) {
+        for(Group child : children) {
+            if(child.type.getClass() == type) {
+                return (T) child;
+            }
+        }
+        return null;
+    }
+
     public int size() {
         return children.length;
     }
@@ -74,7 +88,7 @@ public class Group {
         DEFAULT_LABEL,
 
         TABLE_SWITCH,
-        MACRO_DIRECTIVE,
+        MACRO_DIRECTIVE, // TODO: Remove this.
 
         // higher order abstraction
         CLASS_DECLARATION,
