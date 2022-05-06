@@ -8,7 +8,7 @@ public class ParserContext {
     public Queue<Token> tokens;
     public Token currentToken;
     public Parser parser;
-    public  Map<String, Group[]> macros = new HashMap<>();
+    public Map<String, Group[]> macros = new HashMap<>();
 
     public ParserContext(Queue<Token> tokens, Parser parser) {
         this.groups = new LinkedList<>();
@@ -69,35 +69,6 @@ public class ParserContext {
      * Does the final pass over the groups to finalize them and move extends and implements to the correct place
      */
     public void pass() {
-        // go over all groups and add the extends and implements to the class
-
-        // HACK: this is a hack to get the extends and implements to the class,
-        //       but it allows the parser to be a bit more flexible
-
-        Group classGroup = (Group) groups.toArray()[0];
-        Group extendsGroup = null;
-        List<Group> implementsGroups = new ArrayList<>();
-        for (Group group : groups) {
-            if (group.type == Group.GroupType.EXTENDS_DIRECTIVE) {
-                extendsGroup = group;
-            }
-            if (group.type == Group.GroupType.IMPLEMENTS_DIRECTIVE) {
-                implementsGroups.add(group);
-            }
-        }
-        List<Group> newChildren = new ArrayList<>();
-        newChildren.add(classGroup.children[0]);
-        newChildren.add(classGroup.children[1]);
-        if (extendsGroup != null) {
-            newChildren.add(extendsGroup);
-        }
-        newChildren.addAll(implementsGroups);
-
-        classGroup.children = newChildren.toArray(new Group[0]);
-
-        // remove the extends and implements from the groups
-        groups.remove(extendsGroup);
-        groups.removeAll(implementsGroups);
 
     }
 

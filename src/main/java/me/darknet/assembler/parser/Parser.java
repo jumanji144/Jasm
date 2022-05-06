@@ -1,6 +1,7 @@
 package me.darknet.assembler.parser;
 
 import me.darknet.assembler.instructions.ParseInfo;
+import me.darknet.assembler.parser.groups.*;
 
 import java.util.*;
 
@@ -191,10 +192,10 @@ public class Parser {
                     }
                     children.add(group);
                 }
-                return new Group(GroupType.INSTRUCTION, token, children.toArray(new Group[0]));
+                return new InstructionGroup(token, children.toArray(new Group[0]));
             } else {
                 if(content.endsWith(":")){
-                    return new Group(GroupType.LABEL, token);
+                    return new LabelGroup(token);
                 }
             }
             if(ctx.macros.containsKey(content)){
@@ -204,14 +205,14 @@ public class Parser {
                 }
                 return groups[groups.length - 1];
             }
-            return new Group(token.type.toGroupType(), token);
+            return new IdentifierGroup(token);
         }
 
         switch(token.content){
             case KEYWORD_CLASS: {
-                Group access = readAccess(ctx);
-                Group name = ctx.nextGroup(GroupType.IDENTIFIER);
-                return new Group(GroupType.CLASS_DECLARATION, token, access, name);
+                AccessModsGroup access = readAccess(ctx);
+                IdentifierGroup name = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                return new ClassDeclarationGroup(token, access, name);
             }
             case KEYWORD_EXTENDS: {
                 // also ensure that the previous group is a class declaration or an implements directive
@@ -220,8 +221,8 @@ public class Parser {
                         && previous.type != GroupType.IMPLEMENTS_DIRECTIVE) {
                     throw new AssemblerException("Extends can only follow a class declaration", token.location);
                 }
-                Group cls = ctx.nextGroup(GroupType.IDENTIFIER);
-                return new Group(GroupType.EXTENDS_DIRECTIVE, token, cls);
+                IdentifierGroup group = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                return new ExtendsGroup(token, group);
             }
             case KEYWORD_IMPLEMENTS: {
                 // same with implements
@@ -231,42 +232,36 @@ public class Parser {
                         && previous.type != GroupType.EXTENDS_DIRECTIVE) {
                     throw new AssemblerException("Implements can only follow a class declaration", token.location);
                 }
-                Group cls = ctx.nextGroup(GroupType.IDENTIFIER);
-                return new Group(GroupType.IMPLEMENTS_DIRECTIVE, token, cls);
+                IdentifierGroup group = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                return new ImplementsGroup(token, group);
             }
             case KEYWORD_FIELD: {
                 // maybe read access modifiers
-                Group access = readAccess(ctx);
-                Group name = ctx.nextGroup(GroupType.IDENTIFIER);
-                Group descriptor = ctx.nextGroup(GroupType.IDENTIFIER);
+                AccessModsGroup access = readAccess(ctx);
+                IdentifierGroup name = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                IdentifierGroup descriptor = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
 
-                return new Group(GroupType.FIELD_DECLARATION, token, access, name, descriptor);
+                return new FieldDeclarationGroup(token, access, name, descriptor);
             }
             case KEYWORD_METHOD: {
                 // maybe read access modifiers
-                Group access = readAccess(ctx);
-                Group methodDescriptor = ctx.nextGroup(GroupType.IDENTIFIER);
-                return new Group(GroupType.METHOD_DECLARATION, token, access, methodDescriptor, readBody(ctx));
+                AccessModsGroup access = readAccess(ctx);
+                IdentifierGroup methodDescriptor = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                return new MethodDeclarationGroup(token, access, methodDescriptor, readBody(ctx));
             }
             case KEYWORD_END: {
                 return new Group(GroupType.END_BODY, token);
             }
-            case KEYWORD_SWITCH: {
-                List<Group> labels = readLookupSwitch(ctx);
-                return new Group(GroupType.LOOKUP_SWITCH, token, labels.toArray(new Group[0]));
-            }
-            case KEYWORD_TABLESWITCH: {
-                List<Group> labels = readTableSwitch(ctx);
-                return new Group(GroupType.TABLE_SWITCH, token, labels.toArray(new Group[0]));
-            }
+            case KEYWORD_SWITCH: return readLookupSwitch(token, ctx);
+            case KEYWORD_TABLESWITCH:  return readTableSwitch(token, ctx);
             case KEYWORD_CASE: {
-                Group value = ctx.nextGroup(GroupType.NUMBER);
-                Group label = ctx.nextGroup(GroupType.IDENTIFIER);
-                return new Group(GroupType.CASE_LABEL, token, value, label);
+                NumberGroup value = (NumberGroup) ctx.nextGroup(GroupType.NUMBER);
+                IdentifierGroup label = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                return new CaseLabelGroup(token, value, label);
             }
             case KEYWORD_DEFAULT: {
-                Group label = ctx.nextGroup(GroupType.IDENTIFIER);
-                return new Group(GroupType.DEFAULT_LABEL, token, label);
+                IdentifierGroup label = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                return new DefaultLabelGroup(token, new LabelGroup(label.value));
             }
             case KEYWORD_MACRO: {
                 Group macroName = ctx.nextGroup(GroupType.IDENTIFIER);
@@ -278,61 +273,59 @@ public class Parser {
             case KEYWORD_PUBLIC:
             case KEYWORD_PRIVATE:
             case KEYWORD_STATIC:
-                return new Group(GroupType.ACCESS_MOD, token);
+                return new AccessModGroup(token);
 
         }
 
         return new Group(GroupType.IDENTIFIER, token);
     }
 
-    public Group readAccess(ParserContext ctx) throws AssemblerException {
-        List<Group> access = new ArrayList<>();
+    public AccessModsGroup readAccess(ParserContext ctx) throws AssemblerException {
+        List<AccessModGroup> access = new ArrayList<>();
         while(ctx.peekToken().type == KEYWORD){
-            access.add(ctx.nextGroup(GroupType.ACCESS_MOD));
+            access.add((AccessModGroup) ctx.nextGroup(GroupType.ACCESS_MOD));
         }
-        return new Group(GroupType.ACCESS_MODS, access.toArray(new Group[0]));
+        return new AccessModsGroup(access.toArray(new AccessModGroup[0]));
     }
 
-    public Group readBody(ParserContext ctx) throws AssemblerException {
+    public BodyGroup readBody(ParserContext ctx) throws AssemblerException {
         List<Group> body = new ArrayList<>();
         while(ctx.hasNextToken()){
             Group grp = ctx.parseNext();
             if(grp.type == GroupType.END_BODY){
-                return new Group(GroupType.BODY, body.toArray(new Group[0]));
+                return new BodyGroup(body.toArray(new Group[0]));
             }
             body.add(grp);
         }
         throw new AssemblerException("Unexpected end of file", ctx.currentToken.getLocation());
     }
 
-    public List<Group> readLookupSwitch(ParserContext ctx) throws AssemblerException {
-        List<Group> caseLabels = new ArrayList<>();
+    public LookupSwitchGroup readLookupSwitch(Token begin, ParserContext ctx) throws AssemblerException {
+        List<CaseLabelGroup> caseLabels = new ArrayList<>();
         while(ctx.hasNextToken()){
             Group grp = ctx.parseNext();
             if(grp.type == GroupType.DEFAULT_LABEL){
-                caseLabels.add(grp);
-                return caseLabels;
+                return new LookupSwitchGroup(begin, (DefaultLabelGroup) grp, caseLabels.toArray(new CaseLabelGroup[0]));
             }
             if(grp.type != GroupType.CASE_LABEL){
                 throw new AssemblerException("Expected case label", grp.start().location);
             }
-            caseLabels.add(grp);
+            caseLabels.add((CaseLabelGroup) grp);
         }
         throw new AssemblerException("Unexpected end of file", ctx.currentToken.getLocation());
     }
 
-    private List<Group> readTableSwitch(ParserContext ctx) throws AssemblerException {
-        List<Group> caseLabels = new ArrayList<>();
+    private TableSwitchGroup readTableSwitch(Token begin, ParserContext ctx) throws AssemblerException {
+        List<LabelGroup> caseLabels = new ArrayList<>();
         while(ctx.hasNextToken()){
             Group grp = ctx.parseNext();
             if(grp.type == GroupType.DEFAULT_LABEL){
-                caseLabels.add(grp);
-                return caseLabels;
+                return new TableSwitchGroup(begin, (DefaultLabelGroup) grp, caseLabels.toArray(new LabelGroup[0]));
             }
             if(grp.type != GroupType.IDENTIFIER){
                 throw new AssemblerException("Expected case label", grp.start().location);
             }
-            caseLabels.add(grp);
+            caseLabels.add(new LabelGroup(grp.value));
         }
         throw new AssemblerException("Unexpected end of file", ctx.currentToken.getLocation());
     }
