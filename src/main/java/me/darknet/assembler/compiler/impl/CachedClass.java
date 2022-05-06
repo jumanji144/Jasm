@@ -12,7 +12,7 @@ public class CachedClass {
     public int version;
     public int access;
     public String fullyQualifiedName;
-    public String superGroup;
+    public String superGroup = "java/lang/Object";
     public List<String> implementsGroups = new ArrayList<>();
 
     public boolean hasBuilt;
