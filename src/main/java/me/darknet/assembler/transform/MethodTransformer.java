@@ -51,6 +51,7 @@ public class MethodTransformer {
                     case LABEL -> mv.visitLabel((LabelGroup) inst);
                     case LOOKUP_SWITCH -> mv.visitLookupSwitchInsn((LookupSwitchGroup) inst);
                     case TABLE_SWITCH -> mv.visitTableSwitchInsn((TableSwitchGroup) inst);
+                    case CATCH -> mv.visitCatch((CatchGroup) inst);
                     case INSTRUCTION -> visitInstruction((InstructionGroup) inst);
                     default -> throw new AssemblerException("Unknown instruction type: " + inst.type, inst.value.getLocation());
                 }

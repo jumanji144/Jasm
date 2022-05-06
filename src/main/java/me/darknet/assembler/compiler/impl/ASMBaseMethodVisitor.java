@@ -65,6 +65,15 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     }
 
     @Override
+    public void visitCatch(CatchGroup catchGroup) throws AssemblerException {
+        IdentifierGroup exception = catchGroup.getException();
+        LabelGroup begin = catchGroup.getBegin();
+        LabelGroup end = catchGroup.getEnd();
+        LabelGroup handler = catchGroup.getHandler();
+        mv.visitTryCatchBlock(getLabel(begin.getLabel()), getLabel(end.getLabel()), getLabel(handler.getLabel()), exception.content());
+    }
+
+    @Override
     public void visitVarInsn(int opcode, IdentifierGroup identifier) throws AssemblerException {
         mv.visitVarInsn(opcode, getLocal(identifier, true));
     }

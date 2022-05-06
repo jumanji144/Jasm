@@ -37,6 +37,13 @@ public interface MethodVisitor {
     void visitTableSwitchInsn(TableSwitchGroup tableSwitch) throws AssemblerException;
 
     /**
+     * Visit a catch statement
+     * @param catchGroup the catch statement
+     * @throws AssemblerException if an error occurs
+     */
+    void visitCatch(CatchGroup catchGroup) throws AssemblerException;
+
+    /**
      * Visit a var instruction using a local variable name
      * @param opcode the opcode of the instruction
      * @param identifier the name of the local variable

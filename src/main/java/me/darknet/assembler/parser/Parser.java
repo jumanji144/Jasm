@@ -18,6 +18,7 @@ public class Parser {
     public static final String KEYWORD_STATIC = "static";
     public static final String KEYWORD_PUBLIC = "public";
     public static final String KEYWORD_PRIVATE = "private";
+    public static final String KEYWORD_PROTECTED = "protected";
     public static final String KEYWORD_EXTENDS = "extends";
     public static final String KEYWORD_IMPLEMENTS = "implements";
     public static final String KEYWORD_FINAL = "final";
@@ -28,6 +29,7 @@ public class Parser {
     public static final String KEYWORD_DEFAULT = "default";
     public static final String KEYWORD_CASE = "case";
     public static final String KEYWORD_MACRO = "macro";
+    public static final String KEYWORD_CATCH = "catch";
     private static final String[] keywords = {
             KEYWORD_CLASS,
             KEYWORD_METHOD,
@@ -36,6 +38,7 @@ public class Parser {
             KEYWORD_STATIC,
             KEYWORD_PUBLIC,
             KEYWORD_PRIVATE,
+            KEYWORD_PROTECTED,
             KEYWORD_EXTENDS,
             KEYWORD_IMPLEMENTS,
             KEYWORD_FINAL,
@@ -45,7 +48,8 @@ public class Parser {
             KEYWORD_TABLESWITCH,
             KEYWORD_DEFAULT,
             KEYWORD_CASE,
-            KEYWORD_MACRO
+            KEYWORD_MACRO,
+            KEYWORD_CATCH
     };
 
     public List<Token> tokenize(String source, String code) {
@@ -272,10 +276,18 @@ public class Parser {
                 ctx.macros.put(macroName.content(), children);
                 return new Group(GroupType.MACRO_DIRECTIVE, token, children);
             }
+            case KEYWORD_CATCH: {
+                IdentifierGroup exception = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                LabelGroup begin = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
+                LabelGroup end = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
+                LabelGroup handler = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
+                return new CatchGroup(token, exception, begin, end, handler);
+            }
 
             case KEYWORD_PUBLIC:
             case KEYWORD_PRIVATE:
             case KEYWORD_STATIC:
+            case KEYWORD_FINAL:
                 return new AccessModGroup(token);
 
         }

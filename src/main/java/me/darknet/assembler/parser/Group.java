@@ -88,6 +88,7 @@ public class Group {
         DEFAULT_LABEL,
 
         TABLE_SWITCH,
+        CATCH,
         MACRO_DIRECTIVE, // TODO: Remove this.
 
         // higher order abstraction
