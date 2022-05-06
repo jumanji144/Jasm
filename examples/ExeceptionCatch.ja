@@ -21,7 +21,11 @@ method public static main([Ljava/lang/String;)V
 
 L1:
     # create exception and throw it
-    nop
+    new java/lang/Exception
+    dup
+    ldc "Exception message"
+    invokespecial java/lang/Exception/<init> (Ljava/lang/String;)V
+    athrow
 
 
 L2:
