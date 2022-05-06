@@ -23,9 +23,9 @@ public class ParserTests {
         String input2 = "field public number I";
         String input3 = "method public static main([Ljava/lang/String;)V";
 
-        List<Token> tokens1 = parser.tokenize(input1);
-        List<Token> tokens2 = parser.tokenize(input2);
-        List<Token> tokens3 = parser.tokenize(input3);
+        List<Token> tokens1 = parser.tokenize("stdin", input1);
+        List<Token> tokens2 = parser.tokenize("stdin", input2);
+        List<Token> tokens3 = parser.tokenize("stdin", input3);
 
         assertEquals(4, tokens1.size());
         assertEquals(4, tokens2.size());
