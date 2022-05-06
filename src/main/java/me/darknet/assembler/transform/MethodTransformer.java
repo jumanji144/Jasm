@@ -30,10 +30,19 @@ public class MethodTransformer {
 
     private final MethodVisitor mv;
 
+    /**
+     * Constructs a new MethodTransformer for the given MethodVisitor.
+     * @param mv the MethodVisitor to use
+     */
     public MethodTransformer(MethodVisitor mv) {
         this.mv = mv;
     }
 
+    /**
+     * Visits the given method body.
+     * @param body the method body to transform
+     * @throws AssemblerException if an error occurs
+     */
     public void transform(BodyGroup body) throws AssemblerException {
         if (body != null) {
             for (Group inst : body.getChildren()) {
@@ -50,6 +59,11 @@ public class MethodTransformer {
         }
     }
 
+    /**
+     * Visits the given instruction, and calls a sub visitor for the instruction.
+     * @param inst the instruction to visit
+     * @throws AssemblerException if an error occurs
+     */
     public void visitInstruction(InstructionGroup inst) throws AssemblerException {
         String instruction = inst.content();
         ParseInfo info = ParseInfo.get(instruction);
