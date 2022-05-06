@@ -1,6 +1,6 @@
 class public Flow extends java/lang/Object
 
-method public static void main(java.lang.String[])V
+method public static main([Ljava/lang/String;)V
 
     iconst_0
     istore i
@@ -17,3 +17,4 @@ method public static void main(java.lang.String[])V
 
     L2:
         return
+end

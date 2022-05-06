@@ -7,6 +7,7 @@ method public <init>()V
 end
 
 method public static main([Ljava/lang/String;)V
+
     iconst_2
     anewarray java/lang/String
     astore array

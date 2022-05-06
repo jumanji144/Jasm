@@ -1,4 +1,4 @@
-class public LookupSwitch extends java/lang/Object
+class public TableSwitch extends java/lang/Object
 
 method public <init>()V
     aload this
