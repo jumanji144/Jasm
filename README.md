@@ -47,7 +47,34 @@ public class Test {
     }
 }
 ```
+# Macros
+The language also supports a kind of preprocessor for marcos using the `macro` keyword      
+Example
 
+```jasmin
+class public Macros extends java/lang/Object
+
+macro System.out
+    getstatic java/lang/System/out Ljava/io/PrintStream;
+end
+
+macro println java/io/PrintStream/println(Ljava/lang/String;)V end
+
+method public <init>()V
+    aload this
+    invokespecial java/lang/Object/<init>()V
+    return
+end
+
+method public static main([Ljava/lang/String;)V
+    System.out # converts to 'getstatic java/lang/System/out Ljava/io/PrintStream;'
+    ldc "Hello, World!"
+    invokevirtual println # converts to 'invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V'
+    return
+end
+```
+
+Macros with arguments are planned in the future but currently not a priority 
 # Credits
 
 Mostly i would like to credit [Jasmin](https://github.com/davidar/jasmin) for inspriation for the syntax and outline of the project      
