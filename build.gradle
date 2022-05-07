@@ -1,14 +1,29 @@
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 group 'me.darknet'
-version '1.0-SNAPSHOT'
+version '1.0.0'
 
 repositories {
     mavenCentral()
     mavenLocal()
     google()
+    repositories {
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+sourceCompatibility = targetCompatibility = 8
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs.addAll(['-parameters', '-g:lines,source,vars'])
+}
+
+task sourcesJar(type: Jar) {
+    from sourceSets.main.java
+    classifier = 'sources'
 }
 
 dependencies {
@@ -26,6 +41,20 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
 }
 
+publishing {
+    repositories {
+        maven {
+            name = 'sources-repo'
+            url = 'file:///tmp/sources-repo'
+        }
+    }
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+        }
+    }
+}
 test {
     useJUnitPlatform()
 }
