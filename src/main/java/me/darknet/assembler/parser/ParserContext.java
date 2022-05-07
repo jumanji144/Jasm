@@ -51,6 +51,10 @@ public class ParserContext {
         groups.add(group);
     }
 
+    /**
+     * Reads the next token and directly interprets it as an identifier group
+     * @return identifier group
+     */
     public IdentifierGroup explicitIdentifier() {
         return new IdentifierGroup(nextToken());
     }

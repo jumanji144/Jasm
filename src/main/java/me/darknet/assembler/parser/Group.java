@@ -107,6 +107,7 @@ public class Group {
 
         ANNOTATION,
         ANNOTATION_PARAMETER,
+        ENUM,
         INVISIBLE_ANNOTATION,
         INSTRUCTION,
         STACK_LIMIT,

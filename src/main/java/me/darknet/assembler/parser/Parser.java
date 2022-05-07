@@ -20,6 +20,12 @@ public class Parser {
     public static final String KEYWORD_PUBLIC = "public";
     public static final String KEYWORD_PRIVATE = "private";
     public static final String KEYWORD_PROTECTED = "protected";
+    public static final String KEYWORD_SYNCHRONIZED = "synchronized";
+    public static final String KEYWORD_VOLATILE = "volatile";
+    public static final String KEYWORD_TRANSIENT = "transient";
+    public static final String KEYWORD_NATIVE = "native";
+    public static final String KEYWORD_ABSTRACT = "abstract";
+    public static final String KEYWORD_STRICT = "strictfp";
     public static final String KEYWORD_EXTENDS = "extends";
     public static final String KEYWORD_IMPLEMENTS = "implements";
     public static final String KEYWORD_FINAL = "final";
@@ -35,7 +41,8 @@ public class Parser {
     public static final String KEYWORD_ARGS = "args";
     public static final String KEYWORD_TYPE = ".type";
     public static final String KEYWORD_ANNOTATION = "annotation";
-    public static final String KEYWORD_INVISBLE_ANNOTATION = "invisible-annotation";
+    public static final String KEYWORD_INVISIBLE_ANNOTATION = "invisible-annotation";
+    public static final String KEYWORD_ENUM = "enum";
     private static final String[] keywords = {
             KEYWORD_CLASS,
             KEYWORD_METHOD,
@@ -60,8 +67,25 @@ public class Parser {
             KEYWORD_ARGS,
             KEYWORD_TYPE,
             KEYWORD_ANNOTATION,
-            KEYWORD_INVISBLE_ANNOTATION
+            KEYWORD_INVISIBLE_ANNOTATION,
+            KEYWORD_TRANSIENT,
+            KEYWORD_VOLATILE,
+            KEYWORD_STRICT,
+            KEYWORD_NATIVE,
+            KEYWORD_ABSTRACT,
     };
+
+    public static final List<String> accessModifiers = Arrays.asList(
+            "public",
+            "private",
+            "protected",
+            "static",
+            "final",
+            "synchronized",
+            "native",
+            "abstract",
+            "strictfp"
+    );
 
     public List<Token> tokenize(String source, String code) {
 
@@ -333,7 +357,7 @@ public class Parser {
             case KEYWORD_ARGS: {
                 return new ArgsGroup(token, readBody(ctx));
             }
-            case KEYWORD_INVISBLE_ANNOTATION:
+            case KEYWORD_INVISIBLE_ANNOTATION:
             case KEYWORD_ANNOTATION: {
                 List<AnnotationParamGroup> params = new ArrayList<>();
                 IdentifierGroup classGroup = ctx.explicitIdentifier();
@@ -341,9 +365,6 @@ public class Parser {
                     IdentifierGroup name = ctx.explicitIdentifier();
                     if(name.content().equals(KEYWORD_END)) {
                         Token next = ctx.peekToken();
-                        if(next.type != KEYWORD) {
-                            throw new AssemblerException("Expected annotation target", next.location);
-                        }
                         AnnotationTarget target;
                         switch (next.content) {
                             case KEYWORD_FIELD:
@@ -356,9 +377,19 @@ public class Parser {
                                 target = AnnotationTarget.CLASS;
                                 break;
                             default:
-                                throw new AssemblerException("Invalid annotation target", next.location);
+                                target = AnnotationTarget.UNKNOWN;
+                                break;
                         }
-                        return new AnnotationGroup(token, target, token.content.equals(KEYWORD_INVISBLE_ANNOTATION), classGroup, params.toArray(new AnnotationParamGroup[0]));
+                        return new AnnotationGroup(token, target, token.content.equals(KEYWORD_INVISIBLE_ANNOTATION), classGroup, params.toArray(new AnnotationParamGroup[0]));
+                    }
+                    Token next = ctx.peekToken();
+                    // enum intrinsic annotation
+                    if(next.content.equals(KEYWORD_ENUM)) {
+                        Token enumToken = ctx.nextToken();
+                        IdentifierGroup enumGroup = ctx.explicitIdentifier();
+                        IdentifierGroup enumValue = ctx.explicitIdentifier();
+                        params.add(new AnnotationParamGroup(name.value, name, new EnumGroup(enumToken, enumGroup, enumValue)));
+                        continue;
                     }
                     Group param = ctx.parseNext();
                     params.add(new AnnotationParamGroup(name.value, name, param));
@@ -368,8 +399,15 @@ public class Parser {
 
             case KEYWORD_PUBLIC:
             case KEYWORD_PRIVATE:
+            case KEYWORD_PROTECTED:
             case KEYWORD_STATIC:
             case KEYWORD_FINAL:
+            case KEYWORD_SYNCHRONIZED:
+            case KEYWORD_VOLATILE:
+            case KEYWORD_TRANSIENT:
+            case KEYWORD_NATIVE:
+            case KEYWORD_ABSTRACT:
+            case KEYWORD_STRICT:
                 return new AccessModGroup(token);
 
         }

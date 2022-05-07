@@ -121,16 +121,41 @@ public class ASMBaseVisitor implements Visitor {
         return new ASMBaseMethodVisitor(mv, md, currentClass, isStatic);
     }
 
+    public void paramValue(String name, Group value, AnnotationVisitor av) throws AssemblerException{
+
+        if(value.type == GroupType.ARGS){
+            ArgsGroup args = (ArgsGroup) value;
+            AnnotationVisitor arrayVis = av.visitArray(name);
+            for (Group group : args.getBody().children) {
+                paramValue(name, group, arrayVis);
+            }
+            arrayVis.visitEnd();
+        } else if(value.type == GroupType.ENUM) {
+            EnumGroup enumGroup = (EnumGroup) value;
+            av.visitEnum(name, enumGroup.getDescriptor().content(), enumGroup.getEnumValue().content());
+        } else if(value.type == GroupType.ANNOTATION) {
+            AnnotationGroup annotationGroup = (AnnotationGroup) value;
+            AnnotationVisitor annotationVis = av.visitAnnotation(name, annotationGroup.getClassGroup().content());
+            for(AnnotationParamGroup param : annotationGroup.getParams()) {
+                annotationParam(param, annotationVis);
+            }
+            annotationVis.visitEnd();
+        } else {
+            av.visit(name, value.content());
+        }
+
+    }
+
     public void annotationParam(AnnotationParamGroup annotationParam, AnnotationVisitor av) throws AssemblerException {
         if(annotationParam.value.type == GroupType.ARGS) {
             ArgsGroup args = (ArgsGroup) annotationParam.value;
             AnnotationVisitor arrayVis = av.visitArray(annotationParam.name.content());
             for (Group group : args.getBody().children) {
-                arrayVis.visit("", GroupUtil.convert(currentClass, group));
+                paramValue(annotationParam.name.content(), group, arrayVis);
             }
             arrayVis.visitEnd();
         }else {
-            av.visit(annotationParam.name.content(), GroupUtil.convert(currentClass, annotationParam.value));
+            paramValue(annotationParam.name.content(), annotationParam.value, av);
         }
     }
 

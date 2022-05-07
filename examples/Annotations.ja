@@ -14,6 +14,11 @@ field number I
 
 invisible-annotation me/coley/InsnComment
     value "This is a comment"
+    annotation annotation me/coley/CommentComment
+             value "Sub comment"
+             list args "This is a sub-list" end
+          end
+    target enum java/lang/annotation/RetentionPolicy RUNTIME
     list args "Hello World" end
 end
 method public static main([Ljava/lang/String;)V

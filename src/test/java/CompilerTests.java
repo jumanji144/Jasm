@@ -2,6 +2,9 @@ import me.darknet.assembler.Assembler;
 import me.darknet.assembler.parser.AssemblerException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,20 +45,25 @@ public class CompilerTests {
         }
     }
 
-    @Test
-    public void testAllExamples() throws AssemblerException {
+    public static List<Arguments> getFeatures() {
+        List<Arguments> args = new ArrayList<>(features.size());
         for (int i = 0; i < features.size(); i++) {
-            String feature = features.get(i);
-            byte[] bytes = featuresBytes.get(i);
-            System.out.print("Testing " + feature);
-            try {
-                Assembler.assemble(feature, 52, bytes);
-            } catch (Exception e) {
-                System.out.println(" FAILED");
-                continue;
-            }
-            System.out.println("... OK");
+            args.add(Arguments.of(features.get(i), featuresBytes.get(i)));
         }
+        return args;
+    }
+
+    @ParameterizedTest
+    @MethodSource("getFeatures")
+    public void testExample(String feature, byte[] bytes) throws AssemblerException {
+        System.out.print("Testing " + feature);
+        try {
+            Assembler.assemble(feature, 52, bytes);
+        } catch (Exception e) {
+            System.out.println(" FAILED");
+            return;
+        }
+        System.out.println("... OK");
     }
 
 }

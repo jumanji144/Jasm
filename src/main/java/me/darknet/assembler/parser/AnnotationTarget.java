@@ -4,4 +4,5 @@ public enum AnnotationTarget {
     FIELD,
     METHOD,
     CLASS,
+    UNKNOWN
 }
