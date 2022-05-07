@@ -199,7 +199,7 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     }
 
     public void verify() throws AssemblerException {
-        for (var stringLabelEntry : labels.entrySet()) {
+        for (Map.Entry<String, Label> stringLabelEntry : labels.entrySet()) {
             try {
                 stringLabelEntry.getValue().getOffset();
             } catch (IllegalStateException e) {

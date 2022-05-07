@@ -29,28 +29,32 @@ public class Transformer {
             try {
                 visitor.visit(group);
                 switch (group.type) {
-                    case CLASS_DECLARATION -> {
+                    case CLASS_DECLARATION:
                         ClassDeclarationGroup classDcl = (ClassDeclarationGroup) group;
                         visitor.visitClass(classDcl.accessMods, classDcl.name);
-                    }
-                    case FIELD_DECLARATION -> {
+                        break;
+                    case FIELD_DECLARATION:
                         FieldDeclarationGroup fieldDcl = (FieldDeclarationGroup) group;
                         visitor.visitField(fieldDcl.accessMods, fieldDcl.name, fieldDcl.descriptor);
-                    }
-                    case METHOD_DECLARATION -> {
+                        break;
+                    case METHOD_DECLARATION:
                         MethodDeclarationGroup methodDcl = (MethodDeclarationGroup) group;
                         // create a new method visitor
                         MethodVisitor mv = visitor.visitMethod(methodDcl.accessMods, methodDcl.descriptor, methodDcl.body);
                         // call it using a method transformer
                         MethodTransformer mt = new MethodTransformer(mv);
                         mt.transform(methodDcl.body);
-                    }
-                    case ANNOTATION -> {
+                        break;
+                    case ANNOTATION:
                         AnnotationGroup annotation = (AnnotationGroup) group;
                         visitor.visitAnnotation(annotation);
-                    }
-                    case EXTENDS_DIRECTIVE -> visitor.visitSuper((ExtendsGroup) group);
-                    case IMPLEMENTS_DIRECTIVE -> visitor.visitImplements((ImplementsGroup) group);
+                        break;
+                    case EXTENDS_DIRECTIVE:
+                        visitor.visitSuper((ExtendsGroup) group);
+                        break;
+                    case IMPLEMENTS_DIRECTIVE:
+                        visitor.visitImplements((ImplementsGroup) group);
+                        break;
                 }
             }catch (AssemblerException e) {
                 throw e;

@@ -155,9 +155,15 @@ public class ASMBaseVisitor implements Visitor {
         int accessFlags = 0;
         for (AccessModGroup g : access.accessMods) {
             switch (g.content()) {
-                case Parser.KEYWORD_PUBLIC -> accessFlags |= ACC_PUBLIC;
-                case Parser.KEYWORD_PRIVATE -> accessFlags |= ACC_PRIVATE;
-                case Parser.KEYWORD_STATIC -> accessFlags |= ACC_STATIC;
+                case Parser.KEYWORD_PUBLIC:
+                    accessFlags |= ACC_PUBLIC;
+                    break;
+                case Parser.KEYWORD_PRIVATE:
+                    accessFlags |= ACC_PRIVATE;
+                    break;
+                case Parser.KEYWORD_STATIC:
+                    accessFlags |= ACC_STATIC;
+                    break;
             }
         }
         return accessFlags;

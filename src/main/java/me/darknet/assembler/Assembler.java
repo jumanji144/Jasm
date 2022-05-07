@@ -7,13 +7,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
 
 public class Assembler {
 
     public static ParserContext parse(String path) throws IOException, AssemblerException {
-        return parse("stdin", Files.readAllBytes(Path.of(path)));
+        return parse("stdin", Files.readAllBytes(Paths.get(path)));
     }
 
     public static ParserContext parse(String source, byte[] bytes) throws AssemblerException {
@@ -28,7 +29,7 @@ public class Assembler {
     }
 
     public static byte[] assemble(int classVersion, String path) throws IOException, AssemblerException {
-        return assemble(path, classVersion, Files.readAllBytes(Path.of(path)));
+        return assemble(path, classVersion, Files.readAllBytes(Paths.get(path)));
     }
 
     public static byte[] assemble(String source, int classVersion, byte[] bytes) throws AssemblerException {
@@ -54,7 +55,7 @@ public class Assembler {
             long end = System.nanoTime();
             System.out.println("Assembled in " + (end - start) / 1000000 + "ms");
             try {
-                Files.write(Path.of(output), bytes);
+                Files.write(Paths.get(output), bytes);
             }
             catch (IOException e) {
                 e.printStackTrace();

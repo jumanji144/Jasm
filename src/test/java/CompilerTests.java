@@ -6,11 +6,12 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class CompilerTests {
 
-    static List<String> features = List.of(
+    static List<String> features = Arrays.asList(
             "Annotations.ja",
             "Array.ja",
             "ClassInstances.ja",

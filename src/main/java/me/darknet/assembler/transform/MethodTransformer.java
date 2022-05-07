@@ -9,6 +9,7 @@ import me.darknet.assembler.parser.groups.*;
 import org.objectweb.asm.Label;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,16 +19,18 @@ import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
 
 public class MethodTransformer {
 
-    public static final Map<String, Integer> newArrayTypes = Map.of(
-            "byte", T_BYTE,
-            "char", T_CHAR,
-            "double", T_DOUBLE,
-            "float", T_FLOAT,
-            "int", T_INT,
-            "long", T_LONG,
-            "short", T_SHORT,
-            "boolean", T_BOOLEAN);
+    public static final Map<String, Integer> newArrayTypes = new HashMap<>();
 
+    static {
+        newArrayTypes.put("byte", T_BYTE);
+        newArrayTypes.put("short", T_SHORT);
+        newArrayTypes.put("int", T_INT);
+        newArrayTypes.put("long", T_LONG);
+        newArrayTypes.put("float", T_FLOAT);
+        newArrayTypes.put("double", T_DOUBLE);
+        newArrayTypes.put("char", T_CHAR);
+        newArrayTypes.put("boolean", T_BOOLEAN);
+    }
     private final MethodVisitor mv;
 
     /**
@@ -48,12 +51,23 @@ public class MethodTransformer {
             for (Group inst : body.getChildren()) {
                 mv.visit(inst);
                 switch (inst.getType()) {
-                    case LABEL -> mv.visitLabel((LabelGroup) inst);
-                    case LOOKUP_SWITCH -> mv.visitLookupSwitchInsn((LookupSwitchGroup) inst);
-                    case TABLE_SWITCH -> mv.visitTableSwitchInsn((TableSwitchGroup) inst);
-                    case CATCH -> mv.visitCatch((CatchGroup) inst);
-                    case INSTRUCTION -> visitInstruction((InstructionGroup) inst);
-                    default -> throw new AssemblerException("Unknown instruction type: " + inst.type, inst.value.getLocation());
+                    case LABEL:
+                        mv.visitLabel((LabelGroup) inst);
+                        break;
+                    case LOOKUP_SWITCH:
+                        mv.visitLookupSwitchInsn((LookupSwitchGroup) inst);
+                        break;
+                    case TABLE_SWITCH:
+                        mv.visitTableSwitchInsn((TableSwitchGroup) inst);
+                        break;
+                    case CATCH:
+                        mv.visitCatch((CatchGroup) inst);
+                        break;
+                    case INSTRUCTION:
+                        visitInstruction((InstructionGroup) inst);
+                        break;
+                    default:
+                        throw new AssemblerException("Unknown instruction type: " + inst.type, inst.value.getLocation());
                 }
             }
             mv.visitEnd();

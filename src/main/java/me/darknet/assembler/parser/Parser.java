@@ -344,12 +344,20 @@ public class Parser {
                         if(next.type != KEYWORD) {
                             throw new AssemblerException("Expected annotation target", next.location);
                         }
-                        AnnotationTarget target = switch (next.content) {
-                            case KEYWORD_FIELD -> AnnotationTarget.FIELD;
-                            case KEYWORD_METHOD -> AnnotationTarget.METHOD;
-                            case KEYWORD_CLASS -> AnnotationTarget.CLASS;
-                            default -> throw new AssemblerException("Invalid annotation target", next.location);
-                        };
+                        AnnotationTarget target;
+                        switch (next.content) {
+                            case KEYWORD_FIELD:
+                                target = AnnotationTarget.FIELD;
+                                break;
+                            case KEYWORD_METHOD:
+                                target = AnnotationTarget.METHOD;
+                                break;
+                            case KEYWORD_CLASS:
+                                target = AnnotationTarget.CLASS;
+                                break;
+                            default:
+                                throw new AssemblerException("Invalid annotation target", next.location);
+                        }
                         return new AnnotationGroup(token, target, token.content.equals(KEYWORD_INVISBLE_ANNOTATION), classGroup, params.toArray(new AnnotationParamGroup[0]));
                     }
                     Group param = ctx.parseNext();
