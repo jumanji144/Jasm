@@ -30,6 +30,9 @@ public class Parser {
     public static final String KEYWORD_CASE = "case";
     public static final String KEYWORD_MACRO = "macro";
     public static final String KEYWORD_CATCH = "catch";
+    public static final String KEYWORD_HANDLE = ".handle";
+    public static final String KEYWORD_ARGS = "args";
+    public static final String KEYWORD_TYPE = ".type";
     private static final String[] keywords = {
             KEYWORD_CLASS,
             KEYWORD_METHOD,
@@ -49,7 +52,10 @@ public class Parser {
             KEYWORD_DEFAULT,
             KEYWORD_CASE,
             KEYWORD_MACRO,
-            KEYWORD_CATCH
+            KEYWORD_CATCH,
+            KEYWORD_HANDLE,
+            KEYWORD_ARGS,
+            KEYWORD_TYPE
     };
 
     public List<Token> tokenize(String source, String code) {
@@ -185,16 +191,32 @@ public class Parser {
         if(token.type != KEYWORD) {
             String content = token.content;
             if(ParseInfo.actions.containsKey(content)){
+
+                // invokedynamic is a special case
+                if(content.equals("invokedynamic")){
+                    return readInvokeDynamic(token, ctx);
+                }
+
                 ParseInfo info = ParseInfo.actions.get(content);
                 int argc = info.args.length;
                 List<Group> children = new ArrayList<>();
                 for(int i = 0; i < argc; i++){
-                    Group group = group(ctx);
-                    GroupType type = group.type;
-                    if(type != GroupType.IDENTIFIER && type != GroupType.STRING && type != GroupType.NUMBER){
-                        throw new AssemblerException("Unexpected expression: " + group.start().content, group.start().getLocation());
+                    Token peek = ctx.peekToken();
+                    // this needed for illegal class names to ensure that the correct tokens are parsed here
+                    // also the use of ctx.explicitIdentifier is needed to ensure that nothing illegal happens
+                    if(peek.type == KEYWORD) {
+                        if(!peek.content.equals(KEYWORD_HANDLE) && !peek.content.equals(KEYWORD_TYPE))
+                            throw new AssemblerException("Expected handle or type", peek.location);
+                        else {
+                            children.add(ctx.parseNext());
+                        }
+                    }else if(peek.type == NUMBER) {
+                        children.add(ctx.nextGroup(GroupType.NUMBER));
+                    }else if(peek.type == STRING){
+                        children.add(ctx.nextGroup(GroupType.STRING));
+                    }else {
+                        children.add(ctx.explicitIdentifier());
                     }
-                    children.add(group);
                 }
                 return new InstructionGroup(token, children.toArray(new Group[0]));
             } else {
@@ -211,6 +233,8 @@ public class Parser {
             }
             if(token.type == NUMBER){
                 return new NumberGroup(token);
+            } else if(token.type == STRING){
+                return new StringGroup(token);
             }
             return new IdentifierGroup(token);
         }
@@ -218,7 +242,7 @@ public class Parser {
         switch(token.content){
             case KEYWORD_CLASS: {
                 AccessModsGroup access = readAccess(ctx);
-                IdentifierGroup name = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                IdentifierGroup name = ctx.explicitIdentifier();
                 return new ClassDeclarationGroup(token, access, name);
             }
             case KEYWORD_EXTENDS: {
@@ -283,6 +307,19 @@ public class Parser {
                 LabelGroup handler = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
                 return new CatchGroup(token, exception, begin, end, handler);
             }
+            case KEYWORD_HANDLE: {
+                IdentifierGroup type = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                IdentifierGroup descriptor = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+
+                return new HandleGroup(token, type, descriptor);
+            }
+            case KEYWORD_TYPE: {
+                // explicit identifier is needed to account for illegal type names
+                return new TypeGroup(token, ctx.explicitIdentifier());
+            }
+            case KEYWORD_ARGS: {
+                return new ArgsGroup(token, readBody(ctx));
+            }
 
             case KEYWORD_PUBLIC:
             case KEYWORD_PRIVATE:
@@ -293,6 +330,15 @@ public class Parser {
         }
 
         return new Group(GroupType.IDENTIFIER, token);
+    }
+
+    public InstructionGroup readInvokeDynamic(Token token, ParserContext ctx) throws AssemblerException {
+        IdentifierGroup name = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+        IdentifierGroup descriptor = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+        HandleGroup bsmHandle = (HandleGroup) ctx.nextGroup(GroupType.HANDLE);
+        ArgsGroup args = (ArgsGroup) ctx.nextGroup(GroupType.ARGS);
+
+        return new InstructionGroup(token , name, descriptor, bsmHandle, args);
     }
 
     public AccessModsGroup readAccess(ParserContext ctx) throws AssemblerException {

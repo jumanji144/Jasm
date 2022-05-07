@@ -151,7 +151,7 @@ public class ParseInfo {
         put("imul", IMUL);
         put("ineg", INEG);
         put("instanceof", INSTANCEOF, "class");
-        put("invokedynamic", INVOKEDYNAMIC, "method");
+        put("invokedynamic", INVOKEDYNAMIC, "name", "desc", "bsm");
         put("invokeinterface", INVOKEINTERFACE, "interface");
         put("invokespecial", INVOKESPECIAL, "method");
         put("invokestatic", INVOKESTATIC, "method");

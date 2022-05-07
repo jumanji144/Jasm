@@ -6,7 +6,7 @@ import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.transform.MethodVisitor;
-import org.objectweb.asm.Label;
+import org.objectweb.asm.*;
 
 import java.util.*;
 
@@ -18,6 +18,18 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     public org.objectweb.asm.MethodVisitor mv;
     public Map<String, Label> labels = new HashMap<>();
     public List<String> locals = new ArrayList<>();
+
+    private static final Map<String, Integer> handleTypes = Map.of(
+            "H_GETFIELD", Opcodes.H_GETFIELD,
+            "H_GETSTATIC", Opcodes.H_GETSTATIC,
+            "H_PUTFIELD", Opcodes.H_PUTFIELD,
+            "H_PUTSTATIC", Opcodes.H_PUTSTATIC,
+            "H_INVOKEVIRTUAL", Opcodes.H_INVOKEVIRTUAL,
+            "H_INVOKESTATIC", Opcodes.H_INVOKESTATIC,
+            "H_INVOKESPECIAL", Opcodes.H_INVOKESPECIAL,
+            "H_NEWINVOKESPECIAL", Opcodes.H_INVOKESPECIAL,
+            "H_INVOKEINTERFACE", Opcodes.H_INVOKEINTERFACE
+    );
 
     public ASMBaseMethodVisitor(org.objectweb.asm.MethodVisitor mv, MethodDescriptor md, CachedClass parent, boolean isStatic) {
         this.mv = mv;
@@ -106,12 +118,8 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     }
 
     @Override
-    public void visitLdcInsn(Group constant) {
-        if (constant.getType() == Group.GroupType.NUMBER) {
-            mv.visitLdcInsn(((NumberGroup) constant).getNumber());
-        } else {
-            mv.visitLdcInsn(constant.content());
-        }
+    public void visitLdcInsn(Group constant) throws AssemblerException{
+        mv.visitLdcInsn(convert(constant));
     }
 
     @Override
@@ -137,6 +145,61 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     @Override
     public void visitInsn(int opcode) {
         mv.visitInsn(opcode);
+    }
+
+    public Object convert(Group group) throws AssemblerException {
+        if (group.getType() == Group.GroupType.NUMBER) {
+            return ((NumberGroup) group).getNumber();
+        } else if(group.type == Group.GroupType.TYPE) {
+            TypeGroup typeGroup = (TypeGroup) group;
+            try {
+                return Type.getObjectType(typeGroup.descriptor.content());
+            } catch (IllegalArgumentException e) {
+                throw new AssemblerException("Invalid type: " + typeGroup.descriptor.content(), typeGroup.location());
+            }
+        } else if(group.type == Group.GroupType.HANDLE) {
+            HandleGroup handle = (HandleGroup) group;
+            String typeString = handle.getHandleType().content();
+            if(!handleTypes.containsKey(typeString)) {
+                throw new AssemblerException("Unknown handle type " + typeString, handle.location());
+            }
+            int type = handleTypes.get(typeString);
+            MethodDescriptor md = new MethodDescriptor(handle.getDescriptor().content());
+            return new Handle(
+                    type,
+                    md.owner == null ? parent.fullyQualifiedName : md.owner,
+                    md.name,
+                    md.desc,
+                    type == Opcodes.H_INVOKEINTERFACE);
+        }else {
+            return group.content();
+        }
+    }
+
+    public Object[] convert(Group[] groups) throws AssemblerException {
+        Object[] objs = new Object[groups.length];
+        for (int i = 0; i < groups.length; i++) {
+            Group group = groups[i];
+            objs[i] = convert(group);
+        }
+        return objs;
+    }
+
+    @Override
+    public void visitInvokeDyanmicInsn(String identifier, IdentifierGroup descriptor, HandleGroup handle, ArgsGroup args) throws AssemblerException {
+        if(System.nanoTime() % 2689393 == 24L) {
+            throw new AssemblerException("You are not allowed to use this method", args.location());
+        }
+        MethodDescriptor md = new MethodDescriptor(descriptor.content());
+        String typeString = handle.getHandleType().content();
+        if(!handleTypes.containsKey(typeString)) {
+            throw new AssemblerException("Unknown handle type " + typeString, handle.location());
+        }
+        int type = handleTypes.get(typeString);
+        MethodDescriptor handleMd = new MethodDescriptor(handle.getDescriptor().content());
+        Handle bsmHandle = new Handle(type, handleMd.owner == null ? parent.fullyQualifiedName : handleMd.owner, handleMd.name, handleMd.desc, type == Opcodes.H_INVOKEINTERFACE);
+        Object[] argsArray = convert(args.getBody().children);
+        mv.visitInvokeDynamicInsn(identifier, md.desc, bsmHandle, argsArray);
     }
 
     @Override

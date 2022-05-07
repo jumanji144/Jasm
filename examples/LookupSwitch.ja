@@ -8,9 +8,9 @@ end
 
 method public static main([Ljava/lang/String;)V
     iconst_0
-    tableswitch
-        L1
-        L2
+    lookupswitch
+        case 0 L1
+        case 1 L2
         default L3
     L1:
             getstatic java/lang/System.out Ljava/io/PrintStream;

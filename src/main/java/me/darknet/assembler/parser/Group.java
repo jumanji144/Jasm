@@ -87,6 +87,10 @@ public class Group {
         CASE_LABEL,
         DEFAULT_LABEL,
 
+        HANDLE,
+        ARGS,
+        TYPE,
+
         TABLE_SWITCH,
         CATCH,
         MACRO_DIRECTIVE, // TODO: Remove this.

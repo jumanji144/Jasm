@@ -186,8 +186,13 @@ public class MethodTransformer {
                 break;
             }
             case INVOKEDYNAMIC: {
-                // TODO: implement :(
-                throw new AssemblerException("InvokeDynamic not implemented", inst.location());
+                String name = inst.get(0).content();
+                IdentifierGroup desc = (IdentifierGroup) inst.get(1);
+                HandleGroup handle = inst.getChild(HandleGroup.class);
+                ArgsGroup args = inst.getChild(ArgsGroup.class);
+
+                mv.visitInvokeDyanmicInsn(name, desc, handle, args);
+                break;
             }
             default: {
                 mv.visitInsn(opcode);

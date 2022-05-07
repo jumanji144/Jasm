@@ -1,5 +1,7 @@
 package me.darknet.assembler.parser;
 
+import me.darknet.assembler.parser.groups.IdentifierGroup;
+
 import java.util.*;
 
 public class ParserContext {
@@ -47,6 +49,10 @@ public class ParserContext {
 
     public void pushGroup(Group group) {
         groups.add(group);
+    }
+
+    public IdentifierGroup explicitIdentifier() {
+        return new IdentifierGroup(nextToken());
     }
 
     public void pushGroup(Group.GroupType type, Token val, Group... children) {

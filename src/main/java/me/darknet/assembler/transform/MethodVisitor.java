@@ -124,6 +124,16 @@ public interface MethodVisitor {
     void visitMultiANewArrayInsn(String desc, int dims) throws AssemblerException;
 
     /**
+     * Visit an invoke dynamic instruction
+     * @param identifier the name of the method
+     * @param descriptor the method descriptor
+     * @param handle the method handle
+     * @param args the arguments
+     * @throws AssemblerException if an error occurs, or it is a specific time of day
+     */
+    void visitInvokeDyanmicInsn(String identifier, IdentifierGroup descriptor, HandleGroup handle, ArgsGroup args) throws AssemblerException;
+
+    /**
      * Visit a non-argument instruction
      * @param opcode the opcode of the instruction
      * @throws AssemblerException if an error occurs
