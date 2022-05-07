@@ -1,0 +1,34 @@
+class public ClassInstances extends java/lang/Object
+
+field public number I
+field public string Ljava/lang/String;
+
+method public <init>()V
+    aload this
+    invokespecial java/lang/Object/<init>()V
+    aload this
+    iconst_0 # 0
+    putfield number I # number (int) = 0
+    aload this
+    ldc "Hello, World!" # "Hello, World!"
+    putfield string Ljava/lang/String; # string (java.lang.String) = "Hello, World!"
+    return
+end
+
+method public static main([Ljava/lang/String;)V
+    # construct a new ClassInstances object
+    new ClassInstances
+    dup # duplicate the object
+    invokespecial ClassInstances/<init>()V # call the constructor
+    astore cls # store the object in a local variable
+    # print the values of the object's fields
+    getstatic java/lang/System.out Ljava/io/PrintStream;
+    aload cls # load the object
+    getfield number I # number (int)
+    invokevirtual java/io/PrintStream/println(I)V
+    getstatic java/lang/System.out Ljava/io/PrintStream;
+    aload cls # load the object
+    getfield string Ljava/lang/String; # string (java.lang.String)
+    invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
+    return
+end

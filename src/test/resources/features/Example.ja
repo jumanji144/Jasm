@@ -1,0 +1,13 @@
+class public Test extends java/lang/Object
+
+method public static main([Ljava/lang/String;)V
+
+    getstatic java/lang/System/out Ljava/io/PrintStream;
+
+    ldc .type java/lang/String
+
+    invokevirtual java/io/PrintStream/println(Ljava/lang/Object;)V
+
+end
+
+

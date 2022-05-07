@@ -55,6 +55,13 @@ public interface Visitor {
     MethodVisitor visitMethod(AccessModsGroup accessMods, IdentifierGroup descriptor, BodyGroup body) throws AssemblerException;
 
     /**
+     * Visit an annotation
+     * @param annotation the annotation group
+     * @throws AssemblerException if an error occurs
+     */
+    void visitAnnotation(AnnotationGroup annotation) throws AssemblerException;
+
+    /**
      * Visit an end instruction (end of a method)
      * @throws AssemblerException if an error occurs
      */

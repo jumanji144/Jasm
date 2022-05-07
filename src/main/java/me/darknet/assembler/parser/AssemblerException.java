@@ -4,6 +4,11 @@ public class AssemblerException extends Exception {
 
     Location where;
 
+    public AssemblerException(Exception e, Location where) {
+        super(e);
+        this.where = where;
+    }
+
     public AssemblerException(String message, Location where) {
         super(message);
         this.where = where;

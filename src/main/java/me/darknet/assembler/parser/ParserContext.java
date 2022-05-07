@@ -6,14 +6,14 @@ import java.util.*;
 
 public class ParserContext {
 
-    public Queue<Group> groups;
+    public List<Group> groups;
     public Queue<Token> tokens;
     public Token currentToken;
     public Parser parser;
     public Map<String, Group[]> macros = new HashMap<>();
 
     public ParserContext(Queue<Token> tokens, Parser parser) {
-        this.groups = new LinkedList<>();
+        this.groups = new ArrayList<>();
         this.tokens = tokens;
         this.parser = parser;
     }
@@ -64,7 +64,7 @@ public class ParserContext {
     }
 
     public Group previousGroup() {
-        return groups.peek();
+        return groups.get(groups.size() - 1);
     }
 
     public Token peekToken() {

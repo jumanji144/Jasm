@@ -1,12 +1,17 @@
 package me.darknet.assembler.compiler.impl;
 
 import me.darknet.assembler.compiler.MethodDescriptor;
+import me.darknet.assembler.parser.AnnotationTarget;
+import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Parser;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.transform.MethodVisitor;
 import me.darknet.assembler.transform.Visitor;
+import me.darknet.assembler.util.GroupUtil;
+import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.FieldVisitor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +25,8 @@ public class ASMBaseVisitor implements Visitor {
     int version;
 
     CachedClass currentClass;
+
+    AnnotationGroup currentAnnotation;
 
     public ASMBaseVisitor(int version) {
         cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
@@ -52,13 +59,24 @@ public class ASMBaseVisitor implements Visitor {
     }
 
     @Override
-    public void visit(Group group) {
+    public void visit(Group group) throws AssemblerException {
         if(currentClass != null && !currentClass.hasBuilt) {
+            // finish class build
             GroupType type = group.type;
             if (type != GroupType.CLASS_DECLARATION
                     && type != GroupType.IMPLEMENTS_DIRECTIVE
                     && type != GroupType.EXTENDS_DIRECTIVE) {
                 // build class
+                if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.CLASS) {
+                    String desc = currentAnnotation.getClassGroup().content();
+                    AnnotationParamGroup[] params = currentAnnotation.getParams();
+                    AnnotationVisitor av = cw.visitAnnotation(desc, !currentAnnotation.isInvisible());
+                    for(AnnotationParamGroup param : params) {
+                        annotationParam(param, av);
+                    }
+                    av.visitEnd();
+                    currentAnnotation = null;
+                }
                 currentClass.build(cw);
             }
         }
@@ -66,20 +84,63 @@ public class ASMBaseVisitor implements Visitor {
 
 
     @Override
-    public void visitField(AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup descriptor) {
-        cw.visitField(getAccess(accessMods), name.content(), descriptor.content(), null, null);
+    public void visitField(AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup descriptor) throws AssemblerException {
+        FieldVisitor fv = cw.visitField(getAccess(accessMods), name.content(), descriptor.content(), null, null);
+        if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.FIELD) {
+            String desc = currentAnnotation.getClassGroup().content();
+            AnnotationParamGroup[] params = currentAnnotation.getParams();
+            AnnotationVisitor av = fv.visitAnnotation(desc, !currentAnnotation.isInvisible());
+            for(AnnotationParamGroup param : params) {
+                annotationParam(param, av);
+            }
+            av.visitEnd();
+            currentAnnotation = null;
+        }
+        fv.visitEnd();
     }
 
     @Override
-    public MethodVisitor visitMethod(AccessModsGroup accessMods, IdentifierGroup descriptor, BodyGroup body) {
+    public MethodVisitor visitMethod(AccessModsGroup accessMods, IdentifierGroup descriptor, BodyGroup body) throws AssemblerException {
         MethodDescriptor md = new MethodDescriptor(descriptor.content());
         int access = getAccess(accessMods);
         org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, md.name, md.desc, null, null);
+
+        if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.METHOD) {
+            String desc = currentAnnotation.getClassGroup().content();
+            AnnotationParamGroup[] params = currentAnnotation.getParams();
+            AnnotationVisitor av = mv.visitAnnotation(desc, !currentAnnotation.isInvisible());
+            for(AnnotationParamGroup param : params) {
+                annotationParam(param, av);
+            }
+            av.visitEnd();
+            currentAnnotation = null;
+        }
 
         boolean isStatic = (access & ACC_STATIC) != 0;
 
         return new ASMBaseMethodVisitor(mv, md, currentClass, isStatic);
     }
+
+    public void annotationParam(AnnotationParamGroup annotationParam, AnnotationVisitor av) throws AssemblerException {
+        if(annotationParam.value.type == GroupType.ARGS) {
+            ArgsGroup args = (ArgsGroup) annotationParam.value;
+            AnnotationVisitor arrayVis = av.visitArray(annotationParam.name.content());
+            for (Group group : args.getBody().children) {
+                arrayVis.visit("", GroupUtil.convert(currentClass, group));
+            }
+            arrayVis.visitEnd();
+        }else {
+            av.visit(annotationParam.name.content(), GroupUtil.convert(currentClass, annotationParam.value));
+        }
+    }
+
+    @Override
+    public void visitAnnotation(AnnotationGroup group) throws AssemblerException {
+        currentAnnotation = group; // withhold the annotation until target is met
+    }
+
+
+
 
     @Override
     public void visitEnd() {

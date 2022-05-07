@@ -1,0 +1,20 @@
+class public Flow extends java/lang/Object
+
+method public static main([Ljava/lang/String;)V
+
+    iconst_0
+    istore i
+
+    L1:
+        getstatic java/lang/System.out Ljava/io/PrintStream;
+        ldc "Hello World"
+        invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
+        iinc i 1
+        iload i
+        bipush 10
+        if_icmpeq L2
+        goto L1
+
+    L2:
+        return
+end

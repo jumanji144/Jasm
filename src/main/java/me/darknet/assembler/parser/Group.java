@@ -46,7 +46,7 @@ public class Group {
     }
 
     public Location location() {
-        return start().location;
+        return value.location;
     }
 
     @SuppressWarnings("unchecked")
@@ -104,6 +104,10 @@ public class Group {
         IMPLEMENTS_DIRECTIVE,
         BODY,
         END_BODY,
+
+        ANNOTATION,
+        ANNOTATION_PARAMETER,
+        INVISIBLE_ANNOTATION,
         INSTRUCTION,
         STACK_LIMIT,
         LOCAL_LIMIT,

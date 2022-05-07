@@ -3,6 +3,7 @@ package me.darknet.assembler.parser;
 import me.darknet.assembler.instructions.ParseInfo;
 import me.darknet.assembler.parser.groups.*;
 
+import java.lang.annotation.Target;
 import java.util.*;
 
 import static me.darknet.assembler.parser.Token.TokenType.*;
@@ -33,6 +34,8 @@ public class Parser {
     public static final String KEYWORD_HANDLE = ".handle";
     public static final String KEYWORD_ARGS = "args";
     public static final String KEYWORD_TYPE = ".type";
+    public static final String KEYWORD_ANNOTATION = "annotation";
+    public static final String KEYWORD_INVISBLE_ANNOTATION = "invisible-annotation";
     private static final String[] keywords = {
             KEYWORD_CLASS,
             KEYWORD_METHOD,
@@ -55,7 +58,9 @@ public class Parser {
             KEYWORD_CATCH,
             KEYWORD_HANDLE,
             KEYWORD_ARGS,
-            KEYWORD_TYPE
+            KEYWORD_TYPE,
+            KEYWORD_ANNOTATION,
+            KEYWORD_INVISBLE_ANNOTATION
     };
 
     public List<Token> tokenize(String source, String code) {
@@ -215,6 +220,14 @@ public class Parser {
                     }else if(peek.type == STRING){
                         children.add(ctx.nextGroup(GroupType.STRING));
                     }else {
+                        if(ctx.macros.containsKey(peek.content)){
+                            ctx.nextToken();
+                            Group[] groups = ctx.macros.get(peek.content);
+                            Collections.addAll(children, groups);
+                            continue;
+                        }
+                        // this is the case where the next token is an identifier
+                        // explicitly just parse whatever is next as an identifier to avoid illegal values
                         children.add(ctx.explicitIdentifier());
                     }
                 }
@@ -319,6 +332,30 @@ public class Parser {
             }
             case KEYWORD_ARGS: {
                 return new ArgsGroup(token, readBody(ctx));
+            }
+            case KEYWORD_INVISBLE_ANNOTATION:
+            case KEYWORD_ANNOTATION: {
+                List<AnnotationParamGroup> params = new ArrayList<>();
+                IdentifierGroup classGroup = ctx.explicitIdentifier();
+                while(ctx.hasNextToken()) {
+                    IdentifierGroup name = ctx.explicitIdentifier();
+                    if(name.content().equals(KEYWORD_END)) {
+                        Token next = ctx.peekToken();
+                        if(next.type != KEYWORD) {
+                            throw new AssemblerException("Expected annotation target", next.location);
+                        }
+                        AnnotationTarget target = switch (next.content) {
+                            case KEYWORD_FIELD -> AnnotationTarget.FIELD;
+                            case KEYWORD_METHOD -> AnnotationTarget.METHOD;
+                            case KEYWORD_CLASS -> AnnotationTarget.CLASS;
+                            default -> throw new AssemblerException("Invalid annotation target", next.location);
+                        };
+                        return new AnnotationGroup(token, target, token.content.equals(KEYWORD_INVISBLE_ANNOTATION), classGroup, params.toArray(new AnnotationParamGroup[0]));
+                    }
+                    Group param = ctx.parseNext();
+                    params.add(new AnnotationParamGroup(name.value, name, param));
+                }
+                throw new AssemblerException("Unexpected end of file", token.location);
             }
 
             case KEYWORD_PUBLIC:
