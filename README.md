@@ -7,11 +7,11 @@ It also supports names for locals, labels
 but most importantly it supports the entire structure of class declaration, field declaration and method declartaion
 here is a sample
 ```jasmin
-class public Test extends java/lang/Object
+class Test public extends java/lang/Object
 
-field public number I
+field number I public 
 
-method public <init>()V
+method <init>()V public 
     aload this
     invokespecial java/lang/Object/<init>()V
     aload this
@@ -22,7 +22,7 @@ method public <init>()V
     return
 end
 
-method public test()V
+method test()V public
 
     getstatic java/lang/System.out Ljava/io/PrintStream;
     ldc "Hello, World!"
@@ -52,7 +52,7 @@ The language also supports a kind of preprocessor for marcos using the `macro` k
 Example
 
 ```jasmin
-class public Macros extends java/lang/Object
+class Macros public extends java/lang/Object
 
 macro System.out
     getstatic java/lang/System/out Ljava/io/PrintStream;
@@ -60,13 +60,13 @@ end
 
 macro println java/io/PrintStream/println(Ljava/lang/String;)V end
 
-method public <init>()V
+method <init>()V public 
     aload this
     invokespecial java/lang/Object/<init>()V
     return
 end
 
-method public static main([Ljava/lang/String;)V
+method main([Ljava/lang/String;)V public static
     System.out # converts to 'getstatic java/lang/System/out Ljava/io/PrintStream;'
     ldc "Hello, World!"
     invokevirtual println # converts to 'invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V'
