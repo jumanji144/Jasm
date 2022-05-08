@@ -25,7 +25,8 @@ public class CompilerTests {
             "InvokeDynamic.ja",
             "LookupSwitch.ja",
             "Macros.ja",
-            "TableSwitch.ja"
+            "TableSwitch.ja",
+            "Signatures.ja"
     );
 
     static List<byte[]> featuresBytes = new ArrayList<>(features.size());
