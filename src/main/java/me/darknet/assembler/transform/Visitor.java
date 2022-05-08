@@ -62,6 +62,13 @@ public interface Visitor {
     void visitAnnotation(AnnotationGroup annotation) throws AssemblerException;
 
     /**
+     * Visit a signature
+     * @param signature the signature group
+     * @throws AssemblerException if an error occurs
+     */
+    void visitSignature(SignatureGroup signature) throws AssemblerException;
+
+    /**
      * Visit an end instruction (end of a method)
      * @throws AssemblerException if an error occurs
      */

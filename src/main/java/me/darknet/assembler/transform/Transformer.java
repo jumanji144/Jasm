@@ -55,6 +55,9 @@ public class Transformer {
                     case IMPLEMENTS_DIRECTIVE:
                         visitor.visitImplements((ImplementsGroup) group);
                         break;
+                    case SIGNATURE_DIRECTIVE:
+                        visitor.visitSignature((SignatureGroup) group);
+                        break;
                 }
             }catch (AssemblerException e) {
                 throw e;

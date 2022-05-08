@@ -42,7 +42,12 @@ public class Parser {
     public static final String KEYWORD_TYPE = ".type";
     public static final String KEYWORD_ANNOTATION = "annotation";
     public static final String KEYWORD_INVISIBLE_ANNOTATION = "invisible-annotation";
+    public static final String KEYWORD_PARAMETER_ANNOTATION = "parameter-annotation";
+    public static final String KEYWORD_INVISIBLE_PARAMETER_ANNOTATION = "invisible-parameter-annotation";
+    public static final String KEYWORD_TYPE_ANNOTATION = "type-annotation";
+    public static final String KEYWORD_INVISIBLE_TYPE_ANNOTATION = "invisible-type-annotation";
     public static final String KEYWORD_ENUM = "enum";
+    public static final String KEYWORD_SIGNATURE = "signature";
     private static final String[] keywords = {
             KEYWORD_CLASS,
             KEYWORD_METHOD,
@@ -73,6 +78,13 @@ public class Parser {
             KEYWORD_STRICT,
             KEYWORD_NATIVE,
             KEYWORD_ABSTRACT,
+            KEYWORD_SYNCHRONIZED,
+            KEYWORD_ENUM,
+            KEYWORD_PARAMETER_ANNOTATION,
+            KEYWORD_INVISIBLE_PARAMETER_ANNOTATION,
+            KEYWORD_TYPE_ANNOTATION,
+            KEYWORD_INVISIBLE_TYPE_ANNOTATION,
+            KEYWORD_SIGNATURE
     };
 
     public static final List<String> accessModifiers = Arrays.asList(
@@ -359,42 +371,18 @@ public class Parser {
             }
             case KEYWORD_INVISIBLE_ANNOTATION:
             case KEYWORD_ANNOTATION: {
-                List<AnnotationParamGroup> params = new ArrayList<>();
-                IdentifierGroup classGroup = ctx.explicitIdentifier();
-                while(ctx.hasNextToken()) {
-                    IdentifierGroup name = ctx.explicitIdentifier();
-                    if(name.content().equals(KEYWORD_END)) {
-                        Token next = ctx.peekToken();
-                        AnnotationTarget target;
-                        switch (next.content) {
-                            case KEYWORD_FIELD:
-                                target = AnnotationTarget.FIELD;
-                                break;
-                            case KEYWORD_METHOD:
-                                target = AnnotationTarget.METHOD;
-                                break;
-                            case KEYWORD_CLASS:
-                                target = AnnotationTarget.CLASS;
-                                break;
-                            default:
-                                target = AnnotationTarget.UNKNOWN;
-                                break;
-                        }
-                        return new AnnotationGroup(token, target, token.content.equals(KEYWORD_INVISIBLE_ANNOTATION), classGroup, params.toArray(new AnnotationParamGroup[0]));
-                    }
-                    Token next = ctx.peekToken();
-                    // enum intrinsic annotation
-                    if(next.content.equals(KEYWORD_ENUM)) {
-                        Token enumToken = ctx.nextToken();
-                        IdentifierGroup enumGroup = ctx.explicitIdentifier();
-                        IdentifierGroup enumValue = ctx.explicitIdentifier();
-                        params.add(new AnnotationParamGroup(name.value, name, new EnumGroup(enumToken, enumGroup, enumValue)));
-                        continue;
-                    }
-                    Group param = ctx.parseNext();
-                    params.add(new AnnotationParamGroup(name.value, name, param));
-                }
-                throw new AssemblerException("Unexpected end of file", token.location);
+                return readAnnotation(token, token.content.equals(KEYWORD_INVISIBLE_ANNOTATION), ctx);
+            }
+            case KEYWORD_TYPE_ANNOTATION:
+            case KEYWORD_INVISIBLE_TYPE_ANNOTATION:
+            case KEYWORD_INVISIBLE_PARAMETER_ANNOTATION:
+            case KEYWORD_PARAMETER_ANNOTATION: {
+                // not yet supported by the parser
+                throw new UnsupportedOperationException("Type and parameter annotations are not yet supported");
+            }
+            case KEYWORD_SIGNATURE: {
+                IdentifierGroup descriptor = ctx.explicitIdentifier();
+                return new SignatureGroup(token, descriptor);
             }
 
             case KEYWORD_PUBLIC:
@@ -413,6 +401,45 @@ public class Parser {
         }
 
         return new Group(GroupType.IDENTIFIER, token);
+    }
+
+    public AnnotationGroup readAnnotation(Token token, boolean visible, ParserContext ctx) throws AssemblerException {
+        List<AnnotationParamGroup> params = new ArrayList<>();
+        IdentifierGroup classGroup = ctx.explicitIdentifier();
+        while(ctx.hasNextToken()) {
+            IdentifierGroup name = ctx.explicitIdentifier();
+            if(name.content().equals(KEYWORD_END)) {
+                Token next = ctx.peekToken();
+                AnnotationTarget target;
+                switch (next.content) {
+                    case KEYWORD_FIELD:
+                        target = AnnotationTarget.FIELD;
+                        break;
+                    case KEYWORD_METHOD:
+                        target = AnnotationTarget.METHOD;
+                        break;
+                    case KEYWORD_CLASS:
+                        target = AnnotationTarget.CLASS;
+                        break;
+                    default:
+                        target = AnnotationTarget.UNKNOWN;
+                        break;
+                }
+                return new AnnotationGroup(token, target, !visible, classGroup, params.toArray(new AnnotationParamGroup[0]));
+            }
+            Token next = ctx.peekToken();
+            // enum intrinsic annotation
+            if(next.content.equals(KEYWORD_ENUM)) {
+                Token enumToken = ctx.nextToken();
+                IdentifierGroup enumGroup = ctx.explicitIdentifier();
+                IdentifierGroup enumValue = ctx.explicitIdentifier();
+                params.add(new AnnotationParamGroup(name.value, name, new EnumGroup(enumToken, enumGroup, enumValue)));
+                continue;
+            }
+            Group param = ctx.parseNext();
+            params.add(new AnnotationParamGroup(name.value, name, param));
+        }
+        throw new AssemblerException("Unexpected end of file", ctx.previousGroup().location());
     }
 
     public InstructionGroup readInvokeDynamic(Token token, ParserContext ctx) throws AssemblerException {

@@ -102,6 +102,7 @@ public class Group {
 
         EXTENDS_DIRECTIVE,
         IMPLEMENTS_DIRECTIVE,
+        SIGNATURE_DIRECTIVE,
         BODY,
         END_BODY,
 

@@ -28,6 +28,17 @@ public class ASMBaseVisitor implements Visitor {
 
     AnnotationGroup currentAnnotation;
 
+    SignatureGroup currentSignature;
+
+    public String getSignature() {
+        if(currentSignature != null) {
+            String signature = currentSignature.getDescriptor().content();
+            currentSignature = null;
+            return signature;
+        }
+        return null;
+    }
+
     public ASMBaseVisitor(int version) {
         cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         this.version = version;
@@ -41,6 +52,7 @@ public class ASMBaseVisitor implements Visitor {
         cachedClass.setAccess(access);
         cachedClass.setVersion(version);
         cachedClass.setFullyQualifiedName(fullyQualifiedClassName);
+        cachedClass.setSignature(getSignature());
         currentClass = cachedClass;
     }
 
@@ -85,7 +97,7 @@ public class ASMBaseVisitor implements Visitor {
 
     @Override
     public void visitField(AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup descriptor) throws AssemblerException {
-        FieldVisitor fv = cw.visitField(getAccess(accessMods), name.content(), descriptor.content(), null, null);
+        FieldVisitor fv = cw.visitField(getAccess(accessMods), name.content(), descriptor.content(), getSignature(), null);
         if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.FIELD) {
             String desc = currentAnnotation.getClassGroup().content();
             AnnotationParamGroup[] params = currentAnnotation.getParams();
@@ -103,7 +115,7 @@ public class ASMBaseVisitor implements Visitor {
     public MethodVisitor visitMethod(AccessModsGroup accessMods, IdentifierGroup descriptor, BodyGroup body) throws AssemblerException {
         MethodDescriptor md = new MethodDescriptor(descriptor.content());
         int access = getAccess(accessMods);
-        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, md.name, md.desc, null, null);
+        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, md.name, md.desc, getSignature(), null);
 
         if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.METHOD) {
             String desc = currentAnnotation.getClassGroup().content();
@@ -164,7 +176,10 @@ public class ASMBaseVisitor implements Visitor {
         currentAnnotation = group; // withhold the annotation until target is met
     }
 
-
+    @Override
+    public void visitSignature(SignatureGroup signature) throws AssemblerException {
+        currentSignature = signature;
+    }
 
 
     @Override
