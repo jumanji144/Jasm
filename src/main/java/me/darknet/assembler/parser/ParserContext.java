@@ -29,7 +29,7 @@ public class ParserContext {
             throw new AssemblerException("Unexpected end of file", currentToken.getLocation());
         }
         if (group.type != type) {
-            throw new AssemblerException("Expected " + type.name() + " but got " + group.type.name(), group.start().getLocation());
+            throw new AssemblerException("Expected " + type.name() + " but got " + group.type.name(), group.location());
         }
         return group;
     }
