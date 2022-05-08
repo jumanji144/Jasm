@@ -1,17 +1,17 @@
 signature Ljava/util/Collection<Ljava/lang/String;>;
 class Signatures extends java/util/AbstractList
 
-method public <init>()V
+method <init>()V public
     aload_0
     invokespecial java/lang/Object/<init>()V
     return
 end
 
 signature Ljava/util/Collection<Ljava/lang/String;>;
-field public static list java/util/Collection
+field list java/util/Collection public static
 
 signature (Ljava/util/Collection<Ljava/lang/String;>;)V
-method public static e(Ljava/util/Collection;)V
+method e(Ljava/util/Collection;)V public static
     aload collection
     invokeinterface java/util/Collection/iterator()Ljava/util/Iterator;
     astore iterator
@@ -32,7 +32,7 @@ L2:
 end
 
 
-method public static main([Ljava/lang/String;)V
+method main([Ljava/lang/String;)V public static
     # create a
     new java/util/ArrayList
     dup

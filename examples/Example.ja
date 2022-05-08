@@ -1,10 +1,10 @@
-class public Test extends java/lang/Object
+class Test public extends java/lang/Object
 
-method public static main([Ljava/lang/String;)V
+method main([Ljava/lang/String;)V public static
 
     getstatic java/lang/System/out Ljava/io/PrintStream;
 
-    ldc java/lang/String
+    ldc .type java/lang/String
 
     invokevirtual java/io/PrintStream/println(Ljava/lang/Object;)V
 

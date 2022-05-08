@@ -1,12 +1,12 @@
-class public TableSwitch extends java/lang/Object
+class TableSwitch public extends java/lang/Object
 
-method public <init>()V
+method <init>()V public
     aload this
     invokespecial java/lang/Object/<init>()V
     return
 end
 
-method public static main([Ljava/lang/String;)V
+method main([Ljava/lang/String;)V public static
     iconst_0
     lookupswitch
         case 0 L1

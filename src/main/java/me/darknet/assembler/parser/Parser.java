@@ -246,10 +246,10 @@ public class Parser {
                     // this needed for illegal class names to ensure that the correct tokens are parsed here
                     // also the use of ctx.explicitIdentifier is needed to ensure that nothing illegal happens
                     if(peek.type == KEYWORD) {
-                        if(!peek.content.equals(KEYWORD_HANDLE) && !peek.content.equals(KEYWORD_TYPE))
-                            throw new AssemblerException("Expected handle or type", peek.location);
-                        else {
+                        if(peek.content.equals(KEYWORD_HANDLE) || peek.content.equals(KEYWORD_TYPE))
                             children.add(ctx.parseNext());
+                        else {
+                            children.add(ctx.explicitIdentifier());
                         }
                     }else if(peek.type == NUMBER) {
                         children.add(ctx.nextGroup(GroupType.NUMBER));
@@ -290,8 +290,8 @@ public class Parser {
 
         switch(token.content){
             case KEYWORD_CLASS: {
-                AccessModsGroup access = readAccess(ctx);
                 IdentifierGroup name = ctx.explicitIdentifier();
+                AccessModsGroup access = readAccess(ctx);
                 return new ClassDeclarationGroup(token, access, name);
             }
             case KEYWORD_EXTENDS: {
@@ -301,7 +301,7 @@ public class Parser {
                         && previous.type != GroupType.IMPLEMENTS_DIRECTIVE) {
                     throw new AssemblerException("Extends can only follow a class declaration", token.location);
                 }
-                IdentifierGroup group = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                IdentifierGroup group = ctx.explicitIdentifier();
                 return new ExtendsGroup(token, group);
             }
             case KEYWORD_IMPLEMENTS: {
@@ -312,21 +312,21 @@ public class Parser {
                         && previous.type != GroupType.EXTENDS_DIRECTIVE) {
                     throw new AssemblerException("Implements can only follow a class declaration", token.location);
                 }
-                IdentifierGroup group = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                IdentifierGroup group = ctx.explicitIdentifier();
                 return new ImplementsGroup(token, group);
             }
             case KEYWORD_FIELD: {
                 // maybe read access modifiers
+                IdentifierGroup name = ctx.explicitIdentifier();
+                IdentifierGroup descriptor = ctx.explicitIdentifier();
                 AccessModsGroup access = readAccess(ctx);
-                IdentifierGroup name = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
-                IdentifierGroup descriptor = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
 
                 return new FieldDeclarationGroup(token, access, name, descriptor);
             }
             case KEYWORD_METHOD: {
                 // maybe read access modifiers
+                IdentifierGroup methodDescriptor = ctx.explicitIdentifier();
                 AccessModsGroup access = readAccess(ctx);
-                IdentifierGroup methodDescriptor = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
                 return new MethodDeclarationGroup(token, access, methodDescriptor, readBody(ctx));
             }
             case KEYWORD_END: {
@@ -453,7 +453,7 @@ public class Parser {
 
     public AccessModsGroup readAccess(ParserContext ctx) throws AssemblerException {
         List<AccessModGroup> access = new ArrayList<>();
-        while(ctx.peekToken().type == KEYWORD){
+        while(accessModifiers.contains(ctx.peekToken().content)){
             access.add((AccessModGroup) ctx.nextGroup(GroupType.ACCESS_MOD));
         }
         return new AccessModsGroup(access.toArray(new AccessModGroup[0]));

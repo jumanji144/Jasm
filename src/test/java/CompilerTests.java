@@ -60,9 +60,8 @@ public class CompilerTests {
         System.out.print("Testing " + feature);
         try {
             Assembler.assemble(feature, 52, bytes);
-        } catch (Exception e) {
-            System.out.println(" FAILED");
-            return;
+        } catch (AssemblerException e) {
+            throw new RuntimeException(e.describe(), e.getCause());
         }
         System.out.println("... OK");
     }

@@ -1,9 +1,9 @@
-class public ClassInstances extends java/lang/Object
+class ClassInstances public extends java/lang/Object
 
-field public number I
-field public string Ljava/lang/String;
+field number I public
+field string Ljava/lang/String; public
 
-method public <init>()V
+method <init>()V public
     aload this
     invokespecial java/lang/Object/<init>()V
     aload this
@@ -15,7 +15,7 @@ method public <init>()V
     return
 end
 
-method public static main([Ljava/lang/String;)V
+method main([Ljava/lang/String;)V  public static
     # construct a new ClassInstances object
     new ClassInstances
     dup # duplicate the object

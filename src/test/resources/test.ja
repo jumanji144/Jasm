@@ -1,49 +1,13 @@
-signature Ljava/util/Collection<Ljava/lang/String;>;
-class Signatures extends java/util/AbstractList
+class Test public extends java/lang/Object
 
-method public <init>()V
-    aload_0
-    invokespecial java/lang/Object/<init>()V
-    return
+field I test
+
+method class(I)V
+  aload class
+  invokespecial java/lang/Object/<init>()V
+  return
 end
 
-signature Ljava/util/Collection<Ljava/lang/String;>;
-field public static list java/util/Collection
-
-signature (Ljava/util/Collection<Ljava/lang/String;>;)V
-method public static e(Ljava/util/Collection;)V
-    aload collection
-    invokeinterface java/util/Collection/iterator()Ljava/util/Iterator;
-    astore iterator
-L1:
-    aload iterator
-    invokeinterface java/util/Iterator/hasNext()Z
-    ifeq L2
-    aload iterator
-    invokeinterface java/util/Iterator/next()Ljava/lang/Object;
-    checkcast java/lang/String
-    invokevirtual java/lang/String/length()I
-    istore length
-    iload length
-    ifne L1
-    goto L2
-L2:
-    return
-end
-
-
-method public static main([Ljava/lang/String;)V
-    # create a
-    new java/util/ArrayList
-    dup
-    invokespecial java/util/ArrayList/<init>()V
-    astore collection
-    aload collection
-    ldc "a"
-    invokeinterface java/util/Collection/add(Ljava/lang/Object;)Z
-    pop
-
-    aload collection
-    invokestatic Signatures/e(Ljava/util/Collection;)V
+method public static PUBLIC(I)V
     return
 end
