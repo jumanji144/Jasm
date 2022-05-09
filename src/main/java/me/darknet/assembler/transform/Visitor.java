@@ -69,6 +69,14 @@ public interface Visitor {
     void visitSignature(SignatureGroup signature) throws AssemblerException;
 
     /**
+     * Visit a throws directive
+     * @param throwsGroup the throws group containing the name of the exception
+     *                    that can be thrown by the method
+     * @throws AssemblerException if an error occurs
+     */
+    void visitThrows(ThrowsGroup throwsGroup) throws AssemblerException;
+
+    /**
      * Visit an end instruction (end of a method)
      * @throws AssemblerException if an error occurs
      */

@@ -113,7 +113,7 @@ public class Group {
         INSTRUCTION,
         STACK_LIMIT,
         LOCAL_LIMIT,
-        RETURN,
+        RETURN, THROWS,
 
     }
 }

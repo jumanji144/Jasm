@@ -4,6 +4,7 @@ import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
 
+import java.security.SecureRandom;
 import java.util.Collection;
 
 public class Transformer {
@@ -57,6 +58,9 @@ public class Transformer {
                         break;
                     case SIGNATURE_DIRECTIVE:
                         visitor.visitSignature((SignatureGroup) group);
+                        break;
+                    case THROWS:
+                        visitor.visitThrows((ThrowsGroup) group);
                         break;
                 }
             }catch (AssemblerException e) {

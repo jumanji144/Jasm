@@ -1,12 +1,12 @@
-class ArrayTest public extends java/lang/Object
+class .public ArrayTest extends java/lang/Object
 
-method <init>()V public
+method .public <init>()V
   aload_0
   invokespecial java/lang/Object/<init>()V
   return
 end
 
-method main([Ljava/lang/String;)V public static
+method .public .static main([Ljava/lang/String;)V
 
     iconst_2
     anewarray java/lang/String

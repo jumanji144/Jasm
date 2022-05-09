@@ -16,16 +16,16 @@ public class Parser {
     public static final String KEYWORD_METHOD = "method";
     public static final String KEYWORD_END = "end";
     public static final String KEYWORD_FIELD = "field";
-    public static final String KEYWORD_STATIC = "static";
-    public static final String KEYWORD_PUBLIC = "public";
-    public static final String KEYWORD_PRIVATE = "private";
-    public static final String KEYWORD_PROTECTED = "protected";
-    public static final String KEYWORD_SYNCHRONIZED = "synchronized";
-    public static final String KEYWORD_VOLATILE = "volatile";
-    public static final String KEYWORD_TRANSIENT = "transient";
-    public static final String KEYWORD_NATIVE = "native";
-    public static final String KEYWORD_ABSTRACT = "abstract";
-    public static final String KEYWORD_STRICT = "strictfp";
+    public static final String KEYWORD_STATIC = ".static";
+    public static final String KEYWORD_PUBLIC = ".public";
+    public static final String KEYWORD_PRIVATE = ".private";
+    public static final String KEYWORD_PROTECTED = ".protected";
+    public static final String KEYWORD_SYNCHRONIZED = ".synchronized";
+    public static final String KEYWORD_VOLATILE = ".volatile";
+    public static final String KEYWORD_TRANSIENT = ".transient";
+    public static final String KEYWORD_NATIVE = ".native";
+    public static final String KEYWORD_ABSTRACT = ".abstract";
+    public static final String KEYWORD_STRICT = ".strictfp";
     public static final String KEYWORD_EXTENDS = "extends";
     public static final String KEYWORD_IMPLEMENTS = "implements";
     public static final String KEYWORD_FINAL = "final";
@@ -48,6 +48,7 @@ public class Parser {
     public static final String KEYWORD_INVISIBLE_TYPE_ANNOTATION = "invisible-type-annotation";
     public static final String KEYWORD_ENUM = "enum";
     public static final String KEYWORD_SIGNATURE = "signature";
+    public static final String KEYWORD_THROWS = "throws";
     private static final String[] keywords = {
             KEYWORD_CLASS,
             KEYWORD_METHOD,
@@ -84,19 +85,20 @@ public class Parser {
             KEYWORD_INVISIBLE_PARAMETER_ANNOTATION,
             KEYWORD_TYPE_ANNOTATION,
             KEYWORD_INVISIBLE_TYPE_ANNOTATION,
-            KEYWORD_SIGNATURE
+            KEYWORD_SIGNATURE,
+            KEYWORD_THROWS
     };
 
     public static final List<String> accessModifiers = Arrays.asList(
-            "public",
-            "private",
-            "protected",
-            "static",
-            "final",
-            "synchronized",
-            "native",
-            "abstract",
-            "strictfp"
+            ".public",
+            ".private",
+            ".protected",
+            ".static",
+            ".final",
+            ".synchronized",
+            ".native",
+            ".abstract",
+            ".strictfp"
     );
 
     public List<Token> tokenize(String source, String code) {
@@ -290,8 +292,8 @@ public class Parser {
 
         switch(token.content){
             case KEYWORD_CLASS: {
-                IdentifierGroup name = ctx.explicitIdentifier();
                 AccessModsGroup access = readAccess(ctx);
+                IdentifierGroup name = ctx.explicitIdentifier();
                 return new ClassDeclarationGroup(token, access, name);
             }
             case KEYWORD_EXTENDS: {
@@ -317,16 +319,17 @@ public class Parser {
             }
             case KEYWORD_FIELD: {
                 // maybe read access modifiers
+                AccessModsGroup access = readAccess(ctx);
                 IdentifierGroup name = ctx.explicitIdentifier();
                 IdentifierGroup descriptor = ctx.explicitIdentifier();
-                AccessModsGroup access = readAccess(ctx);
 
                 return new FieldDeclarationGroup(token, access, name, descriptor);
             }
             case KEYWORD_METHOD: {
                 // maybe read access modifiers
-                IdentifierGroup methodDescriptor = ctx.explicitIdentifier();
                 AccessModsGroup access = readAccess(ctx);
+                IdentifierGroup methodDescriptor = ctx.explicitIdentifier();
+
                 return new MethodDeclarationGroup(token, access, methodDescriptor, readBody(ctx));
             }
             case KEYWORD_END: {
@@ -381,8 +384,10 @@ public class Parser {
                 throw new UnsupportedOperationException("Type and parameter annotations are not yet supported");
             }
             case KEYWORD_SIGNATURE: {
-                IdentifierGroup descriptor = ctx.explicitIdentifier();
-                return new SignatureGroup(token, descriptor);
+                return new SignatureGroup(token, ctx.explicitIdentifier());
+            }
+            case KEYWORD_THROWS: {
+                return new ThrowsGroup(token, ctx.explicitIdentifier());
             }
 
             case KEYWORD_PUBLIC:

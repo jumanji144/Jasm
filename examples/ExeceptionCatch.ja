@@ -8,7 +8,7 @@ macro println
     invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
 end
 
-method main([Ljava/lang/String;)V public static
+method .public .static main([Ljava/lang/String;)V
 
     catch java/lang/Exception
         L1 # start

@@ -2,16 +2,17 @@
 Java assembly like language for bytecode.
 
 # Syntax
-The syntax is quite simelar to that of other assemblers.
+The syntax is quite similar to that of other assemblers.   
+It has some resilience against maliciously user-defined variables.   
 It also supports names for locals, labels
 but most importantly it supports the entire structure of class declaration, field declaration and method declartaion
 here is a sample
 ```jasmin
-class Test public extends java/lang/Object
+class .public Test extends java/lang/Object
 
-field number I public 
+field .public number I
 
-method <init>()V public 
+method .public <init>()V
     aload this
     invokespecial java/lang/Object/<init>()V
     aload this
@@ -22,7 +23,7 @@ method <init>()V public
     return
 end
 
-method test()V public
+method .public test()V
 
     getstatic java/lang/System.out Ljava/io/PrintStream;
     ldc "Hello, World!"
@@ -47,12 +48,41 @@ public class Test {
     }
 }
 ```
+
+# Usage
+To use Jasm you can either use the CLI to compile .ja files to .class files or you can directly
+use the Jasm parser in your project to compile .ja files to anything you want using the API.
+
+# API
+First off I need to explain the way the parser works. The parser is a recursive descent parser
+that tokenizes based on whitespaces and puts them in object-oriented structures that have a
+hierarchy.     
+For example:
+```
+'method .public <init>()V'
+              MethodDeclaration
+    /                 |             \
+   Identifier     AccessMods      Body -> End
+  (descriptor)    (modifiers)
+       |              |
+   <init>()V      [AccessMod]
+                      |
+                   Identifier
+                    (name)
+                      |
+                    public
+```
+So an applicable API would be a visitor that can visit the AST and do something with it.
+The `Visitor` class is the base class, it visits all declarations and top-level statements.
+And for method bodies there is a `MethodVisitor` for each in body instruction.
+you retrive the `MethodVisitor` by calling `visitMethod` in the `Visitor` class.
+There is also the `Transformer` class that applies the AST to the visitor.
 # Macros
 The language also supports a kind of preprocessor for marcos using the `macro` keyword      
 Example
 
 ```jasmin
-class Macros public extends java/lang/Object
+class .public Macros extends java/lang/Object
 
 macro System.out
     getstatic java/lang/System/out Ljava/io/PrintStream;
@@ -60,13 +90,13 @@ end
 
 macro println java/io/PrintStream/println(Ljava/lang/String;)V end
 
-method <init>()V public 
+method .public <init>()V
     aload this
     invokespecial java/lang/Object/<init>()V
     return
 end
 
-method main([Ljava/lang/String;)V public static
+method .public .static main([Ljava/lang/String;)V
     System.out # converts to 'getstatic java/lang/System/out Ljava/io/PrintStream;'
     ldc "Hello, World!"
     invokevirtual println # converts to 'invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V'
@@ -77,5 +107,5 @@ end
 Macros with arguments are planned in the future but currently not a priority 
 # Credits
 
-Mostly i would like to credit [Jasmin](https://github.com/davidar/jasmin) for inspriation for the syntax and outline of the project      
+Mostly I would like to credit [Jasmin](https://github.com/davidar/jasmin) for inspriation for the syntax and outline of the project      
 And also [ObjectWeb ASM](https://asm.ow2.io/) for their great java assembly library to allow everything to tie together.

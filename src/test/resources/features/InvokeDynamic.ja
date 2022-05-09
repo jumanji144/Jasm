@@ -1,12 +1,12 @@
-class InvokeDynamic extends java/lang/Object
+class .public InvokeDynamic extends java/lang/Object
 
-method <init>()V public
+method .public <init>()V
     aload this
     invokespecial java/lang/Object/<init>()V
     return
 end
 
-method main([Ljava/lang/String;)V public static
+method .public .static main([Ljava/lang/String;)V
 
     invokedynamic getPrintStream ()Ljava/io/PrintStream;
      .handle H_INVOKESTATIC
@@ -19,7 +19,7 @@ method main([Ljava/lang/String;)V public static
 
 end
 
-method bootstrap(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite; public static
+method .public .static bootstrap(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;
 
     new java/lang/invoke/ConstantCallSite # create a new CallSite
     dup

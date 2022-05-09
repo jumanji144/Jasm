@@ -30,6 +30,8 @@ public class ASMBaseVisitor implements Visitor {
 
     SignatureGroup currentSignature;
 
+    List<String> currentThrows = new ArrayList<>();
+
     public String getSignature() {
         if(currentSignature != null) {
             String signature = currentSignature.getDescriptor().content();
@@ -37,6 +39,12 @@ public class ASMBaseVisitor implements Visitor {
             return signature;
         }
         return null;
+    }
+
+    public List<String> getThrows() {
+        List<String> throwss = new ArrayList<>(currentThrows);
+        currentThrows.clear();
+        return throwss;
     }
 
     public ASMBaseVisitor(int version) {
@@ -115,7 +123,7 @@ public class ASMBaseVisitor implements Visitor {
     public MethodVisitor visitMethod(AccessModsGroup accessMods, IdentifierGroup descriptor, BodyGroup body) throws AssemblerException {
         MethodDescriptor md = new MethodDescriptor(descriptor.content());
         int access = getAccess(accessMods);
-        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, md.name, md.desc, getSignature(), null);
+        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, md.name, md.desc, getSignature(), getThrows().toArray(new String[0]));
 
         if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.METHOD) {
             String desc = currentAnnotation.getClassGroup().content();
@@ -179,6 +187,11 @@ public class ASMBaseVisitor implements Visitor {
     @Override
     public void visitSignature(SignatureGroup signature) throws AssemblerException {
         currentSignature = signature;
+    }
+
+    @Override
+    public void visitThrows(ThrowsGroup throwsGroup) throws AssemblerException {
+        currentThrows.add(throwsGroup.getClassName().content());
     }
 
 

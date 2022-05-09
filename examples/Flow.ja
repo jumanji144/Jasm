@@ -1,6 +1,6 @@
-class Flow public extends java/lang/Object
+class .public Flow extends java/lang/Object
 
-method main([Ljava/lang/String;)V public static
+method .public .static main([Ljava/lang/String;)V
 
     iconst_0
     istore i
