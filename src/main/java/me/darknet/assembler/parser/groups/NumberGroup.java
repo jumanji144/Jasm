@@ -17,20 +17,36 @@ public class NumberGroup extends Group {
             }
             return Double.parseDouble(value);
         }else {
-            if(value.endsWith("l")) {
+            if(value.endsWith("L")) {
                 return Long.parseLong(value.substring(0, value.length() - 1));
             }
-            return Long.parseLong(value);
+            return Integer.parseInt(value);
         }
     }
 
-    boolean isWide() {
+    public boolean isWide() {
         String value = content();
         if (value.contains(".")) {
             return !value.endsWith("f");
         } else {
-            return value.endsWith("l");
+            return value.endsWith("L");
         }
+    }
+
+    public int asInt() {
+        return (int) getNumber();
+    }
+
+    public long asLong() {
+        return (long) getNumber();
+    }
+
+    public float asFloat() {
+        return (float) getNumber();
+    }
+
+    public double asDouble() {
+        return (double) getNumber();
     }
 
     public boolean isFloat() {

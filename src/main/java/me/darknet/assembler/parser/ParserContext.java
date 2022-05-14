@@ -55,7 +55,10 @@ public class ParserContext {
      * Reads the next token and directly interprets it as an identifier group
      * @return identifier group
      */
-    public IdentifierGroup explicitIdentifier() {
+    public IdentifierGroup explicitIdentifier() throws AssemblerException {
+        if(!hasNextToken()) {
+            throw new AssemblerException("Expected identifier", currentToken.getLocation());
+        }
         return new IdentifierGroup(nextToken());
     }
 
@@ -71,7 +74,21 @@ public class ParserContext {
         return groups.get(groups.size() - 1);
     }
 
-    public Token peekToken() {
+    public Token peekToken() throws AssemblerException{
+        if(!hasNextToken()) {
+            throw new AssemblerException("Unexpected end of file", currentToken.getLocation());
+        }
+        return tokens.peek();
+    }
+
+    /**
+     * Silently peek a token and instead of throwing an error just return EOF
+     * @return next token or EOF
+     */
+    public Token silentPeek() {
+        if(!hasNextToken()) {
+            return new Token("EOF", currentToken.getLocation(), Token.TokenType.EOF);
+        }
         return tokens.peek();
     }
 

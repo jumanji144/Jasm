@@ -9,7 +9,7 @@ public class CaseLabelGroup extends Group {
     public LabelGroup value;
 
     public CaseLabelGroup(Token val, NumberGroup key, LabelGroup value) {
-        super(GroupType.CASE_LABEL, val);
+        super(GroupType.CASE_LABEL, val, key, value);
         this.key = key;
         this.value = value;
     }

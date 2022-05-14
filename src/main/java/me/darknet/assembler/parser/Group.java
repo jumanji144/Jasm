@@ -30,6 +30,9 @@ public class Group {
         return children[0].start();
     }
     public Token end() {
+        if(children.length == 0) {
+            return value;
+        }
         return children[children.length - 1].end();
     }
 
@@ -46,6 +49,12 @@ public class Group {
     }
 
     public Location location() {
+        if(value == null) {
+            if(children.length == 0) {
+                return new Location(-1, -1, "invalid", -1);
+            }
+            return children[0].location();
+        }
         return value.location;
     }
 
@@ -113,7 +122,7 @@ public class Group {
         INSTRUCTION,
         STACK_LIMIT,
         LOCAL_LIMIT,
-        RETURN, THROWS,
+        RETURN, THROWS, EXPR, METHOD_PARAMETER, TEXT,
 
     }
 }

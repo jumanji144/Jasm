@@ -45,7 +45,7 @@ public class ParseInfo {
         put("athrow", ATHROW);
         put("baload", BALOAD);
         put("bastore", BASTORE);
-        put("bipush", BIPUSH, "value");
+        put("bipush", BIPUSH, "const");
         put("breakpoint", 0xCA);
         put("caload", CALOAD);
         put("castore", CASTORE);
@@ -220,6 +220,7 @@ public class ParseInfo {
         put("sipush", SIPUSH, "const");
         put("swap", SWAP);
         put("tableswitch", TABLESWITCH, "switch");
+        put("line", -1, "label", "line");
     }
 
 }
