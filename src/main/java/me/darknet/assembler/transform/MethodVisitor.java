@@ -61,11 +61,11 @@ public interface MethodVisitor {
     /**
      * Visit a invoke instruction
      * @param opcode the opcode of the instruction
-     * @param md the method handle
+     * @param desc the method handle
      * @param itf true if the method is an interface method
      * @throws AssemblerException if an error occurs
      */
-    void visitMethodInsn(int opcode, MethodDescriptor md, boolean itf) throws AssemblerException;
+    void visitMethodInsn(int opcode, IdentifierGroup desc, boolean itf) throws AssemblerException;
 
     /**
      * Visit a field instruction
@@ -73,7 +73,7 @@ public interface MethodVisitor {
      * @param fs the field descriptor
      * @throws AssemblerException if an error occurs
      */
-    void visitFieldInsn(int opcode, FieldDescriptor fs) throws AssemblerException;
+    void visitFieldInsn(int opcode, IdentifierGroup name, IdentifierGroup desc) throws AssemblerException;
 
     /**
      * Visit a jump instruction
@@ -116,6 +116,14 @@ public interface MethodVisitor {
     void visitIntInsn(int opcode, int value) throws AssemblerException;
 
     /**
+     * Visit a line number instruction
+     * @param line the line number
+     * @param label the label
+     * @throws AssemblerException if an error occurs
+     */
+    void visitLineNumber(NumberGroup line, IdentifierGroup label) throws AssemblerException;
+
+    /**
      * Visit a multianewarray instruction
      * @param desc the class descriptor
      * @param dims the number of dimensions
@@ -139,6 +147,13 @@ public interface MethodVisitor {
      * @throws AssemblerException if an error occurs
      */
     void visitInsn(int opcode) throws AssemblerException;
+
+    /**
+     * Visit a expression group
+     * @param expr the expression group
+     * @throws AssemblerException if an error occurs
+     */
+    void visitExpr(ExprGroup expr) throws AssemblerException;
 
     /**
      * End the visit of a method

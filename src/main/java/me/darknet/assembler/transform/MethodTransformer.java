@@ -48,26 +48,35 @@ public class MethodTransformer {
      */
     public void transform(BodyGroup body) throws AssemblerException {
         if (body != null) {
-            for (Group inst : body.getChildren()) {
-                mv.visit(inst);
-                switch (inst.getType()) {
-                    case LABEL:
-                        mv.visitLabel((LabelGroup) inst);
-                        break;
-                    case LOOKUP_SWITCH:
-                        mv.visitLookupSwitchInsn((LookupSwitchGroup) inst);
-                        break;
-                    case TABLE_SWITCH:
-                        mv.visitTableSwitchInsn((TableSwitchGroup) inst);
-                        break;
-                    case CATCH:
-                        mv.visitCatch((CatchGroup) inst);
-                        break;
-                    case INSTRUCTION:
-                        visitInstruction((InstructionGroup) inst);
-                        break;
-                    default:
-                        throw new AssemblerException("Unknown instruction type: " + inst.type, inst.value.getLocation());
+                for (Group inst : body.getChildren()) {
+                    try {
+                    mv.visit(inst);
+                    switch (inst.getType()) {
+                        case LABEL:
+                            mv.visitLabel((LabelGroup) inst);
+                            break;
+                        case LOOKUP_SWITCH:
+                            mv.visitLookupSwitchInsn((LookupSwitchGroup) inst);
+                            break;
+                        case TABLE_SWITCH:
+                            mv.visitTableSwitchInsn((TableSwitchGroup) inst);
+                            break;
+                        case CATCH:
+                            mv.visitCatch((CatchGroup) inst);
+                            break;
+                        case INSTRUCTION:
+                            visitInstruction((InstructionGroup) inst);
+                            break;
+                        case EXPR:
+                            mv.visitExpr((ExprGroup) inst);
+                            break;
+                        default:
+                            throw new AssemblerException("Unknown instruction type: " + inst.type, inst.value.getLocation());
+                    }
+                } catch(AssemblerException e){
+                    throw e;
+                }catch(Exception e1){
+                    throw new AssemblerException(e1, inst.location());
                 }
             }
             mv.visitEnd();
@@ -98,11 +107,10 @@ public class MethodTransformer {
             case INVOKESTATIC:
             case INVOKEINTERFACE:
             case INVOKESPECIAL: {
-                MethodDescriptor md = new MethodDescriptor(inst.get(0).content());
 
                 mv.visitMethodInsn(
                         opcode,
-                        md,
+                        inst.getChild(IdentifierGroup.class),
                         opcode == INVOKEINTERFACE
                 // INFO: opcode == INVOKEINTERFACE is not always correct because there are some
                 // INVOKEVIRTUAL instructions which have itf = true but for that static analysis is
@@ -115,9 +123,9 @@ public class MethodTransformer {
             case GETSTATIC:
             case PUTFIELD:
             case PUTSTATIC: {
-                FieldDescriptor fd = new FieldDescriptor(inst.get(0).content());
-                fd.desc = inst.get(1).content();
-                mv.visitFieldInsn(opcode, fd);
+                IdentifierGroup name = (IdentifierGroup) inst.get(0);
+                IdentifierGroup desc = (IdentifierGroup) inst.get(1);
+                mv.visitFieldInsn(opcode, name, desc);
                 break;
             }
             case IF_ICMPEQ:
@@ -206,6 +214,12 @@ public class MethodTransformer {
                 ArgsGroup args = inst.getChild(ArgsGroup.class);
 
                 mv.visitInvokeDyanmicInsn(name, desc, handle, args);
+                break;
+            }
+            case -1: { // line number
+                IdentifierGroup label = inst.getChild(IdentifierGroup.class);
+                NumberGroup line = inst.getChild(NumberGroup.class);
+                mv.visitLineNumber(line, label);
                 break;
             }
             default: {

@@ -86,18 +86,21 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     }
 
     @Override
-    public void visitMethodInsn(int opcode, MethodDescriptor md, boolean itf) {
+    public void visitMethodInsn(int opcode, IdentifierGroup desc, boolean itf) {
+        MethodDescriptor md = new MethodDescriptor(desc.content(), false);
         String owner = md.owner == null ? parent.fullyQualifiedName : md.owner;
         mv.visitMethodInsn(
                 opcode,
                 owner,
                 md.name,
-                md.desc,
+                md.getDescriptor(),
                 itf);
     }
 
     @Override
-    public void visitFieldInsn(int opcode, FieldDescriptor fs) {
+    public void visitFieldInsn(int opcode, IdentifierGroup name, IdentifierGroup desc) {
+        FieldDescriptor fs = new FieldDescriptor(desc.content());
+        fs.name = name.content();
         String owner = fs.owner == null ? parent.fullyQualifiedName : fs.owner;
         mv.visitFieldInsn(opcode, owner, fs.name, fs.desc);
     }
@@ -128,6 +131,11 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     }
 
     @Override
+    public void visitLineNumber(NumberGroup line, IdentifierGroup label) throws AssemblerException {
+        mv.visitLineNumber(line.getNumber().intValue(), getLabel(label.content()));
+    }
+
+    @Override
     public void visitMultiANewArrayInsn(String desc, int dims) {
         mv.visitMultiANewArrayInsn(desc, dims);
     }
@@ -138,20 +146,30 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     }
 
     @Override
+    public void visitExpr(ExprGroup expr) throws AssemblerException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
     public void visitInvokeDyanmicInsn(String identifier, IdentifierGroup descriptor, HandleGroup handle, ArgsGroup args) throws AssemblerException {
         if(System.nanoTime() % 2689393 == 24L) {
             throw new AssemblerException("You are not allowed to use this method", args.location());
         }
-        MethodDescriptor md = new MethodDescriptor(descriptor.content());
+        MethodDescriptor md = new MethodDescriptor(descriptor.content(), false);
         String typeString = handle.getHandleType().content();
         if(!Handles.isValid(typeString)) {
             throw new AssemblerException("Unknown handle type " + typeString, handle.location());
         }
         int type = Handles.getType(typeString);
-        MethodDescriptor handleMd = new MethodDescriptor(handle.getDescriptor().content());
-        Handle bsmHandle = new Handle(type, handleMd.owner == null ? parent.fullyQualifiedName : handleMd.owner, handleMd.name, handleMd.desc, type == Opcodes.H_INVOKEINTERFACE);
+        MethodDescriptor handleMd = new MethodDescriptor(handle.getDescriptor().content(), false);
+        Handle bsmHandle = new Handle(
+                type,
+                handleMd.owner == null ? parent.fullyQualifiedName : handleMd.owner,
+                handleMd.name,
+                handleMd.getDescriptor(),
+                type == Opcodes.H_INVOKEINTERFACE);
         Object[] argsArray = GroupUtil.convert(parent, args.getBody().children);
-        mv.visitInvokeDynamicInsn(identifier, md.desc, bsmHandle, argsArray);
+        mv.visitInvokeDynamicInsn(identifier, md.getDescriptor(), bsmHandle, argsArray);
     }
 
     @Override

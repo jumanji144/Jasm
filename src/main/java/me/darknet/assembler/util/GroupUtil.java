@@ -39,12 +39,12 @@ public class GroupUtil {
                 throw new AssemblerException("Unknown handle type " + typeString, handle.location());
             }
             int type = Handles.getType(typeString);
-            MethodDescriptor md = new MethodDescriptor(handle.getDescriptor().content());
+            MethodDescriptor md = new MethodDescriptor(handle.getDescriptor().content(), false);
             return new Handle(
                     type,
                     md.owner == null ? (container == null ? "" : container.fullyQualifiedName) : md.owner,
                     md.name,
-                    md.desc,
+                    md.getDescriptor(),
                     type == Opcodes.H_INVOKEINTERFACE);
         }else {
             return group.content();

@@ -40,9 +40,10 @@ public interface Visitor {
      * @param accessMods the access modifiers of the field
      * @param name the name of the field
      * @param descriptor the descriptor of the field
+     * @param constantValue the constant value of the field (might be null)
      * @throws AssemblerException if an error occurs
      */
-    void visitField(AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup descriptor) throws AssemblerException;
+    void visitField(AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup descriptor, Group constantValue) throws AssemblerException;
 
     /**
      * Visit a method declaration
@@ -77,9 +78,17 @@ public interface Visitor {
     void visitThrows(ThrowsGroup throwsGroup) throws AssemblerException;
 
     /**
-     * Visit an end instruction (end of a method)
+     * Visit a expression
+     * @param expr the expression group
      * @throws AssemblerException if an error occurs
      */
-    void visitEnd() throws AssemblerException;
+    void visitExpression(ExprGroup expr) throws AssemblerException;
+
+
+    /**
+     * Visited at the end of all the elements
+     * @throws AssemblerException if an error occurs
+     */
+    void visitEndClass() throws AssemblerException;
 
 }

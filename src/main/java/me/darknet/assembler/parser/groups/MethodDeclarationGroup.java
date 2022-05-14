@@ -1,6 +1,8 @@
 package me.darknet.assembler.parser.groups;
 
+import me.darknet.assembler.compiler.MethodDescriptor;
 import me.darknet.assembler.parser.Group;
+import me.darknet.assembler.parser.MethodParameters;
 import me.darknet.assembler.parser.Token;
 
 public class MethodDeclarationGroup extends Group {
@@ -26,6 +28,10 @@ public class MethodDeclarationGroup extends Group {
 
     public BodyGroup getBody() {
         return body;
+    }
+
+    public MethodDescriptor getMethodDescriptor() {
+        return new MethodDescriptor(descriptor.content(), true);
     }
 
 

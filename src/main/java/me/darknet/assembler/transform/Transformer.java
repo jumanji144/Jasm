@@ -36,7 +36,7 @@ public class Transformer {
                         break;
                     case FIELD_DECLARATION:
                         FieldDeclarationGroup fieldDcl = (FieldDeclarationGroup) group;
-                        visitor.visitField(fieldDcl.accessMods, fieldDcl.name, fieldDcl.descriptor);
+                        visitor.visitField(fieldDcl.accessMods, fieldDcl.name, fieldDcl.descriptor, fieldDcl.constantValue);
                         break;
                     case METHOD_DECLARATION:
                         MethodDeclarationGroup methodDcl = (MethodDeclarationGroup) group;
@@ -62,15 +62,21 @@ public class Transformer {
                     case THROWS:
                         visitor.visitThrows((ThrowsGroup) group);
                         break;
+                    case EXPR:
+                        visitor.visitExpression((ExprGroup) group);
+                        break;
+                    default:
+                        throw new AssemblerException("Unexpected identifier: " + group.content(), group.location());
                 }
             }catch (AssemblerException e) {
                 throw e;
             }catch  (Exception e1) {
+                e1.printStackTrace();
                 throw new AssemblerException(e1, group.location());
             }
         }
 
-        visitor.visitEnd();
+        visitor.visitEndClass();
 
     }
 

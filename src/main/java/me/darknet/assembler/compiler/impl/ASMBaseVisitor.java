@@ -104,8 +104,13 @@ public class ASMBaseVisitor implements Visitor {
 
 
     @Override
-    public void visitField(AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup descriptor) throws AssemblerException {
-        FieldVisitor fv = cw.visitField(getAccess(accessMods), name.content(), descriptor.content(), getSignature(), null);
+    public void visitField(AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup descriptor, Group constantValue) throws AssemblerException {
+        FieldVisitor fv = cw.visitField(getAccess(accessMods),
+                name.content(),
+                descriptor.content(),
+                getSignature(),
+                constantValue == null ?
+                        null : GroupUtil.convert(currentClass, constantValue));
         if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.FIELD) {
             String desc = currentAnnotation.getClassGroup().content();
             AnnotationParamGroup[] params = currentAnnotation.getParams();
@@ -121,9 +126,9 @@ public class ASMBaseVisitor implements Visitor {
 
     @Override
     public MethodVisitor visitMethod(AccessModsGroup accessMods, IdentifierGroup descriptor, BodyGroup body) throws AssemblerException {
-        MethodDescriptor md = new MethodDescriptor(descriptor.content());
+        MethodDescriptor md = new MethodDescriptor(descriptor.content(), true);
         int access = getAccess(accessMods);
-        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, md.name, md.desc, getSignature(), getThrows().toArray(new String[0]));
+        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, md.name, md.getDescriptor(), getSignature(), getThrows().toArray(new String[0]));
 
         if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.METHOD) {
             String desc = currentAnnotation.getClassGroup().content();
@@ -194,9 +199,14 @@ public class ASMBaseVisitor implements Visitor {
         currentThrows.add(throwsGroup.getClassName().content());
     }
 
+    @Override
+    public void visitExpression(ExprGroup expr) throws AssemblerException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
 
     @Override
-    public void visitEnd() {
+    public void visitEndClass() {
 
     }
 
@@ -216,6 +226,9 @@ public class ASMBaseVisitor implements Visitor {
                     break;
                 case Parser.KEYWORD_STATIC:
                     accessFlags |= ACC_STATIC;
+                    break;
+                case Parser.KEYWORD_FINAL:
+                    accessFlags |= ACC_FINAL;
                     break;
             }
         }

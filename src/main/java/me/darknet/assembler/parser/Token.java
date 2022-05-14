@@ -14,6 +14,7 @@ public class Token {
         STRING,
         NUMBER,
         IDENTIFIER,
+        TEXT,
         KEYWORD;
 
         public Group.GroupType toGroupType() {
