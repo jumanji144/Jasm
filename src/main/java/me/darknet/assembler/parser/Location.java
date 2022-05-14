@@ -12,17 +12,26 @@ public class Location {
     public int line;
     public int column;
     public String source;
+    public int position;
 
     public String toString() {
         return source + ":" + line + ":" + column;
     }
 
     public Location copy() {
-        return new Location(line, column, source);
+        return new Location(line, column, source, position);
     }
 
     public Location sub(int column) {
-        return new Location(line, this.column - column, source);
+        return new Location(line, this.column - column, source, position - column);
+    }
+
+    public int getEndPosition() {
+        return position + source.length();
+    }
+
+    public int getStartPosition() {
+        return position;
     }
 
 }

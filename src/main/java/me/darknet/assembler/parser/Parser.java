@@ -28,7 +28,7 @@ public class Parser {
     public static final String KEYWORD_STRICT = ".strictfp";
     public static final String KEYWORD_EXTENDS = "extends";
     public static final String KEYWORD_IMPLEMENTS = "implements";
-    public static final String KEYWORD_FINAL = "final";
+    public static final String KEYWORD_FINAL = ".final";
     public static final String KEYWORD_STACK = "stack";
     public static final String KEYWORD_LOCALS = "locals";
     public static final String KEYWORD_SWITCH = "lookupswitch";
@@ -40,6 +40,7 @@ public class Parser {
     public static final String KEYWORD_HANDLE = ".handle";
     public static final String KEYWORD_ARGS = "args";
     public static final String KEYWORD_TYPE = ".type";
+    public static final String KEYWORD_METHOD_TYPE = ".method";
     public static final String KEYWORD_ANNOTATION = "annotation";
     public static final String KEYWORD_INVISIBLE_ANNOTATION = "invisible-annotation";
     public static final String KEYWORD_PARAMETER_ANNOTATION = "parameter-annotation";
@@ -49,6 +50,9 @@ public class Parser {
     public static final String KEYWORD_ENUM = "enum";
     public static final String KEYWORD_SIGNATURE = "signature";
     public static final String KEYWORD_THROWS = "throws";
+
+
+    public static final String KEYWORD_EXPR = "expr";
     private static final String[] keywords = {
             KEYWORD_CLASS,
             KEYWORD_METHOD,
@@ -86,7 +90,8 @@ public class Parser {
             KEYWORD_TYPE_ANNOTATION,
             KEYWORD_INVISIBLE_TYPE_ANNOTATION,
             KEYWORD_SIGNATURE,
-            KEYWORD_THROWS
+            KEYWORD_THROWS,
+            KEYWORD_EXPR
     };
 
     public static final List<String> accessModifiers = Arrays.asList(
@@ -104,11 +109,12 @@ public class Parser {
     public List<Token> tokenize(String source, String code) {
 
         List<Token> tokens = new ArrayList<>();
-        Location location = new Location(1, 1, source);
+        Location location = new Location(1, 1, source, 0);
         char[] chars = code.toCharArray();
         StringBuilder sb = new StringBuilder();
         int i = 0;
         while (i < chars.length) {
+            location.position = i;
             char c = chars[i];
             if(c == '\r') {
                 i++;
@@ -129,8 +135,15 @@ public class Parser {
             if(c == '"'){
                 c = chars[++i];
                 location.column++;
+                if(c == '"') {
+                    i++;
+                    location.position = i;
+                    tokens.add(new Token(sb.toString(), location.sub(sb.length() + 2), STRING));
+                    sb = new StringBuilder();
+                    continue;
+                }
                 sb.append(c);
-                while(c != '"'){
+                while(true){
                     c = chars[++i];
                     location.column++;
                     if(c == '\n'){
@@ -143,27 +156,67 @@ public class Parser {
                     }
                     sb.append(c);
                 }
-                tokens.add(new Token(sb.toString(), location.sub(sb.length()), STRING));
+                location.position = i;
+                tokens.add(new Token(sb.toString(), location.sub(sb.length() + 2), STRING));
                 sb = new StringBuilder();
                 continue;
             }
             if (c == ' ' || c == '\n' || c == '\t') {
+
                 // flush the string builder
                 if (sb.length() > 0) {
+
+                    // special case 'expr' keyword
+                    if (sb.toString().equals("expr")) {
+                        tokens.add(new Token(sb.toString(), location.sub(sb.length()), KEYWORD));
+                        sb = new StringBuilder();
+                        StringBuilder expr = new StringBuilder();
+                        while(true) {
+                            c = chars[++i];
+                            location.column++;
+                            if(c == '\n' || c == ' ' || c == '\t'){
+                                if(c == '\n')
+                                location.line++;
+                                expr.append(sb).append(c);
+                                sb = new StringBuilder();
+                                continue;
+                            }
+                            sb.append(c);
+                            if(sb.toString().equals("end")){
+                                sb = new StringBuilder();
+                                i++;
+                                location.column++;
+                                break;
+                            }
+                        }
+                        location.position = i;
+                        tokens.add(new Token(expr.toString(), location.sub(expr.length() + "end".length()), TEXT));
+                        continue;
+                    }
                     // determine the type of token
                     TokenType type = IDENTIFIER;
                     String token = sb.toString();
+
                     // check if all the characters in the token are digits (and the '-' sign)
                     boolean isNumber = true;
+                    boolean numberAppeared = false;
                     for (int j = 0; j < token.length(); j++) {
                         char c2 = token.charAt(j);
                         if (c2 == '-' && j == 0) {
                             continue;
                         }
-                        if (c2 < '0' || c2 > '9') {
-                            isNumber = false;
-                            break;
+                        if(c2 < '0' || c2 > '9') {
+                            if(numberAppeared) {
+                                if (c2 != '.' && c2 != 'f' && c2 != 'L' && c2 != 'D') {
+                                    isNumber = false;
+                                    break;
+                                }
+                            } else {
+                                isNumber = false;
+                                break;
+                            }
                         }
+                        numberAppeared = true;
                     }
                     if (isNumber) {
                         type = NUMBER;
@@ -176,7 +229,6 @@ public class Parser {
                             }
                         }
                     }
-
                     tokens.add(new Token(sb.toString(), location.sub(sb.length()), type));
                     sb = new StringBuilder();
                 }
@@ -184,7 +236,7 @@ public class Parser {
                 location.column++;
                 if(c == '\n'){
                     location.line++;
-                    location.column = 0;
+                    location.column = 1;
                 }
                 continue;
             }
@@ -199,14 +251,24 @@ public class Parser {
             String token = sb.toString();
             // check if all the characters in the token are digits (and the '-' sign)
             boolean isNumber = true;
+            boolean numberAppeared = false;
             for (int j = 0; j < token.length(); j++) {
                 char c2 = token.charAt(j);
                 if (c2 == '-' && j == 0) {
                     continue;
                 }
-                if (c2 < '0' || c2 > '9') {
-                    isNumber = false;
+                if(c2 < '0' || c2 > '9') {
+                    if(numberAppeared) {
+                        if (c2 != '.' && c2 != 'f' && c2 != 'L' && c2 != 'D') {
+                            isNumber = false;
+                            break;
+                        }
+                    } else {
+                        isNumber = false;
+                        break;
+                    }
                 }
+                numberAppeared = true;
             }
             if (isNumber) {
                 type = NUMBER;
@@ -219,7 +281,7 @@ public class Parser {
                     }
                 }
             }
-
+            location.position = i;
             tokens.add(new Token(sb.toString(), location.sub(sb.length()), type));
         }
 
@@ -253,11 +315,25 @@ public class Parser {
                         else {
                             children.add(ctx.explicitIdentifier());
                         }
-                    }else if(peek.type == NUMBER) {
-                        children.add(ctx.nextGroup(GroupType.NUMBER));
-                    }else if(peek.type == STRING){
-                        children.add(ctx.nextGroup(GroupType.STRING));
-                    }else {
+                    }else if(info.args[i].equals("const")) {
+                        // only parse arguments as constant if the argument is a constant
+                        if (peek.type == NUMBER) {
+                            children.add(ctx.nextGroup(GroupType.NUMBER));
+                        } else if (peek.type == STRING) {
+                            children.add(ctx.nextGroup(GroupType.STRING));
+                        } else {
+                            if(ctx.macros.containsKey(peek.content)){
+                                ctx.nextToken();
+                                Group[] groups = ctx.macros.get(peek.content);
+                                Collections.addAll(children, groups);
+                                continue;
+                            }
+                            // this is the case where the next token is an identifier
+                            // explicitly just parse whatever is next as an identifier to avoid illegal values
+                            children.add(ctx.explicitIdentifier());
+                        }
+                    } else {
+                        // else just interpret them as explicit identifiers
                         if(ctx.macros.containsKey(peek.content)){
                             ctx.nextToken();
                             Group[] groups = ctx.macros.get(peek.content);
@@ -286,6 +362,8 @@ public class Parser {
                 return new NumberGroup(token);
             } else if(token.type == STRING){
                 return new StringGroup(token);
+            } else if (token.type == TEXT) {
+                return new TextGroup(token);
             }
             return new IdentifierGroup(token);
         }
@@ -322,6 +400,12 @@ public class Parser {
                 AccessModsGroup access = readAccess(ctx);
                 IdentifierGroup name = ctx.explicitIdentifier();
                 IdentifierGroup descriptor = ctx.explicitIdentifier();
+
+                Token next = ctx.silentPeek();
+                if(next.type != KEYWORD && !(next.type == EOF)) { // next value is not a keyword, so it must be a constant value
+                    Group constantValue = ctx.parseNext();
+                    return new FieldDeclarationGroup(token, access, name, descriptor, constantValue);
+                }
 
                 return new FieldDeclarationGroup(token, access, name, descriptor);
             }
@@ -369,6 +453,7 @@ public class Parser {
                 // explicit identifier is needed to account for illegal type names
                 return new TypeGroup(token, ctx.explicitIdentifier());
             }
+            case KEYWORD_METHOD_TYPE:
             case KEYWORD_ARGS: {
                 return new ArgsGroup(token, readBody(ctx));
             }
@@ -388,6 +473,10 @@ public class Parser {
             }
             case KEYWORD_THROWS: {
                 return new ThrowsGroup(token, ctx.explicitIdentifier());
+            }
+            case KEYWORD_EXPR: {
+                TextGroup text = (TextGroup) ctx.nextGroup(GroupType.TEXT);
+                return new ExprGroup(token, text);
             }
 
             case KEYWORD_PUBLIC:
@@ -444,7 +533,7 @@ public class Parser {
             Group param = ctx.parseNext();
             params.add(new AnnotationParamGroup(name.value, name, param));
         }
-        throw new AssemblerException("Unexpected end of file", ctx.previousGroup().location());
+        throw new AssemblerException("Expected 'end' keyword", ctx.previousGroup().location());
     }
 
     public InstructionGroup readInvokeDynamic(Token token, ParserContext ctx) throws AssemblerException {
@@ -458,7 +547,7 @@ public class Parser {
 
     public AccessModsGroup readAccess(ParserContext ctx) throws AssemblerException {
         List<AccessModGroup> access = new ArrayList<>();
-        while(accessModifiers.contains(ctx.peekToken().content)){
+        while(accessModifiers.contains(ctx.silentPeek().content)){
             access.add((AccessModGroup) ctx.nextGroup(GroupType.ACCESS_MOD));
         }
         return new AccessModsGroup(access.toArray(new AccessModGroup[0]));
@@ -473,7 +562,7 @@ public class Parser {
             }
             body.add(grp);
         }
-        throw new AssemblerException("Unexpected end of file", ctx.currentToken.getLocation());
+        throw new AssemblerException("Expected 'end' keyword", ctx.currentToken.getLocation());
     }
 
     public LookupSwitchGroup readLookupSwitch(Token begin, ParserContext ctx) throws AssemblerException {
@@ -488,22 +577,24 @@ public class Parser {
             }
             caseLabels.add((CaseLabelGroup) grp);
         }
-        throw new AssemblerException("Unexpected end of file", ctx.currentToken.getLocation());
+        throw new AssemblerException("Expected 'default' label", ctx.currentToken.getLocation());
     }
 
     private TableSwitchGroup readTableSwitch(Token begin, ParserContext ctx) throws AssemblerException {
         List<LabelGroup> caseLabels = new ArrayList<>();
+        NumberGroup low = (NumberGroup) ctx.nextGroup(GroupType.NUMBER);
+        NumberGroup high = (NumberGroup) ctx.nextGroup(GroupType.NUMBER);
         while(ctx.hasNextToken()){
             Group grp = ctx.parseNext();
             if(grp.type == GroupType.DEFAULT_LABEL){
-                return new TableSwitchGroup(begin, (DefaultLabelGroup) grp, caseLabels.toArray(new LabelGroup[0]));
+                return new TableSwitchGroup(begin, low, high, (DefaultLabelGroup) grp, caseLabels.toArray(new LabelGroup[0]));
             }
             if(grp.type != GroupType.IDENTIFIER){
                 throw new AssemblerException("Expected case label", grp.start().location);
             }
             caseLabels.add(new LabelGroup(grp.value));
         }
-        throw new AssemblerException("Unexpected end of file", ctx.currentToken.getLocation());
+        throw new AssemblerException("Expected 'default' label", ctx.currentToken.getLocation());
     }
 
 }
