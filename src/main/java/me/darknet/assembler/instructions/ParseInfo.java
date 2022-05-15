@@ -220,7 +220,7 @@ public class ParseInfo {
         put("sipush", SIPUSH, "const");
         put("swap", SWAP);
         put("tableswitch", TABLESWITCH, "switch");
-        put("line", -1, "label", "line");
+        put("line", -1, "label", "const");
     }
 
 }
