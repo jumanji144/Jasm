@@ -205,7 +205,7 @@ public class ParseInfo {
         put("lxor", LXOR);
         put("monitorenter", MONITORENTER);
         put("monitorexit", MONITOREXIT);
-        put("multianewarray", MULTIANEWARRAY, "class", "dims");
+        put("multianewarray", MULTIANEWARRAY, "class", "const");
         put("new", NEW, "class");
         put("newarray", NEWARRAY, "type");
         put("nop", NOP);
