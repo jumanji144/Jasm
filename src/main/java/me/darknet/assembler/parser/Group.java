@@ -59,13 +59,13 @@ public class Group {
     }
 
     @SuppressWarnings("unchecked")
-    public <T> T getChild(Class<T> type) {
+    public <T> T getChild(Class<T> type) throws AssemblerException {
         for(Group child : children) {
             if(child.getClass() == type) {
                 return (T) child;
             }
         }
-        return null;
+        throw new AssemblerException("No child of type " + type + " found", location());
     }
 
     public int size() {
