@@ -26,6 +26,10 @@ public class Parser {
     public static final String KEYWORD_NATIVE = ".native";
     public static final String KEYWORD_ABSTRACT = ".abstract";
     public static final String KEYWORD_STRICT = ".strictfp";
+    public static final String KEYWORD_BRIDGE = ".bridge";
+    public static final String KEYWORD_VARARGS = ".varargs";
+
+    public static final String KEYWORD_SYNTHETIC = ".synthetic";
     public static final String KEYWORD_EXTENDS = "extends";
     public static final String KEYWORD_IMPLEMENTS = "implements";
     public static final String KEYWORD_FINAL = ".final";
@@ -50,8 +54,6 @@ public class Parser {
     public static final String KEYWORD_ENUM = "enum";
     public static final String KEYWORD_SIGNATURE = "signature";
     public static final String KEYWORD_THROWS = "throws";
-
-
     public static final String KEYWORD_EXPR = "expr";
     private static final String[] keywords = {
             KEYWORD_CLASS,
@@ -91,7 +93,12 @@ public class Parser {
             KEYWORD_INVISIBLE_TYPE_ANNOTATION,
             KEYWORD_SIGNATURE,
             KEYWORD_THROWS,
-            KEYWORD_EXPR
+            KEYWORD_EXPR,
+            KEYWORD_BRIDGE,
+            KEYWORD_SYNTHETIC,
+            KEYWORD_VARARGS,
+            KEYWORD_VOLATILE,
+            KEYWORD_TRANSIENT
     };
 
     public static final List<String> accessModifiers = Arrays.asList(
@@ -100,10 +107,15 @@ public class Parser {
             ".protected",
             ".static",
             ".final",
+            ".bridge",
             ".synchronized",
+            ".synthetic",
             ".native",
             ".abstract",
-            ".strictfp"
+            ".strictfp",
+            ".varargs",
+            ".volatile",
+            ".transient"
     );
 
     public List<Token> tokenize(String source, String code) {
@@ -120,17 +132,19 @@ public class Parser {
                 i++;
                 continue;
             }
-            if(c == '#') {
-                while(i < chars.length) {
-                    if(chars[i] == '\n') {
+            if(c == '/') {
+                if(i + 1 < chars.length && chars[i + 1] == '/') {
+                    while (i < chars.length) {
+                        if (chars[i] == '\n') {
+                            i++;
+                            location.line++;
+                            break;
+                        }
                         i++;
-                        location.line++;
-                        break;
+                        location.column++;
                     }
-                    i++;
-                    location.column++;
+                    continue;
                 }
-                continue;
             }
             if(c == '"'){
                 c = chars[++i];
@@ -146,6 +160,10 @@ public class Parser {
                 while(true){
                     c = chars[++i];
                     location.column++;
+                    if(c == '\\'){
+                        sb.append(c);
+                        continue;
+                    }
                     if(c == '\n'){
                         location.line++;
                     }
@@ -200,16 +218,30 @@ public class Parser {
                     // check if all the characters in the token are digits (and the '-' sign)
                     boolean isNumber = true;
                     boolean numberAppeared = false;
+                    boolean isHex = false;
                     for (int j = 0; j < token.length(); j++) {
                         char c2 = token.charAt(j);
                         if (c2 == '-' && j == 0) {
                             continue;
                         }
-                        if(c2 < '0' || c2 > '9') {
-                            if(numberAppeared) {
-                                if (c2 != '.' && c2 != 'f' && c2 != 'L' && c2 != 'D') {
-                                    isNumber = false;
-                                    break;
+                        if(c2 < '0' || c2 > '9') { // is not number
+                            if(numberAppeared) { // check if there was a number before
+                                if(c2 == 'x') { // hex number
+                                    isHex = true; // toggle state
+                                    continue;
+                                }
+                                if (c2 != '.' && c2 != 'f' && c2 != 'F' && c2 != 'L' && c2 != 'D') { // is not one of the suffixes
+                                    if(!isHex) { // if not hex, then it is not a number
+                                        isNumber = false;
+                                        break;
+                                    } else { // if hex check if it is a valid hex number
+                                        if(c2 < 'a' || c2 > 'f') { // lowercase
+                                            if(c2 < 'A' || c2 > 'F') { // uppercase
+                                                isNumber = false;
+                                                break;
+                                            }
+                                        }
+                                    }
                                 }
                             } else {
                                 isNumber = false;
@@ -252,16 +284,30 @@ public class Parser {
             // check if all the characters in the token are digits (and the '-' sign)
             boolean isNumber = true;
             boolean numberAppeared = false;
+            boolean isHex = false;
             for (int j = 0; j < token.length(); j++) {
                 char c2 = token.charAt(j);
                 if (c2 == '-' && j == 0) {
                     continue;
                 }
-                if(c2 < '0' || c2 > '9') {
-                    if(numberAppeared) {
-                        if (c2 != '.' && c2 != 'f' && c2 != 'L' && c2 != 'D') {
-                            isNumber = false;
-                            break;
+                if(c2 < '0' || c2 > '9') { // is not number
+                    if(numberAppeared) { // check if there was a number before
+                        if(c2 == 'x') { // hex number
+                            isHex = true; // toggle state
+                            continue;
+                        }
+                        if (c2 != '.' && c2 != 'f' && c2 != 'F' && c2 != 'L' && c2 != 'D') { // is not one of the suffixes
+                            if(!isHex) { // if not hex, then it is not a number
+                                isNumber = false;
+                                break;
+                            } else { // if hex check if it is a valid hex number
+                                if(c2 < 'a' || c2 > 'f') { // lowercase
+                                    if(c2 < 'A' || c2 > 'F') { // uppercase
+                                        isNumber = false;
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     } else {
                         isNumber = false;
@@ -445,9 +491,28 @@ public class Parser {
             }
             case KEYWORD_HANDLE: {
                 IdentifierGroup type = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
-                IdentifierGroup descriptor = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
-
-                return new HandleGroup(token, type, descriptor);
+                String typeName = type.content();
+                switch (typeName) {
+                    case "H_GETSTATIC":
+                    case "H_PUTSTATIC":
+                    case "H_GETFIELD":
+                    case "H_PUTFIELD":
+                        return new HandleGroup(token,
+                                type,
+                                (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER), // owner.name
+                                (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER)); // descriptor
+                    case "H_INVOKEVIRTUAL":
+                    case "H_INVOKESPECIAL":
+                    case "H_INVOKESTATIC":
+                    case "H_NEWINVOKESPECIAL":
+                    case "H_INVOKEINTERFACE":
+                        return new HandleGroup(token,
+                                type,
+                                (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER)); // descriptor
+                    default: {
+                        throw new IllegalArgumentException("Unknown handle type: " + typeName);
+                    }
+                }
             }
             case KEYWORD_TYPE: {
                 // explicit identifier is needed to account for illegal type names
@@ -490,6 +555,9 @@ public class Parser {
             case KEYWORD_NATIVE:
             case KEYWORD_ABSTRACT:
             case KEYWORD_STRICT:
+            case KEYWORD_BRIDGE:
+            case KEYWORD_SYNTHETIC:
+            case KEYWORD_VARARGS:
                 return new AccessModGroup(token);
 
         }
@@ -590,7 +658,7 @@ public class Parser {
                 return new TableSwitchGroup(begin, low, high, (DefaultLabelGroup) grp, caseLabels.toArray(new LabelGroup[0]));
             }
             if(grp.type != GroupType.IDENTIFIER){
-                throw new AssemblerException("Expected case label", grp.start().location);
+                throw new AssemblerException("Expected 'default' label", grp.start().location);
             }
             caseLabels.add(new LabelGroup(grp.value));
         }
