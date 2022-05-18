@@ -54,8 +54,8 @@ public class Parser {
     public static final String KEYWORD_ENUM = "enum";
     public static final String KEYWORD_SIGNATURE = "signature";
     public static final String KEYWORD_THROWS = "throws";
-    public static final String KEYWORD_EXPR = "expr";
-    private static final String[] keywords = {
+    public static final String KEYWORD_EXPR = ".expr";
+    static final String[] keywords = {
             KEYWORD_CLASS,
             KEYWORD_METHOD,
             KEYWORD_END,
@@ -120,63 +120,40 @@ public class Parser {
 
     public List<Token> tokenize(String source, String code) {
 
-        List<Token> tokens = new ArrayList<>();
-        Location location = new Location(1, 1, source, 0);
-        char[] chars = code.toCharArray();
+        Location location = new Location(1, 0, source, 0);
         StringBuilder sb = new StringBuilder();
-        int i = 0;
-        while (i < chars.length) {
-            location.position = i;
-            char c = chars[i];
+        TokenizerContext ctx = new TokenizerContext(code.toCharArray(), location);
+        while (ctx.canRead()) {
+            Location previousLocation = ctx.currentLocation.copy();
+            char c = ctx.next();
             if(c == '\r') {
-                i++;
                 continue;
             }
-            if(c == '/') {
-                if(i + 1 < chars.length && chars[i + 1] == '/') {
-                    while (i < chars.length) {
-                        if (chars[i] == '\n') {
-                            i++;
-                            location.line++;
+            if(c == '/') { // comment
+                if(ctx.canRead() && ctx.peek() == '/') {
+                    while (ctx.canRead()) {
+                        if(ctx.next() == '\n') { // single line comment
                             break;
                         }
-                        i++;
-                        location.column++;
                     }
                     continue;
                 }
             }
-            if(c == '"'){
-                c = chars[++i];
-                location.column++;
-                if(c == '"') {
-                    i++;
-                    location.position = i;
-                    tokens.add(new Token(sb.toString(), location.sub(sb.length() + 2), STRING));
-                    sb = new StringBuilder();
-                    continue;
-                }
-                sb.append(c);
-                while(true){
-                    c = chars[++i];
-                    location.column++;
-                    if(c == '\\'){
-                        sb.append(c);
-                        continue;
-                    }
-                    if(c == '\n'){
-                        location.line++;
-                    }
-                    if(c == '"'){
-                        i++;
-                        location.column++;
+            if(c == '"') { // string
+                StringBuilder sb2 = new StringBuilder();
+                while(ctx.canRead()) { // read until end of string
+                    char c2 = ctx.next();
+                    if(c2 == '"') {
+                        ctx.add(new Token(sb2.toString(), location.sub(sb2.length() + 2), STRING));
                         break;
                     }
-                    sb.append(c);
+                    if(c2 == '\\') { // escape sequence
+                        sb2.append(c2); // add backslash
+                        sb2.append(ctx.next()); // add escaped char
+                        continue; // skip next char
+                    }
+                    sb2.append(c2);
                 }
-                location.position = i;
-                tokens.add(new Token(sb.toString(), location.sub(sb.length() + 2), STRING));
-                sb = new StringBuilder();
                 continue;
             }
             if (c == ' ' || c == '\n' || c == '\t') {
@@ -184,154 +161,19 @@ public class Parser {
                 // flush the string builder
                 if (sb.length() > 0) {
 
-                    // special case 'expr' keyword
-                    if (sb.toString().equals("expr")) {
-                        tokens.add(new Token(sb.toString(), location.sub(sb.length()), KEYWORD));
-                        sb = new StringBuilder();
-                        StringBuilder expr = new StringBuilder();
-                        while(true) {
-                            c = chars[++i];
-                            location.column++;
-                            if(c == '\n' || c == ' ' || c == '\t'){
-                                if(c == '\n')
-                                location.line++;
-                                expr.append(sb).append(c);
-                                sb = new StringBuilder();
-                                continue;
-                            }
-                            sb.append(c);
-                            if(sb.toString().equals("end")){
-                                sb = new StringBuilder();
-                                i++;
-                                location.column++;
-                                break;
-                            }
-                        }
-                        location.position = i;
-                        tokens.add(new Token(expr.toString(), location.sub(expr.length() + "end".length()), TEXT));
-                        continue;
-                    }
-                    // determine the type of token
-                    TokenType type = IDENTIFIER;
-                    String token = sb.toString();
-
-                    // check if all the characters in the token are digits (and the '-' sign)
-                    boolean isNumber = true;
-                    boolean numberAppeared = false;
-                    boolean isHex = false;
-                    for (int j = 0; j < token.length(); j++) {
-                        char c2 = token.charAt(j);
-                        if (c2 == '-' && j == 0) {
-                            continue;
-                        }
-                        if(c2 < '0' || c2 > '9') { // is not number
-                            if(numberAppeared) { // check if there was a number before
-                                if(c2 == 'x') { // hex number
-                                    isHex = true; // toggle state
-                                    continue;
-                                }
-                                if (c2 != '.' && c2 != 'f' && c2 != 'F' && c2 != 'L' && c2 != 'D') { // is not one of the suffixes
-                                    if(!isHex) { // if not hex, then it is not a number
-                                        isNumber = false;
-                                        break;
-                                    } else { // if hex check if it is a valid hex number
-                                        if(c2 < 'a' || c2 > 'f') { // lowercase
-                                            if(c2 < 'A' || c2 > 'F') { // uppercase
-                                                isNumber = false;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            } else {
-                                isNumber = false;
-                                break;
-                            }
-                        }
-                        numberAppeared = true;
-                    }
-                    if (isNumber) {
-                        type = NUMBER;
-                    } else {
-                        // check if the token is a keyword
-                        for (String keyword : keywords) {
-                            if (keyword.equals(token)) {
-                                type = KEYWORD;
-                                break;
-                            }
-                        }
-                    }
-                    tokens.add(new Token(sb.toString(), location.sub(sb.length()), type));
+                    ctx.finishToken(sb.toString(), previousLocation);
                     sb = new StringBuilder();
-                }
-                i++;
-                location.column++;
-                if(c == '\n'){
-                    location.line++;
-                    location.column = 1;
                 }
                 continue;
             }
             sb.append(c);
-            i++;
-            location.column++;
         }
 
-        if (sb.length() > 0) {
-            // determine the type of token
-            TokenType type = IDENTIFIER;
-            String token = sb.toString();
-            // check if all the characters in the token are digits (and the '-' sign)
-            boolean isNumber = true;
-            boolean numberAppeared = false;
-            boolean isHex = false;
-            for (int j = 0; j < token.length(); j++) {
-                char c2 = token.charAt(j);
-                if (c2 == '-' && j == 0) {
-                    continue;
-                }
-                if(c2 < '0' || c2 > '9') { // is not number
-                    if(numberAppeared) { // check if there was a number before
-                        if(c2 == 'x') { // hex number
-                            isHex = true; // toggle state
-                            continue;
-                        }
-                        if (c2 != '.' && c2 != 'f' && c2 != 'F' && c2 != 'L' && c2 != 'D') { // is not one of the suffixes
-                            if(!isHex) { // if not hex, then it is not a number
-                                isNumber = false;
-                                break;
-                            } else { // if hex check if it is a valid hex number
-                                if(c2 < 'a' || c2 > 'f') { // lowercase
-                                    if(c2 < 'A' || c2 > 'F') { // uppercase
-                                        isNumber = false;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        isNumber = false;
-                        break;
-                    }
-                }
-                numberAppeared = true;
-            }
-            if (isNumber) {
-                type = NUMBER;
-            } else {
-                // check if the token is a keyword
-                for (String keyword : keywords) {
-                    if (keyword.equals(token)) {
-                        type = KEYWORD;
-                        break;
-                    }
-                }
-            }
-            location.position = i;
-            tokens.add(new Token(sb.toString(), location.sub(sb.length()), type));
+        if (sb.length() > 0) { // if buffer is not empty flush it
+            ctx.finishToken(sb.toString(), ctx.currentLocation);
         }
 
-        return tokens;
+        return ctx.tokens;
 
     }
 
@@ -364,9 +206,9 @@ public class Parser {
                     }else if(info.args[i].equals("const")) {
                         // only parse arguments as constant if the argument is a constant
                         if (peek.type == NUMBER) {
-                            children.add(ctx.nextGroup(GroupType.NUMBER));
+                            children.add(new NumberGroup(ctx.nextToken()));
                         } else if (peek.type == STRING) {
-                            children.add(ctx.nextGroup(GroupType.STRING));
+                            children.add(new StringGroup(ctx.nextToken()));
                         } else {
                             if(ctx.macros.containsKey(peek.content)){
                                 ctx.nextToken();
@@ -393,7 +235,7 @@ public class Parser {
                 }
                 return new InstructionGroup(token, children.toArray(new Group[0]));
             } else {
-                if(content.endsWith(":")){
+                if(content.endsWith(":") && token.type == IDENTIFIER){
                     return new LabelGroup(token);
                 }
             }
