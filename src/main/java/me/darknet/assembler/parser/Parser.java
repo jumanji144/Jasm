@@ -298,11 +298,47 @@ public class Parser {
                 return new FieldDeclarationGroup(token, access, name, descriptor);
             }
             case KEYWORD_METHOD: {
+                // HACK: giant hack but not sure how to fix it
                 // maybe read access modifiers
                 AccessModsGroup access = readAccess(ctx);
-                IdentifierGroup methodDescriptor = ctx.explicitIdentifier();
+                // this parsing method does extend a bit far out of scope, but it is needed for
+                // good consistency
+                IdentifierGroup name = ctx.explicitIdentifier();
+                List<MethodParameterGroup> params = new ArrayList<>();
+                while(ctx.hasNextToken()) {
+                    Token next = ctx.silentPeek();
+                    if(next.type != IDENTIFIER || ParseInfo.has(next.content) || next.content.endsWith(":")) {
+                        // next token is not an identifier or and instruction -> end of parameters
+                        MethodParameterGroup param = params.get(params.size() - 1); // get last parameter
+                        String nme = param.getName().content();
+                        String returnType = nme.substring(nme.indexOf(')') + 1);
+                        return new MethodDeclarationGroup(
+                                token,
+                                access,
+                                name,
+                                new MethodParametersGroup(params.toArray(new MethodParameterGroup[0])),
+                                returnType,
+                                readBody(ctx));
+                    }
+                    IdentifierGroup desc = ctx.explicitIdentifier();
+                    next = ctx.silentPeek();
+                    if(next.type != IDENTIFIER || ParseInfo.has(next.content) || next.content.endsWith(":")) {
+                        // next token is not an identifier or and instruction -> empty parameters
+                        // that means the desc is the entire descriptor
+                        String returnType = desc.content().substring(desc.content().indexOf(')') + 1);
+                        return new MethodDeclarationGroup(
+                                token,
+                                access,
+                                name,
+                                new MethodParametersGroup(),
+                                returnType,
+                                readBody(ctx));
 
-                return new MethodDeclarationGroup(token, access, methodDescriptor, readBody(ctx));
+                    }
+                    IdentifierGroup paramName = ctx.explicitIdentifier();
+                    params.add(new MethodParameterGroup(desc.value, desc, paramName));
+                }
+                throw new AssemblerException("Method declaration must have a return type", token.location);
             }
             case KEYWORD_END: {
                 return new Group(GroupType.END_BODY, token);
@@ -339,10 +375,6 @@ public class Parser {
                     case "H_PUTSTATIC":
                     case "H_GETFIELD":
                     case "H_PUTFIELD":
-                        return new HandleGroup(token,
-                                type,
-                                (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER), // owner.name
-                                (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER)); // descriptor
                     case "H_INVOKEVIRTUAL":
                     case "H_INVOKESPECIAL":
                     case "H_INVOKESTATIC":
@@ -350,6 +382,7 @@ public class Parser {
                     case "H_INVOKEINTERFACE":
                         return new HandleGroup(token,
                                 type,
+                                (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER), // owner.name
                                 (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER)); // descriptor
                     default: {
                         throw new IllegalArgumentException("Unknown handle type: " + typeName);

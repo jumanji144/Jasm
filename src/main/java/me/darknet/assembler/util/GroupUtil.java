@@ -39,7 +39,7 @@ public class GroupUtil {
                 throw new AssemblerException("Unknown handle type " + typeString, handle.location());
             }
             int type = Handles.getType(typeString);
-            MethodDescriptor md = new MethodDescriptor(handle.getDescriptor().content(), false);
+            MethodDescriptor md = new MethodDescriptor(handle.getName().content(), handle.getDescriptor().content());
             return new Handle(
                     type,
                     md.owner == null ? (container == null ? "" : container.fullyQualifiedName) : md.owner,

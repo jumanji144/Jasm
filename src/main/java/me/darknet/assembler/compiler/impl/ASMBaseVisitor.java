@@ -125,10 +125,10 @@ public class ASMBaseVisitor implements Visitor {
     }
 
     @Override
-    public MethodVisitor visitMethod(AccessModsGroup accessMods, IdentifierGroup descriptor, BodyGroup body) throws AssemblerException {
-        MethodDescriptor md = new MethodDescriptor(descriptor.content(), true);
-        int access = getAccess(accessMods);
-        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, md.name, md.getDescriptor(), getSignature(), getThrows().toArray(new String[0]));
+    public MethodVisitor visitMethod(MethodDeclarationGroup decl) throws AssemblerException {
+        String dsc = decl.buildDescriptor();
+        int access = getAccess(decl.accessMods);
+        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, decl.name.content(), dsc, getSignature(), getThrows().toArray(new String[0]));
 
         if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.METHOD) {
             String desc = currentAnnotation.getClassGroup().content();
@@ -143,7 +143,7 @@ public class ASMBaseVisitor implements Visitor {
 
         boolean isStatic = (access & ACC_STATIC) != 0;
 
-        return new ASMBaseMethodVisitor(mv, md, currentClass, isStatic);
+        return new ASMBaseMethodVisitor(mv, currentClass, isStatic);
     }
 
     public void paramValue(String name, Group value, AnnotationVisitor av) throws AssemblerException{

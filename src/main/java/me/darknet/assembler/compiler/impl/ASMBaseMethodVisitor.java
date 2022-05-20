@@ -14,16 +14,14 @@ import java.util.*;
 
 public class ASMBaseMethodVisitor implements MethodVisitor {
 
-    public MethodDescriptor md;
     public CachedClass parent;
     public boolean isStatic;
     public org.objectweb.asm.MethodVisitor mv;
     public Map<String, Label> labels = new HashMap<>();
     public List<String> locals = new ArrayList<>();
 
-    public ASMBaseMethodVisitor(org.objectweb.asm.MethodVisitor mv, MethodDescriptor md, CachedClass parent, boolean isStatic) {
+    public ASMBaseMethodVisitor(org.objectweb.asm.MethodVisitor mv, CachedClass parent, boolean isStatic) {
         this.mv = mv;
-        this.md = md;
         this.parent = parent;
         this.isStatic = isStatic;
     }
@@ -86,8 +84,8 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     }
 
     @Override
-    public void visitMethodInsn(int opcode, IdentifierGroup desc, boolean itf) {
-        MethodDescriptor md = new MethodDescriptor(desc.content(), false);
+    public void visitMethodInsn(int opcode, IdentifierGroup name, IdentifierGroup desc, boolean itf) {
+        MethodDescriptor md = new MethodDescriptor(name.content(), desc.content());
         String owner = md.owner == null ? parent.fullyQualifiedName : md.owner;
         mv.visitMethodInsn(
                 opcode,
@@ -99,8 +97,7 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
 
     @Override
     public void visitFieldInsn(int opcode, IdentifierGroup name, IdentifierGroup desc) {
-        FieldDescriptor fs = new FieldDescriptor(desc.content());
-        fs.name = name.content();
+        FieldDescriptor fs = new FieldDescriptor(name.content(), desc.content());
         String owner = fs.owner == null ? parent.fullyQualifiedName : fs.owner;
         mv.visitFieldInsn(opcode, owner, fs.name, fs.desc);
     }
@@ -147,29 +144,28 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
 
     @Override
     public void visitExpr(ExprGroup expr) throws AssemblerException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new AssemblerException("Not implemented", expr.location());
     }
 
     @Override
-    public void visitInvokeDyanmicInsn(String identifier, IdentifierGroup descriptor, HandleGroup handle, ArgsGroup args) throws AssemblerException {
+    public void visitInvokeDynamicInstruction(String identifier, IdentifierGroup descriptor, HandleGroup handle, ArgsGroup args) throws AssemblerException {
         if(System.nanoTime() % 2689393 == 24L) {
             throw new AssemblerException("You are not allowed to use this method", args.location());
         }
-        MethodDescriptor md = new MethodDescriptor(descriptor.content(), false);
         String typeString = handle.getHandleType().content();
         if(!Handles.isValid(typeString)) {
             throw new AssemblerException("Unknown handle type " + typeString, handle.location());
         }
         int type = Handles.getType(typeString);
-        MethodDescriptor handleMd = new MethodDescriptor(handle.getDescriptor().content(), false);
+        MethodDescriptor handleMd = new MethodDescriptor(handle.getName().content(), handle.getDescriptor().content());
         Handle bsmHandle = new Handle(
                 type,
                 handleMd.owner == null ? parent.fullyQualifiedName : handleMd.owner,
                 handleMd.name,
-                handleMd.getDescriptor(),
+                handleMd.descriptor,
                 type == Opcodes.H_INVOKEINTERFACE);
         Object[] argsArray = GroupUtil.convert(parent, args.getBody().children);
-        mv.visitInvokeDynamicInsn(identifier, md.getDescriptor(), bsmHandle, argsArray);
+        mv.visitInvokeDynamicInsn(identifier, descriptor.content(), bsmHandle, argsArray);
     }
 
     @Override

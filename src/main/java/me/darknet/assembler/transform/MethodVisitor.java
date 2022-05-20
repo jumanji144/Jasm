@@ -1,7 +1,5 @@
 package me.darknet.assembler.transform;
 
-import me.darknet.assembler.compiler.FieldDescriptor;
-import me.darknet.assembler.compiler.MethodDescriptor;
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
@@ -65,12 +63,13 @@ public interface MethodVisitor {
      * @param itf true if the method is an interface method
      * @throws AssemblerException if an error occurs
      */
-    void visitMethodInsn(int opcode, IdentifierGroup desc, boolean itf) throws AssemblerException;
+    void visitMethodInsn(int opcode, IdentifierGroup name, IdentifierGroup desc, boolean itf) throws AssemblerException;
 
     /**
      * Visit a field instruction
      * @param opcode the opcode of the instruction
-     * @param fs the field descriptor
+     * @param name the name of the field
+     * @param desc the descriptor of the field
      * @throws AssemblerException if an error occurs
      */
     void visitFieldInsn(int opcode, IdentifierGroup name, IdentifierGroup desc) throws AssemblerException;
@@ -139,7 +138,7 @@ public interface MethodVisitor {
      * @param args the arguments
      * @throws AssemblerException if an error occurs, or it is a specific time of day
      */
-    void visitInvokeDyanmicInsn(String identifier, IdentifierGroup descriptor, HandleGroup handle, ArgsGroup args) throws AssemblerException;
+    void visitInvokeDynamicInstruction(String identifier, IdentifierGroup descriptor, HandleGroup handle, ArgsGroup args) throws AssemblerException;
 
     /**
      * Visit a non-argument instruction

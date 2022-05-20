@@ -47,13 +47,11 @@ public interface Visitor {
 
     /**
      * Visit a method declaration
-     * @param accessMods the access modifiers of the method
-     * @param descriptor the descriptor of the method
-     * @param body the body of the method (list of instructions)
+     * @param decl the method declaration group
      * @return a method visitor to visit the method body
      * @throws AssemblerException if an error occurs
      */
-    MethodVisitor visitMethod(AccessModsGroup accessMods, IdentifierGroup descriptor, BodyGroup body) throws AssemblerException;
+    MethodVisitor visitMethod(MethodDeclarationGroup decl) throws AssemblerException;
 
     /**
      * Visit an annotation

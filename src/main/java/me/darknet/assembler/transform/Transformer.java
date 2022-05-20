@@ -41,7 +41,7 @@ public class Transformer {
                     case METHOD_DECLARATION:
                         MethodDeclarationGroup methodDcl = (MethodDeclarationGroup) group;
                         // create a new method visitor
-                        MethodVisitor mv = visitor.visitMethod(methodDcl.accessMods, methodDcl.descriptor, methodDcl.body);
+                        MethodVisitor mv = visitor.visitMethod(methodDcl);
                         // call it using a method transformer
                         MethodTransformer mt = new MethodTransformer(mv);
                         mt.transform(methodDcl.body);

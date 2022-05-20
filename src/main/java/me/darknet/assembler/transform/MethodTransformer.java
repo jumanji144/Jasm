@@ -1,19 +1,13 @@
 package me.darknet.assembler.transform;
 
-import me.darknet.assembler.compiler.FieldDescriptor;
-import me.darknet.assembler.compiler.MethodDescriptor;
 import me.darknet.assembler.instructions.ParseInfo;
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
-import org.objectweb.asm.Label;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import static me.darknet.assembler.parser.Group.GroupType;
 import static org.objectweb.asm.Opcodes.*;
 import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
 
@@ -108,9 +102,13 @@ public class MethodTransformer {
             case INVOKEINTERFACE:
             case INVOKESPECIAL: {
 
+                IdentifierGroup name = (IdentifierGroup) inst.get(0);
+                IdentifierGroup desc = (IdentifierGroup) inst.get(1);
+
                 mv.visitMethodInsn(
                         opcode,
-                        inst.getChild(IdentifierGroup.class),
+                        name,
+                        desc,
                         opcode == INVOKEINTERFACE
                 // INFO: opcode == INVOKEINTERFACE is not always correct because there are some
                 // INVOKEVIRTUAL instructions which have itf = true but for that static analysis is
@@ -213,7 +211,7 @@ public class MethodTransformer {
                 HandleGroup handle = inst.getChild(HandleGroup.class);
                 ArgsGroup args = inst.getChild(ArgsGroup.class);
 
-                mv.visitInvokeDyanmicInsn(name, desc, handle, args);
+                mv.visitInvokeDynamicInstruction(name, desc, handle, args);
                 break;
             }
             case -1: { // line number

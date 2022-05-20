@@ -25,6 +25,10 @@ public class ParseInfo {
         return actions.get(instruction);
     }
 
+    public static boolean has(String instruction) {
+        return actions.containsKey(instruction);
+    }
+
     static {
         put("aaload", AALOAD);
         put("aastore", AASTORE);
@@ -152,10 +156,10 @@ public class ParseInfo {
         put("ineg", INEG);
         put("instanceof", INSTANCEOF, "class");
         put("invokedynamic", INVOKEDYNAMIC, "name", "desc", "bsm");
-        put("invokeinterface", INVOKEINTERFACE, "interface");
-        put("invokespecial", INVOKESPECIAL, "method");
-        put("invokestatic", INVOKESTATIC, "method");
-        put("invokevirtual", INVOKEVIRTUAL, "method");
+        put("invokeinterface", INVOKEINTERFACE, "name", "desc");
+        put("invokespecial", INVOKESPECIAL, "name", "desc");
+        put("invokestatic", INVOKESTATIC, "name", "desc");
+        put("invokevirtual", INVOKEVIRTUAL, "name", "desc");
         put("ior", IOR);
         put("irem", IREM);
         put("ireturn", IRETURN);
