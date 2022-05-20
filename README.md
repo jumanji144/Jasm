@@ -2,6 +2,12 @@
 Java assembly like language for bytecode.
 
 # Syntax
+
+```
+!IMPORTANT! The syntax is heavy in WIP so below information or examples may or may not change
+To be certain if the syntax is correct come back when this warning is gone
+```
+
 The syntax is quite similar to that of other assemblers.   
 It has some resilience against maliciously user-defined variables.   
 It also supports names for locals, labels
