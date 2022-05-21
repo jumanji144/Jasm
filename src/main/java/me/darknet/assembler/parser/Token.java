@@ -9,6 +9,14 @@ public class Token {
     public final Location location;
     public final TokenType type;
 
+    public int getStart() {
+        return location.position;
+    }
+
+    public int getEnd() {
+        return location.position + content.length();
+    }
+
     public enum TokenType {
         EOF,
         STRING,

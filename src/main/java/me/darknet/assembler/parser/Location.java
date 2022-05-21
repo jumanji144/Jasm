@@ -26,11 +26,8 @@ public class Location {
         return new Location(line, this.column - column, source, position - column);
     }
 
-    public int getEndPosition() {
-        return position + source.length();
-    }
 
-    public int getStartPosition() {
+    public int getStart() {
         return position;
     }
 
