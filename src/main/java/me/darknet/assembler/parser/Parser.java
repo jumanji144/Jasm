@@ -385,7 +385,7 @@ public class Parser {
                                 (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER), // owner.name
                                 (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER)); // descriptor
                     default: {
-                        throw new IllegalArgumentException("Unknown handle type: " + typeName);
+                        throw new AssemblerException("Unknown handle type: " + typeName, type.location());
                     }
                 }
             }

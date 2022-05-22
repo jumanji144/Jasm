@@ -70,8 +70,12 @@ public class ParserContext {
         pushGroup(type, currentToken, children);
     }
 
-    public Group previousGroup() {
-        return groups.get(groups.size() - 1);
+    public Group previousGroup() throws AssemblerException {
+        if(groups.size() > 0) {
+            return groups.get(groups.size() - 1);
+        } else {
+            throw new AssemblerException("No previous group", currentToken.getLocation());
+        }
     }
 
     public Token peekToken() throws AssemblerException{
