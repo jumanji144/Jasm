@@ -28,7 +28,8 @@ public class Parser {
     public static final String KEYWORD_STRICT = ".strictfp";
     public static final String KEYWORD_BRIDGE = ".bridge";
     public static final String KEYWORD_VARARGS = ".varargs";
-
+    public static final String KEYWORD_SUPER = ".super";
+    public static final String KEYWORD_ENUM_ACCESS = ".enum";
     public static final String KEYWORD_SYNTHETIC = ".synthetic";
     public static final String KEYWORD_EXTENDS = "extends";
     public static final String KEYWORD_IMPLEMENTS = "implements";
@@ -98,7 +99,9 @@ public class Parser {
             KEYWORD_SYNTHETIC,
             KEYWORD_VARARGS,
             KEYWORD_VOLATILE,
-            KEYWORD_TRANSIENT
+            KEYWORD_TRANSIENT,
+            KEYWORD_ENUM_ACCESS,
+            KEYWORD_SUPER,
     };
 
     public static final List<String> accessModifiers = Arrays.asList(
@@ -115,7 +118,9 @@ public class Parser {
             ".strictfp",
             ".varargs",
             ".volatile",
-            ".transient"
+            ".transient",
+            ".enum",
+            ".super"
     );
 
     public List<Token> tokenize(String source, String code) {
@@ -433,6 +438,8 @@ public class Parser {
             case KEYWORD_BRIDGE:
             case KEYWORD_SYNTHETIC:
             case KEYWORD_VARARGS:
+            case KEYWORD_SUPER:
+            case KEYWORD_ENUM_ACCESS:
                 return new AccessModGroup(token);
 
         }
