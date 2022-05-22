@@ -33,7 +33,6 @@ public class CompilerTests {
 
     static List<byte[]> featuresBytes = new ArrayList<>(features.size());
 
-    @BeforeAll
     public static void loadAllExamples() throws IOException {
         String prefix = "features/";
         for (String feature : features) {
@@ -56,8 +55,6 @@ public class CompilerTests {
         return args;
     }
 
-    @ParameterizedTest
-    @MethodSource("getFeatures")
     public void testExample(String feature, byte[] bytes) throws AssemblerException {
         System.out.print("Testing " + feature);
         try {

@@ -13,7 +13,7 @@ public class HandleGroup extends Group {
     IdentifierGroup descriptor;
 
     public HandleGroup(Token value, IdentifierGroup type, IdentifierGroup name, IdentifierGroup descriptor) {
-        super(GroupType.HANDLE, value, type, descriptor);
+        super(GroupType.HANDLE, value, type, name, descriptor);
         this.handleType = type;
         this.descriptor = descriptor;
         this.name = name;

@@ -12,12 +12,10 @@ public class ParserTests {
 
     static Parser parser;
 
-    @BeforeAll
     public static void setup() {
         parser = new Parser();
     }
 
-    @Test
     public void testParserTokenize() {
         String input1 = "class Test extends java/lang/Object";
         String input2 = "field public number I";

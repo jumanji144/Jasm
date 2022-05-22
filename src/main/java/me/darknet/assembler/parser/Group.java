@@ -12,8 +12,12 @@ public class Group {
     public final GroupType type;
     public final Token value;
     public Group[] children;
+    public Group parent;
 
     public Group(GroupType type, Token value, Group... children) {
+        for (Group child : children) {
+            child.parent = this;
+        }
         this.type = type;
         this.value = value;
         this.children = children;
