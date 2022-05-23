@@ -104,13 +104,13 @@ public class ASMBaseVisitor implements Visitor {
 
 
     @Override
-    public void visitField(AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup descriptor, Group constantValue) throws AssemblerException {
-        FieldVisitor fv = cw.visitField(getAccess(accessMods),
-                name.content(),
-                descriptor.content(),
+    public void visitField(FieldDeclarationGroup decl) throws AssemblerException {
+        FieldVisitor fv = cw.visitField(getAccess(decl.accessMods),
+                decl.name.content(),
+                decl.descriptor.content(),
                 getSignature(),
-                constantValue == null ?
-                        null : GroupUtil.convert(currentClass, constantValue));
+                decl.constantValue == null ?
+                        null : GroupUtil.convert(currentClass, decl.constantValue));
         if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.FIELD) {
             String desc = currentAnnotation.getClassGroup().content();
             AnnotationParamGroup[] params = currentAnnotation.getParams();

@@ -37,13 +37,10 @@ public interface Visitor {
 
     /**
      * Visit a field declaration
-     * @param accessMods the access modifiers of the field
-     * @param name the name of the field
-     * @param descriptor the descriptor of the field
-     * @param constantValue the constant value of the field (might be null)
+     * @param decl the field declaration group
      * @throws AssemblerException if an error occurs
      */
-    void visitField(AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup descriptor, Group constantValue) throws AssemblerException;
+    void visitField(FieldDeclarationGroup decl) throws AssemblerException;
 
     /**
      * Visit a method declaration
