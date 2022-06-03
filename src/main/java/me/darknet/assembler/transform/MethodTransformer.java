@@ -107,11 +107,18 @@ public class MethodTransformer {
                 IdentifierGroup desc = (IdentifierGroup) inst.get(1);
 
                 mv.visitMethodInsn(
-                        opcode,
+                        opcode == ParseInfo.INSTRUCTION_INVOKEVIRTUALINTERFACE
+                         ? INVOKEVIRTUAL
+                         : opcode,
                         name,
                         desc,
                         opcode == INVOKEINTERFACE || opcode == ParseInfo.INSTRUCTION_INVOKEVIRTUALINTERFACE
                 );
+                // INFO: opcode == INVOKEINTERFACE is not always correct because there are some
+                // INVOKEVIRTUAL instructions which have itf=true but for that static analysis is
+                // needed to determent if the method is an interface which is out of scope of this project
+                // also because it is costly to do that. So instead, we offer a custom instruction to denote
+                // that itf=true for what would otherwise be INVOKEVIRTUAL
                 break;
             }
             case GETFIELD:
