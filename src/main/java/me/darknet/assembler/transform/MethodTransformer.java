@@ -100,7 +100,8 @@ public class MethodTransformer {
             case INVOKEVIRTUAL:
             case INVOKESTATIC:
             case INVOKEINTERFACE:
-            case INVOKESPECIAL: {
+            case INVOKESPECIAL:
+            case ParseInfo.INSTRUCTION_INVOKEVIRTUALINTERFACE: {
 
                 IdentifierGroup name = (IdentifierGroup) inst.get(0);
                 IdentifierGroup desc = (IdentifierGroup) inst.get(1);
@@ -109,12 +110,8 @@ public class MethodTransformer {
                         opcode,
                         name,
                         desc,
-                        opcode == INVOKEINTERFACE
-                // INFO: opcode == INVOKEINTERFACE is not always correct because there are some
-                // INVOKEVIRTUAL instructions which have itf = true but for that static analysis is
-                // needed to determent if the method is an interface which is out of scope of this project
-                // also because it is costly to do that
-                        );
+                        opcode == INVOKEINTERFACE || opcode == ParseInfo.INSTRUCTION_INVOKEVIRTUALINTERFACE
+                );
                 break;
             }
             case GETFIELD:
