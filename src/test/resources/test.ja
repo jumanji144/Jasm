@@ -1,12 +1,12 @@
-class .public test
+class public test
 
 method fastInverseSqrt(F x)F
     fload x
     fconst_0
     fcmpl
-    ifeq .fastInverseSqrt_return
+    ifeq fastInverseSqrt_return
     fconst_1
     fdiv
-.fastInverseSqrt_return:
+fastInverseSqrt_return:
     freturn
 end

@@ -6,13 +6,14 @@ import java.util.List;
 import static me.darknet.assembler.parser.Token.TokenType.*;
 
 public class TokenizerContext {
-
-    char[] stream;
+    private final Keywords keywords;
+    private final char[] stream;
+    final Location currentLocation;
     int i = 0;
-    Location currentLocation;
-    List<Token> tokens = new ArrayList<>();
+    final List<Token> tokens = new ArrayList<>();
 
-    public TokenizerContext(char[] stream, Location currentLocation) {
+    public TokenizerContext(Keywords keywords, char[] stream, Location currentLocation) {
+        this.keywords = keywords;
         this.stream = stream;
         this.currentLocation = currentLocation;
     }
@@ -43,7 +44,7 @@ public class TokenizerContext {
 
     public void finishToken(String content, Location location) {
         // special case '.expr' keyword
-        if (content.equals(".expr")) {
+        if (keywords.match(Keyword.KEYWORD_EXPR, content)) {
             add(new Token(content, location.sub(content.length()), KEYWORD));
             StringBuilder sb = new StringBuilder();
             StringBuilder expr = new StringBuilder();
@@ -55,14 +56,14 @@ public class TokenizerContext {
                     continue;
                 }
                 sb.append(c);
-                if(sb.toString().equals("end")){
+                if(keywords.match(Keyword.KEYWORD_END, sb.toString())){
                     i++;
                     location.column++;
                     break;
                 }
             }
             location.position = i;
-            add(new Token(expr.toString(), location.sub(expr.length() + "end".length()), TEXT));
+            add(new Token(expr.toString(), location.sub(expr.length() + keywords.toString(Keyword.KEYWORD_END).length()), TEXT));
             return;
         }
         // determine the type of token
@@ -116,11 +117,8 @@ public class TokenizerContext {
             type = NUMBER;
         } else {
             // check if the token is a keyword
-            for (String keyword : Parser.keywords) {
-                if (keyword.equals(content)) {
-                    type = KEYWORD;
-                    break;
-                }
+            if (keywords.fromString(content) != null) {
+                type = KEYWORD;
             }
         }
         add(new Token(content, location.sub(content.length()), type));

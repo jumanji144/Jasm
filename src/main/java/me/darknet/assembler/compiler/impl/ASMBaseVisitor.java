@@ -1,11 +1,24 @@
 package me.darknet.assembler.compiler.impl;
 
-import me.darknet.assembler.compiler.MethodDescriptor;
 import me.darknet.assembler.parser.AnnotationTarget;
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
-import me.darknet.assembler.parser.Parser;
-import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.Keyword;
+import me.darknet.assembler.parser.Keywords;
+import me.darknet.assembler.parser.groups.AccessModGroup;
+import me.darknet.assembler.parser.groups.AccessModsGroup;
+import me.darknet.assembler.parser.groups.AnnotationGroup;
+import me.darknet.assembler.parser.groups.AnnotationParamGroup;
+import me.darknet.assembler.parser.groups.ArgsGroup;
+import me.darknet.assembler.parser.groups.EnumGroup;
+import me.darknet.assembler.parser.groups.ExprGroup;
+import me.darknet.assembler.parser.groups.ExtendsGroup;
+import me.darknet.assembler.parser.groups.FieldDeclarationGroup;
+import me.darknet.assembler.parser.groups.IdentifierGroup;
+import me.darknet.assembler.parser.groups.ImplementsGroup;
+import me.darknet.assembler.parser.groups.MethodDeclarationGroup;
+import me.darknet.assembler.parser.groups.SignatureGroup;
+import me.darknet.assembler.parser.groups.ThrowsGroup;
 import me.darknet.assembler.transform.MethodVisitor;
 import me.darknet.assembler.transform.Visitor;
 import me.darknet.assembler.util.GroupUtil;
@@ -20,17 +33,20 @@ import static me.darknet.assembler.parser.Group.GroupType;
 import static org.objectweb.asm.Opcodes.*;
 
 public class ASMBaseVisitor implements Visitor {
+    private final Keywords keywords;
+    private final ClassWriter cw;
+    private final int version;
+    private final List<String> currentThrows = new ArrayList<>();
+    private CachedClass currentClass;
+    private AnnotationGroup currentAnnotation;
+    private SignatureGroup currentSignature;
 
-    ClassWriter cw;
-    int version;
+    public ASMBaseVisitor(int version, Keywords keywords) {
+        cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        this.version = version;
+        this.keywords =keywords;
+    }
 
-    CachedClass currentClass;
-
-    AnnotationGroup currentAnnotation;
-
-    SignatureGroup currentSignature;
-
-    List<String> currentThrows = new ArrayList<>();
 
     public String getSignature() {
         if(currentSignature != null) {
@@ -45,11 +61,6 @@ public class ASMBaseVisitor implements Visitor {
         List<String> throwss = new ArrayList<>(currentThrows);
         currentThrows.clear();
         return throwss;
-    }
-
-    public ASMBaseVisitor(int version) {
-        cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        this.version = version;
     }
 
     @Override
@@ -146,22 +157,21 @@ public class ASMBaseVisitor implements Visitor {
         return new ASMBaseMethodVisitor(mv, currentClass, isStatic);
     }
 
-    public void paramValue(String name, Group value, AnnotationVisitor av) throws AssemblerException{
-
-        if(value.type == GroupType.ARGS){
+    private void paramValue(String name, Group value, AnnotationVisitor av) throws AssemblerException {
+        if (value.type == GroupType.ARGS) {
             ArgsGroup args = (ArgsGroup) value;
             AnnotationVisitor arrayVis = av.visitArray(name);
             for (Group group : args.getBody().children) {
                 paramValue(name, group, arrayVis);
             }
             arrayVis.visitEnd();
-        } else if(value.type == GroupType.ENUM) {
+        } else if (value.type == GroupType.ENUM) {
             EnumGroup enumGroup = (EnumGroup) value;
             av.visitEnum(name, enumGroup.getDescriptor().content(), enumGroup.getEnumValue().content());
-        } else if(value.type == GroupType.ANNOTATION) {
+        } else if (value.type == GroupType.ANNOTATION) {
             AnnotationGroup annotationGroup = (AnnotationGroup) value;
             AnnotationVisitor annotationVis = av.visitAnnotation(name, annotationGroup.getClassGroup().content());
-            for(AnnotationParamGroup param : annotationGroup.getParams()) {
+            for (AnnotationParamGroup param : annotationGroup.getParams()) {
                 annotationParam(param, annotationVis);
             }
             annotationVis.visitEnd();
@@ -171,15 +181,15 @@ public class ASMBaseVisitor implements Visitor {
 
     }
 
-    public void annotationParam(AnnotationParamGroup annotationParam, AnnotationVisitor av) throws AssemblerException {
-        if(annotationParam.value.type == GroupType.ARGS) {
+    private void annotationParam(AnnotationParamGroup annotationParam, AnnotationVisitor av) throws AssemblerException {
+        if (annotationParam.value.type == GroupType.ARGS) {
             ArgsGroup args = (ArgsGroup) annotationParam.value;
             AnnotationVisitor arrayVis = av.visitArray(annotationParam.name.content());
             for (Group group : args.getBody().children) {
                 paramValue(annotationParam.name.content(), group, arrayVis);
             }
             arrayVis.visitEnd();
-        }else {
+        } else {
             paramValue(annotationParam.name.content(), annotationParam.value, av);
         }
     }
@@ -204,7 +214,6 @@ public class ASMBaseVisitor implements Visitor {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-
     @Override
     public void visitEndClass() {
 
@@ -214,25 +223,25 @@ public class ASMBaseVisitor implements Visitor {
         return cw.toByteArray();
     }
 
-    public static int getAccess(AccessModsGroup access) {
+    private int getAccess(AccessModsGroup access) {
         int accessFlags = 0;
         for (AccessModGroup g : access.accessMods) {
-            switch (g.content()) {
-                case Parser.KEYWORD_PUBLIC:
+            Keyword keyword = keywords.fromGroup(g);
+            switch (keyword) {
+                case KEYWORD_PUBLIC:
                     accessFlags |= ACC_PUBLIC;
                     break;
-                case Parser.KEYWORD_PRIVATE:
+                case KEYWORD_PRIVATE:
                     accessFlags |= ACC_PRIVATE;
                     break;
-                case Parser.KEYWORD_STATIC:
+                case KEYWORD_STATIC:
                     accessFlags |= ACC_STATIC;
                     break;
-                case Parser.KEYWORD_FINAL:
+                case KEYWORD_FINAL:
                     accessFlags |= ACC_FINAL;
                     break;
             }
         }
         return accessFlags;
     }
-
 }
