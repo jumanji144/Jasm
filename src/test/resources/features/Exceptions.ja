@@ -2,7 +2,7 @@ class Exceptions extends java/lang/Object
 
 throws java/lang/IllegalArgumentException
 throws java/lang/IllegalStateException
-method .public .static main([Ljava/lang/String;)V
+method public static main([Ljava/lang/String;)V
     iconst_1
     ifeq L1
     goto L2

@@ -1,158 +1,84 @@
 package me.darknet.assembler.parser;
 
 import me.darknet.assembler.instructions.ParseInfo;
-import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.AccessModGroup;
+import me.darknet.assembler.parser.groups.AccessModsGroup;
+import me.darknet.assembler.parser.groups.AnnotationGroup;
+import me.darknet.assembler.parser.groups.AnnotationParamGroup;
+import me.darknet.assembler.parser.groups.ArgsGroup;
+import me.darknet.assembler.parser.groups.BodyGroup;
+import me.darknet.assembler.parser.groups.CaseLabelGroup;
+import me.darknet.assembler.parser.groups.CatchGroup;
+import me.darknet.assembler.parser.groups.ClassDeclarationGroup;
+import me.darknet.assembler.parser.groups.DefaultLabelGroup;
+import me.darknet.assembler.parser.groups.EnumGroup;
+import me.darknet.assembler.parser.groups.ExprGroup;
+import me.darknet.assembler.parser.groups.ExtendsGroup;
+import me.darknet.assembler.parser.groups.FieldDeclarationGroup;
+import me.darknet.assembler.parser.groups.HandleGroup;
+import me.darknet.assembler.parser.groups.IdentifierGroup;
+import me.darknet.assembler.parser.groups.ImplementsGroup;
+import me.darknet.assembler.parser.groups.InstructionGroup;
+import me.darknet.assembler.parser.groups.LabelGroup;
+import me.darknet.assembler.parser.groups.LookupSwitchGroup;
+import me.darknet.assembler.parser.groups.MethodDeclarationGroup;
+import me.darknet.assembler.parser.groups.MethodParameterGroup;
+import me.darknet.assembler.parser.groups.MethodParametersGroup;
+import me.darknet.assembler.parser.groups.NumberGroup;
+import me.darknet.assembler.parser.groups.SignatureGroup;
+import me.darknet.assembler.parser.groups.StringGroup;
+import me.darknet.assembler.parser.groups.TableSwitchGroup;
+import me.darknet.assembler.parser.groups.TextGroup;
+import me.darknet.assembler.parser.groups.ThrowsGroup;
+import me.darknet.assembler.parser.groups.TypeGroup;
 
-import java.lang.annotation.Target;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
-import static me.darknet.assembler.parser.Token.TokenType.*;
-import static me.darknet.assembler.parser.Token.TokenType;
 import static me.darknet.assembler.parser.Group.GroupType;
+import static me.darknet.assembler.parser.Token.TokenType.*;
 
 public class Parser {
+    private final Keywords keywords;
 
-    public static final String KEYWORD_CLASS = "class";
-    public static final String KEYWORD_METHOD = "method";
-    public static final String KEYWORD_END = "end";
-    public static final String KEYWORD_FIELD = "field";
-    public static final String KEYWORD_STATIC = ".static";
-    public static final String KEYWORD_PUBLIC = ".public";
-    public static final String KEYWORD_PRIVATE = ".private";
-    public static final String KEYWORD_PROTECTED = ".protected";
-    public static final String KEYWORD_SYNCHRONIZED = ".synchronized";
-    public static final String KEYWORD_VOLATILE = ".volatile";
-    public static final String KEYWORD_TRANSIENT = ".transient";
-    public static final String KEYWORD_NATIVE = ".native";
-    public static final String KEYWORD_ABSTRACT = ".abstract";
-    public static final String KEYWORD_STRICT = ".strictfp";
-    public static final String KEYWORD_BRIDGE = ".bridge";
-    public static final String KEYWORD_VARARGS = ".varargs";
-    public static final String KEYWORD_SUPER = ".super";
-    public static final String KEYWORD_ENUM_ACCESS = ".enum";
-    public static final String KEYWORD_SYNTHETIC = ".synthetic";
-    public static final String KEYWORD_EXTENDS = "extends";
-    public static final String KEYWORD_IMPLEMENTS = "implements";
-    public static final String KEYWORD_FINAL = ".final";
-    public static final String KEYWORD_STACK = "stack";
-    public static final String KEYWORD_LOCALS = "locals";
-    public static final String KEYWORD_SWITCH = "lookupswitch";
-    public static final String KEYWORD_TABLESWITCH = "tableswitch";
-    public static final String KEYWORD_DEFAULT = "default";
-    public static final String KEYWORD_CASE = "case";
-    public static final String KEYWORD_MACRO = "macro";
-    public static final String KEYWORD_CATCH = "catch";
-    public static final String KEYWORD_HANDLE = ".handle";
-    public static final String KEYWORD_ARGS = "args";
-    public static final String KEYWORD_TYPE = ".type";
-    public static final String KEYWORD_METHOD_TYPE = ".method";
-    public static final String KEYWORD_ANNOTATION = "annotation";
-    public static final String KEYWORD_INVISIBLE_ANNOTATION = "invisible-annotation";
-    public static final String KEYWORD_PARAMETER_ANNOTATION = "parameter-annotation";
-    public static final String KEYWORD_INVISIBLE_PARAMETER_ANNOTATION = "invisible-parameter-annotation";
-    public static final String KEYWORD_TYPE_ANNOTATION = "type-annotation";
-    public static final String KEYWORD_INVISIBLE_TYPE_ANNOTATION = "invisible-type-annotation";
-    public static final String KEYWORD_ENUM = "enum";
-    public static final String KEYWORD_SIGNATURE = "signature";
-    public static final String KEYWORD_THROWS = "throws";
-    public static final String KEYWORD_EXPR = ".expr";
-    static final String[] keywords = {
-            KEYWORD_CLASS,
-            KEYWORD_METHOD,
-            KEYWORD_END,
-            KEYWORD_FIELD,
-            KEYWORD_STATIC,
-            KEYWORD_PUBLIC,
-            KEYWORD_PRIVATE,
-            KEYWORD_PROTECTED,
-            KEYWORD_EXTENDS,
-            KEYWORD_IMPLEMENTS,
-            KEYWORD_FINAL,
-            KEYWORD_STACK,
-            KEYWORD_LOCALS,
-            KEYWORD_SWITCH,
-            KEYWORD_TABLESWITCH,
-            KEYWORD_DEFAULT,
-            KEYWORD_CASE,
-            KEYWORD_MACRO,
-            KEYWORD_CATCH,
-            KEYWORD_HANDLE,
-            KEYWORD_ARGS,
-            KEYWORD_TYPE,
-            KEYWORD_ANNOTATION,
-            KEYWORD_INVISIBLE_ANNOTATION,
-            KEYWORD_TRANSIENT,
-            KEYWORD_VOLATILE,
-            KEYWORD_STRICT,
-            KEYWORD_NATIVE,
-            KEYWORD_ABSTRACT,
-            KEYWORD_SYNCHRONIZED,
-            KEYWORD_ENUM,
-            KEYWORD_PARAMETER_ANNOTATION,
-            KEYWORD_INVISIBLE_PARAMETER_ANNOTATION,
-            KEYWORD_TYPE_ANNOTATION,
-            KEYWORD_INVISIBLE_TYPE_ANNOTATION,
-            KEYWORD_SIGNATURE,
-            KEYWORD_THROWS,
-            KEYWORD_EXPR,
-            KEYWORD_BRIDGE,
-            KEYWORD_SYNTHETIC,
-            KEYWORD_VARARGS,
-            KEYWORD_VOLATILE,
-            KEYWORD_TRANSIENT,
-            KEYWORD_ENUM_ACCESS,
-            KEYWORD_SUPER,
-    };
+    public Parser() {
+        this(new Keywords());
+    }
 
-    public static final List<String> accessModifiers = Arrays.asList(
-            ".public",
-            ".private",
-            ".protected",
-            ".static",
-            ".final",
-            ".bridge",
-            ".synchronized",
-            ".synthetic",
-            ".native",
-            ".abstract",
-            ".strictfp",
-            ".varargs",
-            ".volatile",
-            ".transient",
-            ".enum",
-            ".super"
-    );
+    public Parser(Keywords keywords) {
+        this.keywords = keywords;
+    }
 
     public List<Token> tokenize(String source, String code) {
-
         Location location = new Location(1, 0, source, 0);
         StringBuilder sb = new StringBuilder();
-        TokenizerContext ctx = new TokenizerContext(code.toCharArray(), location);
+        TokenizerContext ctx = new TokenizerContext(keywords, code.toCharArray(), location);
         while (ctx.canRead()) {
             Location previousLocation = ctx.currentLocation.copy();
             char c = ctx.next();
-            if(c == '\r') {
+            if (c == '\r') {
                 continue;
             }
-            if(c == '/') { // comment
-                if(ctx.canRead() && ctx.peek() == '/') {
+            if (c == '/') { // comment
+                if (ctx.canRead() && ctx.peek() == '/') {
                     while (ctx.canRead()) {
-                        if(ctx.next() == '\n') { // single line comment
+                        if (ctx.next() == '\n') { // single line comment
                             break;
                         }
                     }
                     continue;
                 }
             }
-            if(c == '"') { // string
+            if (c == '"') { // string
                 StringBuilder sb2 = new StringBuilder();
-                while(ctx.canRead()) { // read until end of string
+                while (ctx.canRead()) { // read until end of string
                     char c2 = ctx.next();
-                    if(c2 == '"') {
+                    if (c2 == '"') {
                         ctx.add(new Token(sb2.toString(), location.sub(sb2.length() + 2), STRING));
                         break;
                     }
-                    if(c2 == '\\') { // escape sequence
+                    if (c2 == '\\') { // escape sequence
                         sb2.append(c2); // add backslash
                         sb2.append(ctx.next()); // add escaped char
                         continue; // skip next char
@@ -186,36 +112,37 @@ public class Parser {
 
         Token token = ctx.nextToken();
 
-        if(token.type != KEYWORD) {
+        if (token.type != KEYWORD) {
             String content = token.content;
-            if(ParseInfo.actions.containsKey(content)){
+            if (ParseInfo.actions.containsKey(content)) {
 
                 // invokedynamic is a special case
-                if(content.equals("invokedynamic")){
+                if (content.equals("invokedynamic")) {
                     return readInvokeDynamic(token, ctx);
                 }
 
                 ParseInfo info = ParseInfo.actions.get(content);
                 int argc = info.args.length;
                 List<Group> children = new ArrayList<>();
-                for(int i = 0; i < argc; i++){
+                for (int i = 0; i < argc; i++) {
                     Token peek = ctx.peekToken();
                     // this needed for illegal class names to ensure that the correct tokens are parsed here
                     // also the use of ctx.explicitIdentifier is needed to ensure that nothing illegal happens
-                    if(peek.type == KEYWORD) {
-                        if(peek.content.equals(KEYWORD_HANDLE) || peek.content.equals(KEYWORD_TYPE))
+                    if (peek.type == KEYWORD) {
+                        if (keywords.match(Keyword.KEYWORD_HANDLE, peek) || 
+                                keywords.match(Keyword.KEYWORD_TYPE, peek))
                             children.add(ctx.parseNext());
                         else {
                             children.add(ctx.explicitIdentifier());
                         }
-                    }else if(info.args[i].equals("const")) {
+                    } else if (info.args[i].equals("const")) {
                         // only parse arguments as constant if the argument is a constant
                         if (peek.type == NUMBER) {
                             children.add(new NumberGroup(ctx.nextToken()));
                         } else if (peek.type == STRING) {
                             children.add(new StringGroup(ctx.nextToken()));
                         } else {
-                            if(ctx.macros.containsKey(peek.content)){
+                            if (ctx.macros.containsKey(peek.content)) {
                                 ctx.nextToken();
                                 Group[] groups = ctx.macros.get(peek.content);
                                 Collections.addAll(children, groups);
@@ -227,7 +154,7 @@ public class Parser {
                         }
                     } else {
                         // else just interpret them as explicit identifiers
-                        if(ctx.macros.containsKey(peek.content)){
+                        if (ctx.macros.containsKey(peek.content)) {
                             ctx.nextToken();
                             Group[] groups = ctx.macros.get(peek.content);
                             Collections.addAll(children, groups);
@@ -240,20 +167,20 @@ public class Parser {
                 }
                 return new InstructionGroup(token, children.toArray(new Group[0]));
             } else {
-                if(content.endsWith(":") && token.type == IDENTIFIER){
+                if (content.endsWith(":") && token.type == IDENTIFIER) {
                     return new LabelGroup(token);
                 }
             }
-            if(ctx.macros.containsKey(content)){
+            if (ctx.macros.containsKey(content)) {
                 Group[] groups = ctx.macros.get(content);
                 for (int i = 0; i < groups.length - 1; i++) {
                     ctx.pushGroup(groups[i]);
                 }
                 return groups[groups.length - 1];
             }
-            if(token.type == NUMBER){
+            if (token.type == NUMBER) {
                 return new NumberGroup(token);
-            } else if(token.type == STRING){
+            } else if (token.type == STRING) {
                 return new StringGroup(token);
             } else if (token.type == TEXT) {
                 return new TextGroup(token);
@@ -261,7 +188,10 @@ public class Parser {
             return new IdentifierGroup(token);
         }
 
-        switch(token.content){
+        Keyword keyword = keywords.fromToken(token);
+        if (keyword == null)
+            throw new AssemblerException("Cannot determine keyword from token: " + token.content, token.location);
+        switch (keyword) {
             case KEYWORD_CLASS: {
                 AccessModsGroup access = readAccess(ctx);
                 IdentifierGroup name = ctx.explicitIdentifier();
@@ -270,7 +200,7 @@ public class Parser {
             case KEYWORD_EXTENDS: {
                 // also ensure that the previous group is a class declaration or an implements directive
                 Group previous = ctx.previousGroup();
-                if(previous.type != GroupType.CLASS_DECLARATION
+                if (previous.type != GroupType.CLASS_DECLARATION
                         && previous.type != GroupType.IMPLEMENTS_DIRECTIVE) {
                     throw new AssemblerException("Extends can only follow a class declaration", token.location);
                 }
@@ -280,7 +210,7 @@ public class Parser {
             case KEYWORD_IMPLEMENTS: {
                 // same with implements
                 Group previous = ctx.previousGroup();
-                if(previous.type != GroupType.CLASS_DECLARATION
+                if (previous.type != GroupType.CLASS_DECLARATION
                         && previous.type != GroupType.IMPLEMENTS_DIRECTIVE
                         && previous.type != GroupType.EXTENDS_DIRECTIVE) {
                     throw new AssemblerException("Implements can only follow a class declaration", token.location);
@@ -295,7 +225,7 @@ public class Parser {
                 IdentifierGroup descriptor = ctx.explicitIdentifier();
 
                 Token next = ctx.silentPeek();
-                if(next.type != KEYWORD && !(next.type == EOF)) { // next value is not a keyword, so it must be a constant value
+                if (next.type != KEYWORD && !(next.type == EOF)) { // next value is not a keyword, so it must be a constant value
                     Group constantValue = ctx.parseNext();
                     return new FieldDeclarationGroup(token, access, name, descriptor, constantValue);
                 }
@@ -310,11 +240,14 @@ public class Parser {
                 // good consistency
                 IdentifierGroup name = ctx.explicitIdentifier();
                 List<MethodParameterGroup> params = new ArrayList<>();
-                while(ctx.hasNextToken()) {
+                while (ctx.hasNextToken()) {
                     Token next = ctx.silentPeek();
-                    if(next.type != IDENTIFIER || ParseInfo.has(next.content) || next.content.endsWith(":")) {
+                    if (next.type != IDENTIFIER || ParseInfo.has(next.content) || next.content.endsWith(":")) {
                         // next token is not an identifier or and instruction -> end of parameters
-                        MethodParameterGroup param = params.get(params.size() - 1); // get last parameter
+                        int index = params.size() - 1;
+                        if (index < 0)
+                            throw new AssemblerException("Cannot get parameter index: " + index, token.location);
+                        MethodParameterGroup param = params.get(index); // get last parameter
                         String nme = param.getName().content();
                         String returnType = nme.substring(nme.indexOf(')') + 1);
                         return new MethodDeclarationGroup(
@@ -327,7 +260,7 @@ public class Parser {
                     }
                     IdentifierGroup desc = ctx.explicitIdentifier();
                     next = ctx.silentPeek();
-                    if(next.type != IDENTIFIER || ParseInfo.has(next.content) || next.content.endsWith(":")) {
+                    if (next.type != IDENTIFIER || ParseInfo.has(next.content) || next.content.endsWith(":")) {
                         // next token is not an identifier or and instruction -> empty parameters
                         // that means the desc is the entire descriptor
                         String returnType = desc.content().substring(desc.content().indexOf(')') + 1);
@@ -348,8 +281,10 @@ public class Parser {
             case KEYWORD_END: {
                 return new Group(GroupType.END_BODY, token);
             }
-            case KEYWORD_SWITCH: return readLookupSwitch(token, ctx);
-            case KEYWORD_TABLESWITCH:  return readTableSwitch(token, ctx);
+            case KEYWORD_SWITCH:
+                return readLookupSwitch(token, ctx);
+            case KEYWORD_TABLESWITCH:
+                return readTableSwitch(token, ctx);
             case KEYWORD_CASE: {
                 NumberGroup value = (NumberGroup) ctx.nextGroup(GroupType.NUMBER);
                 LabelGroup label = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
@@ -404,7 +339,7 @@ public class Parser {
             }
             case KEYWORD_INVISIBLE_ANNOTATION:
             case KEYWORD_ANNOTATION: {
-                return readAnnotation(token, token.content.equals(KEYWORD_INVISIBLE_ANNOTATION), ctx);
+                return readAnnotation(token, keywords.match(Keyword.KEYWORD_INVISIBLE_ANNOTATION, token), ctx);
             }
             case KEYWORD_TYPE_ANNOTATION:
             case KEYWORD_INVISIBLE_TYPE_ANNOTATION:
@@ -450,30 +385,35 @@ public class Parser {
     public AnnotationGroup readAnnotation(Token token, boolean visible, ParserContext ctx) throws AssemblerException {
         List<AnnotationParamGroup> params = new ArrayList<>();
         IdentifierGroup classGroup = ctx.explicitIdentifier();
-        while(ctx.hasNextToken()) {
+        while (ctx.hasNextToken()) {
             IdentifierGroup name = ctx.explicitIdentifier();
-            if(name.content().equals(KEYWORD_END)) {
+            if (keywords.match(Keyword.KEYWORD_END, name)) {
                 Token next = ctx.peekToken();
                 AnnotationTarget target;
-                switch (next.content) {
-                    case KEYWORD_FIELD:
-                        target = AnnotationTarget.FIELD;
-                        break;
-                    case KEYWORD_METHOD:
-                        target = AnnotationTarget.METHOD;
-                        break;
-                    case KEYWORD_CLASS:
-                        target = AnnotationTarget.CLASS;
-                        break;
-                    default:
-                        target = AnnotationTarget.UNKNOWN;
-                        break;
+                Keyword keyword = keywords.fromToken(next);
+                if (keyword == null)
+                    target = AnnotationTarget.UNKNOWN;
+                else {
+                    switch (keyword) {
+                        case KEYWORD_FIELD:
+                            target = AnnotationTarget.FIELD;
+                            break;
+                        case KEYWORD_METHOD:
+                            target = AnnotationTarget.METHOD;
+                            break;
+                        case KEYWORD_CLASS:
+                            target = AnnotationTarget.CLASS;
+                            break;
+                        default:
+                            target = AnnotationTarget.UNKNOWN;
+                            break;
+                    }
                 }
                 return new AnnotationGroup(token, target, !visible, classGroup, params.toArray(new AnnotationParamGroup[0]));
             }
             Token next = ctx.peekToken();
             // enum intrinsic annotation
-            if(next.content.equals(KEYWORD_ENUM)) {
+            if (keywords.match(Keyword.KEYWORD_ENUM, next)) {
                 Token enumToken = ctx.nextToken();
                 IdentifierGroup enumGroup = ctx.explicitIdentifier();
                 IdentifierGroup enumValue = ctx.explicitIdentifier();
@@ -492,12 +432,12 @@ public class Parser {
         HandleGroup bsmHandle = (HandleGroup) ctx.nextGroup(GroupType.HANDLE);
         ArgsGroup args = (ArgsGroup) ctx.nextGroup(GroupType.ARGS);
 
-        return new InstructionGroup(token , name, descriptor, bsmHandle, args);
+        return new InstructionGroup(token, name, descriptor, bsmHandle, args);
     }
 
     public AccessModsGroup readAccess(ParserContext ctx) throws AssemblerException {
         List<AccessModGroup> access = new ArrayList<>();
-        while(accessModifiers.contains(ctx.silentPeek().content)){
+        while (keywords.isAccessModifier(ctx.silentPeek())) {
             access.add((AccessModGroup) ctx.nextGroup(GroupType.ACCESS_MOD));
         }
         return new AccessModsGroup(access.toArray(new AccessModGroup[0]));
@@ -505,9 +445,9 @@ public class Parser {
 
     public BodyGroup readBody(ParserContext ctx) throws AssemblerException {
         List<Group> body = new ArrayList<>();
-        while(ctx.hasNextToken()){
+        while (ctx.hasNextToken()) {
             Group grp = ctx.parseNext();
-            if(grp.type == GroupType.END_BODY){
+            if (grp.type == GroupType.END_BODY) {
                 return new BodyGroup(body.toArray(new Group[0]));
             }
             body.add(grp);
@@ -517,12 +457,12 @@ public class Parser {
 
     public LookupSwitchGroup readLookupSwitch(Token begin, ParserContext ctx) throws AssemblerException {
         List<CaseLabelGroup> caseLabels = new ArrayList<>();
-        while(ctx.hasNextToken()){
+        while (ctx.hasNextToken()) {
             Group grp = ctx.parseNext();
-            if(grp.type == GroupType.DEFAULT_LABEL){
+            if (grp.type == GroupType.DEFAULT_LABEL) {
                 return new LookupSwitchGroup(begin, (DefaultLabelGroup) grp, caseLabels.toArray(new CaseLabelGroup[0]));
             }
-            if(grp.type != GroupType.CASE_LABEL){
+            if (grp.type != GroupType.CASE_LABEL) {
                 throw new AssemblerException("Expected case label", grp.start().location);
             }
             caseLabels.add((CaseLabelGroup) grp);
@@ -534,12 +474,12 @@ public class Parser {
         List<LabelGroup> caseLabels = new ArrayList<>();
         NumberGroup low = (NumberGroup) ctx.nextGroup(GroupType.NUMBER);
         NumberGroup high = (NumberGroup) ctx.nextGroup(GroupType.NUMBER);
-        while(ctx.hasNextToken()){
+        while (ctx.hasNextToken()) {
             Group grp = ctx.parseNext();
-            if(grp.type == GroupType.DEFAULT_LABEL){
+            if (grp.type == GroupType.DEFAULT_LABEL) {
                 return new TableSwitchGroup(begin, low, high, (DefaultLabelGroup) grp, caseLabels.toArray(new LabelGroup[0]));
             }
-            if(grp.type != GroupType.IDENTIFIER){
+            if (grp.type != GroupType.IDENTIFIER) {
                 throw new AssemblerException("Expected 'default' label", grp.start().location);
             }
             caseLabels.add(new LabelGroup(grp.value));
