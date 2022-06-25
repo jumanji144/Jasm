@@ -11,7 +11,7 @@ method public <init>()V
     putfield number I # number (int) = 0
     aload this
     ldc "Hello, World!" # "Hello, World!"
-    putfield string Ljava/lang/String; # string (java.langString) = "Hello, World!"
+    putfield string Ljava/lang/String; # string (java.lang.String) = "Hello, World!"
     return
 end
 
