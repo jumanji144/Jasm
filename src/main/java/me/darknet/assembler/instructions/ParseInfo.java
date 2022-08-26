@@ -10,6 +10,8 @@ public class ParseInfo {
     public String[] args;
     public static final int INSTRUCTION_LINE = -1;
     public static final int INSTRUCTION_INVOKEVIRTUALINTERFACE = -2;
+    public static final int INSTRUCTION_INVOKESTATICINTERFACE = -3;
+    public static final int INSTRUCTION_INVOKESPECIALINTERFACE = -4;
 
     public ParseInfo(String name, int opcode, String... args) {
         this.name = name;
@@ -228,6 +230,8 @@ public class ParseInfo {
         put("tableswitch", TABLESWITCH, "switch");
         put("line", INSTRUCTION_LINE, "label", "const");
         put("invokevirtualinterface", INSTRUCTION_INVOKEVIRTUALINTERFACE, "name", "descriptor");
+        put("invokestaticinterface", INSTRUCTION_INVOKESTATICINTERFACE, "name", "descriptor");
+        put("invokespecialinterface", INSTRUCTION_INVOKESPECIALINTERFACE, "name", "descriptor");
     }
 
 }

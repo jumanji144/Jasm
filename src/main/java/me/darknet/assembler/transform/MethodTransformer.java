@@ -101,18 +101,27 @@ public class MethodTransformer {
             case INVOKESTATIC:
             case INVOKEINTERFACE:
             case INVOKESPECIAL:
-            case ParseInfo.INSTRUCTION_INVOKEVIRTUALINTERFACE: {
+            case ParseInfo.INSTRUCTION_INVOKEVIRTUALINTERFACE:
+            case ParseInfo.INSTRUCTION_INVOKESTATICINTERFACE:
+            case ParseInfo.INSTRUCTION_INVOKESPECIALINTERFACE: {
 
                 IdentifierGroup name = (IdentifierGroup) inst.get(0);
                 IdentifierGroup desc = (IdentifierGroup) inst.get(1);
 
+                boolean itf = opcode == INVOKEINTERFACE
+                        || opcode == ParseInfo.INSTRUCTION_INVOKEVIRTUALINTERFACE
+                        || opcode == ParseInfo.INSTRUCTION_INVOKESTATICINTERFACE
+                        || opcode == ParseInfo.INSTRUCTION_INVOKESPECIALINTERFACE;
+
+                if(opcode == ParseInfo.INSTRUCTION_INVOKESTATICINTERFACE) opcode = INVOKESTATIC;
+                if(opcode == ParseInfo.INSTRUCTION_INVOKEVIRTUALINTERFACE) opcode = INVOKEVIRTUAL;
+                if(opcode == ParseInfo.INSTRUCTION_INVOKESPECIALINTERFACE) opcode = INVOKESPECIAL;
+
                 mv.visitMethodInsn(
-                        opcode == ParseInfo.INSTRUCTION_INVOKEVIRTUALINTERFACE
-                         ? INVOKEVIRTUAL
-                         : opcode,
+                        opcode,
                         name,
                         desc,
-                        opcode == INVOKEINTERFACE || opcode == ParseInfo.INSTRUCTION_INVOKEVIRTUALINTERFACE
+                        itf
                 );
                 // INFO: opcode == INVOKEINTERFACE is not always correct because there are some
                 // INVOKEVIRTUAL instructions which have itf=true but for that static analysis is
