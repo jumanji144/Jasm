@@ -65,6 +65,8 @@ public class Transformer {
                     case EXPR:
                         visitor.visitExpression((ExprGroup) group);
                         break;
+                    case MACRO_DIRECTIVE:
+                        break; // ignore
                     default:
                         throw new AssemblerException("Unexpected identifier: " + group.content(), group.location());
                 }

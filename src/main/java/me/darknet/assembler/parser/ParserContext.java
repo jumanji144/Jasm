@@ -59,7 +59,12 @@ public class ParserContext {
         if(!hasNextToken()) {
             throw new AssemblerException("Expected identifier", currentToken.getLocation());
         }
-        return new IdentifierGroup(nextToken());
+        // do still macro expansion
+        Token token = nextToken();
+        if(macros.containsKey(token.content)) {
+            return new IdentifierGroup(macros.get(token.content)[0].value); // dirty hack
+        }
+        return new IdentifierGroup(token);
     }
 
     public void pushGroup(Group.GroupType type, Token val, Group... children) {
