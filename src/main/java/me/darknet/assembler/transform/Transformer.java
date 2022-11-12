@@ -36,7 +36,8 @@ public class Transformer {
                         break;
                     case FIELD_DECLARATION:
                         FieldDeclarationGroup fieldDcl = (FieldDeclarationGroup) group;
-                        visitor.visitField(fieldDcl);
+                        FieldVisitor fv = visitor.visitField(fieldDcl);
+                        fv.visitEnd();
                         break;
                     case METHOD_DECLARATION:
                         MethodDeclarationGroup methodDcl = (MethodDeclarationGroup) group;
