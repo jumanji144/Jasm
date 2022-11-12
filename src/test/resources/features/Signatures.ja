@@ -1,9 +1,9 @@
 signature Ljava/util/Collection<Ljava/lang/String;>;
 class Signatures extends java/util/AbstractList
 
-method public <init>()V
+method public <init> ()V
     aload_0
-    invokespecial java/lang/Object/<init>()V
+    invokespecial java/lang/Object.<init> ()V
     return
 end
 
@@ -11,18 +11,18 @@ signature Ljava/util/Collection<Ljava/lang/String;>;
 field public static list java/util/Collection
 
 signature (Ljava/util/Collection<Ljava/lang/String;>;)V
-method public static e(Ljava/util/Collection;)V
+method public static e (Ljava/util/Collection; col)V
     aload collection
-    invokeinterface java/util/Collection/iterator()Ljava/util/Iterator;
+    invokeinterface java/util/Collection.iterator ()Ljava/util/Iterator;
     astore iterator
 L1:
     aload iterator
-    invokeinterface java/util/Iterator/hasNext()Z
+    invokeinterface java/util/Iterator.hasNext ()Z
     ifeq L2
     aload iterator
-    invokeinterface java/util/Iterator/next()Ljava/lang/Object;
+    invokeinterface java/util/Iterator.next ()Ljava/lang/Object;
     checkcast java/lang/String
-    invokevirtual java/lang/String/length()I
+    invokevirtual java/lang/String.length ()I
     istore length
     iload length
     ifne L1
@@ -32,18 +32,18 @@ L2:
 end
 
 
-method public static main([Ljava/lang/String;)V
+method public static main ([Ljava/lang/String; args)V
     # create a
     new java/util/ArrayList
     dup
-    invokespecial java/util/ArrayList/<init>()V
+    invokespecial java/util/ArrayList.<init> ()V
     astore collection
     aload collection
     ldc "a"
-    invokeinterface java/util/Collection/add(Ljava/lang/Object;)Z
+    invokeinterface java/util/Collection.add (Ljava/lang/Object;)Z
     pop
 
     aload collection
-    invokestatic Signatures/e(Ljava/util/Collection;)V
+    invokestatic Signatures.e (Ljava/util/Collection;)V
     return
 end

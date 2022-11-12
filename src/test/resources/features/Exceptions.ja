@@ -2,7 +2,7 @@ class Exceptions extends java/lang/Object
 
 throws java/lang/IllegalArgumentException
 throws java/lang/IllegalStateException
-method public static main([Ljava/lang/String;)V
+method public static main([Ljava/lang/String; args)V
     iconst_1
     ifeq L1
     goto L2
@@ -10,16 +10,16 @@ L1:
     new java/lang/IllegalArgumentException
     dup
     ldc "Illegal argument"
-    invokespecial java/lang/IllegalArgumentException/<init>(Ljava/lang/String;)V
+    invokespecial java/lang/IllegalArgumentException.<init> (Ljava/lang/String;)V
     athrow
     return
 L2:
     new java/lang/IllegalStateException
     dup
     ldc "Illegal state"
-    invokespecial java/lang/IllegalStateException/<init>(Ljava/lang/String;)V
+    invokespecial java/lang/IllegalStateException.<init> (Ljava/lang/String;)V
     athrow
     return
-    # This will always throw IllegalStateException due to iconst_1 always being true
-    # But this is just an example
+    // This will always throw IllegalStateException due to iconst_1 always being true
+    // But this is just an example
 end
