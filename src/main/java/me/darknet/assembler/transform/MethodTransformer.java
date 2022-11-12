@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.objectweb.asm.Opcodes.*;
-import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
 
 public class MethodTransformer {
 
@@ -25,13 +24,13 @@ public class MethodTransformer {
         newArrayTypes.put("char", T_CHAR);
         newArrayTypes.put("boolean", T_BOOLEAN);
     }
-    private final MethodVisitor mv;
+    private final MethodGroupVisitor mv;
 
     /**
      * Constructs a new MethodTransformer for the given MethodVisitor.
      * @param mv the MethodVisitor to use
      */
-    public MethodTransformer(MethodVisitor mv) {
+    public MethodTransformer(MethodGroupVisitor mv) {
         this.mv = mv;
     }
 
@@ -42,8 +41,8 @@ public class MethodTransformer {
      */
     public void transform(BodyGroup body) throws AssemblerException {
         if (body != null) {
-                for (Group inst : body.getChildren()) {
-                    try {
+            for (Group inst : body.getChildren()) {
+                try {
                     mv.visit(inst);
                     switch (inst.getType()) {
                         case LABEL:
@@ -65,15 +64,14 @@ public class MethodTransformer {
                             mv.visitExpr((ExprGroup) inst);
                             break;
                         default:
-                            throw new AssemblerException("Unknown instruction type: " + inst.type, inst.value.getLocation());
+                            throw new AssemblerException("Unknown instruction type: " + inst.getType(), inst.getValue().getLocation());
                     }
-                } catch(AssemblerException e){
+                } catch (AssemblerException e) {
                     throw e;
-                }catch(Exception e1){
-                    throw new AssemblerException(e1, inst.location());
+                } catch (Exception ex) {
+                    throw new AssemblerException(ex, inst.getStartLocation());
                 }
             }
-            mv.visitEnd();
         }
     }
 
@@ -85,17 +83,20 @@ public class MethodTransformer {
     public void visitInstruction(InstructionGroup inst) throws AssemblerException {
         String instruction = inst.content();
         ParseInfo info = ParseInfo.get(instruction);
-        if (info == null) throw new AssemblerException("Unknown instruction: " + instruction, inst.value.getLocation());
+        if (info == null)
+            throw new AssemblerException("Unknown instruction: " + instruction, inst.getValue().getLocation());
+        int op = info.getOpcode();
+        String infoName = info.getName();
+
         // Special case for XLOAD_N and XSTORE_N
-        if(info.name.contains("_")) {
-            if(info.name.contains("store") || info.name.contains("load")) {
-                int opcode = info.opcode;
-                int index = Integer.parseInt(info.name.substring(info.name.indexOf("_") + 1));
-                mv.visitDirectVarInsn(opcode, index);
+        if (infoName.contains("_")) {
+            if(infoName.contains("store") || infoName.contains("load")) {
+                int index = Integer.parseInt(infoName.substring(infoName.indexOf("_") + 1));
+                mv.visitDirectVarInsn(op, index);
                 return;
             }
         }
-        int opcode = info.opcode;
+        int opcode = op;
         switch (opcode) {
             case INVOKEVIRTUAL:
             case INVOKESTATIC:
@@ -187,7 +188,7 @@ public class MethodTransformer {
             case IINC: {
                 NumberGroup value = inst.getChild(NumberGroup.class);
                 if(value.isFloat()) {
-                    throw new AssemblerException("IINC instruction with float value", value.location());
+                    throw new AssemblerException("IINC instruction with float value", value.getStartLocation());
                 }
                 mv.visitIincInsn(inst.getChild(IdentifierGroup.class), value.getNumber().intValue());
                 break;
@@ -196,7 +197,7 @@ public class MethodTransformer {
             case BIPUSH: {
                 NumberGroup value = inst.getChild(NumberGroup.class);
                 if(value.isFloat()) {
-                    throw new AssemblerException("XIPUSH instruction with float value", value.location());
+                    throw new AssemblerException("XIPUSH instruction with float value", value.getStartLocation());
                 }
                 mv.visitIntInsn(opcode, value.getNumber().intValue());
                 break;
@@ -204,7 +205,7 @@ public class MethodTransformer {
             case NEWARRAY: {
                 Integer type = newArrayTypes.get(inst.get(0).content());
                 if (type == null) {
-                    throw new AssemblerException("Unknown array type: " + inst.get(0).content(), inst.get(0).location());
+                    throw new AssemblerException("Unknown array type: " + inst.get(0).content(), inst.get(0).getStartLocation());
                 }
                 mv.visitIntInsn(opcode, type);
                 break;
@@ -213,7 +214,7 @@ public class MethodTransformer {
                 String desc = inst.get(0).content();
                 NumberGroup dim = inst.getChild(NumberGroup.class);
                 if(dim.isFloat()) {
-                    throw new AssemblerException("MULTIANEWARRAY instruction with float value", dim.location());
+                    throw new AssemblerException("MULTIANEWARRAY instruction with float value", dim.getStartLocation());
                 }
                 mv.visitMultiANewArrayInsn(desc, dim.getNumber().intValue());
                 break;

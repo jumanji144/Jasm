@@ -4,13 +4,15 @@ import lombok.Getter;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Token;
 
-public class ThrowsGroup extends Group {
+import java.util.Collections;
 
-    @Getter
-    IdentifierGroup className;
+@Getter
 
-    public ThrowsGroup(Token token, IdentifierGroup className) {
-        super(GroupType.THROWS, token, className);
-        this.className = className;
-    }
+public class ThrowsGroup extends Group implements MethodAttributeGroup {
+	private final IdentifierGroup className;
+
+	public ThrowsGroup(Token token, IdentifierGroup className) {
+		super(GroupType.THROWS, token, Collections.singletonList(className));
+		this.className = className;
+	}
 }

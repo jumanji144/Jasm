@@ -5,20 +5,20 @@ import me.darknet.assembler.compiler.MethodDescriptor;
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
-import me.darknet.assembler.transform.MethodVisitor;
+import me.darknet.assembler.transform.MethodGroupVisitor;
 import me.darknet.assembler.util.GroupUtil;
 import me.darknet.assembler.util.Handles;
 import org.objectweb.asm.*;
 
 import java.util.*;
 
-public class ASMBaseMethodVisitor implements MethodVisitor {
-
-    public CachedClass parent;
-    public boolean isStatic;
-    public org.objectweb.asm.MethodVisitor mv;
-    public Map<String, Label> labels = new HashMap<>();
-    public List<String> locals = new ArrayList<>();
+public class ASMBaseMethodVisitor implements MethodGroupVisitor {
+    private final List<AnnotationGroup> annotations = new ArrayList<>();
+    private final Map<String, Label> labels = new HashMap<>();
+    private final List<String> locals = new ArrayList<>();
+    private final CachedClass parent;
+    private final boolean isStatic;
+    private final org.objectweb.asm.MethodVisitor mv;
 
     public ASMBaseMethodVisitor(org.objectweb.asm.MethodVisitor mv, CachedClass parent, boolean isStatic) {
         this.mv = mv;
@@ -27,8 +27,39 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     }
 
     @Override
-    public void visit(Group group) throws AssemblerException {
+    public void visitEnd() throws AssemblerException {
+        for (AnnotationGroup annotation : annotations) {
+            String desc = annotation.getClassGroup().content();
+            AnnotationVisitor av = mv.visitAnnotation(desc, !annotation.isInvisible());
+            for (AnnotationParamGroup param : annotation.getParams())
+                ASMBaseVisitor.annotationParam(param, av);
+            av.visitEnd();
+        }
 
+        try {
+            verify();
+        } catch (AssemblerException e) {
+            System.err.println(e.describe());
+            System.exit(1);
+        }
+
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+    }
+
+    @Override
+    public void visitAnnotation(AnnotationGroup annotation) {
+        annotations.add(annotation);
+    }
+
+    @Override
+    public void visitSignature(SignatureGroup signature) {
+        // no-op
+    }
+
+    @Override
+    public void visitThrows(ThrowsGroup thrw) {
+        // no-op
     }
 
     @Override
@@ -40,12 +71,13 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     public void visitLookupSwitchInsn(LookupSwitchGroup lookupSwitch) {
         DefaultLabelGroup defaultGroup = lookupSwitch.getDefaultLabel();
         Label defaultLabel = getLabel(defaultGroup.getLabel());
-        CaseLabelGroup[] caseGroups = lookupSwitch.getCaseGroups();
-        int[] keys = new int[caseGroups.length];
-        Label[] labels = new Label[caseGroups.length];
-        for (int i = 0; i < caseGroups.length; i++) {
-            keys[i] = caseGroups[i].getKey().getNumber().intValue();
-            labels[i] = getLabel(caseGroups[i].getVal().getLabel());
+        List<CaseLabelGroup> caseGroups = lookupSwitch.getCaseLabels();
+        int numCases = caseGroups.size();
+        int[] keys = new int[numCases];
+        Label[] labels = new Label[numCases];
+        for (int i = 0; i < numCases; i++) {
+            keys[i] = caseGroups.get(i).getKey().getNumber().intValue();
+            labels[i] = getLabel(caseGroups.get(i).getLabelValue().getLabel());
         }
         mv.visitLookupSwitchInsn(defaultLabel, keys, labels);
     }
@@ -54,23 +86,24 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     public void visitTableSwitchInsn(TableSwitchGroup tableSwitch) {
         DefaultLabelGroup defaultGroup = tableSwitch.getDefaultLabel();
         Label defaultLabel = getLabel(defaultGroup.getLabel());
-        LabelGroup[] labelGroups = tableSwitch.getLabelGroups();
+        List<LabelGroup> labelGroups = tableSwitch.getLabels();
         int min = 0;
-        int max = labelGroups.length - 1;
-        Label[] labels = new Label[labelGroups.length];
-        for (int i = 0; i < labelGroups.length; i++) {
-            labels[i] = getLabel(labelGroups[i].getLabel());
+        int max = labelGroups.size() - 1;
+        Label[] labels = new Label[labelGroups.size()];
+        for (int i = 0; i < labelGroups.size(); i++) {
+            labels[i] = getLabel(labelGroups.get(i).getLabel());
         }
         mv.visitTableSwitchInsn(min, max, defaultLabel, labels);
     }
 
     @Override
-    public void visitCatch(CatchGroup catchGroup) throws AssemblerException {
+    public void visitCatch(CatchGroup catchGroup) {
         IdentifierGroup exception = catchGroup.getException();
         LabelGroup begin = catchGroup.getBegin();
         LabelGroup end = catchGroup.getEnd();
         LabelGroup handler = catchGroup.getHandler();
-        mv.visitTryCatchBlock(getLabel(begin.getLabel()), getLabel(end.getLabel()), getLabel(handler.getLabel()), exception.content());
+        mv.visitTryCatchBlock(getLabel(begin.getLabel()), getLabel(end.getLabel()),
+                getLabel(handler.getLabel()), exception.content());
     }
 
     @Override
@@ -86,11 +119,11 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     @Override
     public void visitMethodInsn(int opcode, IdentifierGroup name, IdentifierGroup desc, boolean itf) {
         MethodDescriptor md = new MethodDescriptor(name.content(), desc.content());
-        String owner = md.owner == null ? parent.fullyQualifiedName : md.owner;
+        String owner = md.hasDeclaredOwner() ? md.getOwner() : parent.getType();
         mv.visitMethodInsn(
                 opcode,
                 owner,
-                md.name,
+                md.getName(),
                 md.getDescriptor(),
                 itf);
     }
@@ -98,8 +131,8 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     @Override
     public void visitFieldInsn(int opcode, IdentifierGroup name, IdentifierGroup desc) {
         FieldDescriptor fs = new FieldDescriptor(name.content(), desc.content());
-        String owner = fs.owner == null ? parent.fullyQualifiedName : fs.owner;
-        mv.visitFieldInsn(opcode, owner, fs.name, fs.desc);
+        String owner = fs.getOwner() == null ? parent.getType() : fs.getOwner();
+        mv.visitFieldInsn(opcode, owner, fs.getName(), fs.getDesc());
     }
 
     @Override
@@ -144,44 +177,31 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
 
     @Override
     public void visitExpr(ExprGroup expr) throws AssemblerException {
-        throw new AssemblerException("Not implemented", expr.location());
+        throw new AssemblerException("Not implemented", expr.getStartLocation());
     }
 
     @Override
     public void visitInvokeDynamicInstruction(String identifier, IdentifierGroup descriptor, HandleGroup handle, ArgsGroup args) throws AssemblerException {
         if(System.nanoTime() % 2689393 == 24L) {
-            throw new AssemblerException("You are not allowed to use this method", args.location());
+            throw new AssemblerException("You are not allowed to use this method", args.getStartLocation());
         }
         String typeString = handle.getHandleType().content();
         if(!Handles.isValid(typeString)) {
-            throw new AssemblerException("Unknown handle type " + typeString, handle.location());
+            throw new AssemblerException("Unknown handle type " + typeString, handle.getStartLocation());
         }
         int type = Handles.getType(typeString);
         MethodDescriptor handleMd = new MethodDescriptor(handle.getName().content(), handle.getDescriptor().content());
         Handle bsmHandle = new Handle(
                 type,
-                handleMd.owner == null ? parent.fullyQualifiedName : handleMd.owner,
-                handleMd.name,
-                handleMd.descriptor,
+                handleMd.hasDeclaredOwner() ? handleMd.getOwner() : parent.getType(),
+                handleMd.getName(),
+                handleMd.getDescriptor(),
                 type == Opcodes.H_INVOKEINTERFACE);
-        Object[] argsArray = GroupUtil.convert(parent, args.getBody().children);
+        Object[] argsArray = GroupUtil.convert(parent, args.getBody().getChildren());
         mv.visitInvokeDynamicInsn(identifier, descriptor.content(), bsmHandle, argsArray);
     }
 
-    @Override
-    public void visitEnd() {
-        try {
-            verify();
-        } catch (AssemblerException e) {
-            System.err.println(e.describe());
-            System.exit(1);
-        }
-
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
-    }
-
-    public Label getLabel(String label) {
+    private Label getLabel(String label) {
         Label l = labels.get(label);
         if (l == null) {
             l = new Label();
@@ -190,9 +210,9 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
         return l;
     }
 
-    public int getLocal(Group g, boolean create) throws AssemblerException {
-        if (g.type != Group.GroupType.IDENTIFIER) {
-            if (g.type == Group.GroupType.NUMBER) {
+    private int getLocal(Group g, boolean create) throws AssemblerException {
+        if (!g.isType(Group.GroupType.IDENTIFIER)) {
+            if (g.isType(Group.GroupType.NUMBER)) {
                 return Integer.parseInt(g.content());
             } else
                 throw new AssemblerException("Expected identifier", g.start().getLocation());
@@ -212,7 +232,7 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
         return index + 1;
     }
 
-    public void verify() throws AssemblerException {
+    private void verify() throws AssemblerException {
         for (Map.Entry<String, Label> stringLabelEntry : labels.entrySet()) {
             try {
                 stringLabelEntry.getValue().getOffset();

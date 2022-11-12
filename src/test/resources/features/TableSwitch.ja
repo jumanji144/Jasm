@@ -1,31 +1,31 @@
 class public TableSwitch extends java/lang/Object
 
-method public <init>()V
+method public <init> ()V
     aload this
-    invokespecial java/lang/Object/<init>()V
+    invokespecial java/lang/Object.<init> ()V
     return
 end
 
-method public static main([Ljava/lang/String;)V
+method public static main ([Ljava/lang/String;)V
     iconst_0
-    tableswitch
+    tableswitch 0 3
         L1
         L2
         default L3
     L1:
             getstatic java/lang/System.out Ljava/io/PrintStream;
             ldc "Case 0"
-            invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
+            invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V
             goto L4
     L2:
             getstatic java/lang/System.out Ljava/io/PrintStream;
             ldc "Case 1"
-            invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
+            invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V
             goto L4
     L3:
             getstatic java/lang/System.out Ljava/io/PrintStream;
             ldc "Default"
-            invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
+            invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V
     L4:
         return
 end

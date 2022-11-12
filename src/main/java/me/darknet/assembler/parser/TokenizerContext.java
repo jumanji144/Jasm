@@ -24,12 +24,11 @@ public class TokenizerContext {
 
     public char next() {
         char c = stream[i];
-        currentLocation.column++;
+        currentLocation.advance();
         if (c == '\n') {
-            currentLocation.line++;
-            currentLocation.column = 1;
+            currentLocation.advanceNewLine();
         }
-        currentLocation.position = i;
+        currentLocation.setPosition(i);
         i++;
         return c;
     }
@@ -58,11 +57,11 @@ public class TokenizerContext {
                 sb.append(c);
                 if(keywords.match(Keyword.KEYWORD_END, sb.toString())){
                     i++;
-                    location.column++;
+                    location.advance();
                     break;
                 }
             }
-            location.position = i;
+            location.setPosition(i);
             add(new Token(expr.toString(), location.sub(expr.length() + keywords.toString(Keyword.KEYWORD_END).length()), TEXT));
             return;
         }

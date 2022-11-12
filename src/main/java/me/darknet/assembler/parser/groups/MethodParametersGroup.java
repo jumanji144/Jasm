@@ -1,14 +1,22 @@
 package me.darknet.assembler.parser.groups;
 
+import lombok.Getter;
 import me.darknet.assembler.parser.Group;
-import me.darknet.assembler.parser.Token;
 
+import java.util.Collections;
+import java.util.List;
+
+@Getter
 public class MethodParametersGroup extends Group {
 
-    public MethodParameterGroup[] methodParameters;
+	private final List<MethodParameterGroup> methodParameters;
 
-    public MethodParametersGroup(MethodParameterGroup... children) {
-        super(GroupType.METHOD_PARAMETERS, children);
-        methodParameters = children;
-    }
+	public MethodParametersGroup() {
+		this(Collections.emptyList());
+	}
+
+	public MethodParametersGroup(List<MethodParameterGroup> children) {
+		super(GroupType.METHOD_PARAMETERS, children);
+		methodParameters = children;
+	}
 }

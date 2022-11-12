@@ -1,51 +1,38 @@
 package me.darknet.assembler.parser.groups;
 
+import lombok.Getter;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Token;
 
+import java.util.Arrays;
+
+@Getter
 public class MethodDeclarationGroup extends Group {
+	private final AccessModsGroup accessMods;
+	private final IdentifierGroup name;
+	private final MethodParametersGroup params;
+	private final String returnType;
+	private final BodyGroup body;
 
-    public AccessModsGroup accessMods;
-    public IdentifierGroup name;
-    public MethodParametersGroup params;
-    public String returnType;
-    public BodyGroup body;
+	public MethodDeclarationGroup(Token value, AccessModsGroup accessMods, IdentifierGroup name, MethodParametersGroup params, String returnType, BodyGroup body) {
+		super(GroupType.METHOD_DECLARATION, value, Arrays.asList(accessMods, name, params, body));
+		this.accessMods = accessMods;
+		this.params = params;
+		this.name = name;
+		// returnType is inferred from the descriptor
+		this.returnType = returnType;
+		this.body = body;
+	}
 
-    public MethodDeclarationGroup(Token value, AccessModsGroup accessMods, IdentifierGroup name, MethodParametersGroup params, String returnType, BodyGroup body) {
-        super(GroupType.METHOD_DECLARATION, value, accessMods, name, params, body);
-        this.accessMods = accessMods;
-        this.params = params;
-        this.name = name;
-        // returnType is inferred from the descriptor
-        this.returnType = returnType;
-        this.body = body;
-    }
-
-    public AccessModsGroup getAccessMods() {
-        return accessMods;
-    }
-
-    public MethodParametersGroup getParams() {
-        return params;
-    }
-
-    public BodyGroup getBody() {
-        return body;
-    }
-
-    public IdentifierGroup getName() {
-        return name;
-    }
-
-    public String buildDescriptor() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("(");
-        for (int i = 0; i < params.methodParameters.length; i++) {
-            sb.append(params.methodParameters[i].getDescriptorValue());
-        }
-        sb.append(")");
-        sb.append(returnType);
-        return sb.toString();
-    }
+	public String buildDescriptor() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("(");
+		for (int i = 0; i < params.getMethodParameters().size(); i++) {
+			sb.append(params.getMethodParameters().get(i).getDescriptorValue());
+		}
+		sb.append(")");
+		sb.append(returnType);
+		return sb.toString();
+	}
 
 }

@@ -4,14 +4,42 @@ import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
 
-public interface MethodVisitor {
+public interface MethodGroupVisitor extends GroupVisitor {
+    /**
+     * Visit a generic field-level attribute
+     * @param group Generic field attribute group.
+     * @throws AssemblerException if an error occurrs
+     */
+    default void visitAttribute(MethodAttributeGroup group) throws AssemblerException {
+        if (group instanceof AnnotationGroup) {
+            visitAnnotation((AnnotationGroup) group);
+        } else if (group instanceof SignatureGroup) {
+            visitSignature((SignatureGroup) group);
+        }  else if (group instanceof ThrowsGroup) {
+            visitThrows((ThrowsGroup) group);
+        }
+    }
 
     /**
-     * Visit any instruction inside the method
-     * @param group the instruction to visit
+     * Visit an annotation
+     * @param annotation the annotation group
      * @throws AssemblerException if an error occurs
      */
-    void visit(Group group) throws AssemblerException;
+    void visitAnnotation(AnnotationGroup annotation) throws AssemblerException;
+
+    /**
+     * Visit a signature
+     * @param signature the signature group
+     * @throws AssemblerException if an error occurs
+     */
+    void visitSignature(SignatureGroup signature) throws AssemblerException;
+
+    /**
+     * Visit a thrown type
+     * @param thrw the thrown group
+     * @throws AssemblerException if an error occurs
+     */
+    void visitThrows(ThrowsGroup thrw) throws AssemblerException;
 
     /**
      * Visit a label
@@ -153,11 +181,4 @@ public interface MethodVisitor {
      * @throws AssemblerException if an error occurs
      */
     void visitExpr(ExprGroup expr) throws AssemblerException;
-
-    /**
-     * End the visit of a method
-     * @throws AssemblerException if an error occurs
-     */
-    void visitEnd() throws AssemblerException;
-
 }
