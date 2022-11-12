@@ -14,14 +14,21 @@ public class Token {
 	 * @return Location start position.
 	 */
 	public int getStart() {
-		return location.position;
+		return location.getPosition();
 	}
 
 	/**
 	 * @return Location end position.
 	 */
 	public int getEnd() {
-		return location.position + content.length();
+		return location.getPosition() + content.length();
+	}
+
+	/**
+	 * @return Size of location end-start.
+	 */
+	public int getWidth() {
+		return getEnd() - getStart();
 	}
 
 	/**

@@ -38,13 +38,13 @@ public class GroupUtil {
 			try {
 				return Type.getObjectType(typeGroup.getDescriptor().content());
 			} catch (IllegalArgumentException e) {
-				throw new AssemblerException("Invalid type: " + typeGroup.getDescriptor().content(), typeGroup.location());
+				throw new AssemblerException("Invalid type: " + typeGroup.getDescriptor().content(), typeGroup.getStartLocation());
 			}
 		} else if (group.isType(HANDLE)) {
 			HandleGroup handle = (HandleGroup) group;
 			String typeString = handle.getHandleType().content();
 			if (!Handles.isValid(typeString)) {
-				throw new AssemblerException("Unknown handle type " + typeString, handle.location());
+				throw new AssemblerException("Unknown handle type " + typeString, handle.getStartLocation());
 			}
 			int type = Handles.getType(typeString);
 			MethodDescriptor md = new MethodDescriptor(handle.getName().content(), handle.getDescriptor().content());

@@ -34,7 +34,6 @@ import me.darknet.assembler.parser.groups.TypeGroup;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static me.darknet.assembler.parser.Group.GroupType;
@@ -331,7 +330,7 @@ public class Parser {
                                 (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER), // owner.name
                                 (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER)); // descriptor
                     default: {
-                        throw new AssemblerException("Unknown handle type: " + typeName, type.location());
+                        throw new AssemblerException("Unknown handle type: " + typeName, type.getStartLocation());
                     }
                 }
             }
@@ -429,7 +428,7 @@ public class Parser {
             Group param = ctx.parseNext();
             params.add(new AnnotationParamGroup(name.getValue(), name, param));
         }
-        throw new AssemblerException("Expected 'end' keyword", ctx.previousGroup().location());
+        throw new AssemblerException("Expected 'end' keyword", ctx.previousGroup().getStartLocation());
     }
 
     public InstructionGroup readInvokeDynamic(Token token, ParserContext ctx) throws AssemblerException {
@@ -446,7 +445,7 @@ public class Parser {
         while (keywords.isAccessModifier(ctx.peekTokenSilent())) {
             access.add((AccessModGroup) ctx.nextGroup(GroupType.ACCESS_MOD));
         }
-        return new AccessModsGroup(access);
+        return wrap(ctx, new AccessModsGroup(access));
     }
 
     public BodyGroup readBody(ParserContext ctx) throws AssemblerException {
@@ -468,7 +467,7 @@ public class Parser {
             if (grp.isType(GroupType.DEFAULT_LABEL)) {
                 return new LookupSwitchGroup(begin, (DefaultLabelGroup) grp, caseLabels);
             }
-            if (grp.isType(GroupType.CASE_LABEL)) {
+            if (!grp.isType(GroupType.CASE_LABEL)) {
                 throw new AssemblerException("Expected case label", grp.start().getLocation());
             }
             caseLabels.add((CaseLabelGroup) grp);
@@ -485,7 +484,7 @@ public class Parser {
             if (grp.isType(GroupType.DEFAULT_LABEL)) {
                 return new TableSwitchGroup(begin, low, high, (DefaultLabelGroup) grp, caseLabels);
             }
-            if (grp.isType( GroupType.IDENTIFIER)) {
+            if (!grp.isType( GroupType.IDENTIFIER)) {
                 throw new AssemblerException("Expected 'default' label", grp.start().getLocation());
             }
             caseLabels.add(new LabelGroup(grp.getValue()));
@@ -493,4 +492,8 @@ public class Parser {
         throw new AssemblerException("Expected 'default' label", ctx.getCurrentLocation());
     }
 
+    private <T extends Group> T wrap(ParserContext ctx, T group) {
+        group.setFallbackLocation(ctx.getCurrentLocation());
+        return group;
+    }
 }

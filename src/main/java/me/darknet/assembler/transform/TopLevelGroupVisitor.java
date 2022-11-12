@@ -2,10 +2,7 @@ package me.darknet.assembler.transform;
 
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
-import me.darknet.assembler.parser.groups.AccessModsGroup;
-import me.darknet.assembler.parser.groups.FieldDeclarationGroup;
-import me.darknet.assembler.parser.groups.IdentifierGroup;
-import me.darknet.assembler.parser.groups.MethodDeclarationGroup;
+import me.darknet.assembler.parser.groups.*;
 
 public interface TopLevelGroupVisitor extends GroupVisitor {
 	/**
@@ -22,17 +19,15 @@ public interface TopLevelGroupVisitor extends GroupVisitor {
 	/**
 	 * Visit a class declaration
 	 *
-	 * @param accessMods
-	 * 		the access modifiers of the class
-	 * @param identifier
-	 * 		the identifier of the class (fully qualified)
+	 * @param decl
+	 * 		the class declaration group
 	 *
 	 * @return a class visitor to visit the class declaration
 	 *
 	 * @throws AssemblerException
 	 * 		if an error occurs
 	 */
-	ClassGroupVisitor visitClass(AccessModsGroup accessMods, IdentifierGroup identifier) throws AssemblerException;
+	ClassGroupVisitor visitClass(ClassDeclarationGroup decl) throws AssemblerException;
 
 	/**
 	 * Visit a field declaration

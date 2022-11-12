@@ -22,6 +22,11 @@ public class DelegatingMethodVisitor implements MethodGroupVisitor {
 	}
 
 	@Override
+	public void visitThrows(ThrowsGroup thrw) throws AssemblerException {
+		delegate.visitThrows(thrw);
+	}
+
+	@Override
 	public void visitLabel(LabelGroup label) throws AssemblerException {
 		delegate.visitLabel(label);
 	}

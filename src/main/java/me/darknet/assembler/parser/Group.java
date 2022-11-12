@@ -1,6 +1,7 @@
 package me.darknet.assembler.parser;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Collections;
 import java.util.List;
@@ -15,6 +16,8 @@ public class Group {
 	private final Token value;
 	private final List<Group> children;
 	private Group parent;
+	@Setter
+	private Location fallbackLocation;
 
 	public Group(GroupType type, Token value) {
 		this(type, value, Collections.emptyList());
@@ -71,14 +74,23 @@ public class Group {
 		return children.get(index);
 	}
 
-	public Location location() {
+	public Location getStartLocation() {
 		if (value == null) {
 			if (children.isEmpty()) {
+				if (fallbackLocation != null)
+					return fallbackLocation;
 				return new Location(-1, -1, "invalid", -1);
 			}
-			return children.get(0).location();
+			return children.get(0).getStartLocation();
 		}
 		return value.getLocation();
+	}
+
+	public Location getEndLocation() {
+		Token end = end();
+		if (end != null)
+			return end.getLocation().add(end.getWidth());
+		return getStartLocation();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -88,7 +100,7 @@ public class Group {
 				return (T) child;
 			}
 		}
-		throw new AssemblerException("No child of type " + type + " found", location());
+		throw new AssemblerException("No child of type " + type + " found", getStartLocation());
 	}
 
 	public int size() {

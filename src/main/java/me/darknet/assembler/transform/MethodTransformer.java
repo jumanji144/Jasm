@@ -69,7 +69,7 @@ public class MethodTransformer {
                 } catch (AssemblerException e) {
                     throw e;
                 } catch (Exception ex) {
-                    throw new AssemblerException(ex, inst.location());
+                    throw new AssemblerException(ex, inst.getStartLocation());
                 }
             }
         }
@@ -188,7 +188,7 @@ public class MethodTransformer {
             case IINC: {
                 NumberGroup value = inst.getChild(NumberGroup.class);
                 if(value.isFloat()) {
-                    throw new AssemblerException("IINC instruction with float value", value.location());
+                    throw new AssemblerException("IINC instruction with float value", value.getStartLocation());
                 }
                 mv.visitIincInsn(inst.getChild(IdentifierGroup.class), value.getNumber().intValue());
                 break;
@@ -197,7 +197,7 @@ public class MethodTransformer {
             case BIPUSH: {
                 NumberGroup value = inst.getChild(NumberGroup.class);
                 if(value.isFloat()) {
-                    throw new AssemblerException("XIPUSH instruction with float value", value.location());
+                    throw new AssemblerException("XIPUSH instruction with float value", value.getStartLocation());
                 }
                 mv.visitIntInsn(opcode, value.getNumber().intValue());
                 break;
@@ -205,7 +205,7 @@ public class MethodTransformer {
             case NEWARRAY: {
                 Integer type = newArrayTypes.get(inst.get(0).content());
                 if (type == null) {
-                    throw new AssemblerException("Unknown array type: " + inst.get(0).content(), inst.get(0).location());
+                    throw new AssemblerException("Unknown array type: " + inst.get(0).content(), inst.get(0).getStartLocation());
                 }
                 mv.visitIntInsn(opcode, type);
                 break;
@@ -214,7 +214,7 @@ public class MethodTransformer {
                 String desc = inst.get(0).content();
                 NumberGroup dim = inst.getChild(NumberGroup.class);
                 if(dim.isFloat()) {
-                    throw new AssemblerException("MULTIANEWARRAY instruction with float value", dim.location());
+                    throw new AssemblerException("MULTIANEWARRAY instruction with float value", dim.getStartLocation());
                 }
                 mv.visitMultiANewArrayInsn(desc, dim.getNumber().intValue());
                 break;

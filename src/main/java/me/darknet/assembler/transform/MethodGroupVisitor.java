@@ -15,6 +15,8 @@ public interface MethodGroupVisitor extends GroupVisitor {
             visitAnnotation((AnnotationGroup) group);
         } else if (group instanceof SignatureGroup) {
             visitSignature((SignatureGroup) group);
+        }  else if (group instanceof ThrowsGroup) {
+            visitThrows((ThrowsGroup) group);
         }
     }
 
@@ -31,6 +33,13 @@ public interface MethodGroupVisitor extends GroupVisitor {
      * @throws AssemblerException if an error occurs
      */
     void visitSignature(SignatureGroup signature) throws AssemblerException;
+
+    /**
+     * Visit a thrown type
+     * @param thrw the thrown group
+     * @throws AssemblerException if an error occurs
+     */
+    void visitThrows(ThrowsGroup thrw) throws AssemblerException;
 
     /**
      * Visit a label

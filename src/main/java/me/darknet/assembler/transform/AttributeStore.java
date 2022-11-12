@@ -21,13 +21,12 @@ public class AttributeStore {
 	 * 		Attribute group to record.
 	 */
 	public void recordGroup(AttributeGroup group) {
-		if (group instanceof ClassAttributeGroup) {
+		if (group instanceof ClassAttributeGroup)
 			classAttributes.add((ClassAttributeGroup) group);
-		} else if (group instanceof FieldAttributeGroup) {
+		if (group instanceof FieldAttributeGroup)
 			fieldAttributes.add((FieldAttributeGroup) group);
-		} else if (group instanceof MethodAttributeGroup) {
+		if (group instanceof MethodAttributeGroup)
 			methodAttributes.add((MethodAttributeGroup) group);
-		}
 	}
 
 	@SuppressWarnings("unchecked")

@@ -67,7 +67,7 @@ public class ParserContext {
 			throw new AssemblerException("Unexpected end of file", currentToken.getLocation());
 		}
 		if (!group.isType(type)) {
-			throw new AssemblerException("Expected " + type.name() + " but got " + group.getType().name(), group.location());
+			throw new AssemblerException("Expected " + type.name() + " but got " + group.getType().name(), group.getStartLocation());
 		}
 		return group;
 	}

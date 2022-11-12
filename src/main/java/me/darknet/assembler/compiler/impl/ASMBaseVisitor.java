@@ -45,9 +45,9 @@ public class ASMBaseVisitor extends AbstractTopLevelGroupVisitor {
 	}
 
 	@Override
-	public ClassGroupVisitor visitImplClass(AccessModsGroup accessMods, IdentifierGroup identifier) {
-		int access = getAccess(accessMods);
-		String fullyQualifiedClassName = identifier.content();
+	public ClassGroupVisitor visitImplClass(ClassDeclarationGroup decl) {
+		int access = getAccess(decl.getAccessMods());
+		String fullyQualifiedClassName = decl.getName().content();
 		CachedClass cachedClass = new CachedClass();
 		cachedClass.setAccess(access);
 		cachedClass.setVersion(version);

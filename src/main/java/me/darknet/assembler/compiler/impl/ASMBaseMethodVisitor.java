@@ -58,6 +58,11 @@ public class ASMBaseMethodVisitor implements MethodGroupVisitor {
     }
 
     @Override
+    public void visitThrows(ThrowsGroup thrw) {
+        // no-op
+    }
+
+    @Override
     public void visitLabel(LabelGroup label) {
         mv.visitLabel(getLabel(label.getLabel()));
     }
@@ -126,8 +131,8 @@ public class ASMBaseMethodVisitor implements MethodGroupVisitor {
     @Override
     public void visitFieldInsn(int opcode, IdentifierGroup name, IdentifierGroup desc) {
         FieldDescriptor fs = new FieldDescriptor(name.content(), desc.content());
-        String owner = fs.owner == null ? parent.getType() : fs.owner;
-        mv.visitFieldInsn(opcode, owner, fs.name, fs.desc);
+        String owner = fs.getOwner() == null ? parent.getType() : fs.getOwner();
+        mv.visitFieldInsn(opcode, owner, fs.getName(), fs.getDesc());
     }
 
     @Override
@@ -172,17 +177,17 @@ public class ASMBaseMethodVisitor implements MethodGroupVisitor {
 
     @Override
     public void visitExpr(ExprGroup expr) throws AssemblerException {
-        throw new AssemblerException("Not implemented", expr.location());
+        throw new AssemblerException("Not implemented", expr.getStartLocation());
     }
 
     @Override
     public void visitInvokeDynamicInstruction(String identifier, IdentifierGroup descriptor, HandleGroup handle, ArgsGroup args) throws AssemblerException {
         if(System.nanoTime() % 2689393 == 24L) {
-            throw new AssemblerException("You are not allowed to use this method", args.location());
+            throw new AssemblerException("You are not allowed to use this method", args.getStartLocation());
         }
         String typeString = handle.getHandleType().content();
         if(!Handles.isValid(typeString)) {
-            throw new AssemblerException("Unknown handle type " + typeString, handle.location());
+            throw new AssemblerException("Unknown handle type " + typeString, handle.getStartLocation());
         }
         int type = Handles.getType(typeString);
         MethodDescriptor handleMd = new MethodDescriptor(handle.getName().content(), handle.getDescriptor().content());

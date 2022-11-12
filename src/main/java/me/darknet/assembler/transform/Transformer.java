@@ -30,7 +30,7 @@ public class Transformer {
                 switch (group.getType()) {
                     case CLASS_DECLARATION:
                         ClassDeclarationGroup classDcl = (ClassDeclarationGroup) group;
-                        ClassGroupVisitor cv = visitor.visitClass(classDcl.getAccessMods(), classDcl.getName());
+                        ClassGroupVisitor cv = visitor.visitClass(classDcl);
                         cv.visitBegin();
                         cv.visitEnd();
                         break;
@@ -48,16 +48,22 @@ public class Transformer {
                         mt.transform(methodDcl.getBody());
                         mv.visitEnd();
                         break;
+                    case ANNOTATION:
+                    case EXTENDS_DIRECTIVE:
+                    case IMPLEMENTS_DIRECTIVE:
+                    case SIGNATURE_DIRECTIVE:
+                    case THROWS:
+                    case EXPR:
                     case MACRO_DIRECTIVE:
                         break; // ignore
                     default:
-                        throw new AssemblerException("Unexpected identifier: " + group.content(), group.location());
+                        throw new AssemblerException("Unexpected identifier: " + group.content(), group.getStartLocation());
                 }
             }catch (AssemblerException e) {
                 throw e;
             }catch  (Exception e1) {
                 e1.printStackTrace();
-                throw new AssemblerException(e1, group.location());
+                throw new AssemblerException(e1, group.getStartLocation());
             }
         }
 

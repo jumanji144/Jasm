@@ -29,16 +29,16 @@ public abstract class AbstractTopLevelGroupVisitor implements TopLevelGroupVisit
 		}
 	}
 
-	public abstract ClassGroupVisitor visitImplClass(AccessModsGroup accessMods, IdentifierGroup identifier) throws AssemblerException;
+	public abstract ClassGroupVisitor visitImplClass(ClassDeclarationGroup decl) throws AssemblerException;
 
 	public abstract FieldGroupVisitor visitImplField(FieldDeclarationGroup decl) throws AssemblerException;
 
 	public abstract MethodGroupVisitor visitImplMethod(MethodDeclarationGroup decl) throws AssemblerException;
 
 	@Override
-	public final ClassGroupVisitor visitClass(AccessModsGroup accessMods, IdentifierGroup identifier) throws AssemblerException {
+	public final ClassGroupVisitor visitClass(ClassDeclarationGroup decl) throws AssemblerException {
 		// When the visitation is over, add all recorded attributes
-		ClassGroupVisitor delegate = visitImplClass(accessMods, identifier);
+		ClassGroupVisitor delegate = visitImplClass(decl);
 		return new DelegatingClassGroupVisitor(delegate) {
 			@Override
 			public void visitEnd() throws AssemblerException {
