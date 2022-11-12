@@ -87,10 +87,10 @@ public class Keywords {
 	 * @param token
 	 * 		Token instance.
 	 *
-	 * @return Matching keywords <i>(Prefix required if specified)</i> from the {@link Token#content token text content}.
+	 * @return Matching keywords <i>(Prefix required if specified)</i> from the {@link Token#getContent() token text content}.
 	 */
 	public Keyword fromToken(Token token) {
-		return fromString(token.content);
+		return fromString(token.getContent());
 	}
 
 	/**
@@ -120,7 +120,7 @@ public class Keywords {
 	 * @return {@code true} if it matches an access modifier keyword.
 	 */
 	public boolean isAccessModifier(Token token) {
-		return isAccessModifier(token.content);
+		return isAccessModifier(token.getContent());
 	}
 
 	/**
@@ -149,12 +149,12 @@ public class Keywords {
 	 * @param key
 	 * 		Keyword to match.
 	 * @param token
-	 * 		Token to match against, using {@link Token#content the text content}.
+	 * 		Token to match against, using {@link Token#getContent() the text content}.
 	 *
 	 * @return {@code true} for keyword match.
 	 */
 	public boolean match(Keyword key, Token token) {
-		return match(key, token.content);
+		return match(key, token.getContent());
 	}
 
 	/**

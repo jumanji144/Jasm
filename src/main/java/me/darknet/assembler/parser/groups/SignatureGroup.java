@@ -1,19 +1,17 @@
 package me.darknet.assembler.parser.groups;
 
+import lombok.Getter;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Token;
 
+import java.util.Collections;
+
+@Getter
 public class SignatureGroup extends Group {
+	private final IdentifierGroup descriptor;
 
-    public IdentifierGroup descriptor;
-
-    public SignatureGroup (Token value, IdentifierGroup descriptor) {
-        super(GroupType.SIGNATURE_DIRECTIVE, value, descriptor);
-        this.descriptor = descriptor;
-    }
-
-    public IdentifierGroup getDescriptor() {
-        return descriptor;
-    }
-
+	public SignatureGroup(Token value, IdentifierGroup descriptor) {
+		super(GroupType.SIGNATURE_DIRECTIVE, value, Collections.singletonList(descriptor));
+		this.descriptor = descriptor;
+	}
 }

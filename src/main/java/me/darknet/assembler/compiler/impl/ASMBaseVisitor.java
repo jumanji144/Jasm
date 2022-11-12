@@ -78,29 +78,29 @@ public class ASMBaseVisitor implements Visitor {
     @Override
     public void visitSuper(ExtendsGroup extendsGroup) {
         if(currentClass != null) {
-            currentClass.setSuperGroup(extendsGroup.className.content());
+            currentClass.setSuperGroup(extendsGroup.getClassName().content());
         }
     }
 
     @Override
     public void visitImplements(ImplementsGroup implementsGroup) {
         if(currentClass != null) {
-            currentClass.addImplements(implementsGroup.className.content());
+            currentClass.addImplements(implementsGroup.getClassName().content());
         }
     }
 
     @Override
     public void visit(Group group) throws AssemblerException {
-        if(currentClass != null && !currentClass.hasBuilt) {
+        if(currentClass != null && !currentClass.isBuilt()) {
             // finish class build
-            GroupType type = group.type;
+            GroupType type = group.getType();
             if (type != GroupType.CLASS_DECLARATION
                     && type != GroupType.IMPLEMENTS_DIRECTIVE
                     && type != GroupType.EXTENDS_DIRECTIVE) {
                 // build class
                 if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.CLASS) {
                     String desc = currentAnnotation.getClassGroup().content();
-                    AnnotationParamGroup[] params = currentAnnotation.getParams();
+                    List<AnnotationParamGroup> params = currentAnnotation.getParams();
                     AnnotationVisitor av = cw.visitAnnotation(desc, !currentAnnotation.isInvisible());
                     for(AnnotationParamGroup param : params) {
                         annotationParam(param, av);
@@ -116,15 +116,15 @@ public class ASMBaseVisitor implements Visitor {
 
     @Override
     public void visitField(FieldDeclarationGroup decl) throws AssemblerException {
-        FieldVisitor fv = cw.visitField(getAccess(decl.accessMods),
-                decl.name.content(),
-                decl.descriptor.content(),
+        FieldVisitor fv = cw.visitField(getAccess(decl.getAccessMods()),
+                decl.getName().content(),
+                decl.getDescriptor().content(),
                 getSignature(),
-                decl.constantValue == null ?
-                        null : GroupUtil.convert(currentClass, decl.constantValue));
+                decl.getConstantValue() == null ?
+                        null : GroupUtil.convert(currentClass, decl.getConstantValue()));
         if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.FIELD) {
             String desc = currentAnnotation.getClassGroup().content();
-            AnnotationParamGroup[] params = currentAnnotation.getParams();
+            List<AnnotationParamGroup> params = currentAnnotation.getParams();
             AnnotationVisitor av = fv.visitAnnotation(desc, !currentAnnotation.isInvisible());
             for(AnnotationParamGroup param : params) {
                 annotationParam(param, av);
@@ -138,12 +138,13 @@ public class ASMBaseVisitor implements Visitor {
     @Override
     public MethodVisitor visitMethod(MethodDeclarationGroup decl) throws AssemblerException {
         String dsc = decl.buildDescriptor();
-        int access = getAccess(decl.accessMods);
-        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, decl.name.content(), dsc, getSignature(), getThrows().toArray(new String[0]));
+        int access = getAccess(decl.getAccessMods());
+        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, decl.getName().content(), dsc,
+                getSignature(), getThrows().toArray(new String[0]));
 
         if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.METHOD) {
             String desc = currentAnnotation.getClassGroup().content();
-            AnnotationParamGroup[] params = currentAnnotation.getParams();
+            List<AnnotationParamGroup> params = currentAnnotation.getParams();
             AnnotationVisitor av = mv.visitAnnotation(desc, !currentAnnotation.isInvisible());
             for(AnnotationParamGroup param : params) {
                 annotationParam(param, av);
@@ -158,17 +159,17 @@ public class ASMBaseVisitor implements Visitor {
     }
 
     private void paramValue(String name, Group value, AnnotationVisitor av) throws AssemblerException {
-        if (value.type == GroupType.ARGS) {
+        if (value.isType(GroupType.ARGS)) {
             ArgsGroup args = (ArgsGroup) value;
             AnnotationVisitor arrayVis = av.visitArray(name);
-            for (Group group : args.getBody().children) {
+            for (Group group : args.getBody().getChildren()) {
                 paramValue(name, group, arrayVis);
             }
             arrayVis.visitEnd();
-        } else if (value.type == GroupType.ENUM) {
+        } else if (value.isType(GroupType.ENUM)) {
             EnumGroup enumGroup = (EnumGroup) value;
             av.visitEnum(name, enumGroup.getDescriptor().content(), enumGroup.getEnumValue().content());
-        } else if (value.type == GroupType.ANNOTATION) {
+        } else if (value.isType(GroupType.ANNOTATION)) {
             AnnotationGroup annotationGroup = (AnnotationGroup) value;
             AnnotationVisitor annotationVis = av.visitAnnotation(name, annotationGroup.getClassGroup().content());
             for (AnnotationParamGroup param : annotationGroup.getParams()) {
@@ -182,15 +183,17 @@ public class ASMBaseVisitor implements Visitor {
     }
 
     private void annotationParam(AnnotationParamGroup annotationParam, AnnotationVisitor av) throws AssemblerException {
-        if (annotationParam.value.type == GroupType.ARGS) {
-            ArgsGroup args = (ArgsGroup) annotationParam.value;
-            AnnotationVisitor arrayVis = av.visitArray(annotationParam.name.content());
-            for (Group group : args.getBody().children) {
-                paramValue(annotationParam.name.content(), group, arrayVis);
+        Group paramValue = annotationParam.getParamValue();
+        String nameContent = annotationParam.getName().content();
+        if (paramValue.isType(GroupType.ARGS)) {
+            ArgsGroup args = (ArgsGroup) paramValue;
+            AnnotationVisitor arrayVis = av.visitArray(nameContent);
+            for (Group group : args.getBody().getChildren()) {
+                paramValue(nameContent, group, arrayVis);
             }
             arrayVis.visitEnd();
         } else {
-            paramValue(annotationParam.name.content(), annotationParam.value, av);
+            paramValue(nameContent, paramValue, av);
         }
     }
 
@@ -225,7 +228,7 @@ public class ASMBaseVisitor implements Visitor {
 
     private int getAccess(AccessModsGroup access) {
         int accessFlags = 0;
-        for (AccessModGroup g : access.accessMods) {
+        for (AccessModGroup g : access.getAccessMods()) {
             Keyword keyword = keywords.fromGroup(g);
             switch (keyword) {
                 case KEYWORD_PUBLIC:

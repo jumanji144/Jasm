@@ -1,10 +1,11 @@
 package me.darknet.assembler.parser.groups;
 
 import me.darknet.assembler.parser.Group;
-import me.darknet.assembler.parser.Token;
+
+import java.util.List;
 
 public class BodyGroup extends Group {
-    public BodyGroup(Group... groups) {
-        super(GroupType.BODY, groups);
-    }
+	public BodyGroup(List<Group> groups) {
+		super(GroupType.BODY, groups);
+	}
 }

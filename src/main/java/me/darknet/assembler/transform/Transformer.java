@@ -29,10 +29,10 @@ public class Transformer {
         for(Group group : groups) {
             try {
                 visitor.visit(group);
-                switch (group.type) {
+                switch (group.getType()) {
                     case CLASS_DECLARATION:
                         ClassDeclarationGroup classDcl = (ClassDeclarationGroup) group;
-                        visitor.visitClass(classDcl.accessMods, classDcl.name);
+                        visitor.visitClass(classDcl.getAccessMods(), classDcl.getName());
                         break;
                     case FIELD_DECLARATION:
                         FieldDeclarationGroup fieldDcl = (FieldDeclarationGroup) group;
@@ -44,7 +44,8 @@ public class Transformer {
                         MethodVisitor mv = visitor.visitMethod(methodDcl);
                         // call it using a method transformer
                         MethodTransformer mt = new MethodTransformer(mv);
-                        mt.transform(methodDcl.body);
+                        mt.transform(methodDcl.getBody());
+                        mv.visitEnd();
                         break;
                     case ANNOTATION:
                         AnnotationGroup annotation = (AnnotationGroup) group;

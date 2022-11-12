@@ -4,17 +4,16 @@ import lombok.Getter;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Token;
 
-public class EnumGroup extends Group {
+import java.util.Arrays;
 
-    @Getter
-    IdentifierGroup descriptor;
-    @Getter
-    IdentifierGroup enumValue;
+@Getter
+public class EnumGroup extends Group {
+   private final IdentifierGroup descriptor;
+   private final IdentifierGroup enumValue;
 
     public EnumGroup(Token token, IdentifierGroup descriptor, IdentifierGroup value) {
-        super(GroupType.ENUM, token, descriptor, value);
+        super(GroupType.ENUM, token, Arrays.asList(descriptor, value));
         this.descriptor = descriptor;
         this.enumValue = value;
     }
-
 }

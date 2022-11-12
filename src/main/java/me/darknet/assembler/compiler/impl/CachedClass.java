@@ -1,31 +1,30 @@
 package me.darknet.assembler.compiler.impl;
 
-import lombok.Setter;
+import lombok.Data;
 import org.objectweb.asm.ClassVisitor;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Setter
+@Data
 public class CachedClass {
+	private int version;
+	private int access;
+	private String fullyQualifiedName;
+	private String superGroup = "java/lang/Object";
+	private String signature;
+	private List<String> implementsGroups = new ArrayList<>();
 
-    public int version;
-    public int access;
-    public String fullyQualifiedName;
-    public String superGroup = "java/lang/Object";
-    public String signature;
-    public List<String> implementsGroups = new ArrayList<>();
+	private boolean built;
 
-    public boolean hasBuilt;
+	public void build(ClassVisitor cv) {
+		cv.visit(version, access, fullyQualifiedName, signature, superGroup, implementsGroups.toArray(new String[0]));
+		built = true;
+	}
 
-    public void build(ClassVisitor cv) {
-        cv.visit(version, access, fullyQualifiedName, signature, superGroup, implementsGroups.toArray(new String[0]));
-        hasBuilt = true;
-    }
-
-    public void addImplements(String group) {
-        implementsGroups.add(group);
-    }
+	public void addImplements(String group) {
+		implementsGroups.add(group);
+	}
 
 
 }

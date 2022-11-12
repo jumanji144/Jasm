@@ -1,7 +1,5 @@
 package me.darknet.assembler.compiler;
 
-import java.util.Arrays;
-
 public class FieldDescriptor {
 
     public String name;

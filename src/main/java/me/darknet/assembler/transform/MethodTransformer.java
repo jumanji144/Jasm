@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.objectweb.asm.Opcodes.*;
-import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
 
 public class MethodTransformer {
 
@@ -65,7 +64,7 @@ public class MethodTransformer {
                             mv.visitExpr((ExprGroup) inst);
                             break;
                         default:
-                            throw new AssemblerException("Unknown instruction type: " + inst.type, inst.value.getLocation());
+                            throw new AssemblerException("Unknown instruction type: " + inst.getType(), inst.getValue().getLocation());
                     }
                 } catch(AssemblerException e){
                     throw e;
@@ -73,7 +72,6 @@ public class MethodTransformer {
                     throw new AssemblerException(e1, inst.location());
                 }
             }
-            mv.visitEnd();
         }
     }
 
@@ -85,17 +83,21 @@ public class MethodTransformer {
     public void visitInstruction(InstructionGroup inst) throws AssemblerException {
         String instruction = inst.content();
         ParseInfo info = ParseInfo.get(instruction);
-        if (info == null) throw new AssemblerException("Unknown instruction: " + instruction, inst.value.getLocation());
+        if (info == null)
+            throw new AssemblerException("Unknown instruction: " + instruction, inst.getValue().getLocation());
+        int op = info.getOpcode();
+        String infoName = info.getName();
+
         // Special case for XLOAD_N and XSTORE_N
-        if(info.name.contains("_")) {
-            if(info.name.contains("store") || info.name.contains("load")) {
-                int opcode = info.opcode;
-                int index = Integer.parseInt(info.name.substring(info.name.indexOf("_") + 1));
+        if (infoName.contains("_")) {
+            if(infoName.contains("store") || infoName.contains("load")) {
+                int opcode = op;
+                int index = Integer.parseInt(infoName.substring(infoName.indexOf("_") + 1));
                 mv.visitDirectVarInsn(opcode, index);
                 return;
             }
         }
-        int opcode = info.opcode;
+        int opcode = op;
         switch (opcode) {
             case INVOKEVIRTUAL:
             case INVOKESTATIC:

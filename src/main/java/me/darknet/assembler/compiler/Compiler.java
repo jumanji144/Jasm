@@ -21,7 +21,7 @@ public class Compiler {
     public void compile(ParserContext ctx) throws AssemblerException {
 
         Transformer transformer = new Transformer(visitor);
-        transformer.transform(ctx.groups);
+        transformer.transform(ctx.getGroups());
 
     }
 
