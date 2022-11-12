@@ -50,7 +50,7 @@ public class GroupUtil {
 			MethodDescriptor md = new MethodDescriptor(handle.getName().content(), handle.getDescriptor().content());
 			return new Handle(
 					type,
-					md.hasDeclaredOwner() ? md.getOwner() : (container == null ? "" : container.getFullyQualifiedName()),
+					md.hasDeclaredOwner() ? md.getOwner() : (container == null ? "" : container.getType()),
 					md.getName(),
 					md.getDescriptor(),
 					type == Opcodes.H_INVOKEINTERFACE);

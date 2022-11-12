@@ -1,251 +1,157 @@
 package me.darknet.assembler.compiler.impl;
 
-import me.darknet.assembler.parser.AnnotationTarget;
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Keyword;
 import me.darknet.assembler.parser.Keywords;
-import me.darknet.assembler.parser.groups.AccessModGroup;
-import me.darknet.assembler.parser.groups.AccessModsGroup;
-import me.darknet.assembler.parser.groups.AnnotationGroup;
-import me.darknet.assembler.parser.groups.AnnotationParamGroup;
-import me.darknet.assembler.parser.groups.ArgsGroup;
-import me.darknet.assembler.parser.groups.EnumGroup;
-import me.darknet.assembler.parser.groups.ExprGroup;
-import me.darknet.assembler.parser.groups.ExtendsGroup;
-import me.darknet.assembler.parser.groups.FieldDeclarationGroup;
-import me.darknet.assembler.parser.groups.IdentifierGroup;
-import me.darknet.assembler.parser.groups.ImplementsGroup;
-import me.darknet.assembler.parser.groups.MethodDeclarationGroup;
-import me.darknet.assembler.parser.groups.SignatureGroup;
-import me.darknet.assembler.parser.groups.ThrowsGroup;
-import me.darknet.assembler.transform.MethodVisitor;
-import me.darknet.assembler.transform.Visitor;
+import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.transform.AbstractTopLevelGroupVisitor;
+import me.darknet.assembler.transform.ClassGroupVisitor;
+import me.darknet.assembler.transform.FieldGroupVisitor;
+import me.darknet.assembler.transform.MethodGroupVisitor;
 import me.darknet.assembler.util.GroupUtil;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.MethodVisitor;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static me.darknet.assembler.parser.Group.GroupType;
 import static org.objectweb.asm.Opcodes.*;
 
-public class ASMBaseVisitor implements Visitor {
-    private final Keywords keywords;
-    private final ClassWriter cw;
-    private final int version;
-    private final List<String> currentThrows = new ArrayList<>();
-    private CachedClass currentClass;
-    private AnnotationGroup currentAnnotation;
-    private SignatureGroup currentSignature;
+public class ASMBaseVisitor extends AbstractTopLevelGroupVisitor {
+	private final Keywords keywords;
+	private final ClassWriter cw;
+	private final int version;
+	private CachedClass currentClass;
 
-    public ASMBaseVisitor(int version, Keywords keywords) {
-        cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        this.version = version;
-        this.keywords =keywords;
-    }
+	public ASMBaseVisitor(int version, Keywords keywords) {
+		cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+		this.version = version;
+		this.keywords = keywords;
+	}
 
+	public byte[] toByteArray() {
+		return cw.toByteArray();
+	}
 
-    public String getSignature() {
-        if(currentSignature != null) {
-            String signature = currentSignature.getDescriptor().content();
-            currentSignature = null;
-            return signature;
-        }
-        return null;
-    }
+	@Override
+	public void visitEnd() throws AssemblerException {
+		super.visitEnd();
+		if (currentClass != null) {
+			currentClass.build(cw);
+		}
+	}
 
-    public List<String> getThrows() {
-        List<String> throwss = new ArrayList<>(currentThrows);
-        currentThrows.clear();
-        return throwss;
-    }
+	@Override
+	public ClassGroupVisitor visitImplClass(AccessModsGroup accessMods, IdentifierGroup identifier) {
+		int access = getAccess(accessMods);
+		String fullyQualifiedClassName = identifier.content();
+		CachedClass cachedClass = new CachedClass();
+		cachedClass.setAccess(access);
+		cachedClass.setVersion(version);
+		cachedClass.setType(fullyQualifiedClassName);
+		currentClass = cachedClass;
+		return cachedClass;
+	}
 
-    @Override
-    public void visitClass(AccessModsGroup accessMods, IdentifierGroup identifier) {
-        int access = getAccess(accessMods);
-        String fullyQualifiedClassName = identifier.content();
-        CachedClass cachedClass = new CachedClass();
-        cachedClass.setAccess(access);
-        cachedClass.setVersion(version);
-        cachedClass.setFullyQualifiedName(fullyQualifiedClassName);
-        cachedClass.setSignature(getSignature());
-        currentClass = cachedClass;
-    }
+	@Override
+	public FieldGroupVisitor visitImplField(FieldDeclarationGroup decl) throws AssemblerException {
+		SignatureGroup signatureGroup = getAttributeStore().getFirstFieldAttribute(SignatureGroup.class);
+		String signature = signatureGroup == null ? null : signatureGroup.getDescriptor().content();
+		FieldVisitor fv = cw.visitField(getAccess(decl.getAccessMods()),
+				decl.getName().content(),
+				decl.getDescriptor().content(),
+				signature,
+				decl.getConstantValue() == null ?
+						null : GroupUtil.convert(currentClass, decl.getConstantValue()));
 
-    @Override
-    public void visitSuper(ExtendsGroup extendsGroup) {
-        if(currentClass != null) {
-            currentClass.setSuperGroup(extendsGroup.getClassName().content());
-        }
-    }
+		ASMBaseFieldVisitor visitor = new ASMBaseFieldVisitor(fv);
+		getAttributeStore().accept(visitor);
+		getAttributeStore().clear();
+		return visitor;
+	}
 
-    @Override
-    public void visitImplements(ImplementsGroup implementsGroup) {
-        if(currentClass != null) {
-            currentClass.addImplements(implementsGroup.getClassName().content());
-        }
-    }
+	@Override
+	public MethodGroupVisitor visitImplMethod(MethodDeclarationGroup decl) throws AssemblerException {
+		SignatureGroup signatureGroup = getAttributeStore().getFirstMethodAttribute(SignatureGroup.class);
+		String signature = signatureGroup == null ? null : signatureGroup.getDescriptor().content();
 
-    @Override
-    public void visit(Group group) throws AssemblerException {
-        if(currentClass != null && !currentClass.isBuilt()) {
-            // finish class build
-            GroupType type = group.getType();
-            if (type != GroupType.CLASS_DECLARATION
-                    && type != GroupType.IMPLEMENTS_DIRECTIVE
-                    && type != GroupType.EXTENDS_DIRECTIVE) {
-                // build class
-                if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.CLASS) {
-                    String desc = currentAnnotation.getClassGroup().content();
-                    List<AnnotationParamGroup> params = currentAnnotation.getParams();
-                    AnnotationVisitor av = cw.visitAnnotation(desc, !currentAnnotation.isInvisible());
-                    for(AnnotationParamGroup param : params) {
-                        annotationParam(param, av);
-                    }
-                    av.visitEnd();
-                    currentAnnotation = null;
-                }
-                currentClass.build(cw);
-            }
-        }
-    }
+		List<ThrowsGroup> throwsGroups = getAttributeStore().getMethodAttributesOfType(ThrowsGroup.class);
+		String[] throwsArray = throwsGroups.isEmpty() ? null : throwsGroups.stream()
+				.map(t -> t.getClassName().content())
+				.toArray(String[]::new);
 
+		String dsc = decl.buildDescriptor();
+		int access = getAccess(decl.getAccessMods());
+		MethodVisitor mv =
+				cw.visitMethod(access, decl.getName().content(), dsc, signature, throwsArray);
 
-    @Override
-    public me.darknet.assembler.transform.FieldVisitor visitField(FieldDeclarationGroup decl) throws AssemblerException {
-        FieldVisitor fv = cw.visitField(getAccess(decl.getAccessMods()),
-                decl.getName().content(),
-                decl.getDescriptor().content(),
-                getSignature(),
-                decl.getConstantValue() == null ?
-                        null : GroupUtil.convert(currentClass, decl.getConstantValue()));
-        if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.FIELD) {
-            String desc = currentAnnotation.getClassGroup().content();
-            List<AnnotationParamGroup> params = currentAnnotation.getParams();
-            AnnotationVisitor av = fv.visitAnnotation(desc, !currentAnnotation.isInvisible());
-            for(AnnotationParamGroup param : params) {
-                annotationParam(param, av);
-            }
-            av.visitEnd();
-            currentAnnotation = null;
-        }
+		boolean isStatic = (access & ACC_STATIC) != 0;
+		ASMBaseMethodVisitor visitor = new ASMBaseMethodVisitor(mv, currentClass, isStatic);
+		getAttributeStore().accept(visitor);
+		getAttributeStore().clear();
+		return visitor;
+	}
 
-        return new ASMBaseFieldVisitor(fv);
-    }
+	public static void annotationParam(AnnotationParamGroup annotationParam, AnnotationVisitor av) throws AssemblerException {
+		Group paramValue = annotationParam.getParamValue();
+		String nameContent = annotationParam.getName().content();
+		if (paramValue.isType(GroupType.ARGS)) {
+			ArgsGroup args = (ArgsGroup) paramValue;
+			AnnotationVisitor arrayVis = av.visitArray(nameContent);
+			for (Group group : args.getBody().getChildren()) {
+				paramValue(nameContent, group, arrayVis);
+			}
+			arrayVis.visitEnd();
+		} else {
+			paramValue(nameContent, paramValue, av);
+		}
+	}
 
-    @Override
-    public MethodVisitor visitMethod(MethodDeclarationGroup decl) throws AssemblerException {
-        String dsc = decl.buildDescriptor();
-        int access = getAccess(decl.getAccessMods());
-        org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, decl.getName().content(), dsc,
-                getSignature(), getThrows().toArray(new String[0]));
+	private static void paramValue(String name, Group value, AnnotationVisitor av) throws AssemblerException {
+		if (value.isType(GroupType.ARGS)) {
+			ArgsGroup args = (ArgsGroup) value;
+			AnnotationVisitor arrayVis = av.visitArray(name);
+			for (Group group : args.getBody().getChildren()) {
+				paramValue(name, group, arrayVis);
+			}
+			arrayVis.visitEnd();
+		} else if (value.isType(GroupType.ENUM)) {
+			EnumGroup enumGroup = (EnumGroup) value;
+			av.visitEnum(name, enumGroup.getDescriptor().content(), enumGroup.getEnumValue().content());
+		} else if (value.isType(GroupType.ANNOTATION)) {
+			AnnotationGroup annotationGroup = (AnnotationGroup) value;
+			AnnotationVisitor annotationVis = av.visitAnnotation(name, annotationGroup.getClassGroup().content());
+			for (AnnotationParamGroup param : annotationGroup.getParams()) {
+				annotationParam(param, annotationVis);
+			}
+			annotationVis.visitEnd();
+		} else {
+			av.visit(name, value.content());
+		}
+	}
 
-        if(currentAnnotation != null && currentAnnotation.getTarget() == AnnotationTarget.METHOD) {
-            String desc = currentAnnotation.getClassGroup().content();
-            List<AnnotationParamGroup> params = currentAnnotation.getParams();
-            AnnotationVisitor av = mv.visitAnnotation(desc, !currentAnnotation.isInvisible());
-            for(AnnotationParamGroup param : params) {
-                annotationParam(param, av);
-            }
-            av.visitEnd();
-            currentAnnotation = null;
-        }
-
-        boolean isStatic = (access & ACC_STATIC) != 0;
-
-        return new ASMBaseMethodVisitor(mv, currentClass, isStatic);
-    }
-
-    private void paramValue(String name, Group value, AnnotationVisitor av) throws AssemblerException {
-        if (value.isType(GroupType.ARGS)) {
-            ArgsGroup args = (ArgsGroup) value;
-            AnnotationVisitor arrayVis = av.visitArray(name);
-            for (Group group : args.getBody().getChildren()) {
-                paramValue(name, group, arrayVis);
-            }
-            arrayVis.visitEnd();
-        } else if (value.isType(GroupType.ENUM)) {
-            EnumGroup enumGroup = (EnumGroup) value;
-            av.visitEnum(name, enumGroup.getDescriptor().content(), enumGroup.getEnumValue().content());
-        } else if (value.isType(GroupType.ANNOTATION)) {
-            AnnotationGroup annotationGroup = (AnnotationGroup) value;
-            AnnotationVisitor annotationVis = av.visitAnnotation(name, annotationGroup.getClassGroup().content());
-            for (AnnotationParamGroup param : annotationGroup.getParams()) {
-                annotationParam(param, annotationVis);
-            }
-            annotationVis.visitEnd();
-        } else {
-            av.visit(name, value.content());
-        }
-
-    }
-
-    private void annotationParam(AnnotationParamGroup annotationParam, AnnotationVisitor av) throws AssemblerException {
-        Group paramValue = annotationParam.getParamValue();
-        String nameContent = annotationParam.getName().content();
-        if (paramValue.isType(GroupType.ARGS)) {
-            ArgsGroup args = (ArgsGroup) paramValue;
-            AnnotationVisitor arrayVis = av.visitArray(nameContent);
-            for (Group group : args.getBody().getChildren()) {
-                paramValue(nameContent, group, arrayVis);
-            }
-            arrayVis.visitEnd();
-        } else {
-            paramValue(nameContent, paramValue, av);
-        }
-    }
-
-    @Override
-    public void visitAnnotation(AnnotationGroup group) throws AssemblerException {
-        currentAnnotation = group; // withhold the annotation until target is met
-    }
-
-    @Override
-    public void visitSignature(SignatureGroup signature) throws AssemblerException {
-        currentSignature = signature;
-    }
-
-    @Override
-    public void visitThrows(ThrowsGroup throwsGroup) throws AssemblerException {
-        currentThrows.add(throwsGroup.getClassName().content());
-    }
-
-    @Override
-    public void visitExpression(ExprGroup expr) throws AssemblerException {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public void visitEndClass() {
-
-    }
-
-    public byte[] toByteArray() {
-        return cw.toByteArray();
-    }
-
-    private int getAccess(AccessModsGroup access) {
-        int accessFlags = 0;
-        for (AccessModGroup g : access.getAccessMods()) {
-            Keyword keyword = keywords.fromGroup(g);
-            switch (keyword) {
-                case KEYWORD_PUBLIC:
-                    accessFlags |= ACC_PUBLIC;
-                    break;
-                case KEYWORD_PRIVATE:
-                    accessFlags |= ACC_PRIVATE;
-                    break;
-                case KEYWORD_STATIC:
-                    accessFlags |= ACC_STATIC;
-                    break;
-                case KEYWORD_FINAL:
-                    accessFlags |= ACC_FINAL;
-                    break;
-            }
-        }
-        return accessFlags;
-    }
+	private int getAccess(AccessModsGroup access) {
+		int accessFlags = 0;
+		for (AccessModGroup g : access.getAccessMods()) {
+			Keyword keyword = keywords.fromGroup(g);
+			switch (keyword) {
+				case KEYWORD_PUBLIC:
+					accessFlags |= ACC_PUBLIC;
+					break;
+				case KEYWORD_PRIVATE:
+					accessFlags |= ACC_PRIVATE;
+					break;
+				case KEYWORD_STATIC:
+					accessFlags |= ACC_STATIC;
+					break;
+				case KEYWORD_FINAL:
+					accessFlags |= ACC_FINAL;
+					break;
+			}
+		}
+		return accessFlags;
+	}
 }

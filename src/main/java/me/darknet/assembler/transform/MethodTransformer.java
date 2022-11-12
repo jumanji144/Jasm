@@ -24,13 +24,13 @@ public class MethodTransformer {
         newArrayTypes.put("char", T_CHAR);
         newArrayTypes.put("boolean", T_BOOLEAN);
     }
-    private final MethodVisitor mv;
+    private final MethodGroupVisitor mv;
 
     /**
      * Constructs a new MethodTransformer for the given MethodVisitor.
      * @param mv the MethodVisitor to use
      */
-    public MethodTransformer(MethodVisitor mv) {
+    public MethodTransformer(MethodGroupVisitor mv) {
         this.mv = mv;
     }
 
@@ -41,8 +41,8 @@ public class MethodTransformer {
      */
     public void transform(BodyGroup body) throws AssemblerException {
         if (body != null) {
-                for (Group inst : body.getChildren()) {
-                    try {
+            for (Group inst : body.getChildren()) {
+                try {
                     mv.visit(inst);
                     switch (inst.getType()) {
                         case LABEL:
@@ -66,10 +66,10 @@ public class MethodTransformer {
                         default:
                             throw new AssemblerException("Unknown instruction type: " + inst.getType(), inst.getValue().getLocation());
                     }
-                } catch(AssemblerException e){
+                } catch (AssemblerException e) {
                     throw e;
-                }catch(Exception e1){
-                    throw new AssemblerException(e1, inst.location());
+                } catch (Exception ex) {
+                    throw new AssemblerException(ex, inst.location());
                 }
             }
         }
@@ -91,9 +91,8 @@ public class MethodTransformer {
         // Special case for XLOAD_N and XSTORE_N
         if (infoName.contains("_")) {
             if(infoName.contains("store") || infoName.contains("load")) {
-                int opcode = op;
                 int index = Integer.parseInt(infoName.substring(infoName.indexOf("_") + 1));
-                mv.visitDirectVarInsn(opcode, index);
+                mv.visitDirectVarInsn(op, index);
                 return;
             }
         }

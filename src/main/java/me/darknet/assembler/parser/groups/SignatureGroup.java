@@ -7,7 +7,7 @@ import me.darknet.assembler.parser.Token;
 import java.util.Collections;
 
 @Getter
-public class SignatureGroup extends Group {
+public class SignatureGroup extends Group implements ClassAttributeGroup, FieldAttributeGroup, MethodAttributeGroup {
 	private final IdentifierGroup descriptor;
 
 	public SignatureGroup(Token value, IdentifierGroup descriptor) {

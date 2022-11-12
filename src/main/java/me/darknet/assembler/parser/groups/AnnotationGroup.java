@@ -9,7 +9,7 @@ import me.darknet.assembler.util.ArrayUtil;
 import java.util.List;
 
 @Getter
-public class AnnotationGroup extends Group {
+public class AnnotationGroup extends Group implements ClassAttributeGroup, FieldAttributeGroup, MethodAttributeGroup {
 	private final IdentifierGroup classGroup;
 	private final List<AnnotationParamGroup> params;
 	private final AnnotationTarget target;

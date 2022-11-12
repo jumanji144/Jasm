@@ -4,18 +4,16 @@ import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
 
-import java.security.SecureRandom;
 import java.util.Collection;
 
 public class Transformer {
-
-    Visitor visitor;
+    private final TopLevelGroupVisitor visitor;
 
     /**
      * Constructs a new {@link Transformer} instance.
      * @param visitor the visitor to use
      */
-    public Transformer(Visitor visitor) {
+    public Transformer(TopLevelGroupVisitor visitor) {
         this.visitor = visitor;
     }
 
@@ -25,47 +23,30 @@ public class Transformer {
      * @throws AssemblerException if an error occurs
      */
     public void transform(Collection<Group> groups) throws AssemblerException {
-
+        visitor.visitBegin();
         for(Group group : groups) {
             try {
                 visitor.visit(group);
                 switch (group.getType()) {
                     case CLASS_DECLARATION:
                         ClassDeclarationGroup classDcl = (ClassDeclarationGroup) group;
-                        visitor.visitClass(classDcl.getAccessMods(), classDcl.getName());
+                        ClassGroupVisitor cv = visitor.visitClass(classDcl.getAccessMods(), classDcl.getName());
+                        cv.visitBegin();
+                        cv.visitEnd();
                         break;
                     case FIELD_DECLARATION:
                         FieldDeclarationGroup fieldDcl = (FieldDeclarationGroup) group;
-                        FieldVisitor fv = visitor.visitField(fieldDcl);
+                        FieldGroupVisitor fv = visitor.visitField(fieldDcl);
+                       fv.visitBegin();
                         fv.visitEnd();
                         break;
                     case METHOD_DECLARATION:
                         MethodDeclarationGroup methodDcl = (MethodDeclarationGroup) group;
-                        // create a new method visitor
-                        MethodVisitor mv = visitor.visitMethod(methodDcl);
-                        // call it using a method transformer
+                        MethodGroupVisitor mv = visitor.visitMethod(methodDcl);
+                        mv.visitBegin();
                         MethodTransformer mt = new MethodTransformer(mv);
                         mt.transform(methodDcl.getBody());
                         mv.visitEnd();
-                        break;
-                    case ANNOTATION:
-                        AnnotationGroup annotation = (AnnotationGroup) group;
-                        visitor.visitAnnotation(annotation);
-                        break;
-                    case EXTENDS_DIRECTIVE:
-                        visitor.visitSuper((ExtendsGroup) group);
-                        break;
-                    case IMPLEMENTS_DIRECTIVE:
-                        visitor.visitImplements((ImplementsGroup) group);
-                        break;
-                    case SIGNATURE_DIRECTIVE:
-                        visitor.visitSignature((SignatureGroup) group);
-                        break;
-                    case THROWS:
-                        visitor.visitThrows((ThrowsGroup) group);
-                        break;
-                    case EXPR:
-                        visitor.visitExpression((ExprGroup) group);
                         break;
                     case MACRO_DIRECTIVE:
                         break; // ignore
@@ -80,8 +61,7 @@ public class Transformer {
             }
         }
 
-        visitor.visitEndClass();
-
+        visitor.visitEnd();
     }
 
 }

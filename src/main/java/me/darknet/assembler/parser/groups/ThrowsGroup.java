@@ -8,7 +8,7 @@ import java.util.Collections;
 
 @Getter
 
-public class ThrowsGroup extends Group {
+public class ThrowsGroup extends Group implements MethodAttributeGroup {
 	private final IdentifierGroup className;
 
 	public ThrowsGroup(Token token, IdentifierGroup className) {

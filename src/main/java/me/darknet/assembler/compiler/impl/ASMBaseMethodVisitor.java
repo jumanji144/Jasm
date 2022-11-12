@@ -5,14 +5,15 @@ import me.darknet.assembler.compiler.MethodDescriptor;
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
-import me.darknet.assembler.transform.MethodVisitor;
+import me.darknet.assembler.transform.MethodGroupVisitor;
 import me.darknet.assembler.util.GroupUtil;
 import me.darknet.assembler.util.Handles;
 import org.objectweb.asm.*;
 
 import java.util.*;
 
-public class ASMBaseMethodVisitor implements MethodVisitor {
+public class ASMBaseMethodVisitor implements MethodGroupVisitor {
+    private final List<AnnotationGroup> annotations = new ArrayList<>();
     private final Map<String, Label> labels = new HashMap<>();
     private final List<String> locals = new ArrayList<>();
     private final CachedClass parent;
@@ -26,8 +27,34 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     }
 
     @Override
-    public void visit(Group group) throws AssemblerException {
+    public void visitEnd() throws AssemblerException {
+        for (AnnotationGroup annotation : annotations) {
+            String desc = annotation.getClassGroup().content();
+            AnnotationVisitor av = mv.visitAnnotation(desc, !annotation.isInvisible());
+            for (AnnotationParamGroup param : annotation.getParams())
+                ASMBaseVisitor.annotationParam(param, av);
+            av.visitEnd();
+        }
 
+        try {
+            verify();
+        } catch (AssemblerException e) {
+            System.err.println(e.describe());
+            System.exit(1);
+        }
+
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+    }
+
+    @Override
+    public void visitAnnotation(AnnotationGroup annotation) {
+        annotations.add(annotation);
+    }
+
+    @Override
+    public void visitSignature(SignatureGroup signature) {
+        // no-op
     }
 
     @Override
@@ -65,7 +92,7 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     }
 
     @Override
-    public void visitCatch(CatchGroup catchGroup) throws AssemblerException {
+    public void visitCatch(CatchGroup catchGroup) {
         IdentifierGroup exception = catchGroup.getException();
         LabelGroup begin = catchGroup.getBegin();
         LabelGroup end = catchGroup.getEnd();
@@ -87,7 +114,7 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     @Override
     public void visitMethodInsn(int opcode, IdentifierGroup name, IdentifierGroup desc, boolean itf) {
         MethodDescriptor md = new MethodDescriptor(name.content(), desc.content());
-        String owner = md.hasDeclaredOwner() ? md.getOwner() : parent.getFullyQualifiedName();
+        String owner = md.hasDeclaredOwner() ? md.getOwner() : parent.getType();
         mv.visitMethodInsn(
                 opcode,
                 owner,
@@ -99,7 +126,7 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
     @Override
     public void visitFieldInsn(int opcode, IdentifierGroup name, IdentifierGroup desc) {
         FieldDescriptor fs = new FieldDescriptor(name.content(), desc.content());
-        String owner = fs.owner == null ? parent.getFullyQualifiedName() : fs.owner;
+        String owner = fs.owner == null ? parent.getType() : fs.owner;
         mv.visitFieldInsn(opcode, owner, fs.name, fs.desc);
     }
 
@@ -161,7 +188,7 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
         MethodDescriptor handleMd = new MethodDescriptor(handle.getName().content(), handle.getDescriptor().content());
         Handle bsmHandle = new Handle(
                 type,
-                handleMd.hasDeclaredOwner() ? handleMd.getOwner() : parent.getFullyQualifiedName(),
+                handleMd.hasDeclaredOwner() ? handleMd.getOwner() : parent.getType(),
                 handleMd.getName(),
                 handleMd.getDescriptor(),
                 type == Opcodes.H_INVOKEINTERFACE);
@@ -169,20 +196,7 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
         mv.visitInvokeDynamicInsn(identifier, descriptor.content(), bsmHandle, argsArray);
     }
 
-    @Override
-    public void visitEnd() {
-        try {
-            verify();
-        } catch (AssemblerException e) {
-            System.err.println(e.describe());
-            System.exit(1);
-        }
-
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
-    }
-
-    public Label getLabel(String label) {
+    private Label getLabel(String label) {
         Label l = labels.get(label);
         if (l == null) {
             l = new Label();
@@ -191,7 +205,7 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
         return l;
     }
 
-    public int getLocal(Group g, boolean create) throws AssemblerException {
+    private int getLocal(Group g, boolean create) throws AssemblerException {
         if (!g.isType(Group.GroupType.IDENTIFIER)) {
             if (g.isType(Group.GroupType.NUMBER)) {
                 return Integer.parseInt(g.content());
@@ -213,7 +227,7 @@ public class ASMBaseMethodVisitor implements MethodVisitor {
         return index + 1;
     }
 
-    public void verify() throws AssemblerException {
+    private void verify() throws AssemblerException {
         for (Map.Entry<String, Label> stringLabelEntry : labels.entrySet()) {
             try {
                 stringLabelEntry.getValue().getOffset();

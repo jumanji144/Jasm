@@ -1,19 +1,17 @@
 annotation me/coley/InsnComment
-    value "This is a comment"
+    value "This is a comment on a class"
     list args "Hello World" end
 end
 class Annotations extends java/lang/Object
 
-method public <init>()V
-    aload_0
-    invokespecial java/lang/Object/<init>()V
-    return
+annotation me/coley/InsnComment
+    value "This is a comment on a field"
+    list args "Hello World" end
 end
-
 field number I
 
 invisible-annotation me/coley/InsnComment
-    value "This is a comment"
+    value "This is a comment on a method"
     annotation annotation me/coley/CommentComment
                  value "Sub comment"
                  list args "This is a sub-list" end
