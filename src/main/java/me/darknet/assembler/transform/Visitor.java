@@ -40,7 +40,7 @@ public interface Visitor {
      * @param decl the field declaration group
      * @throws AssemblerException if an error occurs
      */
-    void visitField(FieldDeclarationGroup decl) throws AssemblerException;
+    FieldVisitor visitField(FieldDeclarationGroup decl) throws AssemblerException;
 
     /**
      * Visit a method declaration

@@ -115,7 +115,7 @@ public class ASMBaseVisitor implements Visitor {
 
 
     @Override
-    public void visitField(FieldDeclarationGroup decl) throws AssemblerException {
+    public me.darknet.assembler.transform.FieldVisitor visitField(FieldDeclarationGroup decl) throws AssemblerException {
         FieldVisitor fv = cw.visitField(getAccess(decl.accessMods),
                 decl.name.content(),
                 decl.descriptor.content(),
@@ -132,7 +132,8 @@ public class ASMBaseVisitor implements Visitor {
             av.visitEnd();
             currentAnnotation = null;
         }
-        fv.visitEnd();
+
+        return new ASMBaseFieldVisitor(fv);
     }
 
     @Override
