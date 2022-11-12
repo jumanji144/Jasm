@@ -12,7 +12,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static me.darknet.assembler.parser.Token.TokenType;
 
-public class ParserTests {
+public class TokenParseTests {
     private static Parser parser;
     private static Parser altParser;
 

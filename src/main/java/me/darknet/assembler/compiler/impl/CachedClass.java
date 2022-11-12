@@ -1,6 +1,7 @@
 package me.darknet.assembler.compiler.impl;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.transform.ClassGroupVisitor;
@@ -10,7 +11,8 @@ import org.objectweb.asm.ClassVisitor;
 import java.util.ArrayList;
 import java.util.List;
 
-@Data
+@Getter
+@Setter
 public class CachedClass implements ClassGroupVisitor {
 	private int version;
 	private int access;

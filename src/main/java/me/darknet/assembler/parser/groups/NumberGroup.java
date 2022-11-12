@@ -39,19 +39,19 @@ public class NumberGroup extends Group {
     }
 
     public int asInt() {
-        return (int) getNumber();
+        return getNumber().intValue();
     }
 
     public long asLong() {
-        return (long) getNumber();
+        return getNumber().longValue();
     }
 
     public float asFloat() {
-        return (float) getNumber();
+        return getNumber().floatValue();
     }
 
     public double asDouble() {
-        return (double) getNumber();
+        return getNumber().doubleValue();
     }
 
     public boolean isFloat() {
