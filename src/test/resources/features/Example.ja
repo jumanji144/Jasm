@@ -1,13 +1,24 @@
-class public Test extends java/lang/Object
+class public Test extends java/lang/Object implements java/lang/runnable
 
-method public static main([Ljava/lang/String; args)V
+method public static main ([Ljava/lang/String; args)V
 
+    // ((Runnable)new Test()).run();
+    new Test
+    dup
+    invokespecial Test.<init> ()V
+    checkcast java/lang/runnable
+    invokeinterface java/lang/runnable.run ()V
+    return
+end
+
+// TODO: this shouldn't be static, but the compiler flags(compute_frames) crash due to missing data
+//       if we try and compile virtual methods
+method static public run ()V
+
+    // System.out.println(String.class);
     getstatic java/lang/System.out Ljava/io/PrintStream;
     ldc type java/lang/String
     invokevirtual java/io/PrintStream.println (Ljava/lang/Object;)V
 
-    // System.out.println(String.class);
-
+    return
 end
-
-
