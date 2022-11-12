@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
+    id 'jacoco'
 }
 
 group 'me.darknet'
@@ -64,6 +65,13 @@ publishing {
         }
     }
 }
+
 test {
     useJUnitPlatform()
+
+    jacoco {
+        includes = [ 'me/darknet/**']
+    }
+
+    finalizedBy jacocoTestReport
 }
