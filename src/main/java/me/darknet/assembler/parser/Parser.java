@@ -2,6 +2,7 @@ package me.darknet.assembler.parser;
 
 import me.darknet.assembler.instructions.ParseInfo;
 import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.module.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -342,12 +343,43 @@ public class Parser {
             case KEYWORD_NEST_MEMBER: {
                 return new NestMemberGroup(token, ctx.explicitIdentifier());
             }
+            case KEYWORD_PERMITTED_SUBCLASS: {
+                return new PermittedSubclassGroup(token, ctx.explicitIdentifier());
+            }
+            case KEYWORD_MODULE: {
+                return readModule(token, ctx);
+            }
             case KEYWORD_INNER_CLASS: {
                 return new InnerClassGroup(token, readAccess(ctx), ctx.explicitIdentifier(), ctx.explicitIdentifier(), ctx.explicitIdentifier());
             }
             case KEYWORD_EXPR: {
                 TextGroup text = (TextGroup) ctx.nextGroup(GroupType.TEXT);
                 return new ExprGroup(token, text);
+            }
+            case KEYWORD_WITH:
+            case KEYWORD_TO: {
+                List<IdentifierGroup> identifiers = new ArrayList<>();
+                while (ctx.hasNextToken()) {
+                    Token next = ctx.peekToken();
+                    if (next.isType(IDENTIFIER)) {
+                        identifiers.add(ctx.explicitIdentifier());
+                    } else {
+                        if(next.isType(KEYWORD)) {
+                            Keyword key = keywords.fromToken(next);
+                            if (key != Keyword.KEYWORD_END) {
+                                throw new AssemblerException("Unexpected keyword: " + key, next.getLocation());
+                            }
+                            ctx.nextToken();
+                            if(keyword == Keyword.KEYWORD_WITH) {
+                                return new WithGroup(token, identifiers);
+                            } else {
+                                return new ToGroup(token, identifiers);
+                            }
+                        } else {
+                            throw new AssemblerException("Unexpected token: " + next, next.getLocation());
+                        }
+                    }
+                }
             }
 
             case KEYWORD_PUBLIC:
@@ -413,6 +445,83 @@ public class Parser {
             }
             Group param = ctx.parseNext();
             params.add(new AnnotationParamGroup(name.getValue(), name, param));
+        }
+        throw new AssemblerException("Expected 'end' keyword", ctx.previousGroup().getStartLocation());
+    }
+
+    public ModuleGroup readModule(Token token, ParserContext ctx) throws AssemblerException {
+        AccessModsGroup access = readAccess(ctx);
+        IdentifierGroup name = ctx.explicitIdentifier();
+        IdentifierGroup version = ctx.explicitIdentifier();
+        MainClassGroup mainClassGroup = null;
+        List<PackageGroup> packages = new ArrayList<>();
+        List<RequireGroup> requires = new ArrayList<>();
+        List<ExportGroup> exports = new ArrayList<>();
+        List<OpenGroup> opens = new ArrayList<>();
+        List<UseGroup> uses = new ArrayList<>();
+        List<ProvideGroup> provides = new ArrayList<>();
+
+        while (ctx.hasNextToken()) {
+            Token next = ctx.peekToken();
+            Keyword keyword = keywords.fromToken(next);
+            if (keyword == null)
+                throw new AssemblerException("Expected module keyword", next.getLocation());
+            switch (keyword) {
+                case KEYWORD_EXPORTS:
+                case KEYWORD_OPENS: {
+                    ctx.nextToken();
+                    AccessModsGroup accessMods = readAccess(ctx);
+                    IdentifierGroup pkg = ctx.explicitIdentifier();
+                    ToGroup to = (ToGroup) ctx.nextGroup(GroupType.MODULE_TO);
+                    if (keyword == Keyword.KEYWORD_EXPORTS)
+                        exports.add(new ExportGroup(next, accessMods, pkg, to));
+                    else
+                        opens.add(new OpenGroup(next, accessMods, pkg, to));
+                    break;
+                }
+                case KEYWORD_USES: {
+                    ctx.nextToken();
+                    uses.add(new UseGroup(next, ctx.explicitIdentifier()));
+                    break;
+                }
+                case KEYWORD_PROVIDES: {
+                    ctx.nextToken();
+                    IdentifierGroup service = ctx.explicitIdentifier();
+                    List<IdentifierGroup> impls = new ArrayList<>();
+                    while (ctx.hasNextToken()) {
+                        IdentifierGroup impl = ctx.explicitIdentifier();
+                        if (keywords.match(Keyword.KEYWORD_END, impl)) {
+                            provides.add(new ProvideGroup(next, service, impls));
+                            break;
+                        }
+                        impls.add(impl);
+                    }
+                    break;
+                }
+                case KEYWORD_REQUIRES: {
+                    ctx.nextToken();
+                    AccessModsGroup accessMods = readAccess(ctx);
+                    IdentifierGroup module = ctx.explicitIdentifier();
+                    IdentifierGroup moduleVersion = ctx.explicitIdentifier();
+                    requires.add(new RequireGroup(next, accessMods, module, moduleVersion));
+                    break;
+                }
+                case KEYWORD_PACKAGE: {
+                    ctx.nextToken();
+                    packages.add(new PackageGroup(next, ctx.explicitIdentifier()));
+                    break;
+                }
+                case KEYWORD_MAIN_CLASS: {
+                    ctx.nextToken();
+                    mainClassGroup = new MainClassGroup(next, ctx.explicitIdentifier());
+                    break;
+                }
+                case KEYWORD_END:
+                    ctx.nextToken();
+                    return new ModuleGroup(token, access, name, version, mainClassGroup, packages, requires, exports, opens, uses, provides);
+                default:
+                    throw new AssemblerException("Expected module keyword", next.getLocation());
+            }
         }
         throw new AssemblerException("Expected 'end' keyword", ctx.previousGroup().getStartLocation());
     }

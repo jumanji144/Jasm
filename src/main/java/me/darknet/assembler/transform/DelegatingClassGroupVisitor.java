@@ -57,6 +57,16 @@ public class DelegatingClassGroupVisitor implements ClassGroupVisitor{
 	}
 
 	@Override
+	public void visitPermittedSubclass(PermittedSubclassGroup permittedSubclass) throws AssemblerException {
+		delegate.visitPermittedSubclass(permittedSubclass);
+	}
+
+	@Override
+	public void visitModule(ModuleGroup module) throws AssemblerException {
+		delegate.visitModule(module);
+	}
+
+	@Override
 	public void visitAttribute(ClassAttributeGroup group) throws AssemblerException {
 		delegate.visitAttribute(group);
 	}

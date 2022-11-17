@@ -1,0 +1,18 @@
+module public Test version
+    mainclass Test
+    package Test
+
+    requires public java.base version
+    requires public java.logging version
+
+    exports public Test to java.base end
+    exports public Test to java.logging end
+
+    opens public Test to java.base end
+    opens public Test to java.logging end
+
+    uses java.base
+    provides public Test with Test end
+    provides public Test with Test end
+end
+class public Test extends java/lang/Object

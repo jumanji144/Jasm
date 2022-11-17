@@ -3,6 +3,7 @@ package me.darknet.assembler.parser;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -25,6 +26,10 @@ public class Group {
 
 	public Group(GroupType type, List<? extends Group> children) {
 		this(type, null, children);
+	}
+
+	public Group(GroupType type, Token value, Group... children) {
+		this(type, value, Arrays.asList(children));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -156,6 +161,7 @@ public class Group {
 		INNER_CLASS_DIRECTIVE,
 		NEST_HOST_DIRECTIVE,
 		NEST_MEMBER_DIRECTIVE,
+		PERMITTED_SUBCLASS_DIRECTIVE,
 		BODY,
 		END_BODY,
 
@@ -163,6 +169,16 @@ public class Group {
 		ANNOTATION_PARAMETER,
 		ENUM,
 		INVISIBLE_ANNOTATION,
+		MODULE,
+		MODULE_REQUIRE,
+		MODULE_EXPORT,
+		MODULE_OPEN,
+		MODULE_USE,
+		MODULE_PROVIDE,
+		MODULE_MAIN_CLASS,
+		MODULE_PACKAGE,
+		MODULE_TO,
+		MODULE_WITH,
 		INSTRUCTION,
 		STACK_LIMIT,
 		LOCAL_LIMIT,

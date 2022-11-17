@@ -5,9 +5,11 @@ import lombok.Getter;
 import lombok.Setter;
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.module.*;
 import me.darknet.assembler.transform.ClassGroupVisitor;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.tree.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,10 +25,12 @@ public class CachedClass implements ClassGroupVisitor {
 	private List<AnnotationGroup> annotations = new ArrayList<>();
 	private List<InnerClass> innerClasses = new ArrayList<>();
 	private List<String> nestMembers = new ArrayList<>();
+	private String permittedSubclass;
 	private String nestHost;
 	private String signatureType;
 	private String sourceFile;
 	private ASMBaseVisitor asmBaseVisitor;
+	private ModuleNode moduleNode;
 
 	public void build(ClassVisitor cv) throws AssemblerException {
 		cv.visit(version, access, type, signatureType, superType, implementedTypes.toArray(new String[0]));
@@ -47,6 +51,11 @@ public class CachedClass implements ClassGroupVisitor {
 		for (String nestMember : nestMembers) {
 			cv.visitNestMember(nestMember);
 		}
+		// permitted subclasses
+		if(permittedSubclass != null)
+			cv.visitPermittedSubclass(permittedSubclass);
+		if(moduleNode != null)
+			moduleNode.accept(cv);
 	}
 
 	@Override
@@ -96,6 +105,66 @@ public class CachedClass implements ClassGroupVisitor {
 	@Override
 	public void visitNestMember(NestMemberGroup nestMember) throws AssemblerException {
 		this.nestMembers.add(nestMember.getMemberName().content());
+	}
+
+	@Override
+	public void visitModule(ModuleGroup module) throws AssemblerException {
+		int access = asmBaseVisitor.getAccess(module.getAccessMods());
+		String name = module.getName().content();
+		String version = module.getVersion().content();
+		this.moduleNode = new ModuleNode(name, access, version);
+		List<ModuleRequireNode> requires = new ArrayList<>();
+		for (RequireGroup require : module.getRequires()) {
+			requires.add(new ModuleRequireNode(require.getModule().content(),
+					asmBaseVisitor.getAccess(require.getAccessMods()), require.getVersion().content()));
+		}
+		this.moduleNode.requires = requires;
+		List<ModuleExportNode> exports = new ArrayList<>();
+		for (ExportGroup export : module.getExports()) {
+			List<String> to = new ArrayList<>();
+			for (IdentifierGroup id : export.getTo().getTo()) {
+				to.add(id.content());
+			}
+			exports.add(new ModuleExportNode(export.getModule().content(),
+					asmBaseVisitor.getAccess(export.getAccessMods()), to));
+		}
+		this.moduleNode.exports = exports;
+		List<ModuleOpenNode> opens = new ArrayList<>();
+		for (OpenGroup open : module.getOpens()) {
+			List<String> to = new ArrayList<>();
+			for (IdentifierGroup id : open.getTo().getTo()) {
+				to.add(id.content());
+			}
+			opens.add(new ModuleOpenNode(open.getModule().content(),
+					asmBaseVisitor.getAccess(open.getAccessMods()), to));
+		}
+		this.moduleNode.opens = opens;
+		List<String> uses = new ArrayList<>();
+		for (UseGroup use : module.getUses()) {
+			uses.add(use.getService().content());
+		}
+		this.moduleNode.uses = uses;
+		List<ModuleProvideNode> provides = new ArrayList<>();
+		for (ProvideGroup provide : module.getProvides()) {
+			List<String> with = new ArrayList<>();
+			for (IdentifierGroup id : provide.getWith()) {
+				with.add(id.content());
+			}
+			provides.add(new ModuleProvideNode(provide.getService().content(), with));
+		}
+		this.moduleNode.provides = provides;
+		List<String> packages = new ArrayList<>();
+		for (PackageGroup pkg : module.getPackages()) {
+			packages.add(pkg.getPackageClass().content());
+		}
+		this.moduleNode.packages = packages;
+		if(module.getMainClass() != null)
+			this.moduleNode.mainClass = module.getMainClass().content();
+	}
+
+	@Override
+	public void visitPermittedSubclass(PermittedSubclassGroup permittedSubclass) throws AssemblerException {
+		this.permittedSubclass = permittedSubclass.getSubclass().content();
 	}
 
 	@Data

@@ -57,6 +57,8 @@ public class Transformer {
                     case INNER_CLASS_DIRECTIVE:
                     case NEST_HOST_DIRECTIVE:
                     case NEST_MEMBER_DIRECTIVE:
+                    case PERMITTED_SUBCLASS_DIRECTIVE:
+                    case MODULE:
                     case THROWS:
                     case EXPR:
                     case MACRO_DIRECTIVE:

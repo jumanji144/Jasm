@@ -28,6 +28,10 @@ public interface ClassGroupVisitor extends GroupVisitor {
 			visitNestHost((NestHostGroup) group);
 		} else if (group instanceof NestMemberGroup) {
 			visitNestMember((NestMemberGroup) group);
+		} else if (group instanceof ModuleGroup) {
+			visitModule((ModuleGroup) group);
+		} else if (group instanceof PermittedSubclassGroup) {
+			visitPermittedSubclass((PermittedSubclassGroup) group);
 		}
 	}
 
@@ -91,4 +95,18 @@ public interface ClassGroupVisitor extends GroupVisitor {
 	 * @throws AssemblerException if an error occurs
 	 */
 	void visitNestMember(NestMemberGroup nestMember) throws AssemblerException;
+
+	/**
+	 * Visit a module attribute
+	 * @param module the module group
+	 * @throws AssemblerException if an error occurs
+	 */
+	void visitModule(ModuleGroup module) throws AssemblerException;
+
+	/**
+	 * Visit a permitted subclass attribute
+	 * @param permittedSubclass the permitted subclass group
+	 * @throws AssemblerException if an error occurs
+	 */
+	void visitPermittedSubclass(PermittedSubclassGroup permittedSubclass) throws AssemblerException;
 }
