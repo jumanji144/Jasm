@@ -397,6 +397,8 @@ public class Parser {
             case KEYWORD_SYNTHETIC:
             case KEYWORD_VARARGS:
             case KEYWORD_SUPER:
+            case KEYWORD_INTERFACE:
+            case KEYWORD_ANNOTATION_ACCESS:
             case KEYWORD_ENUM_ACCESS:
                 return new AccessModGroup(token);
 
