@@ -52,6 +52,7 @@ public class ASMBaseVisitor extends AbstractTopLevelGroupVisitor {
 		cachedClass.setAccess(access);
 		cachedClass.setVersion(version);
 		cachedClass.setType(fullyQualifiedClassName);
+		cachedClass.setAsmBaseVisitor(this);
 		currentClass = cachedClass;
 		return cachedClass;
 	}
@@ -133,7 +134,7 @@ public class ASMBaseVisitor extends AbstractTopLevelGroupVisitor {
 		}
 	}
 
-	private int getAccess(AccessModsGroup access) {
+	public int getAccess(AccessModsGroup access) {
 		int accessFlags = 0;
 		for (AccessModGroup g : access.getAccessMods()) {
 			Keyword keyword = keywords.fromGroup(g);

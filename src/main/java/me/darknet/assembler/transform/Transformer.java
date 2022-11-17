@@ -54,6 +54,9 @@ public class Transformer {
                     case SIGNATURE_DIRECTIVE:
                     case VERSION_DIRECTIVE:
                     case SOURCE_FILE_DIRECTIVE:
+                    case INNER_CLASS_DIRECTIVE:
+                    case NEST_HOST_DIRECTIVE:
+                    case NEST_MEMBER_DIRECTIVE:
                     case THROWS:
                     case EXPR:
                     case MACRO_DIRECTIVE:

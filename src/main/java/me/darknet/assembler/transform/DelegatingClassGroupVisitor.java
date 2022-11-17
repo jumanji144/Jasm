@@ -42,6 +42,21 @@ public class DelegatingClassGroupVisitor implements ClassGroupVisitor{
 	}
 
 	@Override
+	public void visitInnerClass(InnerClassGroup innerClass) throws AssemblerException {
+		delegate.visitInnerClass(innerClass);
+	}
+
+	@Override
+	public void visitNestHost(NestHostGroup nestHost) throws AssemblerException {
+		delegate.visitNestHost(nestHost);
+	}
+
+	@Override
+	public void visitNestMember(NestMemberGroup nestMember) throws AssemblerException {
+		delegate.visitNestMember(nestMember);
+	}
+
+	@Override
 	public void visitAttribute(ClassAttributeGroup group) throws AssemblerException {
 		delegate.visitAttribute(group);
 	}

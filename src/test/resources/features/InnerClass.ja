@@ -1,0 +1,4 @@
+innerclass public Test$Point Test Point
+nesthost Test
+nestmember Test$Point
+class public Test extends java/lang/Object

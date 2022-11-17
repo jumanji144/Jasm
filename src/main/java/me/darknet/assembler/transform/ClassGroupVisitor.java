@@ -22,6 +22,12 @@ public interface ClassGroupVisitor extends GroupVisitor {
 			visitVersion((VersionGroup) group);
 		} else if (group instanceof SourceFileGroup) {
 			visitSourceFile((SourceFileGroup) group);
+		} else if (group instanceof InnerClassGroup) {
+			visitInnerClass((InnerClassGroup) group);
+		} else if (group instanceof NestHostGroup) {
+			visitNestHost((NestHostGroup) group);
+		} else if (group instanceof NestMemberGroup) {
+			visitNestMember((NestMemberGroup) group);
 		}
 	}
 
@@ -64,4 +70,25 @@ public interface ClassGroupVisitor extends GroupVisitor {
 	 * @throws AssemblerException if an error occurs
 	 */
 	void visitSourceFile(SourceFileGroup sourceFile) throws AssemblerException;
+
+	/**
+	 * Visit an inner class attribute
+	 * @param innerClass the inner class group
+	 * @throws AssemblerException if an error occurs
+	 */
+	void visitInnerClass(InnerClassGroup innerClass) throws AssemblerException;
+
+	/**
+	 * Visit a nest host attribute
+	 * @param nestHost the nest host group
+	 * @throws AssemblerException if an error occurs
+	 */
+	void visitNestHost(NestHostGroup nestHost) throws AssemblerException;
+
+	/**
+	 * Visit a nest member attribute
+	 * @param nestMember the nest member group
+	 * @throws AssemblerException if an error occurs
+	 */
+	void visitNestMember(NestMemberGroup nestMember) throws AssemblerException;
 }

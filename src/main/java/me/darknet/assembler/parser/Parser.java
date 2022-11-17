@@ -336,6 +336,15 @@ public class Parser {
             case KEYWORD_SOURCE_FILE: {
                 return new SourceFileGroup(token, ctx.explicitIdentifier());
             }
+            case KEYWORD_NEST_HOST: {
+                return new NestHostGroup(token, ctx.explicitIdentifier());
+            }
+            case KEYWORD_NEST_MEMBER: {
+                return new NestMemberGroup(token, ctx.explicitIdentifier());
+            }
+            case KEYWORD_INNER_CLASS: {
+                return new InnerClassGroup(token, readAccess(ctx), ctx.explicitIdentifier(), ctx.explicitIdentifier(), ctx.explicitIdentifier());
+            }
             case KEYWORD_EXPR: {
                 TextGroup text = (TextGroup) ctx.nextGroup(GroupType.TEXT);
                 return new ExprGroup(token, text);
