@@ -25,6 +25,8 @@ public enum Keyword {
 	KEYWORD_SUPER("super"),
 	KEYWORD_ENUM_ACCESS("enum"),
 	KEYWORD_SYNTHETIC("synthetic"),
+	KEYWORD_INTERFACE("interface"),
+	KEYWORD_ANNOTATION_ACCESS("annotation-interface"),
 	KEYWORD_EXTENDS("extends"),
 	KEYWORD_IMPLEMENTS("implements"),
 	KEYWORD_VERSION("version"),
