@@ -52,6 +52,8 @@ public class Transformer {
                     case EXTENDS_DIRECTIVE:
                     case IMPLEMENTS_DIRECTIVE:
                     case SIGNATURE_DIRECTIVE:
+                    case VERSION_DIRECTIVE:
+                    case SOURCE_FILE_DIRECTIVE:
                     case THROWS:
                     case EXPR:
                     case MACRO_DIRECTIVE:

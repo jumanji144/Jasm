@@ -27,6 +27,8 @@ public enum Keyword {
 	KEYWORD_SYNTHETIC("synthetic"),
 	KEYWORD_EXTENDS("extends"),
 	KEYWORD_IMPLEMENTS("implements"),
+	KEYWORD_VERSION("version"),
+	KEYWORD_SOURCE_FILE("sourcefile"),
 	KEYWORD_FINAL("final"),
 	KEYWORD_STACK("stack"),
 	KEYWORD_LOCALS("locals"),

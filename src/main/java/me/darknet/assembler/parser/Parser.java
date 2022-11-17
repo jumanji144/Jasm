@@ -1,36 +1,7 @@
 package me.darknet.assembler.parser;
 
 import me.darknet.assembler.instructions.ParseInfo;
-import me.darknet.assembler.parser.groups.AccessModGroup;
-import me.darknet.assembler.parser.groups.AccessModsGroup;
-import me.darknet.assembler.parser.groups.AnnotationGroup;
-import me.darknet.assembler.parser.groups.AnnotationParamGroup;
-import me.darknet.assembler.parser.groups.ArgsGroup;
-import me.darknet.assembler.parser.groups.BodyGroup;
-import me.darknet.assembler.parser.groups.CaseLabelGroup;
-import me.darknet.assembler.parser.groups.CatchGroup;
-import me.darknet.assembler.parser.groups.ClassDeclarationGroup;
-import me.darknet.assembler.parser.groups.DefaultLabelGroup;
-import me.darknet.assembler.parser.groups.EnumGroup;
-import me.darknet.assembler.parser.groups.ExprGroup;
-import me.darknet.assembler.parser.groups.ExtendsGroup;
-import me.darknet.assembler.parser.groups.FieldDeclarationGroup;
-import me.darknet.assembler.parser.groups.HandleGroup;
-import me.darknet.assembler.parser.groups.IdentifierGroup;
-import me.darknet.assembler.parser.groups.ImplementsGroup;
-import me.darknet.assembler.parser.groups.InstructionGroup;
-import me.darknet.assembler.parser.groups.LabelGroup;
-import me.darknet.assembler.parser.groups.LookupSwitchGroup;
-import me.darknet.assembler.parser.groups.MethodDeclarationGroup;
-import me.darknet.assembler.parser.groups.MethodParameterGroup;
-import me.darknet.assembler.parser.groups.MethodParametersGroup;
-import me.darknet.assembler.parser.groups.NumberGroup;
-import me.darknet.assembler.parser.groups.SignatureGroup;
-import me.darknet.assembler.parser.groups.StringGroup;
-import me.darknet.assembler.parser.groups.TableSwitchGroup;
-import me.darknet.assembler.parser.groups.TextGroup;
-import me.darknet.assembler.parser.groups.ThrowsGroup;
-import me.darknet.assembler.parser.groups.TypeGroup;
+import me.darknet.assembler.parser.groups.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -358,6 +329,12 @@ public class Parser {
             }
             case KEYWORD_THROWS: {
                 return new ThrowsGroup(token, ctx.explicitIdentifier());
+            }
+            case KEYWORD_VERSION: {
+                return new VersionGroup(token, ctx.explicitIdentifier());
+            }
+            case KEYWORD_SOURCE_FILE: {
+                return new SourceFileGroup(token, ctx.explicitIdentifier());
             }
             case KEYWORD_EXPR: {
                 TextGroup text = (TextGroup) ctx.nextGroup(GroupType.TEXT);

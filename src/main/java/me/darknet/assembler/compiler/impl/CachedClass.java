@@ -21,6 +21,7 @@ public class CachedClass implements ClassGroupVisitor {
 	private List<String> implementedTypes = new ArrayList<>();
 	private List<AnnotationGroup> annotations = new ArrayList<>();
 	private String signatureType;
+	private String sourceFile;
 
 	public void build(ClassVisitor cv) throws AssemblerException {
 		cv.visit(version, access, type, signatureType, superType, implementedTypes.toArray(new String[0]));
@@ -31,6 +32,7 @@ public class CachedClass implements ClassGroupVisitor {
 				ASMBaseVisitor.annotationParam(param, av);
 			av.visitEnd();
 		}
+		cv.visitSource(sourceFile, null);
 	}
 
 	@Override
@@ -51,5 +53,15 @@ public class CachedClass implements ClassGroupVisitor {
 	@Override
 	public void visitSignature(SignatureGroup signature) {
 		signatureType = signature.getDescriptor().content();
+	}
+
+	@Override
+	public void visitVersion(VersionGroup version) {
+		this.version = version.getVersion();
+	}
+
+	@Override
+	public void visitSourceFile(SourceFileGroup sourceFile) throws AssemblerException {
+		this.sourceFile = sourceFile.getSourceFile();
 	}
 }

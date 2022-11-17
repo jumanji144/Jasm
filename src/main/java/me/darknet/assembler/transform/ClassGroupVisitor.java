@@ -18,6 +18,10 @@ public interface ClassGroupVisitor extends GroupVisitor {
 			visitImplements((ImplementsGroup) group);
 		} else if (group instanceof ExtendsGroup) {
 			visitExtends((ExtendsGroup) group);
+		} else if (group instanceof VersionGroup) {
+			visitVersion((VersionGroup) group);
+		} else if (group instanceof SourceFileGroup) {
+			visitSourceFile((SourceFileGroup) group);
 		}
 	}
 
@@ -46,4 +50,18 @@ public interface ClassGroupVisitor extends GroupVisitor {
 	 * @throws AssemblerException if an error occurs
 	 */
 	void visitSignature(SignatureGroup signature) throws AssemblerException;
+
+	/**
+	 * Visit a class version attribute
+	 * @param version the version group
+	 * @throws AssemblerException if an error occurs
+	 */
+	void visitVersion(VersionGroup version) throws AssemblerException;
+
+	/**
+	 * Visit a source file attribute
+	 * @param sourceFile the source file group
+	 * @throws AssemblerException if an error occurs
+	 */
+	void visitSourceFile(SourceFileGroup sourceFile) throws AssemblerException;
 }

@@ -1,0 +1,4 @@
+version 1.8
+sourcefile Test.java
+class public TestClass
+extends java/lang/Object

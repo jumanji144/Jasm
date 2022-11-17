@@ -32,6 +32,16 @@ public class DelegatingClassGroupVisitor implements ClassGroupVisitor{
 	}
 
 	@Override
+	public void visitVersion(VersionGroup version) throws AssemblerException {
+		delegate.visitVersion(version);
+	}
+
+	@Override
+	public void visitSourceFile(SourceFileGroup sourceFile) throws AssemblerException {
+		delegate.visitSourceFile(sourceFile);
+	}
+
+	@Override
 	public void visitAttribute(ClassAttributeGroup group) throws AssemblerException {
 		delegate.visitAttribute(group);
 	}
