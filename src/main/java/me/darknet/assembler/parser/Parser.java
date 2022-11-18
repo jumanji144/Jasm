@@ -404,7 +404,6 @@ public class Parser {
             case KEYWORD_TRANSITIVE:
             case KEYWORD_STATIC_PHASE:
             case KEYWORD_MANDATED:
-
                 return new AccessModGroup(token);
 
         }

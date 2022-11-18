@@ -34,8 +34,11 @@ public class Group {
 
 	@SuppressWarnings("unchecked")
 	public Group(GroupType type, Token value, List<? extends Group> children) {
-		for (Group child : children)
-			child.parent = this;
+		for (Group child : children) {
+			if(child != null) {
+				child.parent = this;
+			}
+		}
 		this.type = type;
 		this.value = value;
 		this.children = (List<Group>) children;
