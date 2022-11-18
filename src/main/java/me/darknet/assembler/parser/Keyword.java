@@ -24,9 +24,13 @@ public enum Keyword {
 	KEYWORD_VARARGS("varargs"),
 	KEYWORD_SUPER("super"),
 	KEYWORD_ENUM_ACCESS("enum"),
+	KEYWORD_MANDATED("mandated"),
 	KEYWORD_SYNTHETIC("synthetic"),
 	KEYWORD_INTERFACE("interface"),
 	KEYWORD_ANNOTATION_ACCESS("annotation-interface"),
+	KEYWORD_OPEN("open"),
+	KEYWORD_TRANSITIVE("transitive"),
+	KEYWORD_STATIC_PHASE("static-phase"),
 	KEYWORD_EXTENDS("extends"),
 	KEYWORD_IMPLEMENTS("implements"),
 	KEYWORD_VERSION("version"),
@@ -89,6 +93,10 @@ public enum Keyword {
 			KEYWORD_INTERFACE,
 			KEYWORD_ANNOTATION_ACCESS,
 			KEYWORD_ENUM_ACCESS,
+			KEYWORD_STATIC_PHASE,
+			KEYWORD_TRANSITIVE,
+			KEYWORD_MANDATED,
+			KEYWORD_OPEN,
 			KEYWORD_SUPER
 	);
 	private final String text;

@@ -367,7 +367,7 @@ public class Parser {
                         if(next.isType(KEYWORD)) {
                             Keyword key = keywords.fromToken(next);
                             if (key != Keyword.KEYWORD_END) {
-                                throw new AssemblerException("Unexpected keyword: " + key, next.getLocation());
+                                throw new AssemblerException("Unexpected keyword, expected end", next.getLocation());
                             }
                             ctx.nextToken();
                             if(keyword == Keyword.KEYWORD_WITH) {
@@ -376,7 +376,7 @@ public class Parser {
                                 return new ToGroup(token, identifiers);
                             }
                         } else {
-                            throw new AssemblerException("Unexpected token: " + next, next.getLocation());
+                            throw new AssemblerException("Unexpected token, expected end" + next, next.getLocation());
                         }
                     }
                 }
@@ -392,6 +392,7 @@ public class Parser {
             case KEYWORD_TRANSIENT:
             case KEYWORD_NATIVE:
             case KEYWORD_ABSTRACT:
+            case KEYWORD_OPEN:
             case KEYWORD_STRICT:
             case KEYWORD_BRIDGE:
             case KEYWORD_SYNTHETIC:
@@ -400,6 +401,10 @@ public class Parser {
             case KEYWORD_INTERFACE:
             case KEYWORD_ANNOTATION_ACCESS:
             case KEYWORD_ENUM_ACCESS:
+            case KEYWORD_TRANSITIVE:
+            case KEYWORD_STATIC_PHASE:
+            case KEYWORD_MANDATED:
+
                 return new AccessModGroup(token);
 
         }
@@ -522,7 +527,7 @@ public class Parser {
                     ctx.nextToken();
                     return new ModuleGroup(token, access, name, version, mainClassGroup, packages, requires, exports, opens, uses, provides);
                 default:
-                    throw new AssemblerException("Expected module keyword", next.getLocation());
+                    throw new AssemblerException("Unexpected keyword, expected requires, exports, uses, provides, opens, mainclass, package or end", next.getLocation());
             }
         }
         throw new AssemblerException("Expected 'end' keyword", ctx.previousGroup().getStartLocation());
