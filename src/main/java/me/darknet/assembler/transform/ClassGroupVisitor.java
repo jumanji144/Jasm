@@ -14,10 +14,6 @@ public interface ClassGroupVisitor extends GroupVisitor {
 			visitAnnotation((AnnotationGroup) group);
 		} else if (group instanceof SignatureGroup) {
 			visitSignature((SignatureGroup) group);
-		} else if (group instanceof ImplementsGroup) {
-			visitImplements((ImplementsGroup) group);
-		} else if (group instanceof ExtendsGroup) {
-			visitExtends((ExtendsGroup) group);
 		} else if (group instanceof VersionGroup) {
 			visitVersion((VersionGroup) group);
 		} else if (group instanceof SourceFileGroup) {
@@ -34,18 +30,6 @@ public interface ClassGroupVisitor extends GroupVisitor {
 			visitPermittedSubclass((PermittedSubclassGroup) group);
 		}
 	}
-
-	/**
-	 * Visit a super-type extension
-	 * @param group the extended type.
-	 */
-	void visitExtends(ExtendsGroup group);
-
-	/**
-	 * Visit an interface implementation
-	 * @param group the implemented type.
-	 */
-	void visitImplements(ImplementsGroup group);
 
 	/**
 	 * Visit an annotation

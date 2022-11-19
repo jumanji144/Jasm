@@ -9,6 +9,11 @@ method public static main ([Ljava/lang/String; a)V
             (Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;
         args end
 
+    // call println
+    ldc "Hello World"
+    invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V
+
+    return
 end
 
 method public static bootstrap (Ljava/lang/invoke/MethodHandles$Lookup; lookup,
@@ -18,12 +23,13 @@ method public static bootstrap (Ljava/lang/invoke/MethodHandles$Lookup; lookup,
     new java/lang/invoke/ConstantCallSite // create a new CallSite
     dup
 
+    aload_0 // load the lookup
     ldc type java/lang/System
     ldc "out"
     ldc type java/io/PrintStream
     invokevirtual java/lang/invoke/MethodHandles$Lookup.findStaticGetter (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;
 
-    invokespecial java/lang/invoke/ConstantCallSite.<init> (Ljava/lang/invoke/MethodHandle;)V
+    invokevirtual java/lang/invoke/ConstantCallSite.<init> (Ljava/lang/invoke/MethodHandle;)V
 
     areturn
 

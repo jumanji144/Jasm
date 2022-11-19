@@ -4,7 +4,7 @@ import lombok.Getter;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.groups.IdentifierGroup;
-import me.darknet.assembler.util.CollectionUtil;
+import me.darknet.assembler.util.GroupLists;
 
 import java.util.List;
 
@@ -15,7 +15,7 @@ public class ProvideGroup extends Group {
     private final List<IdentifierGroup> with;
 
     public ProvideGroup(Token value, IdentifierGroup service, List<IdentifierGroup> with) {
-        super(GroupType.MODULE_PROVIDE, value, CollectionUtil.add(with, service));
+        super(GroupType.MODULE_PROVIDE, value, GroupLists.add(with, service));
         this.service = service;
         this.with = with;
     }

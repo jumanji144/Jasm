@@ -172,28 +172,29 @@ public class Parser {
             case KEYWORD_CLASS: {
                 AccessModsGroup access = readAccess(ctx);
                 IdentifierGroup name = ctx.explicitIdentifier();
-                return new ClassDeclarationGroup(token, access, name);
+                ExtendsGroup ext = ctx.maybeGroup(GroupType.EXTENDS_DIRECTIVE).getOrNull();
+                List<ImplementsGroup> impls = new ArrayList<>();
+                while (ctx.hasNextToken()) {
+                    ParserContext.MaybeParsed possible = ctx.maybeGroup(GroupType.IMPLEMENTS_DIRECTIVE);
+                    if (possible == null)
+                        break;
+                    if (possible.isTarget()) {
+                        impls.add(possible.getOrNull());
+                    } else {
+                        if(possible.isType(GroupType.EXTENDS_DIRECTIVE)) {
+                            if(ext == null) ext = possible.getOrNull();
+                            else throw new AssemblerException("Cannot have multiple extends directives", possible.get().getStartLocation());
+                        }
+                        break; // not the group, so just continue
+                    }
+                }
+                return new ClassDeclarationGroup(token, access, name, ext, impls);
             }
             case KEYWORD_EXTENDS: {
-                // also ensure that the previous group is a class declaration or an implements directive
-                Group previous = ctx.previousGroup();
-                if (!previous.isType(GroupType.CLASS_DECLARATION)
-                        && !previous.isType(GroupType.IMPLEMENTS_DIRECTIVE)) {
-                    throw new AssemblerException("Extends can only follow a class declaration", token.getLocation());
-                }
-                IdentifierGroup group = ctx.explicitIdentifier();
-                return new ExtendsGroup(token, group);
+                return new ExtendsGroup(token, ctx.explicitIdentifier());
             }
             case KEYWORD_IMPLEMENTS: {
-                // same with implements
-                Group previous = ctx.previousGroup();
-                if (!previous.isType(GroupType.CLASS_DECLARATION)
-                        && !previous.isType(GroupType.IMPLEMENTS_DIRECTIVE)
-                        && !previous.isType(GroupType.EXTENDS_DIRECTIVE)) {
-                    throw new AssemblerException("Implements can only follow a class declaration", token.getLocation());
-                }
-                IdentifierGroup group = ctx.explicitIdentifier();
-                return new ImplementsGroup(token, group);
+                return new ImplementsGroup(token, ctx.explicitIdentifier());
             }
             case KEYWORD_FIELD: {
                 // maybe read access modifiers

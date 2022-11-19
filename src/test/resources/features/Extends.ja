@@ -1,0 +1,5 @@
+class Extends
+extends java/lang/String
+implements java/lang/CharSequence
+implements java/lang/Comparable
+implements java/lang/Serializable

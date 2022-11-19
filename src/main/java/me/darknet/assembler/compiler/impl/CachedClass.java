@@ -59,16 +59,6 @@ public class CachedClass implements ClassGroupVisitor {
 	}
 
 	@Override
-	public void visitExtends(ExtendsGroup group) {
-		superType = group.getClassName().content();
-	}
-
-	@Override
-	public void visitImplements(ImplementsGroup group) {
-		implementedTypes.add(group.getClassName().content());
-	}
-
-	@Override
 	public void visitAnnotation(AnnotationGroup annotation) {
 		annotations.add(annotation);
 	}

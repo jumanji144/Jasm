@@ -1,4 +1,4 @@
-class public Test extends java/lang/Object implements java/lang/runnable
+class public Test extends java/lang/Object implements java/lang/Runnable
 
 method public static main ([Ljava/lang/String; args)V
 
@@ -6,8 +6,8 @@ method public static main ([Ljava/lang/String; args)V
     new Test
     dup
     invokespecial Test.<init> ()V
-    checkcast java/lang/runnable
-    invokeinterface java/lang/runnable.run ()V
+    checkcast java/lang/Runnable
+    invokeinterface java/lang/Runnable.run ()V
     return
 end
 

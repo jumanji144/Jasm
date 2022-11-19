@@ -20,7 +20,17 @@ public class CompilerTests {
 		String source = new String(bytes);
 		System.out.print("Testing: " + name);
 		try {
-			Assembler.assemble(source, 52, bytes);
+			byte[] test = Assembler.assemble(source, 52, bytes);
+			System.out.println(" - OK");
+			// write test result to file
+			Path out = Paths.get("build/reports/test-classes/" + name.replace(".ja", ".class"));
+			Files.createDirectories(out.getParent());
+			if(Files.exists(out)) {
+				Files.delete(out);
+			} else {
+				Files.createFile(out);
+			}
+			Files.write(out, test);
 		} catch (AssemblerException e) {
 			throw new RuntimeException(e.describe(), e);
 		}

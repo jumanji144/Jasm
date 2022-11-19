@@ -4,7 +4,7 @@ import lombok.Getter;
 import me.darknet.assembler.parser.AnnotationTarget;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Token;
-import me.darknet.assembler.util.CollectionUtil;
+import me.darknet.assembler.util.GroupLists;
 
 import java.util.List;
 
@@ -17,7 +17,7 @@ public class AnnotationGroup extends Group implements ClassAttributeGroup, Field
 
 	public AnnotationGroup(Token value, AnnotationTarget target, boolean invisible,
 						   IdentifierGroup classGroup, List<AnnotationParamGroup> params) {
-		super(GroupType.ANNOTATION, value, CollectionUtil.add(params, classGroup));
+		super(GroupType.ANNOTATION, value, GroupLists.add(params, classGroup));
 		this.params = params;
 		this.classGroup = classGroup;
 		this.target = target;

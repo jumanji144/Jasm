@@ -52,6 +52,12 @@ public class ASMBaseVisitor extends AbstractTopLevelGroupVisitor {
 		cachedClass.setAccess(access);
 		cachedClass.setVersion(version);
 		cachedClass.setType(fullyQualifiedClassName);
+		if(decl.getExtendsGroup() != null) {
+			cachedClass.setSuperType(decl.getExtendsGroup().getClassName().content());
+		}
+		for (ImplementsGroup implementsGroup : decl.getImplementsGroups()) {
+			cachedClass.getImplementedTypes().add(implementsGroup.getClassName().content());
+		}
 		cachedClass.setAsmBaseVisitor(this);
 		currentClass = cachedClass;
 		return cachedClass;

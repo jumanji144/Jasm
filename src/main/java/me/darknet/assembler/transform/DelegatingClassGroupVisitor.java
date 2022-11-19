@@ -12,16 +12,6 @@ public class DelegatingClassGroupVisitor implements ClassGroupVisitor{
 	}
 
 	@Override
-	public void visitExtends(ExtendsGroup group) {
-		delegate.visitExtends(group);
-	}
-
-	@Override
-	public void visitImplements(ImplementsGroup group) {
-		delegate.visitImplements(group);
-	}
-
-	@Override
 	public void visitAnnotation(AnnotationGroup annotation) throws AssemblerException {
 		delegate.visitAnnotation(annotation);
 	}

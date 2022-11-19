@@ -4,10 +4,9 @@ import lombok.Getter;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.groups.module.*;
-import me.darknet.assembler.util.CollectionUtil;
+import me.darknet.assembler.util.GroupLists;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Getter
@@ -27,7 +26,7 @@ public class ModuleGroup extends Group implements ClassAttributeGroup {
     public ModuleGroup(Token token, AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup version, MainClassGroup mainClassGroup, List<PackageGroup> packages,
                        List<RequireGroup> requires, List<ExportGroup> exports, List<OpenGroup> opens, List<UseGroup> uses, List<ProvideGroup> provides) {
           super(GroupType.MODULE, token,
-                  CollectionUtil.add(CollectionUtil.add(new ArrayList<>(), packages, requires, exports, opens, uses, provides),
+                  GroupLists.add(GroupLists.add(new ArrayList<>(), packages, requires, exports, opens, uses, provides),
                     accessMods, name, version, mainClassGroup)
           );
           this.accessMods = accessMods;
