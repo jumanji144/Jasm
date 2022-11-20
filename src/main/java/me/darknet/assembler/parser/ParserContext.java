@@ -156,7 +156,7 @@ public class ParserContext {
 
 	public MaybeParsed maybeGroup(Group.GroupType type) throws AssemblerException {
 		if(!hasNextToken()) {
-			return null;
+			return new MaybeParsed(type, null);
 		}
 		// save token queue
 		Queue<Token> copy = this.tokens;
@@ -169,9 +169,7 @@ public class ParserContext {
 			// restore token queue
 			this.tokens = copy;
 			this.macros = copyMacros;
-			if(group != null)
-				return new MaybeParsed(type, group);
-			return null;
+			return new MaybeParsed(type, group);
 		}
 		return new MaybeParsed(type, group);
 	}
@@ -260,12 +258,16 @@ public class ParserContext {
 			return group;
 		}
 
+		public boolean isPresent() {
+			return group != null;
+		}
+
 		public boolean isTarget() {
-			return group.isType(target);
+			return isPresent() && group.isType(target);
 		}
 
 		public boolean isType(Group.GroupType type) {
-			return group.isType(type);
+			return isPresent() && group.isType(type);
 		}
 	}
 }

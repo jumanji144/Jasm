@@ -137,7 +137,7 @@ public class CachedClass implements ClassGroupVisitor {
 		List<ModuleProvideNode> provides = new ArrayList<>();
 		for (ProvideGroup provide : module.getProvides()) {
 			List<String> with = new ArrayList<>();
-			for (IdentifierGroup id : provide.getWith()) {
+			for (IdentifierGroup id : provide.getWith().getWith()) {
 				with.add(id.content());
 			}
 			provides.add(new ModuleProvideNode(provide.getService().content(), with));

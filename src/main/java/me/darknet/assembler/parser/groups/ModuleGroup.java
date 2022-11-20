@@ -6,7 +6,6 @@ import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.groups.module.*;
 import me.darknet.assembler.util.GroupLists;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -26,9 +25,7 @@ public class ModuleGroup extends Group implements ClassAttributeGroup {
     public ModuleGroup(Token token, AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup version, MainClassGroup mainClassGroup, List<PackageGroup> packages,
                        List<RequireGroup> requires, List<ExportGroup> exports, List<OpenGroup> opens, List<UseGroup> uses, List<ProvideGroup> provides) {
           super(GroupType.MODULE, token,
-                  GroupLists.add(GroupLists.add(new ArrayList<>(), packages, requires, exports, opens, uses, provides),
-                    accessMods, name, version, mainClassGroup)
-          );
+                  GroupLists.fromArray(accessMods, name, version, mainClassGroup, packages, requires, exports, opens, uses, provides));
           this.accessMods = accessMods;
           this.name = name;
           this.version = version;

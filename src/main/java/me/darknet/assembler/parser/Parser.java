@@ -469,17 +469,16 @@ public class Parser {
         List<ProvideGroup> provides = new ArrayList<>();
 
         while (ctx.hasNextToken()) {
-            Token next = ctx.peekToken();
+            Token next = ctx.nextToken();
             Keyword keyword = keywords.fromToken(next);
             if (keyword == null)
-                throw new AssemblerException("Expected module keyword", next.getLocation());
+                throw new AssemblerException("Unexpected token, expected requires, exports, uses, provides, opens, mainclass, package or end", next.getLocation());
             switch (keyword) {
                 case KEYWORD_EXPORTS:
                 case KEYWORD_OPENS: {
-                    ctx.nextToken();
                     AccessModsGroup accessMods = readAccess(ctx);
                     IdentifierGroup pkg = ctx.explicitIdentifier();
-                    ToGroup to = (ToGroup) ctx.nextGroup(GroupType.MODULE_TO);
+                    ToGroup to = ctx.maybeGroup(GroupType.MODULE_TO).getOrNull();
                     if (keyword == Keyword.KEYWORD_EXPORTS)
                         exports.add(new ExportGroup(next, accessMods, pkg, to));
                     else
@@ -487,26 +486,16 @@ public class Parser {
                     break;
                 }
                 case KEYWORD_USES: {
-                    ctx.nextToken();
                     uses.add(new UseGroup(next, ctx.explicitIdentifier()));
                     break;
                 }
                 case KEYWORD_PROVIDES: {
-                    ctx.nextToken();
                     IdentifierGroup service = ctx.explicitIdentifier();
-                    List<IdentifierGroup> impls = new ArrayList<>();
-                    while (ctx.hasNextToken()) {
-                        IdentifierGroup impl = ctx.explicitIdentifier();
-                        if (keywords.match(Keyword.KEYWORD_END, impl)) {
-                            provides.add(new ProvideGroup(next, service, impls));
-                            break;
-                        }
-                        impls.add(impl);
-                    }
+                    WithGroup with = ctx.maybeGroup(GroupType.MODULE_WITH).getOrNull();
+                    provides.add(new ProvideGroup(next, service, with));
                     break;
                 }
                 case KEYWORD_REQUIRES: {
-                    ctx.nextToken();
                     AccessModsGroup accessMods = readAccess(ctx);
                     IdentifierGroup module = ctx.explicitIdentifier();
                     IdentifierGroup moduleVersion = ctx.explicitIdentifier();
@@ -514,17 +503,14 @@ public class Parser {
                     break;
                 }
                 case KEYWORD_PACKAGE: {
-                    ctx.nextToken();
                     packages.add(new PackageGroup(next, ctx.explicitIdentifier()));
                     break;
                 }
                 case KEYWORD_MAIN_CLASS: {
-                    ctx.nextToken();
                     mainClassGroup = new MainClassGroup(next, ctx.explicitIdentifier());
                     break;
                 }
                 case KEYWORD_END:
-                    ctx.nextToken();
                     return new ModuleGroup(token, access, name, version, mainClassGroup, packages, requires, exports, opens, uses, provides);
                 default:
                     throw new AssemblerException("Unexpected keyword, expected requires, exports, uses, provides, opens, mainclass, package or end", next.getLocation());
@@ -537,7 +523,7 @@ public class Parser {
         IdentifierGroup name = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
         IdentifierGroup descriptor = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
         HandleGroup bsmHandle = (HandleGroup) ctx.nextGroup(GroupType.HANDLE);
-        ArgsGroup args = (ArgsGroup) ctx.nextGroup(GroupType.ARGS);
+        ArgsGroup args = ctx.maybeGroup(GroupType.ARGS).getOrNull();
 
         return new InstructionGroup(token, Arrays.asList(name, descriptor, bsmHandle, args));
     }

@@ -12,10 +12,10 @@ import java.util.List;
 public class ProvideGroup extends Group {
 
     private final IdentifierGroup service;
-    private final List<IdentifierGroup> with;
+    private final WithGroup with;
 
-    public ProvideGroup(Token value, IdentifierGroup service, List<IdentifierGroup> with) {
-        super(GroupType.MODULE_PROVIDE, value, GroupLists.add(with, service));
+    public ProvideGroup(Token value, IdentifierGroup service, WithGroup with) {
+        super(GroupType.MODULE_PROVIDE, value, with, service);
         this.service = service;
         this.with = with;
     }

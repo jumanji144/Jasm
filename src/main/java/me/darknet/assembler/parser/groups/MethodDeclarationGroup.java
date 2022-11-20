@@ -15,7 +15,7 @@ public class MethodDeclarationGroup extends Group {
 	private final BodyGroup body;
 
 	public MethodDeclarationGroup(Token value, AccessModsGroup accessMods, IdentifierGroup name, MethodParametersGroup params, String returnType, BodyGroup body) {
-		super(GroupType.METHOD_DECLARATION, value, Arrays.asList(accessMods, name, params, body));
+		super(GroupType.METHOD_DECLARATION, value, accessMods, name, params, body);
 		this.accessMods = accessMods;
 		this.params = params;
 		this.name = name;
