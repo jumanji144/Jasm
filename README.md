@@ -1,4 +1,7 @@
 # Jasm
+[![](https://jitpack.io/v/Nowilltolife/Jasm.svg)](https://jitpack.io/#Nowilltolife/Jasm)
+[![](https://img.shields.io/github/license/Nowilltolife/Jasm)](https://github.com/Nowilltolife/Jasm)
+
 
 Java assembly like language for bytecode. Aimed at intergration use.
 
