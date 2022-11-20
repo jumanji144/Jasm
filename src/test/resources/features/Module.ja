@@ -1,9 +1,9 @@
-module public Test version
+module public Test version v1.0.0
     mainclass Test
     package Test
 
-    requires public java.base version
-    requires public java.logging version
+    requires public java.base version 11
+    requires public java.logging
 
     exports public Test to java.base end
     exports public Test to java.logging end

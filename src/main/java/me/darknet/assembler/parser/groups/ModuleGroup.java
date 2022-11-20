@@ -13,7 +13,7 @@ public class ModuleGroup extends Group implements ClassAttributeGroup {
 
     private final AccessModsGroup accessMods;
     private final IdentifierGroup name;
-    private final IdentifierGroup version;
+    private final VersionGroup version;
     private final MainClassGroup mainClass;
     private final List<PackageGroup> packages;
     private final List<RequireGroup> requires;
@@ -22,7 +22,7 @@ public class ModuleGroup extends Group implements ClassAttributeGroup {
     private final List<UseGroup> uses;
     private final List<ProvideGroup> provides;
 
-    public ModuleGroup(Token token, AccessModsGroup accessMods, IdentifierGroup name, IdentifierGroup version, MainClassGroup mainClassGroup, List<PackageGroup> packages,
+    public ModuleGroup(Token token, AccessModsGroup accessMods, IdentifierGroup name, VersionGroup version, MainClassGroup mainClassGroup, List<PackageGroup> packages,
                        List<RequireGroup> requires, List<ExportGroup> exports, List<OpenGroup> opens, List<UseGroup> uses, List<ProvideGroup> provides) {
           super(GroupType.MODULE, token,
                   GroupLists.fromArray(accessMods, name, version, mainClassGroup, packages, requires, exports, opens, uses, provides));

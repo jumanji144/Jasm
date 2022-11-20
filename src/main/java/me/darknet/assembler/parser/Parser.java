@@ -459,7 +459,7 @@ public class Parser {
     public ModuleGroup readModule(Token token, ParserContext ctx) throws AssemblerException {
         AccessModsGroup access = readAccess(ctx);
         IdentifierGroup name = ctx.explicitIdentifier();
-        IdentifierGroup version = ctx.explicitIdentifier();
+        VersionGroup version = ctx.maybeGroup(GroupType.VERSION_DIRECTIVE).getOrNull();
         MainClassGroup mainClassGroup = null;
         List<PackageGroup> packages = new ArrayList<>();
         List<RequireGroup> requires = new ArrayList<>();
@@ -498,8 +498,8 @@ public class Parser {
                 case KEYWORD_REQUIRES: {
                     AccessModsGroup accessMods = readAccess(ctx);
                     IdentifierGroup module = ctx.explicitIdentifier();
-                    IdentifierGroup moduleVersion = ctx.explicitIdentifier();
-                    requires.add(new RequireGroup(next, accessMods, module, moduleVersion));
+                    VersionGroup versionGroup = ctx.maybeGroup(GroupType.VERSION_DIRECTIVE).getOrNull();
+                    requires.add(new RequireGroup(next, accessMods, module, versionGroup));
                     break;
                 }
                 case KEYWORD_PACKAGE: {

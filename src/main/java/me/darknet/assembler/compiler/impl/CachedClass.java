@@ -101,12 +101,17 @@ public class CachedClass implements ClassGroupVisitor {
 	public void visitModule(ModuleGroup module) throws AssemblerException {
 		int access = asmBaseVisitor.getAccess(module.getAccessMods());
 		String name = module.getName().content();
-		String version = module.getVersion().content();
+		String version = null;
+		if(module.getVersion() != null)
+			version = module.getVersion().getVersionString();
 		this.moduleNode = new ModuleNode(name, access, version);
 		List<ModuleRequireNode> requires = new ArrayList<>();
 		for (RequireGroup require : module.getRequires()) {
+			version = null;
+			if(require.getVersion() != null)
+				version = require.getVersion().getVersionString();
 			requires.add(new ModuleRequireNode(require.getModule().content(),
-					asmBaseVisitor.getAccess(require.getAccessMods()), require.getVersion().content()));
+					asmBaseVisitor.getAccess(require.getAccessMods()), version));
 		}
 		this.moduleNode.requires = requires;
 		List<ModuleExportNode> exports = new ArrayList<>();

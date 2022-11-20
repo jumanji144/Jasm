@@ -22,4 +22,8 @@ public class VersionGroup extends Group implements ClassAttributeGroup {
         return VersionParser.getJavaVersion(versionIdentifier.content());
     }
 
+    public String getVersionString() {
+        return versionIdentifier.content();
+    }
+
 }
