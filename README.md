@@ -2,8 +2,20 @@
 [![](https://jitpack.io/v/Nowilltolife/Jasm.svg)](https://jitpack.io/#Nowilltolife/Jasm)
 [![](https://img.shields.io/github/license/Nowilltolife/Jasm)](https://github.com/Nowilltolife/Jasm)
 
-
 Java assembly like language for bytecode. Aimed at intergration use.
+
+- [Syntax](#syntax)
+- [Usage](#usage)
+  - [Installation](#installation)
+    - [Gradle](#gradle)
+    - [Maven](#maven)
+  - [API](#api)
+- [Parser](#parser)
+  - [Quirks](#quirks)
+  - [Macros](#macros)
+  - [Examples](#examples)
+- [Credits](#credits)
+- [Projects using Jasm](#projects-using-jasm)
 
 # Syntax
 
@@ -57,10 +69,35 @@ public class Test {
 # Usage
 The JASM project aims at integration in other projects so for an example implementation look at the [Object web implementation](https://github.com/Nowilltolife/Jasm/blob/master/src/main/java/me/darknet/assembler/compiler/impl/ASMBaseVisitor.java) which uses the `Visitor` and `MethodVisitor` model to visit the entire AST. The AST functionality is explained further in the next section.
 
-# Parser quirks
-Due to having to support the entire JVM standard, there are some challenges to overcome, namely that most names have no limitation on what characters can be used for names which arises some problems. For example, the class names can be any keyword so imagine that the class name is 'public' or 'private' or 'final', how would the parser know what is which? The short answer is it can, but very complex. An easy solution is to just add a prefix character because luckily some characters cannot be used: '.' and '/'. So the Keyword class allows for a prefix to be defined and transform `public` -> `.public` which solves this issue. Now further up there might be names that use ' ' in part of the name (still valid) but that needs to be handled by input validation. Also, one problem is that someone might try to mess with the parser and name variables after keywords like `aload aload` for this reason there needs to be a strict identifier parser which only treats instruction arguments as text and nothing else
+## Installation
+### Gradle
+```groovy
+repositories {
+    maven { url 'https://jitpack.io' }
+}
 
-# API
+dependencies {
+    implementation 'com.github.Nowilltolife:Jasm:1.0.0'
+}
+```
+
+### Maven
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
+<dependency>
+    <groupId>com.github.Nowilltolife</groupId>
+    <artifactId>Jasm</artifactId>
+    <version>1.4.2</version>
+</dependency>
+```
+
+## API
 First off I need to explain the way the parser works. The parser is a recursive descent parser
 that tokenizes based on whitespaces and puts them in object-oriented structures that have a
 hierarchy.     
@@ -85,7 +122,13 @@ And for method bodies there is a `MethodVisitor` for each in body instruction.
 you retrive the `MethodVisitor` by calling `visitMethod` in the `Visitor` class.
 There is also the `Transformer` class that applies the AST to the visitor.
 
-# Macros
+
+# Parser
+
+## Quirks
+Due to having to support the entire JVM standard, there are some challenges to overcome, namely that most names have no limitation on what characters can be used for names which arises some problems. For example, the class names can be any keyword so imagine that the class name is 'public' or 'private' or 'final', how would the parser know what is which? The short answer is it can, but very complex. An easy solution is to just add a prefix character because luckily some characters cannot be used: '.' and '/'. So the Keyword class allows for a prefix to be defined and transform `public` -> `.public` which solves this issue. Now further up there might be names that use ' ' in part of the name (still valid) but that needs to be handled by input validation. Also, one problem is that someone might try to mess with the parser and name variables after keywords like `aload aload` for this reason there needs to be a strict identifier parser which only treats instruction arguments as text and nothing else
+
+## Macros
 
 The language also supports a kind of preprocessor for marcos using the `macro` keyword.    
 ```jasmin
@@ -113,11 +156,12 @@ end
 
 Macros with arguments are planned in the future but currently not a priority 
 
-# Credits
+## Examples
+Examples can be found in the tests [resources](https://github.com/Nowilltolife/Jasm/tree/master/src/test/resources/features) folder
 
+# Credits
 Mostly I would like to credit [Jasmin](https://github.com/davidar/jasmin) for inspriation for the syntax and outline of the project      
 And also [ObjectWeb ASM](https://asm.ow2.io/) for their great java assembly library to allow everything to tie together.
 
-# Projects using JASM
-
+# Projects using Jasm
 The project is used by the [Recaf](https://github.com/Col-E/Recaf) project in the [3.X](https://github.com/Col-E/Recaf/tree/dev3) redesign branch.
