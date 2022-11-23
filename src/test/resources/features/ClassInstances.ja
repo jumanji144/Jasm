@@ -8,10 +8,10 @@ method public <init> ()V
     invokespecial java/lang/Object.<init> ()V
     aload this
     iconst_0 // 0
-    putfield number I // number (int) = 0
+    putfield ClassInstances.number I // number (int) = 0
     aload this
     ldc "Hello, World!" // "Hello, World!"
-    putfield string Ljava/lang/String; // string (java.lang.String) = "Hello, World!"
+    putfield ClassInstances.string Ljava/lang/String; // string (java.lang.String) = "Hello, World!"
     return
 end
 
@@ -24,11 +24,11 @@ method public static main ([Ljava/lang/String; args)V
     // print the values of the object's fields
     getstatic java/lang/System.out Ljava/io/PrintStream;
     aload cls // load the object
-    getfield number I // number (int)
+    getfield ClassInstances.number I // number (int)
     invokevirtual java/io/PrintStream.println (I)V
     getstatic java/lang/System.out Ljava/io/PrintStream;
     aload cls // load the object
-    getfield string Ljava/lang/String; // string (java.lang.String)
+    getfield ClassInstances.string Ljava/lang/String; // string (java.lang.String)
     invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V
     return
 end
