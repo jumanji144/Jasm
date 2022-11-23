@@ -4,6 +4,7 @@ import me.darknet.assembler.instructions.ParseInfo;
 import me.darknet.assembler.parser.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.util.ArrayTypes;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,18 +13,6 @@ import static org.objectweb.asm.Opcodes.*;
 
 public class MethodTransformer {
 
-    public static final Map<String, Integer> newArrayTypes = new HashMap<>();
-
-    static {
-        newArrayTypes.put("byte", T_BYTE);
-        newArrayTypes.put("short", T_SHORT);
-        newArrayTypes.put("int", T_INT);
-        newArrayTypes.put("long", T_LONG);
-        newArrayTypes.put("float", T_FLOAT);
-        newArrayTypes.put("double", T_DOUBLE);
-        newArrayTypes.put("char", T_CHAR);
-        newArrayTypes.put("boolean", T_BOOLEAN);
-    }
     private final MethodGroupVisitor mv;
 
     /**
@@ -187,35 +176,23 @@ public class MethodTransformer {
             }
             case IINC: {
                 NumberGroup value = inst.getChild(NumberGroup.class);
-                if(value.isFloat()) {
-                    throw new AssemblerException("IINC instruction with float value", value.getStartLocation());
-                }
                 mv.visitIincInsn(inst.getChild(IdentifierGroup.class), value.getNumber().intValue());
                 break;
             }
             case SIPUSH:
             case BIPUSH: {
                 NumberGroup value = inst.getChild(NumberGroup.class);
-                if(value.isFloat()) {
-                    throw new AssemblerException("XIPUSH instruction with float value", value.getStartLocation());
-                }
                 mv.visitIntInsn(opcode, value.getNumber().intValue());
                 break;
             }
             case NEWARRAY: {
-                Integer type = newArrayTypes.get(inst.get(0).content());
-                if (type == null) {
-                    throw new AssemblerException("Unknown array type: " + inst.get(0).content(), inst.get(0).getStartLocation());
-                }
+                int type = ArrayTypes.getType(inst.get(0).content());
                 mv.visitIntInsn(opcode, type);
                 break;
             }
             case MULTIANEWARRAY: {
                 String desc = inst.get(0).content();
                 NumberGroup dim = inst.getChild(NumberGroup.class);
-                if(dim.isFloat()) {
-                    throw new AssemblerException("MULTIANEWARRAY instruction with float value", dim.getStartLocation());
-                }
                 mv.visitMultiANewArrayInsn(desc, dim.getNumber().intValue());
                 break;
             }

@@ -61,7 +61,8 @@ public class ParserContext {
 	 *
 	 * @return next group
 	 */
-	public Group nextGroup(Group.GroupType type) throws AssemblerException {
+	@SuppressWarnings("unchecked")
+	public <T extends Group> T nextGroup(Group.GroupType type) throws AssemblerException {
 		Group group = parseNext();
 		if (group == null) {
 			throw new AssemblerException("Unexpected end of file", currentToken.getLocation());
@@ -69,7 +70,7 @@ public class ParserContext {
 		if (!group.isType(type)) {
 			throw new AssemblerException("Expected " + type.name() + " but got " + group.getType().name(), group.getStartLocation());
 		}
-		return group;
+		return (T) group;
 	}
 
 	/**

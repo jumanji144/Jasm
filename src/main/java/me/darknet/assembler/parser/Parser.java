@@ -1,8 +1,10 @@
 package me.darknet.assembler.parser;
 
+import me.darknet.assembler.instructions.Argument;
 import me.darknet.assembler.instructions.ParseInfo;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.parser.groups.module.*;
+import me.darknet.assembler.util.ArrayTypes;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -98,71 +100,22 @@ public class Parser {
                     return readInvokeDynamic(token, ctx);
                 }
 
-                ParseInfo info = ParseInfo.actions.get(content);
-                String[] args = info.getArgs();
-                List<Group> children = new ArrayList<>();
-                for (String arg : args) {
-                    Token peek = ctx.peekToken();
-                    // this needed for illegal class names to ensure that the correct tokens are parsed here
-                    // also the use of ctx.explicitIdentifier is needed to ensure that nothing illegal happens
-                    if (peek.isType(KEYWORD)) {
-                        if (keywords.match(Keyword.KEYWORD_HANDLE, peek) ||
-                                keywords.match(Keyword.KEYWORD_TYPE, peek))
-                            children.add(ctx.parseNext());
-                        else {
-                            children.add(ctx.explicitIdentifier());
-                        }
-                    } else if (arg.equals("const")) {
-                        // only parse arguments as constant if the argument is a constant
-                        if (peek.isType(NUMBER)) {
-                            children.add(new NumberGroup(ctx.nextToken()));
-                        } else if (peek.isType(STRING)) {
-                            children.add(new StringGroup(ctx.nextToken()));
-                        } else {
-                            if (ctx.hasMacro(peek.getContent())) {
-                                ctx.nextToken();
-                                List<Group> groups = ctx.getMacro(peek.getContent());
-                                children.addAll(groups);
-                                continue;
-                            }
-                            // this is the case where the next token is an identifier
-                            // explicitly just parse whatever is next as an identifier to avoid illegal values
-                            children.add(ctx.explicitIdentifier());
-                        }
-                    } else {
-                        // else just interpret them as explicit identifiers
-                        if (ctx.hasMacro(peek.getContent())) {
-                            ctx.nextToken();
-                            List<Group> groups = ctx.getMacro(peek.getContent());
-                            children.addAll(groups);
-                            continue;
-                        }
-                        // this is the case where the next token is an identifier
-                        // explicitly just parse whatever is next as an identifier to avoid illegal values
-                        children.add(ctx.explicitIdentifier());
-                    }
-                }
-                return new InstructionGroup(token, children);
+                return readInstruction(token, ParseInfo.get(content).getArgs(), ctx);
             } else {
                 if (content.endsWith(":") && token.isType(IDENTIFIER)) {
                     return new LabelGroup(token);
                 }
             }
-            if (ctx.hasMacro(content)) {
-                List<Group> macro = ctx.getMacro(content);
-                for (int i = 0; i < macro.size() - 1; i++) {
-                    ctx.pushGroup(macro.get(i));
-                }
-                return macro.get(macro.size() - 1);
+            switch (token.getType()) {
+                case STRING:
+                    return new StringGroup(token);
+                case NUMBER:
+                    return new NumberGroup(token);
+                case TEXT:
+                    return new TextGroup(token);
+                default:
+                    return new IdentifierGroup(token);
             }
-            if (token.isType(NUMBER)) {
-                return new NumberGroup(token);
-            } else if (token.isType(STRING)) {
-                return new StringGroup(token);
-            } else if (token.isType(TEXT)) {
-                return new TextGroup(token);
-            }
-            return new IdentifierGroup(token);
         }
 
         Keyword keyword = keywords.fromToken(token);
@@ -264,12 +217,12 @@ public class Parser {
             case KEYWORD_TABLESWITCH:
                 return readTableSwitch(token, ctx);
             case KEYWORD_CASE: {
-                NumberGroup value = (NumberGroup) ctx.nextGroup(GroupType.NUMBER);
+                NumberGroup value = ctx.nextGroup(GroupType.NUMBER);
                 LabelGroup label = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
                 return new CaseLabelGroup(token, value, label);
             }
             case KEYWORD_DEFAULT: {
-                IdentifierGroup label = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                IdentifierGroup label = ctx.nextGroup(GroupType.IDENTIFIER);
                 return new DefaultLabelGroup(token, new LabelGroup(label.getValue()));
             }
             case KEYWORD_MACRO: {
@@ -279,14 +232,14 @@ public class Parser {
                 return new Group(GroupType.MACRO_DIRECTIVE, token, children);
             }
             case KEYWORD_CATCH: {
-                IdentifierGroup exception = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                IdentifierGroup exception = ctx.nextGroup(GroupType.IDENTIFIER);
                 LabelGroup begin = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
                 LabelGroup end = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
                 LabelGroup handler = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
                 return new CatchGroup(token, exception, begin, end, handler);
             }
             case KEYWORD_HANDLE: {
-                IdentifierGroup type = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
+                IdentifierGroup type = ctx.nextGroup(GroupType.IDENTIFIER);
                 String typeName = type.content();
                 switch (typeName) {
                     case "H_GETSTATIC":
@@ -300,8 +253,8 @@ public class Parser {
                     case "H_INVOKEINTERFACE":
                         return new HandleGroup(token,
                                 type,
-                                (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER), // owner.name
-                                (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER)); // descriptor
+                                ctx.nextGroup(GroupType.IDENTIFIER), // owner.name
+                                ctx.nextGroup(GroupType.IDENTIFIER)); // descriptor
                     default: {
                         throw new AssemblerException("Unknown handle type: " + typeName, type.getStartLocation());
                     }
@@ -354,7 +307,7 @@ public class Parser {
                 return new InnerClassGroup(token, readAccess(ctx), ctx.explicitIdentifier(), ctx.explicitIdentifier(), ctx.explicitIdentifier());
             }
             case KEYWORD_EXPR: {
-                TextGroup text = (TextGroup) ctx.nextGroup(GroupType.TEXT);
+                TextGroup text = ctx.nextGroup(GroupType.TEXT);
                 return new ExprGroup(token, text);
             }
             case KEYWORD_WITH:
@@ -410,6 +363,96 @@ public class Parser {
         }
 
         return new Group(GroupType.IDENTIFIER, token);
+    }
+
+    public InstructionGroup readInstruction(Token token, Argument[] arguments, ParserContext ctx) throws AssemblerException {
+        List<Group> children = new ArrayList<>();
+        for (Argument arg : arguments) {
+            Token peek = ctx.peekToken();
+            switch (arg) {
+                case NAME:
+                case CLASS:
+                case DESCRIPTOR:
+                case LABEL:
+                    children.add(ctx.explicitIdentifier());
+                    break;
+                case FIELD:
+                case METHOD:
+                    IdentifierGroup path = ctx.explicitIdentifier();
+                    if(!path.content().contains(".")) {
+                        throw new AssemblerException("Expected field or method path", path.getStartLocation());
+                    }
+                    children.add(path);
+                    break;
+                case BYTE:
+                case SHORT:
+                case INTEGER:
+                    if(!peek.isType(NUMBER)) {
+                        throw new AssemblerException("Expected number literal", peek.getLocation());
+                    }
+                    NumberGroup number = ctx.nextGroup(GroupType.NUMBER);
+                    long value = number.getNumber().longValue();
+                    switch (arg) {
+                        case BYTE:
+                            if(value < Byte.MIN_VALUE || value > Byte.MAX_VALUE) {
+                                throw new AssemblerException("Expected byte literal", number.getStartLocation());
+                            }
+                            break;
+                        case SHORT:
+                            if(value < Short.MIN_VALUE || value > Short.MAX_VALUE) {
+                                throw new AssemblerException("Expected short literal", number.getStartLocation());
+                            }
+                            break;
+                        case INTEGER:
+                            if(value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
+                                throw new AssemblerException("Expected integer literal", number.getStartLocation());
+                            }
+                            break;
+                    }
+                    children.add(number);
+                    break;
+                case CONSTANT: {
+                    switch (peek.getType()) {
+                        case IDENTIFIER:
+                            children.add(ctx.explicitIdentifier());
+                            break;
+                        case NUMBER:
+                            children.add(ctx.nextGroup(GroupType.NUMBER));
+                            break;
+                        case STRING:
+                            children.add(ctx.nextGroup(GroupType.STRING));
+                            break;
+                        case KEYWORD: {
+                            Keyword keyword = keywords.fromToken(peek);
+                            switch (keyword) {
+                                case KEYWORD_HANDLE:
+                                case KEYWORD_TYPE:
+                                    children.add(ctx.parseNext());
+                                    break;
+                                default:
+                                    throw new AssemblerException("Unexpected keyword, expected handle or type", peek.getLocation());
+                            }
+                            break;
+                        }
+                        default:
+                            throw new AssemblerException("Unexpected token, expected identifier, number, string or handle", peek.getLocation());
+                    }
+                    break;
+                }
+                case TYPE: {
+                    IdentifierGroup identifier = ctx.nextGroup(GroupType.IDENTIFIER);
+                    if(!ArrayTypes.isType(identifier.content())) {
+                        throw new AssemblerException("Unexpected identifier, expected byte, short, int, long, float, double, char, boolean or void", identifier.getStartLocation());
+                    }
+                    children.add(identifier);
+                    break;
+                }
+                case SWITCH:
+                case BOOTSTRAP_ARGUMENTS:
+                    break;
+            }
+        }
+        return new InstructionGroup(token, children);
     }
 
     public AnnotationGroup readAnnotation(Token token, boolean visible, ParserContext ctx) throws AssemblerException {
@@ -520,9 +563,9 @@ public class Parser {
     }
 
     public InstructionGroup readInvokeDynamic(Token token, ParserContext ctx) throws AssemblerException {
-        IdentifierGroup name = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
-        IdentifierGroup descriptor = (IdentifierGroup) ctx.nextGroup(GroupType.IDENTIFIER);
-        HandleGroup bsmHandle = (HandleGroup) ctx.nextGroup(GroupType.HANDLE);
+        IdentifierGroup name = ctx.nextGroup(GroupType.IDENTIFIER);
+        IdentifierGroup descriptor = ctx.nextGroup(GroupType.IDENTIFIER);
+        HandleGroup bsmHandle = ctx.nextGroup(GroupType.HANDLE);
         ArgsGroup args = ctx.maybeGroup(GroupType.ARGS).getOrNull();
 
         return new InstructionGroup(token, Arrays.asList(name, descriptor, bsmHandle, args));
@@ -531,7 +574,7 @@ public class Parser {
     public AccessModsGroup readAccess(ParserContext ctx) throws AssemblerException {
         List<AccessModGroup> access = new ArrayList<>();
         while (keywords.isAccessModifier(ctx.peekTokenSilent())) {
-            access.add((AccessModGroup) ctx.nextGroup(GroupType.ACCESS_MOD));
+            access.add(ctx.nextGroup(GroupType.ACCESS_MOD));
         }
         return wrap(ctx, new AccessModsGroup(access));
     }
@@ -565,8 +608,8 @@ public class Parser {
 
     private TableSwitchGroup readTableSwitch(Token begin, ParserContext ctx) throws AssemblerException {
         List<LabelGroup> caseLabels = new ArrayList<>();
-        NumberGroup low = (NumberGroup) ctx.nextGroup(GroupType.NUMBER);
-        NumberGroup high = (NumberGroup) ctx.nextGroup(GroupType.NUMBER);
+        NumberGroup low = ctx.nextGroup(GroupType.NUMBER);
+        NumberGroup high = ctx.nextGroup(GroupType.NUMBER);
         while (ctx.hasNextToken()) {
             Group grp = ctx.parseNext();
             if (grp.isType(GroupType.DEFAULT_LABEL)) {
