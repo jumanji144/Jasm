@@ -3,10 +3,7 @@ package me.darknet.assembler.parser;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * A group of tokens representing a logical expression.
@@ -122,6 +119,20 @@ public class Group {
 			}
 		}
 		return null;
+	}
+
+	public List<Group> getChildrenOnLine() {
+		return getChildrenOnLine(getStartLocation().getLine());
+	}
+
+	public List<Group> getChildrenOnLine(int line) {
+		List<Group> childrenOnLine = new ArrayList<>();
+		for (Group child : children) {
+			if (child.getStartLocation().getLine() == line) {
+				childrenOnLine.add(child);
+			}
+		}
+		return childrenOnLine;
 	}
 
 	@Override
