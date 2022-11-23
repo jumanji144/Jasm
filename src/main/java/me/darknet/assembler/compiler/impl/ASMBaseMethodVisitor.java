@@ -202,12 +202,7 @@ public class ASMBaseMethodVisitor implements MethodGroupVisitor {
     }
 
     private Label getLabel(String label) {
-        Label l = labels.get(label);
-        if (l == null) {
-            l = new Label();
-            labels.put(label, l);
-        }
-        return l;
+        return labels.computeIfAbsent(label, k -> new Label());
     }
 
     private int getLocal(Group g, boolean create) throws AssemblerException {
