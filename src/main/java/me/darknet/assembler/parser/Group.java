@@ -2,6 +2,7 @@ package me.darknet.assembler.parser;
 
 import lombok.Getter;
 import lombok.Setter;
+import me.darknet.assembler.exceptions.AssemblerException;
 
 import java.util.*;
 

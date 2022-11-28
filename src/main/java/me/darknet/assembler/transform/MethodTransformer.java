@@ -1,13 +1,10 @@
 package me.darknet.assembler.transform;
 
 import me.darknet.assembler.instructions.ParseInfo;
-import me.darknet.assembler.parser.AssemblerException;
+import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.util.ArrayTypes;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.objectweb.asm.Opcodes.*;
 

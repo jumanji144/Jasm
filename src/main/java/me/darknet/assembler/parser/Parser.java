@@ -1,5 +1,10 @@
 package me.darknet.assembler.parser;
 
+import me.darknet.assembler.exceptions.AssemblerException;
+import me.darknet.assembler.exceptions.arguments.InvalidArgumentException;
+import me.darknet.assembler.exceptions.parser.UnexpectedIdentifierException;
+import me.darknet.assembler.exceptions.parser.UnexpectedKeywordException;
+import me.darknet.assembler.exceptions.parser.UnexpectedTokenException;
 import me.darknet.assembler.instructions.Argument;
 import me.darknet.assembler.instructions.ParseInfo;
 import me.darknet.assembler.parser.groups.*;
@@ -321,7 +326,7 @@ public class Parser {
                         if(next.isType(KEYWORD)) {
                             Keyword key = keywords.fromToken(next);
                             if (key != Keyword.KEYWORD_END) {
-                                throw new AssemblerException("Unexpected keyword, expected end", next.getLocation());
+                                throw new UnexpectedKeywordException(next.getLocation(), next.getContent(), Keyword.KEYWORD_END);
                             }
                             ctx.nextToken();
                             if(keyword == Keyword.KEYWORD_WITH) {
@@ -330,7 +335,7 @@ public class Parser {
                                 return new ToGroup(token, identifiers);
                             }
                         } else {
-                            throw new AssemblerException("Unexpected token, expected end" + next, next.getLocation());
+                            throw new UnexpectedKeywordException(next.getLocation(), next.getContent(), Keyword.KEYWORD_END);
                         }
                     }
                 }
@@ -369,6 +374,11 @@ public class Parser {
         List<Group> children = new ArrayList<>();
         for (Argument arg : arguments) {
             Token peek = ctx.peekToken();
+            if(ctx.isOneLine()) {
+                if(peek.getLocation().getLine() != token.getLocation().getLine()) {
+                    return new InstructionGroup(token, children);
+                }
+            }
             switch (arg) {
                 case NAME:
                 case CLASS:
@@ -379,8 +389,8 @@ public class Parser {
                 case FIELD:
                 case METHOD:
                     IdentifierGroup path = ctx.explicitIdentifier();
-                    if(!path.content().contains(".")) {
-                        throw new AssemblerException("Expected field or method path", path.getStartLocation());
+                    if(ctx.isVerifyInstructions() && !path.content().contains(".")) {
+                        throw new InvalidArgumentException(path.getStartLocation(), arg, path.content());
                     }
                     children.add(path);
                     break;
@@ -388,26 +398,37 @@ public class Parser {
                 case SHORT:
                 case INTEGER:
                     if(!peek.isType(NUMBER)) {
-                        throw new AssemblerException("Expected number literal", peek.getLocation());
+                        throw new InvalidArgumentException(peek.getLocation(), arg, peek.getContent());
                     }
                     NumberGroup number = ctx.nextGroup(GroupType.NUMBER);
                     long value = number.getNumber().longValue();
-                    switch (arg) {
-                        case BYTE:
-                            if(value < Byte.MIN_VALUE || value > Byte.MAX_VALUE) {
-                                throw new AssemblerException("Expected byte literal", number.getStartLocation());
-                            }
-                            break;
-                        case SHORT:
-                            if(value < Short.MIN_VALUE || value > Short.MAX_VALUE) {
-                                throw new AssemblerException("Expected short literal", number.getStartLocation());
-                            }
-                            break;
-                        case INTEGER:
-                            if(value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
-                                throw new AssemblerException("Expected integer literal", number.getStartLocation());
-                            }
-                            break;
+                    if(ctx.isVerifyInstructions()) {
+                        switch (arg) {
+                            case BYTE:
+                                if (value < Byte.MIN_VALUE || value > Byte.MAX_VALUE) {
+                                    throw new InvalidArgumentException(number.getStartLocation(),
+                                            arg,
+                                            number.content(),
+                                            new NumberFormatException("Value out of range. Value:\"" + value + "\" Radix:10"));
+                                }
+                                break;
+                            case SHORT:
+                                if (value < Short.MIN_VALUE || value > Short.MAX_VALUE) {
+                                    throw new InvalidArgumentException(number.getStartLocation(),
+                                            arg,
+                                            number.content(),
+                                            new NumberFormatException("Value out of range. Value:\"" + value + "\" Radix:10"));
+                                }
+                                break;
+                            case INTEGER:
+                                if (value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
+                                    throw new InvalidArgumentException(number.getStartLocation(),
+                                            arg,
+                                            number.content(),
+                                            new NumberFormatException("Value out of range. Value:\"" + value + "\" Radix:10"));
+                                }
+                                break;
+                        }
                     }
                     children.add(number);
                     break;
@@ -430,19 +451,23 @@ public class Parser {
                                     children.add(ctx.parseNext());
                                     break;
                                 default:
-                                    throw new AssemblerException("Unexpected keyword, expected handle or type", peek.getLocation());
+                                    throw new UnexpectedKeywordException(peek.getLocation(), peek.getContent(), Keyword.KEYWORD_HANDLE, Keyword.KEYWORD_TYPE);
                             }
                             break;
                         }
                         default:
-                            throw new AssemblerException("Unexpected token, expected identifier, number, string or handle", peek.getLocation());
+                            throw new UnexpectedTokenException(peek.getLocation(), peek.getContent(), IDENTIFIER, NUMBER, STRING, KEYWORD);
                     }
                     break;
                 }
                 case TYPE: {
                     IdentifierGroup identifier = ctx.nextGroup(GroupType.IDENTIFIER);
-                    if(!ArrayTypes.isType(identifier.content())) {
-                        throw new AssemblerException("Unexpected identifier, expected byte, short, int, long, float, double, char, boolean or void", identifier.getStartLocation());
+                    if(ctx.isVerifyInstructions() && !ArrayTypes.isType(identifier.content())) {
+                        throw new InvalidArgumentException(
+                                identifier.getStartLocation(),
+                                Argument.TYPE,
+                                identifier.content(),
+                                new UnexpectedIdentifierException(identifier.getStartLocation(), identifier.content(), ArrayTypes.getTypes()));
                     }
                     children.add(identifier);
                     break;
@@ -496,7 +521,7 @@ public class Parser {
             Group param = ctx.parseNext();
             params.add(new AnnotationParamGroup(name.getValue(), name, param));
         }
-        throw new AssemblerException("Expected 'end' keyword", ctx.previousGroup().getStartLocation());
+        throw new UnexpectedKeywordException(ctx.getCurrentToken().getLocation(), "EOF", Keyword.KEYWORD_END);
     }
 
     public ModuleGroup readModule(Token token, ParserContext ctx) throws AssemblerException {

@@ -1,4 +1,6 @@
-package me.darknet.assembler.parser;
+package me.darknet.assembler.exceptions;
+
+import me.darknet.assembler.parser.Location;
 
 public class AssemblerException extends Exception {
 	private final Location where;

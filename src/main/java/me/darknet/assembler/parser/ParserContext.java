@@ -1,5 +1,8 @@
 package me.darknet.assembler.parser;
 
+import lombok.Getter;
+import lombok.Setter;
+import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.groups.IdentifierGroup;
 
 import java.util.*;
@@ -9,6 +12,35 @@ public class ParserContext {
 	private Queue<Token> tokens;
 	private List<Group> groups;
 	private Token currentToken;
+	/**
+	 * The one line argument will basically ensure that the parser will only consider the groups on the line of the
+	 * instruction to be arguments, this will fix ambiguity issues in some situations. Consider following example:
+	 * <p>
+	 *     <code>
+	 *         aload v1 <br>
+	 *         astore v2 <br>
+	 *         aload // still empty (a user is intending on writing) <br>
+	 *         astore v4 <br>
+	 *    </code>
+	 * <p>
+	 * In this case the normal parser would give the astore instruction but with the argument `aload astore` and the
+	 * error will also cascade downwards. This might be intended but for user editiable code it is not. So the one line
+	 * argument tries to address this issue by only considering the groups on the same line as the instruction as arguments.
+	 * which will in turn create an empty argument for the astore instruction in the example above. This might be usefull
+	 * in situation where autocompletion is implemented as it requires the user to be on 'invalid' code so the correct
+	 * instruction can be suggested.
+	 */
+	@Setter
+	@Getter
+	private boolean oneLine = false;
+	/**
+	 * JASM will attempt to perform some basic validation on arguments passed to instructions. This in most cases is
+	 * intended but in some cases might be too invasive as it will throw an exception when the user is still typing.
+	 * Set this boolean to {@code false} to disable this behaviour.
+	 */
+	@Getter
+	@Setter
+	private boolean verifyInstructions = true;
 	public Parser parser;
 
 	public ParserContext(Queue<Token> tokens, Parser parser) {

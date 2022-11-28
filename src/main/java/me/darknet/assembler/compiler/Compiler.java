@@ -1,7 +1,7 @@
 package me.darknet.assembler.compiler;
 
 import me.darknet.assembler.compiler.impl.ASMBaseVisitor;
-import me.darknet.assembler.parser.AssemblerException;
+import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Keywords;
 import me.darknet.assembler.parser.ParserContext;
 import me.darknet.assembler.transform.Transformer;

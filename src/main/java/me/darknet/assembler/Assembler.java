@@ -1,12 +1,12 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.compiler.Compiler;
+import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
@@ -22,6 +22,7 @@ public class Assembler {
         List<Token> tokens = parser.tokenize(source, new String(bytes));
 
         ParserContext ctx = new ParserContext(new LinkedList<>(tokens), parser);
+        ctx.setOneLine(true);
 
         ctx.parse();
 

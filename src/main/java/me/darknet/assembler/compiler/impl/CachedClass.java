@@ -3,7 +3,7 @@ package me.darknet.assembler.compiler.impl;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import me.darknet.assembler.parser.AssemblerException;
+import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.parser.groups.module.*;
 import me.darknet.assembler.transform.ClassGroupVisitor;

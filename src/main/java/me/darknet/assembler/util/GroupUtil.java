@@ -2,7 +2,7 @@ package me.darknet.assembler.util;
 
 import me.darknet.assembler.compiler.MethodDescriptor;
 import me.darknet.assembler.compiler.impl.CachedClass;
-import me.darknet.assembler.parser.AssemblerException;
+import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.HandleGroup;
 import me.darknet.assembler.parser.groups.NumberGroup;

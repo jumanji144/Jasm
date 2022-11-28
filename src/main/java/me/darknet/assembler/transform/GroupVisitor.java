@@ -1,6 +1,6 @@
 package me.darknet.assembler.transform;
 
-import me.darknet.assembler.parser.AssemblerException;
+import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 
 public interface GroupVisitor {

@@ -21,6 +21,10 @@ public class ArrayTypes {
         return newArrayTypes.get(type);
     }
 
+    public static String[] getTypes() {
+        return newArrayTypes.keySet().toArray(new String[0]);
+    }
+
     static {
         newArrayTypes.put("byte", T_BYTE);
         newArrayTypes.put("short", T_SHORT);
@@ -31,5 +35,4 @@ public class ArrayTypes {
         newArrayTypes.put("char", T_CHAR);
         newArrayTypes.put("boolean", T_BOOLEAN);
     }
-
 }

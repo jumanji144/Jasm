@@ -1,6 +1,6 @@
 package me.darknet.assembler.compiler.impl;
 
-import me.darknet.assembler.parser.AssemblerException;
+import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.groups.AnnotationGroup;
 import me.darknet.assembler.parser.groups.AnnotationParamGroup;
 import me.darknet.assembler.parser.groups.SignatureGroup;

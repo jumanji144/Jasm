@@ -1,6 +1,6 @@
 package me.darknet.assembler.transform;
 
-import me.darknet.assembler.parser.AssemblerException;
+import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.AnnotationGroup;
 import me.darknet.assembler.parser.groups.FieldAttributeGroup;

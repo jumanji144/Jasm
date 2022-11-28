@@ -1,6 +1,6 @@
 package me.darknet.assembler.compiler.impl;
 
-import me.darknet.assembler.parser.AssemblerException;
+import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Keyword;
 import me.darknet.assembler.parser.Keywords;
