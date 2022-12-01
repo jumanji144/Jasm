@@ -40,6 +40,7 @@ public enum Argument {
     // SPECIAL
     SWITCH,
     BOOTSTRAP_ARGUMENTS,
+    HANDLE,
     TYPE,
 
 }

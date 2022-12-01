@@ -69,7 +69,13 @@ public class Group {
 		if (children.isEmpty()) {
 			return value;
 		}
-		return children.get(children.size() - 1).end();
+		int index = children.size() - 1;
+		Group child = children.get(index);
+		while (child == null) {
+			if(index == 0) throw new IllegalStateException("Group has no non-null children");
+			child = children.get(--index);
+		}
+		return child.end();
 	}
 
 	public String content() {
@@ -129,6 +135,8 @@ public class Group {
 	public List<Group> getChildrenOnLine(int line) {
 		List<Group> childrenOnLine = new ArrayList<>();
 		for (Group child : children) {
+			if(child == null)
+				continue;
 			if (child.getStartLocation().getLine() == line) {
 				childrenOnLine.add(child);
 			}

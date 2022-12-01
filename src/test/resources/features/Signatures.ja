@@ -33,7 +33,6 @@ end
 
 
 method public static main ([Ljava/lang/String; args)V
-    # create a
     new java/util/ArrayList
     dup
     invokespecial java/util/ArrayList.<init> ()V

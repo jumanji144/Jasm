@@ -162,7 +162,7 @@ public class ParseInfo {
         put("imul", IMUL);
         put("ineg", INEG);
         put("instanceof", INSTANCEOF, Argument.CLASS);
-        put("invokedynamic", INVOKEDYNAMIC, Argument.NAME, Argument.DESCRIPTOR, Argument.BOOTSTRAP_ARGUMENTS);
+        put("invokedynamic", INVOKEDYNAMIC, Argument.NAME, Argument.DESCRIPTOR, Argument.HANDLE, Argument.BOOTSTRAP_ARGUMENTS);
         put("invokeinterface", INVOKEINTERFACE, Argument.METHOD, Argument.DESCRIPTOR);
         put("invokespecial", INVOKESPECIAL, Argument.METHOD, Argument.DESCRIPTOR);
         put("invokestatic", INVOKESTATIC, Argument.METHOD, Argument.DESCRIPTOR);

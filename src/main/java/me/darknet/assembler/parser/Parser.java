@@ -472,6 +472,11 @@ public class Parser {
                     children.add(identifier);
                     break;
                 }
+                case HANDLE: {
+                    HandleGroup handle = ctx.nextGroup(GroupType.HANDLE);
+                    children.add(handle);
+                    break;
+                }
                 case SWITCH:
                 case BOOTSTRAP_ARGUMENTS:
                     break;
