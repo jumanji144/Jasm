@@ -2,17 +2,31 @@ package me.darknet.assembler.parser;
 
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.exceptions.arguments.InvalidArgumentException;
+import me.darknet.assembler.exceptions.parser.UnexpectedGroupException;
 import me.darknet.assembler.exceptions.parser.UnexpectedIdentifierException;
 import me.darknet.assembler.exceptions.parser.UnexpectedKeywordException;
 import me.darknet.assembler.exceptions.parser.UnexpectedTokenException;
 import me.darknet.assembler.instructions.Argument;
 import me.darknet.assembler.instructions.ParseInfo;
 import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
+import me.darknet.assembler.parser.groups.annotation.AnnotationParamGroup;
+import me.darknet.assembler.parser.groups.annotation.EnumGroup;
+import me.darknet.assembler.parser.groups.attributes.*;
+import me.darknet.assembler.parser.groups.declaration.ClassDeclarationGroup;
+import me.darknet.assembler.parser.groups.declaration.FieldDeclarationGroup;
+import me.darknet.assembler.parser.groups.frame.*;
+import me.darknet.assembler.parser.groups.instructions.*;
+import me.darknet.assembler.parser.groups.declaration.MethodDeclarationGroup;
+import me.darknet.assembler.parser.groups.method.MethodParameterGroup;
+import me.darknet.assembler.parser.groups.method.MethodParametersGroup;
+import me.darknet.assembler.parser.groups.method.ThrowsGroup;
 import me.darknet.assembler.parser.groups.module.*;
 import me.darknet.assembler.util.ArrayTypes;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static me.darknet.assembler.parser.Group.GroupType;
@@ -192,7 +206,13 @@ public class Parser {
                                 name,
                                 new MethodParametersGroup(params),
                                 returnType,
-                                readBody(ctx));
+                                readBody(ctx,
+                                        GroupType.INSTRUCTION,
+                                        GroupType.TABLE_SWITCH,
+                                        GroupType.LOOKUP_SWITCH,
+                                        GroupType.LABEL,
+                                        GroupType.CATCH,
+                                        GroupType.FRAME));
                     }
                     IdentifierGroup desc = ctx.explicitIdentifier();
                     next = ctx.peekTokenSilent();
@@ -206,7 +226,13 @@ public class Parser {
                                 name,
                                 new MethodParametersGroup(),
                                 returnType,
-                                readBody(ctx));
+                                readBody(ctx,
+                                        GroupType.INSTRUCTION,
+                                        GroupType.TABLE_SWITCH,
+                                        GroupType.LOOKUP_SWITCH,
+                                        GroupType.LABEL,
+                                        GroupType.CATCH,
+                                        GroupType.FRAME));
 
                     }
                     IdentifierGroup paramName = ctx.explicitIdentifier();
@@ -232,7 +258,7 @@ public class Parser {
             }
             case KEYWORD_MACRO: {
                 Group macroName = ctx.nextGroup(GroupType.IDENTIFIER);
-                List<Group> children = readBody(ctx).getChildren();
+                List<Group> children = readBody(ctx, GroupType.INSTRUCTION, GroupType.IDENTIFIER).getChildren();
                 ctx.putMacro(macroName.content(), children);
                 return new Group(GroupType.MACRO_DIRECTIVE, token, children);
             }
@@ -242,6 +268,9 @@ public class Parser {
                 LabelGroup end = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
                 LabelGroup handler = new LabelGroup(ctx.nextGroup(GroupType.IDENTIFIER));
                 return new CatchGroup(token, exception, begin, end, handler);
+            }
+            case KEYWORD_FRAME: {
+                return readFrame(token, ctx);
             }
             case KEYWORD_HANDLE: {
                 IdentifierGroup type = ctx.nextGroup(GroupType.IDENTIFIER);
@@ -271,7 +300,12 @@ public class Parser {
             }
             case KEYWORD_METHOD_TYPE:
             case KEYWORD_ARGS: {
-                return new ArgsGroup(token, readBody(ctx));
+                return new ArgsGroup(token, readBody(ctx,
+                        GroupType.IDENTIFIER,
+                        GroupType.HANDLE,
+                        GroupType.TYPE,
+                        GroupType.STRING,
+                        GroupType.NUMBER));
             }
             case KEYWORD_INVISIBLE_ANNOTATION:
             case KEYWORD_ANNOTATION: {
@@ -314,6 +348,28 @@ public class Parser {
             case KEYWORD_EXPR: {
                 TextGroup text = ctx.nextGroup(GroupType.TEXT);
                 return new ExprGroup(token, text);
+            }
+            case KEYWORD_FRAME_LOCALS: {
+                List<FrameEntryGroup> entries = new ArrayList<>();
+                while (ctx.hasNextToken()) {
+                    if(Keyword.fromString(ctx.peekToken().getContent()) == Keyword.KEYWORD_END) {
+                        ctx.nextToken();
+                        return new FrameLocalsGroup(token, entries);
+                    }
+                    entries.add(readFrameEntry(ctx));
+                }
+                throw new AssemblerException("Unexpected end of file", token.getLocation());
+            }
+            case KEYWORD_FRAME_STACK: {
+                List<FrameEntryGroup> entries = new ArrayList<>();
+                while (ctx.hasNextToken()) {
+                    if(Keyword.fromString(ctx.peekToken().getContent()) == Keyword.KEYWORD_END) {
+                        ctx.nextToken();
+                        return new FrameStackGroup(token, entries);
+                    }
+                    entries.add(readFrameEntry(ctx));
+                }
+                throw new AssemblerException("Unexpected end of file", token.getLocation());
             }
             case KEYWORD_WITH:
             case KEYWORD_TO: {
@@ -609,12 +665,23 @@ public class Parser {
         return wrap(ctx, new AccessModsGroup(access));
     }
 
-    public BodyGroup readBody(ParserContext ctx) throws AssemblerException {
+    public BodyGroup readBody(ParserContext ctx, GroupType... allowed) throws AssemblerException {
         List<Group> body = new ArrayList<>();
         while (ctx.hasNextToken()) {
             Group grp = ctx.parseNext();
             if (grp.isType(GroupType.END_BODY)) {
                 return new BodyGroup(body);
+            }
+            if (allowed.length > 0) {
+                boolean found = false;
+                for (GroupType type : allowed) {
+                    if (grp.isType(type)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    throw new UnexpectedGroupException(ctx.getCurrentLocation(), grp.getType(), allowed);
             }
             body.add(grp);
         }
@@ -651,6 +718,48 @@ public class Parser {
             caseLabels.add(new LabelGroup(grp.getValue()));
         }
         throw new AssemblerException("Expected 'default' label", ctx.getCurrentLocation());
+    }
+
+    public FrameEntryGroup readFrameEntry(ParserContext ctx) throws AssemblerException {
+        Group next = ctx.parseNext();
+        if(next.isType(GroupType.TYPE)) {
+            return new TypeFrameEntry(next.getValue(), (TypeGroup) next);
+        } else if(next.isType(GroupType.IDENTIFIER)) {
+            return new PrimitiveFrameEntry(next.getValue(), (IdentifierGroup) next);
+        }
+        throw new UnexpectedGroupException(ctx.getCurrentLocation(), next.getType(), GroupType.TYPE, GroupType.IDENTIFIER);
+    }
+
+    public FrameGroup readFrame(Token token, ParserContext ctx) throws AssemblerException {
+        if(!ctx.hasNextToken()) {
+            throw new AssemblerException("Expected frame type", ctx.getCurrentLocation());
+        }
+        IdentifierGroup type = ctx.nextGroup(GroupType.IDENTIFIER);
+        switch (type.content()) {
+            case "same": {
+                return new FrameGroup(token, type, Collections.emptyList(), Collections.emptyList());
+            }
+            case "same1": {
+                FrameStackGroup stackGroup = ctx.nextGroup(GroupType.FRAME_STACK);
+                return new FrameGroup(token, type, Collections.emptyList(), stackGroup.getFrameEntries());
+            }
+            case "chop": {
+                NumberGroup chop = ctx.nextGroup(GroupType.NUMBER);
+                return new FrameGroup(token, type, Collections.nCopies(chop.getNumber().intValue(), null), Collections.emptyList());
+            }
+            case "append": {
+                FrameLocalsGroup localsGroup = ctx.nextGroup(GroupType.FRAME_LOCALS);
+                return new FrameGroup(token, type, localsGroup.getFrameEntries(), Collections.emptyList());
+            }
+            case "full": {
+                FrameLocalsGroup localsGroup = ctx.nextGroup(GroupType.FRAME_LOCALS);
+                FrameStackGroup stackGroup = ctx.nextGroup(GroupType.FRAME_STACK);
+                return new FrameGroup(token, type, localsGroup.getFrameEntries(), stackGroup.getFrameEntries());
+            }
+            default: {
+                throw new AssemblerException("Unknown frame type: " + type.content(), type.start().getLocation());
+            }
+        }
     }
 
     private <T extends Group> T wrap(ParserContext ctx, T group) {

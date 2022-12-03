@@ -1,0 +1,10 @@
+class public LocalVariables
+extends java/lang/Object
+
+method public static main ([Ljava/lang/String; args)[Ljava/lang/String;
+L1:
+    localvariable args [Ljava/lang/String; L1 L2 0
+    aload 0
+    areturn
+L2:
+end

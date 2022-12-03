@@ -1,0 +1,21 @@
+class public Frames extends java/lang/Object
+
+method public static main ([Ljava/lang/String; args)V
+frame full
+ locals
+    integer
+    long
+    top
+    float
+    double
+    top
+ end
+ stack
+    integer
+    long
+    top
+    float
+    double
+    top
+ end
+end

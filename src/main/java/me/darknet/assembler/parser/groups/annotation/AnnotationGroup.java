@@ -7,7 +7,7 @@ import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.groups.attributes.ClassAttributeGroup;
 import me.darknet.assembler.parser.groups.attributes.FieldAttributeGroup;
 import me.darknet.assembler.parser.groups.IdentifierGroup;
-import me.darknet.assembler.parser.groups.method.MethodAttributeGroup;
+import me.darknet.assembler.parser.groups.attributes.MethodAttributeGroup;
 import me.darknet.assembler.util.GroupLists;
 
 import java.util.List;

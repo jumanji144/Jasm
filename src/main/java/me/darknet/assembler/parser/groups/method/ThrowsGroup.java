@@ -4,7 +4,7 @@ import lombok.Getter;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.groups.IdentifierGroup;
-import me.darknet.assembler.parser.groups.method.MethodAttributeGroup;
+import me.darknet.assembler.parser.groups.attributes.MethodAttributeGroup;
 
 import java.util.Collections;
 

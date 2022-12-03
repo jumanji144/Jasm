@@ -5,6 +5,7 @@ import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
 import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
+import me.darknet.assembler.parser.groups.frame.FrameGroup;
 import me.darknet.assembler.parser.groups.instructions.*;
 import me.darknet.assembler.parser.groups.method.ThrowsGroup;
 
@@ -103,6 +104,11 @@ public class DelegatingMethodVisitor implements MethodGroupVisitor {
 	@Override
 	public void visitLocalVariable(IdentifierGroup name, IdentifierGroup desc, IdentifierGroup start, IdentifierGroup end, int index) throws AssemblerException {
 		delegate.visitLocalVariable(name, desc, start, end, index);
+	}
+
+	@Override
+	public void visitFrame(FrameGroup frame) throws AssemblerException {
+		delegate.visitFrame(frame);
 	}
 
 	@Override

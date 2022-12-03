@@ -1,4 +1,4 @@
-package me.darknet.assembler.parser.groups.method;
+package me.darknet.assembler.parser.groups.attributes;
 
 import me.darknet.assembler.parser.groups.attributes.AttributeGroup;
 

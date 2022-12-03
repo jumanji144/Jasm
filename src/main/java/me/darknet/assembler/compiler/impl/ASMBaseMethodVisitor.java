@@ -8,6 +8,10 @@ import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
 import me.darknet.assembler.parser.groups.annotation.AnnotationParamGroup;
 import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
+import me.darknet.assembler.parser.groups.frame.FrameEntryGroup;
+import me.darknet.assembler.parser.groups.frame.FrameGroup;
+import me.darknet.assembler.parser.groups.frame.PrimitiveFrameEntry;
+import me.darknet.assembler.parser.groups.frame.TypeFrameEntry;
 import me.darknet.assembler.parser.groups.instructions.*;
 import me.darknet.assembler.parser.groups.method.ThrowsGroup;
 import me.darknet.assembler.transform.MethodGroupVisitor;
@@ -173,6 +177,80 @@ public class ASMBaseMethodVisitor implements MethodGroupVisitor {
     @Override
     public void visitLocalVariable(IdentifierGroup name, IdentifierGroup desc, IdentifierGroup start, IdentifierGroup end, int index) throws AssemblerException {
         mv.visitLocalVariable(name.content(), desc.content(), null, getLabel(start.content()), getLabel(end.content()), index);
+    }
+
+    private Object[] getEntries(List<FrameEntryGroup> entries) {
+        Object[] result = new Object[entries.size()];
+        for (int i = 0; i < entries.size(); i++) {
+            FrameEntryGroup entry = entries.get(i);
+            if(entry instanceof PrimitiveFrameEntry) {
+                PrimitiveFrameEntry primitive = (PrimitiveFrameEntry) entry;
+                int type = -1;
+                switch (primitive.getObjectType().content()) {
+                    case "top":
+                        type = Opcodes.TOP;
+                        break;
+                    case "integer":
+                        type = Opcodes.INTEGER;
+                        break;
+                    case "float":
+                        type = Opcodes.FLOAT;
+                        break;
+                    case "double":
+                        type = Opcodes.DOUBLE;
+                        break;
+                    case "long":
+                        type = Opcodes.LONG;
+                        break;
+                    case "null":
+                        type = Opcodes.NULL;
+                        break;
+                    case "uninitialized_this":
+                        type = Opcodes.UNINITIALIZED_THIS;
+                        break;
+                    default: {
+                        result[i] = getLabel(primitive.content());
+                        break;
+                    }
+                }
+                if(type != -1) {
+                    result[i] = type;
+                }
+            } else if(entry instanceof TypeFrameEntry) {
+                TypeFrameEntry type = (TypeFrameEntry) entry;
+                result[i] = type.getObjectType().getDescriptor().content();
+            } else {
+                throw new IllegalStateException("Unknown frame entry type: " + entry.getClass());
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public void visitFrame(FrameGroup frame) throws AssemblerException {
+        int type;
+        switch (frame.getFrameType().content()) {
+            case "same":
+                type = Opcodes.F_SAME;
+                break;
+            case "same1":
+                type = Opcodes.F_SAME1;
+                break;
+            case "append":
+                type = Opcodes.F_APPEND;
+                break;
+            case "chop":
+                mv.visitFrame(Opcodes.F_CHOP, frame.getLocals().size(), null, 0, null);
+                return;
+            case "full":
+                type = Opcodes.F_FULL;
+                break;
+            default:
+                throw new AssemblerException("Unknown frame type: " + frame.getFrameType().content(), frame.getStartLocation());
+        }
+        Object[] locals = getEntries(frame.getLocals());
+        Object[] stack = getEntries(frame.getStack());
+        mv.visitFrame(type, locals.length, locals, stack.length, stack);
     }
 
     @Override

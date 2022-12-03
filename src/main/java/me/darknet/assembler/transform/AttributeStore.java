@@ -5,7 +5,7 @@ import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.attributes.AttributeGroup;
 import me.darknet.assembler.parser.groups.attributes.ClassAttributeGroup;
 import me.darknet.assembler.parser.groups.attributes.FieldAttributeGroup;
-import me.darknet.assembler.parser.groups.method.MethodAttributeGroup;
+import me.darknet.assembler.parser.groups.attributes.MethodAttributeGroup;
 
 import java.util.ArrayList;
 import java.util.List;

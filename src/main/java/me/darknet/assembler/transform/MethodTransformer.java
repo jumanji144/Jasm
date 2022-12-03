@@ -4,6 +4,7 @@ import me.darknet.assembler.instructions.ParseInfo;
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.frame.FrameGroup;
 import me.darknet.assembler.parser.groups.instructions.*;
 import me.darknet.assembler.util.ArrayTypes;
 
@@ -49,6 +50,9 @@ public class MethodTransformer {
                             break;
                         case EXPR:
                             mv.visitExpr((ExprGroup) inst);
+                            break;
+                        case FRAME:
+                            mv.visitFrame((FrameGroup) inst);
                             break;
                         default:
                             throw new AssemblerException("Unknown instruction type: " + inst.getType(), inst.getValue().getLocation());

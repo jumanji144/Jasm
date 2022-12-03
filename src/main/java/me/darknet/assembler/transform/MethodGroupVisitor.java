@@ -5,8 +5,9 @@ import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
 import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
+import me.darknet.assembler.parser.groups.frame.FrameGroup;
 import me.darknet.assembler.parser.groups.instructions.*;
-import me.darknet.assembler.parser.groups.method.MethodAttributeGroup;
+import me.darknet.assembler.parser.groups.attributes.MethodAttributeGroup;
 import me.darknet.assembler.parser.groups.method.ThrowsGroup;
 
 public interface MethodGroupVisitor extends GroupVisitor {
@@ -164,6 +165,12 @@ public interface MethodGroupVisitor extends GroupVisitor {
      * @param index the index of the local variable
      */
     void visitLocalVariable(IdentifierGroup name, IdentifierGroup desc, IdentifierGroup start, IdentifierGroup end, int index) throws AssemblerException;
+
+    /**
+     * Visit a frame
+     * @param frame the frame
+     */
+    void visitFrame(FrameGroup frame) throws AssemblerException;
 
     /**
      * Visit a multianewarray instruction
