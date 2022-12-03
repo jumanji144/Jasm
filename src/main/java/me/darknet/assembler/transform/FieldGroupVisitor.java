@@ -1,9 +1,9 @@
 package me.darknet.assembler.transform;
 
 import me.darknet.assembler.exceptions.AssemblerException;
-import me.darknet.assembler.parser.groups.AnnotationGroup;
-import me.darknet.assembler.parser.groups.FieldAttributeGroup;
-import me.darknet.assembler.parser.groups.SignatureGroup;
+import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
+import me.darknet.assembler.parser.groups.attributes.FieldAttributeGroup;
+import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
 
 public interface FieldGroupVisitor extends GroupVisitor {
 	/**

@@ -5,6 +5,11 @@ import me.darknet.assembler.compiler.MethodDescriptor;
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
+import me.darknet.assembler.parser.groups.annotation.AnnotationParamGroup;
+import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
+import me.darknet.assembler.parser.groups.instructions.*;
+import me.darknet.assembler.parser.groups.method.ThrowsGroup;
 import me.darknet.assembler.transform.MethodGroupVisitor;
 import me.darknet.assembler.util.GroupUtil;
 import me.darknet.assembler.util.Handles;
@@ -163,6 +168,11 @@ public class ASMBaseMethodVisitor implements MethodGroupVisitor {
     @Override
     public void visitLineNumber(NumberGroup line, IdentifierGroup label) throws AssemblerException {
         mv.visitLineNumber(line.getNumber().intValue(), getLabel(label.content()));
+    }
+
+    @Override
+    public void visitLocalVariable(IdentifierGroup name, IdentifierGroup desc, IdentifierGroup start, IdentifierGroup end, int index) throws AssemblerException {
+        mv.visitLocalVariable(name.content(), desc.content(), null, getLabel(start.content()), getLabel(end.content()), index);
     }
 
     @Override

@@ -2,7 +2,9 @@ package me.darknet.assembler.transform;
 
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
-import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.declaration.ClassDeclarationGroup;
+import me.darknet.assembler.parser.groups.declaration.FieldDeclarationGroup;
+import me.darknet.assembler.parser.groups.declaration.MethodDeclarationGroup;
 
 import java.util.Collection;
 

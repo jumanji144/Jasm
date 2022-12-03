@@ -2,9 +2,9 @@ package me.darknet.assembler.parser.groups.module;
 
 import lombok.Getter;
 import me.darknet.assembler.parser.Token;
-import me.darknet.assembler.parser.groups.AccessModsGroup;
+import me.darknet.assembler.parser.groups.attributes.AccessModsGroup;
 import me.darknet.assembler.parser.groups.IdentifierGroup;
-import me.darknet.assembler.parser.groups.VersionGroup;
+import me.darknet.assembler.parser.groups.attributes.VersionGroup;
 
 import java.util.ArrayList;
 

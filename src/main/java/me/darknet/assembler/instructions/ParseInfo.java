@@ -11,6 +11,7 @@ public class ParseInfo {
     public static final int INSTRUCTION_INVOKEVIRTUALINTERFACE = -2;
     public static final int INSTRUCTION_INVOKESTATICINTERFACE = -3;
     public static final int INSTRUCTION_INVOKESPECIALINTERFACE = -4;
+    public static final int INSTRUCTION_LOCALVARIABLE = -5;
 
     private final String name;
     private final int opcode;
@@ -235,6 +236,7 @@ public class ParseInfo {
         put("invokevirtualinterface", INSTRUCTION_INVOKEVIRTUALINTERFACE, Argument.METHOD, Argument.DESCRIPTOR);
         put("invokestaticinterface", INSTRUCTION_INVOKESTATICINTERFACE, Argument.METHOD, Argument.DESCRIPTOR);
         put("invokespecialinterface", INSTRUCTION_INVOKESPECIALINTERFACE, Argument.METHOD, Argument.DESCRIPTOR);
+        put("localvariable", INSTRUCTION_LOCALVARIABLE, Argument.NAME, Argument.DESCRIPTOR, Argument.LABEL, Argument.LABEL, Argument.INTEGER);
     }
 
 }

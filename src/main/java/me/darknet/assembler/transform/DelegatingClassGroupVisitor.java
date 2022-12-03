@@ -2,7 +2,9 @@ package me.darknet.assembler.transform;
 
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
-import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
+import me.darknet.assembler.parser.groups.attributes.*;
+import me.darknet.assembler.parser.groups.module.ModuleGroup;
 
 public class DelegatingClassGroupVisitor implements ClassGroupVisitor{
 	private final ClassGroupVisitor delegate;

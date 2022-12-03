@@ -1,7 +1,7 @@
 package me.darknet.assembler.instructions;
 
-import me.darknet.assembler.parser.groups.HandleGroup;
-import me.darknet.assembler.parser.groups.TypeGroup;
+import me.darknet.assembler.parser.groups.instructions.HandleGroup;
+import me.darknet.assembler.parser.groups.instructions.TypeGroup;
 
 public enum Argument {
 
@@ -42,5 +42,14 @@ public enum Argument {
     BOOTSTRAP_ARGUMENTS,
     HANDLE,
     TYPE,
+    OPTIONAL;
+
+    private Argument subType;
+
+    public static Argument optional(Argument subType) {
+        Argument arg = OPTIONAL;
+        arg.subType = subType;
+        return arg;
+    }
 
 }

@@ -59,6 +59,7 @@ public enum Keyword {
 	KEYWORD_CASE("case"),
 	KEYWORD_MACRO("macro"),
 	KEYWORD_CATCH("catch"),
+	KEYWORD_FRAME("frame"),
 	KEYWORD_HANDLE("handle"),
 	KEYWORD_ARGS("args"),
 	KEYWORD_TYPE("type"),

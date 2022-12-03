@@ -4,6 +4,7 @@ import me.darknet.assembler.instructions.ParseInfo;
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.instructions.*;
 import me.darknet.assembler.util.ArrayTypes;
 
 import static org.objectweb.asm.Opcodes.*;
@@ -206,6 +207,16 @@ public class MethodTransformer {
                 IdentifierGroup label = inst.getChild(IdentifierGroup.class);
                 NumberGroup line = inst.getChild(NumberGroup.class);
                 mv.visitLineNumber(line, label);
+                break;
+            }
+            case ParseInfo.INSTRUCTION_LOCALVARIABLE: { // local variable
+                IdentifierGroup name = (IdentifierGroup) inst.get(0);
+                IdentifierGroup desc = (IdentifierGroup) inst.get(1);
+                IdentifierGroup labelStart = (IdentifierGroup) inst.get(2);
+                IdentifierGroup labelEnd = (IdentifierGroup) inst.get(3);
+                NumberGroup index = (NumberGroup) inst.get(4);
+
+                mv.visitLocalVariable(name, desc, labelStart, labelEnd, index.getNumber().intValue());
                 break;
             }
             default: {

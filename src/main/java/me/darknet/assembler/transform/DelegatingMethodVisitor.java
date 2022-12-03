@@ -3,6 +3,10 @@ package me.darknet.assembler.transform;
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
+import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
+import me.darknet.assembler.parser.groups.instructions.*;
+import me.darknet.assembler.parser.groups.method.ThrowsGroup;
 
 public class DelegatingMethodVisitor implements MethodGroupVisitor {
 	private final MethodGroupVisitor delegate;
@@ -94,6 +98,11 @@ public class DelegatingMethodVisitor implements MethodGroupVisitor {
 	@Override
 	public void visitLineNumber(NumberGroup line, IdentifierGroup label) throws AssemblerException {
 		delegate.visitLineNumber(line, label);
+	}
+
+	@Override
+	public void visitLocalVariable(IdentifierGroup name, IdentifierGroup desc, IdentifierGroup start, IdentifierGroup end, int index) throws AssemblerException {
+		delegate.visitLocalVariable(name, desc, start, end, index);
 	}
 
 	@Override

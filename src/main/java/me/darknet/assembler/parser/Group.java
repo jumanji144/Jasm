@@ -169,6 +169,7 @@ public class Group {
 
 		TABLE_SWITCH,
 		CATCH,
+		FRAME,
 		MACRO_DIRECTIVE, // TODO: Remove this.
 
 		// higher order abstraction

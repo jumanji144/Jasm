@@ -3,6 +3,11 @@ package me.darknet.assembler.transform;
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
+import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
+import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
+import me.darknet.assembler.parser.groups.instructions.*;
+import me.darknet.assembler.parser.groups.method.MethodAttributeGroup;
+import me.darknet.assembler.parser.groups.method.ThrowsGroup;
 
 public interface MethodGroupVisitor extends GroupVisitor {
     /**
@@ -149,6 +154,16 @@ public interface MethodGroupVisitor extends GroupVisitor {
      * @throws AssemblerException if an error occurs
      */
     void visitLineNumber(NumberGroup line, IdentifierGroup label) throws AssemblerException;
+
+    /**
+     * Visit a local variable instruction
+     * @param name the name of the local variable
+     * @param desc the descriptor of the local variable
+     * @param start the start label
+     * @param end the end label
+     * @param index the index of the local variable
+     */
+    void visitLocalVariable(IdentifierGroup name, IdentifierGroup desc, IdentifierGroup start, IdentifierGroup end, int index) throws AssemblerException;
 
     /**
      * Visit a multianewarray instruction
