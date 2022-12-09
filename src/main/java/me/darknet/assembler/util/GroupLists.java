@@ -40,4 +40,13 @@ public class GroupLists {
 		}
 		return newList;
 	}
+
+	public static List<Group> flatten(Group group) {
+		List<Group> newList = new ArrayList<>();
+		newList.add(group);
+		for (Group child : group.getChildren()) {
+			newList.addAll(flatten(child));
+		}
+		return newList;
+	}
 }

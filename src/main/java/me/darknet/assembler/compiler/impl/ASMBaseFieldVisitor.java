@@ -3,6 +3,7 @@ package me.darknet.assembler.compiler.impl;
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
 import me.darknet.assembler.parser.groups.annotation.AnnotationParamGroup;
+import me.darknet.assembler.parser.groups.attributes.DeprecatedGroup;
 import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
 import me.darknet.assembler.transform.FieldGroupVisitor;
 import org.objectweb.asm.AnnotationVisitor;
@@ -40,5 +41,10 @@ public class ASMBaseFieldVisitor implements FieldGroupVisitor {
 	@Override
 	public void visitSignature(SignatureGroup signature) {
 		// no-op
+	}
+
+	@Override
+	public void visitDeprecated(DeprecatedGroup deprecated) throws AssemblerException {
+		// not possible with ASM
 	}
 }

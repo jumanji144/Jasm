@@ -4,6 +4,7 @@ import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
+import me.darknet.assembler.parser.groups.attributes.DeprecatedGroup;
 import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
 import me.darknet.assembler.parser.groups.frame.FrameGroup;
 import me.darknet.assembler.parser.groups.instructions.*;
@@ -24,6 +25,11 @@ public class DelegatingMethodVisitor implements MethodGroupVisitor {
 	@Override
 	public void visitSignature(SignatureGroup signature) throws AssemblerException {
 		delegate.visitSignature(signature);
+	}
+
+	@Override
+	public void visitDeprecated(DeprecatedGroup deprecated) throws AssemblerException {
+		delegate.visitDeprecated(deprecated);
 	}
 
 	@Override

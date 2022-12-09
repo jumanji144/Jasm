@@ -7,6 +7,7 @@ import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
 import me.darknet.assembler.parser.groups.annotation.AnnotationParamGroup;
+import me.darknet.assembler.parser.groups.attributes.DeprecatedGroup;
 import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
 import me.darknet.assembler.parser.groups.frame.FrameEntryGroup;
 import me.darknet.assembler.parser.groups.frame.FrameGroup;
@@ -266,6 +267,11 @@ public class ASMBaseMethodVisitor implements MethodGroupVisitor {
     @Override
     public void visitExpr(ExprGroup expr) throws AssemblerException {
         throw new AssemblerException("Not implemented", expr.getStartLocation());
+    }
+
+    @Override
+    public void visitDeprecated(DeprecatedGroup deprecated) throws AssemblerException {
+        // not possible with ASM
     }
 
     @Override

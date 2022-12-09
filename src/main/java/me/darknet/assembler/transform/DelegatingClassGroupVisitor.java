@@ -5,6 +5,7 @@ import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
 import me.darknet.assembler.parser.groups.attributes.*;
 import me.darknet.assembler.parser.groups.module.ModuleGroup;
+import me.darknet.assembler.parser.groups.record.RecordGroup;
 
 public class DelegatingClassGroupVisitor implements ClassGroupVisitor{
 	private final ClassGroupVisitor delegate;
@@ -54,8 +55,18 @@ public class DelegatingClassGroupVisitor implements ClassGroupVisitor{
 	}
 
 	@Override
+	public void visitDeprecated(DeprecatedGroup deprecated) throws AssemblerException {
+		delegate.visitDeprecated(deprecated);
+	}
+
+	@Override
 	public void visitModule(ModuleGroup module) throws AssemblerException {
 		delegate.visitModule(module);
+	}
+
+	@Override
+	public void visitRecord(RecordGroup record) throws AssemblerException {
+		delegate.visitRecord(record);
 	}
 
 	@Override

@@ -9,6 +9,8 @@ import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
 import me.darknet.assembler.parser.groups.annotation.AnnotationParamGroup;
 import me.darknet.assembler.parser.groups.attributes.*;
 import me.darknet.assembler.parser.groups.module.*;
+import me.darknet.assembler.parser.groups.record.RecordComponentGroup;
+import me.darknet.assembler.parser.groups.record.RecordGroup;
 import me.darknet.assembler.transform.ClassGroupVisitor;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassVisitor;
@@ -16,6 +18,8 @@ import org.objectweb.asm.tree.*;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.objectweb.asm.Opcodes.ACC_DEPRECATED;
 
 @Getter
 @Setter
@@ -34,8 +38,13 @@ public class CachedClass implements ClassGroupVisitor {
 	private String sourceFile;
 	private ASMBaseVisitor asmBaseVisitor;
 	private ModuleNode moduleNode;
+	private List<RecordComponentNode> recordComponents = new ArrayList<>();
+	private boolean deprecated;
 
 	public void build(ClassVisitor cv) throws AssemblerException {
+		if(deprecated) {
+			access |= ACC_DEPRECATED;
+		}
 		cv.visit(version, access, type, signatureType, superType, implementedTypes.toArray(new String[0]));
 		for (AnnotationGroup annotation : annotations) {
 			String desc = annotation.getClassGroup().content();
@@ -59,6 +68,10 @@ public class CachedClass implements ClassGroupVisitor {
 			cv.visitPermittedSubclass(permittedSubclass);
 		if(moduleNode != null)
 			moduleNode.accept(cv);
+		// record components
+		for (RecordComponentNode recordComponent : recordComponents) {
+			cv.visitRecordComponent(recordComponent.name, recordComponent.descriptor, recordComponent.signature).visitEnd();
+		}
 	}
 
 	@Override
@@ -161,8 +174,30 @@ public class CachedClass implements ClassGroupVisitor {
 	}
 
 	@Override
+	public void visitRecord(RecordGroup record) throws AssemblerException {
+		List<RecordComponentNode> nodes = new ArrayList<>();
+		for (RecordComponentGroup component : record.getComponents()) {
+			String name = component.getIdentifier().content();
+			String desc = component.getDescriptor().content();
+			String signature = null;
+			for (AttributeGroup attribute : component.getAttributes()) {
+				if(attribute instanceof SignatureGroup) {
+					signature = ((SignatureGroup) attribute).getDescriptor().content();
+				}
+			}
+			nodes.add(new RecordComponentNode(name, desc, signature));
+		}
+		this.recordComponents = nodes;
+	}
+
+	@Override
 	public void visitPermittedSubclass(PermittedSubclassGroup permittedSubclass) throws AssemblerException {
 		this.permittedSubclass = permittedSubclass.getSubclass().content();
+	}
+
+	@Override
+	public void visitDeprecated(DeprecatedGroup deprecated) throws AssemblerException {
+		this.deprecated = true;
 	}
 
 	@Data

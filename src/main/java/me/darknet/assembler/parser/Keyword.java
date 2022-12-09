@@ -72,6 +72,9 @@ public enum Keyword {
 	KEYWORD_INVISIBLE_TYPE_ANNOTATION("invisible-type-annotation"),
 	KEYWORD_ENUM("annotation-enum"),
 	KEYWORD_SIGNATURE("signature"),
+	KEYWORD_DEPRECATED("deprecated"),
+	KEYWORD_RECORD("record"),
+	KEYWORD_RECORD_COMPONENT("component"),
 	KEYWORD_THROWS("throws"),
 	KEYWORD_EXPR("expr");
 

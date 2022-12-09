@@ -61,8 +61,10 @@ public class Transformer {
                     case NEST_MEMBER_DIRECTIVE:
                     case PERMITTED_SUBCLASS_DIRECTIVE:
                     case MODULE:
+                    case RECORD:
                     case THROWS:
                     case EXPR:
+                    case DEPRECATED:
                     case MACRO_DIRECTIVE:
                         break; // ignore
                     default:

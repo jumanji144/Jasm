@@ -4,6 +4,7 @@ import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.*;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
+import me.darknet.assembler.parser.groups.attributes.DeprecatedGroup;
 import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
 import me.darknet.assembler.parser.groups.frame.FrameGroup;
 import me.darknet.assembler.parser.groups.instructions.*;
@@ -21,8 +22,10 @@ public interface MethodGroupVisitor extends GroupVisitor {
             visitAnnotation((AnnotationGroup) group);
         } else if (group instanceof SignatureGroup) {
             visitSignature((SignatureGroup) group);
-        }  else if (group instanceof ThrowsGroup) {
+        } else if (group instanceof ThrowsGroup) {
             visitThrows((ThrowsGroup) group);
+        } else if (group instanceof DeprecatedGroup) {
+            visitDeprecated((DeprecatedGroup) group);
         }
     }
 
@@ -203,4 +206,11 @@ public interface MethodGroupVisitor extends GroupVisitor {
      * @throws AssemblerException if an error occurs
      */
     void visitExpr(ExprGroup expr) throws AssemblerException;
+
+    /**
+     * Visit a deprecated attribute
+     * @param deprecated the deprecated group
+     * @throws AssemblerException if an error occurs
+     */
+    void visitDeprecated(DeprecatedGroup deprecated) throws AssemblerException;
 }

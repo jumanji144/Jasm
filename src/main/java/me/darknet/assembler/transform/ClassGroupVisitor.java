@@ -4,6 +4,7 @@ import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
 import me.darknet.assembler.parser.groups.attributes.*;
 import me.darknet.assembler.parser.groups.module.ModuleGroup;
+import me.darknet.assembler.parser.groups.record.RecordGroup;
 
 public interface ClassGroupVisitor extends GroupVisitor {
 	/**
@@ -30,6 +31,10 @@ public interface ClassGroupVisitor extends GroupVisitor {
 			visitModule((ModuleGroup) group);
 		} else if (group instanceof PermittedSubclassGroup) {
 			visitPermittedSubclass((PermittedSubclassGroup) group);
+		} else if (group instanceof RecordGroup) {
+			visitRecord((RecordGroup) group);
+		} else if (group instanceof DeprecatedGroup) {
+			visitDeprecated((DeprecatedGroup) group);
 		}
 	}
 
@@ -90,9 +95,23 @@ public interface ClassGroupVisitor extends GroupVisitor {
 	void visitModule(ModuleGroup module) throws AssemblerException;
 
 	/**
+	 * Visit a record attribute
+	 * @param record the record group
+	 * @throws AssemblerException if an error occurs
+	 */
+	void visitRecord(RecordGroup record) throws AssemblerException;
+
+	/**
 	 * Visit a permitted subclass attribute
 	 * @param permittedSubclass the permitted subclass group
 	 * @throws AssemblerException if an error occurs
 	 */
 	void visitPermittedSubclass(PermittedSubclassGroup permittedSubclass) throws AssemblerException;
+
+	/**
+	 * Visit a deprecated attribute
+	 * @param deprecated the deprecated group
+	 * @throws AssemblerException if an error occurs
+	 */
+	void visitDeprecated(DeprecatedGroup deprecated) throws AssemblerException;
 }

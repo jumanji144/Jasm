@@ -2,6 +2,7 @@ package me.darknet.assembler.transform;
 
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
+import me.darknet.assembler.parser.groups.attributes.DeprecatedGroup;
 import me.darknet.assembler.parser.groups.attributes.FieldAttributeGroup;
 import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
 
@@ -16,6 +17,8 @@ public interface FieldGroupVisitor extends GroupVisitor {
 			visitAnnotation((AnnotationGroup) group);
 		} else if (group instanceof SignatureGroup) {
 			visitSignature((SignatureGroup) group);
+		} else if (group instanceof DeprecatedGroup) {
+			visitDeprecated((DeprecatedGroup) group);
 		}
 	}
 
@@ -32,4 +35,11 @@ public interface FieldGroupVisitor extends GroupVisitor {
 	 * @throws AssemblerException if an error occurs
 	 */
 	void visitSignature(SignatureGroup signature) throws AssemblerException;
+
+	/**
+	 * Visit a deprecated attribute
+	 * @param deprecated the deprecated group
+	 * @throws AssemblerException if an error occurs
+	 */
+	void visitDeprecated(DeprecatedGroup deprecated) throws AssemblerException;
 }

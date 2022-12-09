@@ -3,6 +3,7 @@ package me.darknet.assembler.transform;
 import me.darknet.assembler.exceptions.AssemblerException;
 import me.darknet.assembler.parser.Group;
 import me.darknet.assembler.parser.groups.annotation.AnnotationGroup;
+import me.darknet.assembler.parser.groups.attributes.DeprecatedGroup;
 import me.darknet.assembler.parser.groups.attributes.FieldAttributeGroup;
 import me.darknet.assembler.parser.groups.attributes.SignatureGroup;
 
@@ -21,6 +22,11 @@ public class DelegatingFieldGroupVisitor implements FieldGroupVisitor{
 	@Override
 	public void visitSignature(SignatureGroup signature) throws AssemblerException {
 		delegate.visitSignature(signature);
+	}
+
+	@Override
+	public void visitDeprecated(DeprecatedGroup deprecated) throws AssemblerException {
+		delegate.visitDeprecated(deprecated);
 	}
 
 	@Override

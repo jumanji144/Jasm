@@ -1,0 +1,6 @@
+record
+    component count I
+    signature Ljava/util/Collection<Ljava/lang/String;>;
+    component list Ljava/util/Collection;
+end
+class Record extends java/lang/Object

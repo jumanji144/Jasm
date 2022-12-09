@@ -22,6 +22,8 @@ import me.darknet.assembler.parser.groups.method.MethodParameterGroup;
 import me.darknet.assembler.parser.groups.method.MethodParametersGroup;
 import me.darknet.assembler.parser.groups.method.ThrowsGroup;
 import me.darknet.assembler.parser.groups.module.*;
+import me.darknet.assembler.parser.groups.record.RecordComponentGroup;
+import me.darknet.assembler.parser.groups.record.RecordGroup;
 import me.darknet.assembler.util.ArrayTypes;
 
 import java.util.ArrayList;
@@ -345,9 +347,15 @@ public class Parser {
             case KEYWORD_INNER_CLASS: {
                 return new InnerClassGroup(token, readAccess(ctx), ctx.explicitIdentifier(), ctx.explicitIdentifier(), ctx.explicitIdentifier());
             }
+            case KEYWORD_RECORD_COMPONENT: {
+                return new RecordComponentGroup(token, ctx.explicitIdentifier(), ctx.explicitIdentifier());
+            }
             case KEYWORD_EXPR: {
                 TextGroup text = ctx.nextGroup(GroupType.TEXT);
                 return new ExprGroup(token, text);
+            }
+            case KEYWORD_DEPRECATED: {
+                return new DeprecatedGroup(token);
             }
             case KEYWORD_FRAME_LOCALS: {
                 List<FrameEntryGroup> entries = new ArrayList<>();
@@ -395,6 +403,9 @@ public class Parser {
                         }
                     }
                 }
+            }
+            case KEYWORD_RECORD: {
+                return readRecord(token, ctx);
             }
 
             case KEYWORD_PUBLIC:
@@ -760,6 +771,33 @@ public class Parser {
                 throw new AssemblerException("Unknown frame type: " + type.content(), type.start().getLocation());
             }
         }
+    }
+
+    public RecordGroup readRecord(Token token, ParserContext ctx) throws AssemblerException {
+        if(!ctx.hasNextToken()) {
+            throw new AssemblerException("Expected record component", ctx.getCurrentLocation());
+        }
+        List<RecordComponentGroup> components = new ArrayList<>();
+        List<AttributeGroup> attributeBuffer = new ArrayList<>();
+        while (ctx.hasNextToken()) {
+            Group grp = ctx.parseNext();
+            if(grp.isType(GroupType.END_BODY)) {
+                return new RecordGroup(token, components);
+            } else if(grp instanceof AttributeGroup) {
+                attributeBuffer.add((AttributeGroup) grp);
+            } else if(grp.isType(GroupType.RECORD_COMPONENT)) {
+                RecordComponentGroup component = (RecordComponentGroup) grp;
+                for (AttributeGroup attributeGroup : attributeBuffer) {
+                    component.addAttribute(attributeGroup);
+                }
+                attributeBuffer.clear();
+                components.add(component);
+            } else {
+                throw new UnexpectedGroupException(ctx.getCurrentLocation(), grp.getType(),
+                        GroupType.RECORD_COMPONENT, GroupType.END_BODY, GroupType.ATTRIBUTE);
+            }
+        }
+        throw new AssemblerException("Expected 'end' keyword", ctx.previousGroup().getStartLocation());
     }
 
     private <T extends Group> T wrap(ParserContext ctx, T group) {

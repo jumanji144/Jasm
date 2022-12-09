@@ -1,0 +1,10 @@
+deprecated
+class Deprecated extends java/lang/Object
+
+deprecated
+field public number I
+
+deprecated
+method public static main ([Ljava/lang/String; args)V
+    return
+end
