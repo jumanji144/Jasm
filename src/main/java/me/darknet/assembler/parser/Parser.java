@@ -214,7 +214,8 @@ public class Parser {
                                         GroupType.LOOKUP_SWITCH,
                                         GroupType.LABEL,
                                         GroupType.CATCH,
-                                        GroupType.FRAME));
+                                        GroupType.FRAME,
+                                        GroupType.EXPR));
                     }
                     IdentifierGroup desc = ctx.explicitIdentifier();
                     next = ctx.peekTokenSilent();
@@ -234,7 +235,8 @@ public class Parser {
                                         GroupType.LOOKUP_SWITCH,
                                         GroupType.LABEL,
                                         GroupType.CATCH,
-                                        GroupType.FRAME));
+                                        GroupType.FRAME,
+                                        GroupType.EXPR));
 
                     }
                     IdentifierGroup paramName = ctx.explicitIdentifier();

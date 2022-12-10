@@ -1,0 +1,5 @@
+class public Expression extends java/lang/Object
+
+method public static main ([Ljava/lang/String; args)V
+    expr System.out.println("Hello, World!"); end
+end

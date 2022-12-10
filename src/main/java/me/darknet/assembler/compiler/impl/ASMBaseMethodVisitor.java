@@ -266,7 +266,7 @@ public class ASMBaseMethodVisitor implements MethodGroupVisitor {
 
     @Override
     public void visitExpr(ExprGroup expr) throws AssemblerException {
-        throw new AssemblerException("Not implemented", expr.getStartLocation());
+        System.err.println("Expressions are not implemented");
     }
 
     @Override
