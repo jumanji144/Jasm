@@ -1,9 +1,11 @@
 package me.darknet.assembler.error;
 
-import me.darknet.assembler.error.ErrorCollector;
-
 import java.util.List;
 
+/**
+ * Represents a result of an operation that can fail.
+ * @param <T> The type of the value.
+ */
 public class Result<T> {
 
 	private final T value;
@@ -22,10 +24,17 @@ public class Result<T> {
 		return value;
 	}
 
+	/**
+	 * @return true if the result is ok, false if there are one or more errors.
+	 * @see #isErr()
+	 */
 	public boolean isOk() {
 		return !isErr();
 	}
 
+	/**
+	 * @return true if the result is an error, false if there are no errors.
+	 */
 	public boolean isErr() {
 		return !errors.isEmpty();
 	}

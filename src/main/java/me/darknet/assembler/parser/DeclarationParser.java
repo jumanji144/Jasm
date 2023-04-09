@@ -9,15 +9,185 @@ import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
+/**
+ * Parser for parsing generic structures from tokens to ast elements.
+ * @see me.darknet.assembler.ast.primitive
+ */
 public class DeclarationParser {
+
+	private ParserContext ctx;
+
+	/**
+	 * Parse all declarations from the given tokens, this will only try to parse declarations.
+	 * Result for this method will always be a list of {@link ASTDeclaration} or null if parsing that element failed.
+	 * @param tokens the tokens to parse
+	 * @return {@link Result} of the parsing
+	 */
+	public Result<List<@Nullable ASTDeclaration>> parseDeclarations(Collection<Token> tokens) {
+		this.ctx = new ParserContext(this, new ArrayDeque<>(tokens));
+		List<ASTDeclaration> declarations = new ArrayList<>();
+		while (!this.ctx.tokens.isEmpty()) {
+			declarations.add(parseDeclaration(false));
+		}
+		return new Result<>(declarations, ctx.errorCollector.getErrors());
+	}
+
+	/**
+	 * Parse any element from the given tokens, this will try to parse any element.
+	 * Results for this method can only include objects from {@link me.darknet.assembler.ast.primitive} and
+	 * {@link me.darknet.assembler.ast.specific.ASTDeclaration}
+	 * @param tokens the tokens to parse
+	 * @return {@link Result} of the parsing
+	 */
+	public Result<List<@Nullable ASTElement>> parseAny(Collection<Token> tokens) {
+		this.ctx = new ParserContext(this, new ArrayDeque<>(tokens));
+		List<ASTElement> result = new ArrayList<>();
+		while (!ctx.tokens.isEmpty()) {
+			ASTElement element = parse();
+			result.add(element);
+		}
+		return new Result<>(result, ctx.errorCollector.getErrors());
+	}
+
+	private @Nullable ASTElement parse() {
+		Token token = ctx.peek();
+
+		switch (token.getType()) {
+			case IDENTIFIER: {
+				String content = token.getContent();
+				if(content.charAt(0) == '.') {
+					// begin of declaration
+					return parseDeclaration(false);
+				} else return new ASTIdentifier(ctx.takeAny());
+			}
+			case NUMBER: {
+				return new ASTNumber(ctx.takeAny());
+			}
+			case STRING: {
+				return new ASTString(ctx.takeAny());
+			}
+			case OPERATOR: {
+				char operator = token.getContent().charAt(0);
+				switch (operator) {
+					case '[': {
+						return parseArray();
+					}
+					case '{': {
+						Token next = ctx.peek(1);
+						if(next == null) {
+							ctx.throwEofError("identifier");
+							return null;
+						}
+						if(next.getType().equals(TokenType.OPERATOR)) {
+							if(next.getContent().equals("}")) { // empty object
+								return parseObject();
+							}
+						}
+						if(next.getType() != TokenType.IDENTIFIER) {
+							ctx.throwExpectedError("identifier", next.getContent());
+						}
+						if(next.getContent().startsWith(".")) {
+							return parseNestedDeclaration();
+						}
+						return parseObject();
+					}
+					default: {
+						ctx.throwExpectedError("[, {", token.getContent());
+					}
+				}
+			}
+			default: {
+				ctx.errorCollector.addError(new Error(
+						"Unexpected token " + token.getContent(),
+						token.getLocation()));
+			}
+		}
+		return null;
+	}
+
+	private ASTArray parseArray() {
+		if(ctx.take("[") == null) return null;
+		List<ASTElement> elements = new ArrayList<>();
+		Token peek = ctx.peek();
+		while(!peek.getContent().equals("]")) {
+			elements.add(parse());
+			peek = ctx.peek();
+			if(peek == null) {
+				ctx.throwEofError(", or ]");
+				return null;
+			}
+			if(!peek.getContent().equals("]")) {
+				if(ctx.take(",") == null) return null;
+			}
+		}
+		ctx.take("]");
+		return new ASTArray(elements);
+	}
+
+	private ASTObject parseObject() {
+		if(ctx.take("{") == null) return null;
+		ElementMap<ASTIdentifier, ASTElement> elements = new ElementMap<>();
+		Token peek = ctx.peek();
+		while(!peek.getContent().equals("}")) {
+			ASTIdentifier identifier = ctx.parseElement(ElementType.IDENTIFIER);
+			if(identifier == null) return null;
+			if(ctx.take(":") == null) return null;
+			ASTElement element = parse();
+			if(element == null) return null;
+			elements.put(identifier, element);
+			peek = ctx.peek();
+			if(peek == null) {
+				ctx.throwEofError(", or }");
+				return null;
+			}
+			if(!peek.getContent().equals("}")) {
+				if(ctx.take(",") == null) return null;
+			}
+		}
+		ctx.take("}");
+		return new ASTObject(elements);
+	}
+
+	private ASTDeclaration parseDeclaration(boolean inNestedDeclaration) {
+		ASTIdentifier identifier = new ASTIdentifier(ctx.takeAny());
+		if(identifier.getContent().charAt(0) != '.') {
+			ctx.throwExpectedError("identifier starting with '.'", identifier.getContent());
+			return null;
+		}
+		Token peek = ctx.peek();
+		List<ASTElement> elements = new ArrayList<>();
+		while (!peek.getContent().startsWith(".") && !(inNestedDeclaration && peek.getContent().equals("}"))) {
+			elements.add(parse());
+			peek = ctx.peek();
+			if(peek == null) break; // declarations are the top level elements, so we can just stop here
+		}
+		return new ASTDeclaration(identifier, elements);
+	}
+
+	private ASTDeclaration parseNestedDeclaration() {
+		if(ctx.take("{") == null) return null;
+		Token peek = ctx.peek();
+		List<ASTElement> elements = new ArrayList<>();
+		while(!peek.getContent().equals("}")) {
+			elements.add(parseDeclaration(true));
+			peek = ctx.peek();
+			if(peek == null) {
+				ctx.throwEofError("} or declaration");
+				return null;
+			}
+		}
+		ctx.take("}");
+		return new ASTDeclaration(null, elements);
+	}
 
 	private static class ParserContext {
 
-		private DeclarationParser parser;
-		private Queue<Token> tokens;
+		private final DeclarationParser parser;
+		private final Queue<Token> tokens;
 		private Token latest;
 		private final ErrorCollector errorCollector = new ErrorCollector();
 
@@ -124,158 +294,6 @@ public class DeclarationParser {
 					latest.getLocation()));
 		}
 
-	}
-
-	private ParserContext ctx;
-
-	public Result<List<ASTDeclaration>> parseDeclarations(Collection<Token> tokens) {
-		this.ctx = new ParserContext(this, new ArrayDeque<>(tokens));
-		List<ASTDeclaration> declarations = new ArrayList<>();
-		while(!this.ctx.tokens.isEmpty()) {
-			declarations.add(parseDeclaration(false));
-		}
-		return new Result<>(declarations, ctx.errorCollector.getErrors());
-	}
-
-	public ASTElement parse() {
-		Token token = ctx.peek();
-
-		switch (token.getType()) {
-			case IDENTIFIER: {
-				String content = token.getContent();
-				if(content.charAt(0) == '.') {
-					// begin of declaration
-					return parseDeclaration(false);
-				} else return new ASTIdentifier(ctx.takeAny());
-			}
-			case NUMBER: {
-				return new ASTNumber(ctx.takeAny());
-			}
-			case STRING: {
-				return new ASTString(ctx.takeAny());
-			}
-			case OPERATOR: {
-				char operator = token.getContent().charAt(0);
-				switch (operator) {
-					case '[': {
-						return parseArray();
-					}
-					case '{': {
-						Token next = ctx.peek(1);
-						if(next == null) {
-							ctx.throwEofError("identifier");
-							return null;
-						}
-						if(next.getType().equals(TokenType.OPERATOR)) {
-							if(next.getContent().equals("}")) { // empty object
-								return parseObject();
-							}
-						}
-						if(next.getType() != TokenType.IDENTIFIER) {
-							ctx.throwExpectedError("identifier", next.getContent());
-						}
-						if(next.getContent().startsWith(".")) {
-							return parseNestedDeclaration();
-						}
-						return parseObject();
-					}
-					default: {
-						ctx.throwExpectedError("[, {", token.getContent());
-					}
-				}
-			}
-			default: {
-				ctx.errorCollector.addError(new Error(
-						"Unexpected token " + token.getContent(),
-						token.getLocation()));
-			}
-		}
-		return null;
-	}
-
-	public Result<List<ASTElement>> parseAny(Collection<Token> tokens) {
-		this.ctx = new ParserContext(this, new ArrayDeque<>(tokens));
-		List<ASTElement> result = new ArrayList<>();
-		while (!ctx.tokens.isEmpty()) {
-			ASTElement element = parse();
-			result.add(element);
-		}
-		return new Result<>(result, ctx.errorCollector.getErrors());
-	}
-
-	public ASTArray parseArray() {
-		if(ctx.take("[") == null) return null;
-		List<ASTElement> elements = new ArrayList<>();
-		Token peek = ctx.peek();
-		while(!peek.getContent().equals("]")) {
-			elements.add(parse());
-			peek = ctx.peek();
-			if(peek == null) {
-				ctx.throwEofError(", or ]");
-				return null;
-			}
-			if(!peek.getContent().equals("]")) {
-				if(ctx.take(",") == null) return null;
-			}
-		}
-		ctx.take("]");
-		return new ASTArray(elements);
-	}
-
-	public ASTObject parseObject() {
-		if(ctx.take("{") == null) return null;
-		ElementMap<ASTIdentifier, ASTElement> elements = new ElementMap<>();
-		Token peek = ctx.peek();
-		while(!peek.getContent().equals("}")) {
-			ASTIdentifier identifier = ctx.parseElement(ElementType.IDENTIFIER);
-			if(identifier == null) return null;
-			if(ctx.take(":") == null) return null;
-			ASTElement element = parse();
-			if(element == null) return null;
-			elements.put(identifier, element);
-			peek = ctx.peek();
-			if(peek == null) {
-				ctx.throwEofError(", or }");
-				return null;
-			}
-			if(!peek.getContent().equals("}")) {
-				if(ctx.take(",") == null) return null;
-			}
-		}
-		ctx.take("}");
-		return new ASTObject(elements);
-	}
-
-	public ASTDeclaration parseDeclaration(boolean inNestedDeclaration) {
-		ASTIdentifier identifier = new ASTIdentifier(ctx.takeAny());
-		if(identifier.getContent().charAt(0) != '.') {
-			ctx.throwExpectedError("identifier starting with '.'", identifier.getContent());
-			return null;
-		}
-		Token peek = ctx.peek();
-		List<ASTElement> elements = new ArrayList<>();
-		while (!peek.getContent().startsWith(".") && !(inNestedDeclaration && peek.getContent().equals("}"))) {
-			elements.add(parse());
-			peek = ctx.peek();
-			if(peek == null) break; // declarations are the top level elements, so we can just stop here
-		}
-		return new ASTDeclaration(identifier, elements);
-	}
-
-	public ASTDeclaration parseNestedDeclaration() {
-		if(ctx.take("{") == null) return null;
-		Token peek = ctx.peek();
-		List<ASTElement> elements = new ArrayList<>();
-		while(!peek.getContent().equals("}")) {
-			elements.add(parseDeclaration(true));
-			peek = ctx.peek();
-			if(peek == null) {
-				ctx.throwEofError("} or declaration");
-				return null;
-			}
-		}
-		ctx.take("}");
-		return new ASTDeclaration(null, elements);
 	}
 
 }

@@ -3,6 +3,9 @@ package me.darknet.assembler.error;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Collector for errors.
+ */
 public class ErrorCollector {
 
 	private final List<Error> errors = new ArrayList<>();

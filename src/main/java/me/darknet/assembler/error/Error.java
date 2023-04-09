@@ -2,6 +2,9 @@ package me.darknet.assembler.error;
 
 import me.darknet.assembler.util.Location;
 
+/**
+ * Represents an error at a location.
+ */
 public class Error {
 
 	private final String message;

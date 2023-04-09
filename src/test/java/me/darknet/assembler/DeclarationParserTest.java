@@ -9,6 +9,7 @@ import me.darknet.assembler.parser.DeclarationParser;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.Tokenizer;
 import me.darknet.assembler.util.Location;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -62,7 +63,7 @@ public class DeclarationParserTest {
 			ASTIdentifier key = object.getValues().getKey("test");
 			assertNotNull(key);
 			ASTElement value = object.getValues().get("test");
-			assertInstanceOf(ASTNumber.class, value);
+			assertIs(ASTNumber.class, value);
 			assertEquals("10", value.getContent());
 		});
 	}
@@ -89,8 +90,7 @@ public class DeclarationParserTest {
 	public void testArrayInObject() {
 		assertOne("{test: [10, test, \"Hello\", {test: 10}]}", ASTObject.class, (result) -> {
 			ASTElement element = result.getValues().get("test");
-			assertInstanceOf(ASTArray.class, element);
-			ASTArray array = (ASTArray) element;
+			ASTArray array = assertIs(ASTArray.class, element);
 			List<ASTElement> elements = array.getValues();
 			assertEquals(4, elements.size());
 			assertInstanceOf(ASTNumber.class, elements.get(0));
@@ -141,6 +141,7 @@ public class DeclarationParserTest {
 	@Test
 	public void testNestedDeclaration() {
 		assertOne(".class public final HelloWorld { .field public name I .field public output I }", ASTDeclaration.class, (result) -> {
+			assertNotNull(result);
 			assertEquals(".class", result.getKeyword().getContent());
 			assertEquals(4, result.getElements().size());
 			ASTElement value = result.getElements().get(0);
@@ -171,7 +172,7 @@ public class DeclarationParserTest {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> T assertIs(Class<T> shouldBe, Object is) {
+	public static <T> @NotNull T assertIs(Class<T> shouldBe, Object is) {
 		assertNotNull(is);
 		assertInstanceOf(shouldBe, is);
 		return (T) is;
@@ -182,6 +183,7 @@ public class DeclarationParserTest {
 		parseString(input, (result) -> {
 			assertEquals(1, result.size());
 			ASTElement element = result.get(0);
+			assertNotNull(element);
 			assertInstanceOf(clazz, element);
 			consumer.accept((T) element);
 		});
