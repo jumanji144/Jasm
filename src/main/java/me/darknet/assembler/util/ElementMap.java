@@ -5,6 +5,11 @@ import me.darknet.assembler.ast.ASTElement;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Map for AST elements, indexable by String and integer.
+ * @param <A> The key type.
+ * @param <B> The value type.
+ */
 public class ElementMap<A extends ASTElement, B extends ASTElement> {
 
 	public static <A extends ASTElement, B extends ASTElement> ElementMap<A, B> empty() {

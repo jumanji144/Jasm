@@ -2,6 +2,7 @@ package me.darknet.assembler.parser;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
+import me.darknet.assembler.ast.specific.ASTCode;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.ast.specific.ASTDeclaration;
@@ -77,6 +78,9 @@ public class DeclarationParser {
 						return parseArray();
 					}
 					case '{': {
+						if(token.getContent().equals(".code")) {
+							return parseCode();
+						}
 						Token next = ctx.peek(1);
 						if(next == null) {
 							ctx.throwEofError("identifier");
@@ -88,7 +92,10 @@ public class DeclarationParser {
 							}
 						}
 						if(next.getType() != TokenType.IDENTIFIER) {
+							ctx.takeAny();
+							ctx.takeAny();
 							ctx.throwExpectedError("identifier", next.getContent());
+							return null;
 						}
 						if(next.getContent().startsWith(".")) {
 							return parseNestedDeclaration();
@@ -96,6 +103,7 @@ public class DeclarationParser {
 						return parseObject();
 					}
 					default: {
+						ctx.takeAny();
 						ctx.throwExpectedError("[, {", token.getContent());
 					}
 				}
@@ -137,7 +145,10 @@ public class DeclarationParser {
 			if(identifier == null) return null;
 			if(ctx.take(":") == null) return null;
 			ASTElement element = parse();
-			if(element == null) return null;
+			if(element == null) {
+				ctx.throwExpectedError("element", peek.getContent());
+				return null;
+			}
 			elements.put(identifier, element);
 			peek = ctx.peek();
 			if(peek == null) {
@@ -184,6 +195,12 @@ public class DeclarationParser {
 		return new ASTDeclaration(null, elements);
 	}
 
+	private ASTCode parseCode() {
+		if(ctx.take(".code") == null) return null;
+		if(ctx.take("{") == null) return null;
+		return null;
+	}
+
 	private static class ParserContext {
 
 		private final DeclarationParser parser;
@@ -198,7 +215,8 @@ public class DeclarationParser {
 		}
 
 		private Token next() {
-			return tokens.poll();
+			latest = tokens.poll();
+			return latest;
 		}
 
 		private Token peek() {
@@ -228,7 +246,6 @@ public class DeclarationParser {
 				return null;
 			}
 			Token token = next();
-			latest = token;
 			if(token.getContent().equals(exact)) {
 				return token;
 			} else {
@@ -243,7 +260,6 @@ public class DeclarationParser {
 				return null;
 			}
 			Token token = next();
-			latest = token;
 			return token;
 		}
 
@@ -275,12 +291,12 @@ public class DeclarationParser {
 		public void throwEofError(String expected) {
 			if(latest == null) {
 				errorCollector.addError(new Error(
-						"Expected " + expected + " but got EOF",
-						new Location(0, 0, "")));
+						"Expected '" + expected + "' but got EOF",
+						new Location(-1, -1, "")));
 				return;
 			}
 			errorCollector.addError(new Error(
-					"Expected " + expected + " but got EOF",
+					"Expected '" + expected + "' but got EOF",
 					latest.getLocation()));
 		}
 
@@ -290,7 +306,7 @@ public class DeclarationParser {
 				return;
 			}
 			errorCollector.addError(new Error(
-					"Expected " + expected + " but got " + got,
+					"Expected '" + expected + "' but got '" + got + "'",
 					latest.getLocation()));
 		}
 

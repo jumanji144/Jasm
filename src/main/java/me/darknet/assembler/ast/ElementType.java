@@ -8,5 +8,6 @@ public enum ElementType {
 	IDENTIFIER,
 	STRING,
 	NUMBER,
+	CODE
 
 }

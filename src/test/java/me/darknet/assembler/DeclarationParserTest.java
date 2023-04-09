@@ -171,6 +171,16 @@ public class DeclarationParserTest {
 		});
 	}
 
+	@Test
+	public void testInvalidInput() {
+		DeclarationParser parser = new DeclarationParser();
+		Tokenizer tokenizer = new Tokenizer();
+		List<Token> tokens = tokenizer.tokenize("<stdin>", "{ test, 4.... { ]");
+		Result<List<ASTElement>> result = parser.parseAny(tokens);
+		assertTrue(result.isErr());
+		assertEquals(2, result.getErrors().size());
+	}
+
 	@SuppressWarnings("unchecked")
 	public static <T> @NotNull T assertIs(Class<T> shouldBe, Object is) {
 		assertNotNull(is);

@@ -14,7 +14,8 @@ public class Tokenizer {
 
 	private static class TokenizerContext {
 
-		private int line, column = 1;
+		private int line = 1;
+		private int column = 1;
 		private int index;
 		private boolean inString;
 		private StringBuffer buffer;
