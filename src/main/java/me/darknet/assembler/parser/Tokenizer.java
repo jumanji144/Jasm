@@ -18,6 +18,7 @@ public class Tokenizer {
 		private int column = 1;
 		private int index;
 		private boolean inString;
+		private boolean inComment;
 		private StringBuffer buffer;
 		private List<Token> tokens = new ArrayList<>();
 
@@ -148,7 +149,16 @@ public class Tokenizer {
 		int length = input.length();
 		while (ctx.index < length) {
 			char c = input.charAt(ctx.index);
-			if(ctx.isString()) {
+			if(ctx.inComment) {
+				if(c == '\n') {
+					ctx.collectToken();
+					ctx.inComment = false;
+					ctx.nextLine();
+					ctx.index++;
+					continue;
+				}
+			}
+ 			if(ctx.isString()) {
 				switch (c) {
 					case '"':
 						ctx.collectToken();
@@ -173,7 +183,11 @@ public class Tokenizer {
 				}
 				ctx.index++;
 			} else {
-				if(c == '"') {
+				if(c == ';' && input.charAt(ctx.index + 1) == ';') {
+					ctx.index++;
+					ctx.index++;
+					ctx.inComment = true;
+				} else if(c == '"') {
 					ctx.index++;
 					ctx.inString = true;
 				} else if(isOperator(c)) {

@@ -4,11 +4,10 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.parser.Token;
 
-public class ASTNumber extends ASTElement {
+public class ASTNumber extends ASTLiteral {
 
 	public ASTNumber(Token number) {
-		super(ElementType.NUMBER);
-		this.value = number;
+		super(ElementType.NUMBER, number);
 	}
 
 	public Number getNumber() {

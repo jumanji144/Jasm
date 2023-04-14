@@ -139,8 +139,22 @@ public class DeclarationParserTest {
 	}
 
 	@Test
+	public void testDeclarationInObject() {
+		assertOne("{test: .sourcefile \"Source.java\"}", ASTObject.class, (result) -> {
+			ASTElement element = result.getValues().get("test");
+			ASTDeclaration declaration = assertIs(ASTDeclaration.class, element);
+			assertEquals(".sourcefile", declaration.getKeyword().getContent());
+			ASTElement value = declaration.getElements().get(0);
+			assertNotNull(value);
+			assertInstanceOf(ASTString.class, value);
+			assertEquals("Source.java", value.getContent());
+		});
+	}
+
+	@Test
 	public void testNestedDeclaration() {
-		assertOne(".class public final HelloWorld { .field public name I .field public output I }", ASTDeclaration.class, (result) -> {
+		assertOne(".class public final HelloWorld { .field public name Ljava/lang/String; .field public output I }",
+				ASTDeclaration.class, (result) -> {
 			assertNotNull(result);
 			assertEquals(".class", result.getKeyword().getContent());
 			assertEquals(4, result.getElements().size());
@@ -161,7 +175,7 @@ public class DeclarationParserTest {
 			assertEquals(3, field1.getElements().size());
 			assertEquals("public", field1.getElements().get(0).getContent());
 			assertEquals("name", field1.getElements().get(1).getContent());
-			assertEquals("I", field1.getElements().get(2).getContent());
+			assertEquals("Ljava/lang/String;", field1.getElements().get(2).getContent());
 			ASTDeclaration field2 = assertIs(ASTDeclaration.class, declaration.getElements().get(1));
 			assertEquals(".field", field2.getKeyword().getContent());
 			assertEquals(3, field2.getElements().size());

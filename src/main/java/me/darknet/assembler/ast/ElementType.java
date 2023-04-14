@@ -8,6 +8,8 @@ public enum ElementType {
 	IDENTIFIER,
 	STRING,
 	NUMBER,
-	CODE
+	CODE,
+	CODE_INSTRUCTION,
+	COMMENT
 
 }

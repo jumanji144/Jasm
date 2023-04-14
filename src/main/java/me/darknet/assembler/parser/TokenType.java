@@ -6,5 +6,6 @@ public enum TokenType {
 	STRING,
 	IDENTIFIER,
 	OPERATOR,
+	COMMENT
 
 }
