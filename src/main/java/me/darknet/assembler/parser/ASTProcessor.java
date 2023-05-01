@@ -93,17 +93,17 @@ public class ASTProcessor {
 		ASTElement last = elements.get(lastIndex);
 		ASTValue value = null;
 		if(last instanceof ASTObject) {
-			descIndex = lastIndex - 1;
+			descIndex = lastIndex - 1; // if there is a value name and descriptor will be pushed back
 			nameIndex = lastIndex - 2;
 			ASTObject obj = (ASTObject) last;
 			ASTElement elem = obj.getValues().get("value");
 			if(!(elem instanceof ASTValue) || obj.getValues().size() != 1) {
-				ctx.throwUnexpectedElementError("field value", elem);
+				ctx.throwUnexpectedElementError("field value", elem == null ? last : elem);
 				return null;
 			}
 			value = (ASTValue) elem;
 		} else if (!(last instanceof ASTIdentifier)) {
-			ctx.throwUnexpectedElementError("field descriptor or field value", last);
+			ctx.throwUnexpectedElementError("field descriptor or field value", last == null ? declaration : last);
 			return null;
 		}
 		ASTIdentifier desc = ctx.validateIdentifier(elements.get(descIndex), "field descriptor", declaration);
