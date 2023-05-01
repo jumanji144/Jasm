@@ -2,14 +2,13 @@ package me.darknet.assembler.parser;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
-import me.darknet.assembler.ast.specific.ASTCode;
-import me.darknet.assembler.ast.specific.ASTComment;
-import me.darknet.assembler.ast.specific.ASTInstruction;
+import me.darknet.assembler.ast.primitive.ASTCode;
+import me.darknet.assembler.ast.primitive.ASTComment;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.ast.primitive.*;
-import me.darknet.assembler.ast.specific.ASTDeclaration;
+import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.error.ErrorCollector;
-import me.darknet.assembler.error.Result;
 import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Pair;
@@ -31,10 +30,10 @@ public class DeclarationParser {
 	 * @param tokens the tokens to parse
 	 * @return {@link ParsingResult} of the parsing
 	 */
-	public ParsingResult<List<@Nullable ASTDeclaration>> parseDeclarations(Collection<Token> tokens) {
+	public ParsingResult<List<@Nullable ASTElement>> parseDeclarations(Collection<Token> tokens) {
 		Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
 		this.ctx = new ParserContext(this, new ArrayDeque<>(filtered.getSecond()));
-		List<ASTDeclaration> declarations = new ArrayList<>();
+		List<ASTElement> declarations = new ArrayList<>();
 		while (!this.ctx.tokens.isEmpty()) {
 			declarations.add(parseDeclaration());
 		}
@@ -44,7 +43,7 @@ public class DeclarationParser {
 	/**
 	 * Parse any element from the given tokens, this will try to parse any element.
 	 * Results for this method can only include objects from {@link me.darknet.assembler.ast.primitive} and
-	 * {@link me.darknet.assembler.ast.specific.ASTDeclaration}
+	 * {@link ASTDeclaration}
 	 * @param tokens the tokens to parse
 	 * @return {@link ParsingResult} of the parsing
 	 */
@@ -198,7 +197,7 @@ public class DeclarationParser {
 			elements.add(parse());
 			peek = ctx.peek();
 			if(peek == null) break; // declarations are the top level elements, so we can just stop here
-			if(state == State.IN_NESTED_DECLARATION&& peek.getContent().equals("}")) {
+			if(state == State.IN_NESTED_DECLARATION && peek.getContent().equals("}")) {
 				break;
 			}
 			if(state == State.IN_OBJECT) {

@@ -2,9 +2,10 @@ package me.darknet.assembler.ast.primitive;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
+import me.darknet.assembler.ast.specific.ASTValue;
 import me.darknet.assembler.parser.Token;
 
-public class ASTNumber extends ASTLiteral {
+public class ASTNumber extends ASTValue {
 
 	public ASTNumber(Token number) {
 		super(ElementType.NUMBER, number);

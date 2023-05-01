@@ -1,6 +1,6 @@
 package me.darknet.assembler.parser;
 
-import me.darknet.assembler.ast.specific.ASTComment;
+import me.darknet.assembler.ast.primitive.ASTComment;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.error.Error;
 

@@ -1,4 +1,4 @@
-package me.darknet.assembler.ast.specific;
+package me.darknet.assembler.ast.primitive;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
@@ -20,6 +20,11 @@ public class ASTDeclaration extends ASTElement {
 
 	public ASTDeclaration(ASTIdentifier keyword, List<@Nullable ASTElement> elements) {
 		super(ElementType.DECLARATION, CollectionUtil.merge(elements, keyword));
+		if(keyword == null) {
+			this.value = elements.get(0).getValue();
+		} else {
+			this.value = keyword.getValue();
+		}
 		this.keyword = keyword;
 		this.elements = elements;
 	}

@@ -1,8 +1,10 @@
 package me.darknet.assembler.util;
 
 import me.darknet.assembler.ast.ASTElement;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -28,7 +30,7 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T extends B> T get(String content) {
+	public <T extends B> @Nullable T get(String content) {
 		for (Pair<A, B> pair : values) {
 			if (pair.getFirst().getContent().equals(content)) {
 				return (T) pair.getSecond();
@@ -48,6 +50,23 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
 			}
 		}
 		return null;
+	}
+
+	public Pair<A, B> getPair(int index) {
+		return values.get(index);
+	}
+
+	public Collection<Pair<A, B>> getPairs() {
+		return values;
+	}
+
+	public boolean containsKey(String content) {
+		for (Pair<A, B> pair : values) {
+			if (pair.getFirst().getContent().equals(content)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public List<ASTElement> getElements() {

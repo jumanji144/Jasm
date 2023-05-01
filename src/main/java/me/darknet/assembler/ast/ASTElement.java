@@ -1,6 +1,7 @@
 package me.darknet.assembler.ast;
 
 import me.darknet.assembler.parser.Token;
+import me.darknet.assembler.util.Location;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,5 +51,20 @@ public class ASTElement {
 
 	public List<ASTElement> getChildren() {
 		return children;
+	}
+
+	public Location getLocation() {
+		if(value == null) {
+			// go through children
+			for (ASTElement child : children) {
+				Location location = child.getLocation();
+				if(location != null) {
+					return location;
+				}
+			}
+		} else {
+			return value.getLocation();
+		}
+		return null;
 	}
 }
