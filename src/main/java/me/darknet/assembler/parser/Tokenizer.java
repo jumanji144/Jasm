@@ -9,7 +9,7 @@ import java.util.List;
 public class Tokenizer {
 
 	public static boolean isOperator(char c) {
-		return c == '{' || c == '}' || c == '[' || c == ']' || c == ':' || c == ',';
+		return c == '{' || c == '}' || c == ':' || c == ',';
 	}
 
 	private static class TokenizerContext {

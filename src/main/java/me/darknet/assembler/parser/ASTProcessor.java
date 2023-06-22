@@ -3,10 +3,7 @@ package me.darknet.assembler.parser;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.*;
-import me.darknet.assembler.ast.specific.ASTAnnotation;
-import me.darknet.assembler.ast.specific.ASTClass;
-import me.darknet.assembler.ast.specific.ASTField;
-import me.darknet.assembler.ast.specific.ASTValue;
+import me.darknet.assembler.ast.specific.*;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.error.Result;
@@ -113,9 +110,40 @@ public class ASTProcessor {
 		return new ASTField(modifiers, name, desc, attributes.annotations, attributes.signature, value);
 	}
 
+	private static ASTMethod parseMethod(ParserContext ctx, ASTDeclaration declaration) {
+		List<@Nullable ASTElement> elements = declaration.getElements();
+		if(elements.size() < 3) {
+			ctx.throwError("Expected method name, descriptor and body", declaration.getLocation());
+			return null;
+		}
+		int lastIndex = elements.size() - 1;
+		ASTObject body = ctx.validateEmptyableElement(elements.get(lastIndex), ElementType.OBJECT, "method body", declaration);
+	    if(body == null) return null;
+		List<ASTIdentifier> parameters = Collections.emptyList();
+		if(body.getValues().containsKey("parameters")) {
+			ASTArray array = ctx.validateEmptyableElement(body.getValues().get("parameters"), ElementType.ARRAY,
+					"method parameters", declaration);
+			if(array != null)
+				parameters = ctx.validateArray(array, ElementType.IDENTIFIER, "method parameter", declaration);
+		}
+	    ASTCode code = null;
+		if(body.getValues().containsKey("code")) {
+			code = ctx.validateEmptyableElement(body.getValues().get("code"), ElementType.CODE,
+					"method code", declaration);
+		}
+		int nameIndex = lastIndex - 2;
+		int descIndex = lastIndex - 1;
+		ASTIdentifier name = ctx.validateIdentifier(elements.get(nameIndex), "method name", declaration);
+		ASTIdentifier desc = ctx.validateIdentifier(elements.get(descIndex), "method descriptor", declaration);
+		Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
+		Attributes attributes = ctx.collectAttributes();
+		return new ASTMethod(modifiers, name, desc, attributes.signature, attributes.annotations, parameters, code);
+	}
+
 	static {
 		ParserRegistry.register("class", ASTProcessor::parseClass);
 		ParserRegistry.register("field", ASTProcessor::parseField);
+		ParserRegistry.register("method", ASTProcessor::parseMethod);
 		ParserRegistry.register("signature", (ctx, decl) -> {
 			ctx.addSignature(ctx.validateElement(decl.getElements().get(0), ElementType.IDENTIFIER,
 					"signature", decl));
@@ -168,11 +196,42 @@ public class ASTProcessor {
 		}
 
 		@SuppressWarnings("unchecked")
-		<T> T validateElement(ASTElement e, ElementType expectedElementType, String description,
-							  ASTElement parent) {
+		<T> T validateElement(ASTElement e, ElementType expectedElementType, String description, ASTElement parent) {
 			if(isNull(e, description, parent.getLocation())) return null;
 			if(isNotType(e, expectedElementType, description)) return null;
 			return (T) e;
+		}
+
+		@SuppressWarnings("unchecked")
+		<T> T validateEmptyableElement(ASTElement e, ElementType expectedElementType, String description, ASTElement parent) {
+			if(isNull(e, description, parent.getLocation())) return null;
+			if(e.getType() == ElementType.EMPTY) {
+				switch (expectedElementType) {
+					case OBJECT:
+						return (T) ASTEmpty.EMPTY_OBJECT;
+					case ARRAY:
+						return (T) ASTEmpty.EMPTY_ARRAY;
+					case CODE:
+						return (T) ASTEmpty.EMPTY_CODE;
+					default:
+						throwUnexpectedElementError(description, e);
+						return null;
+				}
+			}
+			if(isNotType(e, expectedElementType, description)) return null;
+			return (T) e;
+		}
+
+		<T> List<T> validateArray(ASTArray array, ElementType expectedElements, String description, ASTElement parent) {
+			if(isNull(array, description, parent.getLocation())) return Collections.emptyList();
+			List<T> result = new ArrayList<>();
+			for (ASTElement element : array.getValues()) {
+				if(isNull(element, description, parent.getLocation())) continue;
+				assert element != null;
+				if(isNotType(element, expectedElements, description)) continue;
+				result.add((T) element);
+			}
+			return result;
 		}
 
 		ASTIdentifier validateIdentifier(ASTElement e, String description, ASTElement parent) {

@@ -50,9 +50,7 @@ public class DeclarationParserTest {
 		parseString("{}", (result) -> { // empty object
 			assertEquals(1, result.size());
 			ASTElement element = result.get(0);
-			assertInstanceOf(ASTObject.class, element);
-			ASTObject object = (ASTObject) element;
-			assertEquals(0, object.getValues().size());
+			assertInstanceOf(ASTEmpty.class, element);
 		});
 		parseString("{test: 10}", (result) -> {
 			assertEquals(1, result.size());
@@ -70,10 +68,16 @@ public class DeclarationParserTest {
 
 	@Test
 	public void testArray() {
-		assertOne("[]", ASTArray.class, (result) -> { // empty array
-			assertEquals(0, result.getValues().size());
+		assertOne("{}", ASTEmpty.class, (result) -> { // empty array
+
 		});
-		assertOne("[10, test, \"Hello\", {test: 10}]", ASTArray.class, (result) -> {
+		assertOne("{entry1, entry2, entry3}", ASTArray.class, (result) -> {
+			assertEquals(3, result.getValues().size());
+			assertInstanceOf(ASTIdentifier.class, result.getValues().get(0));
+			assertInstanceOf(ASTIdentifier.class, result.getValues().get(1));
+			assertInstanceOf(ASTIdentifier.class, result.getValues().get(2));
+		});
+		assertOne("{10, test, \"Hello\", {test: 10}}", ASTArray.class, (result) -> {
 			List<ASTElement> elements = result.getValues();
 			assertEquals(4, elements.size());
 			assertInstanceOf(ASTNumber.class, elements.get(0));
@@ -88,7 +92,7 @@ public class DeclarationParserTest {
 
 	@Test
 	public void testArrayInObject() {
-		assertOne("{test: [10, test, \"Hello\", {test: 10}]}", ASTObject.class, (result) -> {
+		assertOne("{test: {10, test, \"Hello\", {test: 10}}}", ASTObject.class, (result) -> {
 			ASTElement element = result.getValues().get("test");
 			ASTArray array = assertIs(ASTArray.class, element);
 			List<ASTElement> elements = array.getValues();
@@ -189,7 +193,7 @@ public class DeclarationParserTest {
 	public void testInvalidInput() {
 		DeclarationParser parser = new DeclarationParser();
 		Tokenizer tokenizer = new Tokenizer();
-		List<Token> tokens = tokenizer.tokenize("<stdin>", "{ test, 4.... { ]");
+		List<Token> tokens = tokenizer.tokenize("<stdin>", "{ test, 4.... { {");
 		Result<List<ASTElement>> result = parser.parseAny(tokens);
 		assertTrue(result.isErr());
 		assertEquals(2, result.getErrors().size());

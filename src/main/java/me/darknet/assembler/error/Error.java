@@ -9,10 +9,12 @@ public class Error {
 
 	private final String message;
 	private final Location location;
+	private final StackTraceElement[] inCodeSource;
 
 	public Error(String message, Location location) {
 		this.message = message;
 		this.location = location;
+		this.inCodeSource = Thread.currentThread().getStackTrace();
 	}
 
 	public String getMessage() {
@@ -21,6 +23,14 @@ public class Error {
 
 	public Location getLocation() {
 		return location;
+	}
+
+	public StackTraceElement[] getInCodeSource() {
+		// remove the first 3 elements
+		// (1st is <init>, 2nd should be the error collector add function, 3rd is the error collector caller)
+		StackTraceElement[] stackTrace = new StackTraceElement[inCodeSource.length - 3];
+		System.arraycopy(inCodeSource, 3, stackTrace, 0, stackTrace.length);
+		return stackTrace;
 	}
 
 }

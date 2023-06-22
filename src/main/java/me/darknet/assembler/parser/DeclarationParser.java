@@ -32,9 +32,9 @@ public class DeclarationParser {
 	 */
 	public ParsingResult<List<@Nullable ASTElement>> parseDeclarations(Collection<Token> tokens) {
 		Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
-		this.ctx = new ParserContext(this, new ArrayDeque<>(filtered.getSecond()));
+		this.ctx = new ParserContext(this, new ArrayList<>(filtered.getSecond()));
 		List<ASTElement> declarations = new ArrayList<>();
-		while (!this.ctx.tokens.isEmpty()) {
+		while (!this.ctx.done()) {
 			declarations.add(parseDeclaration());
 		}
 		return new ParsingResult<>(declarations, ctx.errorCollector.getErrors(), filtered.getFirst());
@@ -49,9 +49,9 @@ public class DeclarationParser {
 	 */
 	public ParsingResult<List<@Nullable ASTElement>> parseAny(Collection<Token> tokens) {
 		Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
-		this.ctx = new ParserContext(this, new ArrayDeque<>(filtered.getSecond()));
+		this.ctx = new ParserContext(this, new ArrayList<>(filtered.getSecond()));
 		List<ASTElement> result = new ArrayList<>();
-		while (!ctx.tokens.isEmpty()) {
+		while (!this.ctx.done()) {
 			ASTElement element = parse();
 			result.add(element);
 		}
@@ -91,37 +91,48 @@ public class DeclarationParser {
 			case OPERATOR: {
 				char operator = token.getContent().charAt(0);
 				switch (operator) {
-					case '[': {
-						return parseArray();
-					}
 					case '{': {
-						if(token.getContent().equals(".code")) {
-							return parseCode();
+						if(ctx.isCurrentState(State.IN_OBJECT)) {
+							Token objectKey = ctx.peek(-2);
+							if(objectKey != null && objectKey.getContent().equals("code")) {
+								// this is the only way I could easily sneak in the code format into the parser
+								return parseCode();
+							}
 						}
 						Token next = ctx.peek(1);
 						if(next == null) {
+							ctx.take("{");
 							ctx.throwEofError("identifier");
 							return null;
 						}
 						if(next.getType().equals(TokenType.OPERATOR)) {
 							if(next.getContent().equals("}")) { // empty object
-								return parseObject();
+								return parseEmpty();
 							}
 						}
 						if(next.getType() != TokenType.IDENTIFIER) {
-							ctx.takeAny();
-							ctx.takeAny();
-							ctx.throwExpectedError("identifier", next.getContent());
-							return null;
+							return parseArray();
 						}
 						if(next.getContent().startsWith(".")) {
 							return parseNestedDeclaration();
 						}
-						return parseObject();
+						// now we need to determine if it's an array or an object
+						// it is an object if they there will be a : after the identifier
+						Token peek = ctx.peek(2);
+						if(peek == null) {
+							ctx.throwEofError(":, } or ,");
+							return null;
+						}
+						if(peek.getType().equals(TokenType.OPERATOR)) {
+							if(peek.getContent().equals(":")) {
+								return parseObject();
+							}
+						}
+						return parseArray();
 					}
 					default: {
 						ctx.takeAny();
-						ctx.throwExpectedError("[, {", token.getContent());
+						ctx.throwExpectedError("{", token.getContent());
 					}
 				}
 			}
@@ -134,23 +145,29 @@ public class DeclarationParser {
 		return null;
 	}
 
+	private ASTEmpty parseEmpty() {
+		ctx.take("{");
+		ctx.take("}");
+		return new ASTEmpty();
+	}
+
 	private ASTArray parseArray() {
 		ctx.enterState(State.IN_ARRAY);
-		if(ctx.take("[") == null) return null;
+		if(ctx.take("{") == null) return null;
 		List<ASTElement> elements = new ArrayList<>();
 		Token peek = ctx.peek();
-		while(!peek.getContent().equals("]")) {
+		while(!peek.getContent().equals("}")) {
 			elements.add(parse());
 			peek = ctx.peek();
 			if(peek == null) {
-				ctx.throwEofError(", or ]");
+				ctx.throwEofError(", or {");
 				return null;
 			}
-			if(!peek.getContent().equals("]")) {
+			if(!peek.getContent().equals("}")) {
 				if(ctx.take(",") == null) return null;
 			}
 		}
-		if(ctx.take("]") == null) return null;
+		if(ctx.take("}") == null) return null;
 		ctx.leaveState(State.IN_ARRAY);
 		return new ASTArray(elements);
 	}
@@ -239,7 +256,6 @@ public class DeclarationParser {
 
 	private ASTCode parseCode() {
 		ctx.enterState(State.IN_CODE);
-		if(ctx.take(".code") == null) return null;
 		if(ctx.take("{") == null) return null;
 		Token peek = ctx.peek();
 		List<ASTInstruction> instructions = new ArrayList<>();
@@ -254,7 +270,7 @@ public class DeclarationParser {
 			}
 		}
 		if(ctx.take("}") == null) return null;
-		ctx.leaveState();
+		ctx.leaveState(State.IN_CODE);
 		return new ASTCode(instructions);
 	}
 
@@ -278,7 +294,7 @@ public class DeclarationParser {
 				return null;
 			}
 		}
-		ctx.leaveState();
+		ctx.leaveState(State.IN_INSTRUCTION);
 		return new ASTInstruction(identifier, arguments);
 	}
 
@@ -295,19 +311,23 @@ public class DeclarationParser {
 	private static class ParserContext {
 
 		private final DeclarationParser parser;
-		private final Queue<Token> tokens;
+		private final List<Token> tokens;
+		private int idx = 0;
 		private Token latest;
 		private final ErrorCollector errorCollector = new ErrorCollector();
-		private State state = State.DEFAULT;
-
-		private ParserContext(DeclarationParser parser, Queue<Token> tokens) {
+		private final LinkedList<State> stateStack = new LinkedList<>();
+		private ParserContext(DeclarationParser parser, List<Token> tokens) {
 			this.parser = parser;
-			this.tokens = tokens;
-			this.latest = tokens.peek();
+			this.tokens = Collections.unmodifiableList(tokens);
+			this.latest = tokens.get(0);
+		}
+
+		private boolean done() {
+			return idx >= tokens.size();
 		}
 
 		private Token next() {
-			latest = tokens.poll();
+			latest = tokens.get(idx++);
 			return latest;
 		}
 
@@ -316,20 +336,11 @@ public class DeclarationParser {
 		}
 
 		private Token peek(int offset) {
-			if(offset < 0) {
-				throw new IllegalArgumentException("Offset must be positive");
+			int listIdx = idx + offset;
+			if(listIdx < 0 || listIdx >= tokens.size()) {
+				return null;
 			}
-			if(offset == 0) {
-				return tokens.peek();
-			}
-			Iterator<Token> iterator = tokens.iterator();
-			for(int i = 0; i < offset; i++) {
-				if(!iterator.hasNext()) {
-					return null;
-				}
-				iterator.next();
-			}
-			return iterator.next();
+			return tokens.get(listIdx);
 		}
 
 		private Token take(String exact) {
@@ -380,24 +391,33 @@ public class DeclarationParser {
 		}
 
 		public void enterState(State state) {
-			this.state = state;
+			this.stateStack.push(state);
 		}
 
 		public void leaveState() {
-			this.state = State.DEFAULT;
+			this.stateStack.poll();
 		}
 
-		public <T> T leaveState(T value) {
-			this.state = State.DEFAULT;
-			return value;
+		/**
+		 * Purely cosmetic method to make the code more readable
+		 *
+		 * @param value state to indicate which one you are leaving
+		 * @param <T>   used to allow any value to be passed in
+		 */
+		public <T> void leaveState(T value) {
+			this.stateStack.poll();
 		}
 
 		public State getState() {
-			return state;
+			return stateStack.peek();
 		}
 
 		public boolean isInState(State state) {
-			return this.state == state;
+			return stateStack.contains(state);
+		}
+
+		public boolean isCurrentState(State state) {
+			return stateStack.peek() == state;
 		}
 
 		public void throwError(Error error) {

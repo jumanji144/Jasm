@@ -12,6 +12,7 @@ public enum ElementType {
 	CODE,
 	CODE_INSTRUCTION,
 	COMMENT,
+	EMPTY,
 	// Specific
 	CLASS,
 	METHOD,
