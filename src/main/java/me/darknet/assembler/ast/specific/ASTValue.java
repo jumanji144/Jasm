@@ -10,4 +10,5 @@ public class ASTValue extends ASTElement {
 		super(type);
 		this.value = value;
 	}
+
 }

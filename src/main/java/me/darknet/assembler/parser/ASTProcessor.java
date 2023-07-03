@@ -7,10 +7,10 @@ import me.darknet.assembler.ast.specific.*;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.error.Result;
-import me.darknet.assembler.util.CollectionUtil;
+import me.darknet.assembler.instructions.Instruction;
+import me.darknet.assembler.instructions.Instructions;
 import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
-import me.darknet.assembler.util.Pair;
 import me.darknet.assembler.visitor.Modifiers;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,8 +18,14 @@ import java.util.*;
 
 public class ASTProcessor {
 
-	public static Result<List<ASTElement>> processAST(List<ASTElement> ast) {
-		ParserContext ctx = new ParserContext();
+	private final BytecodeFormat format;
+
+	public ASTProcessor(BytecodeFormat format) {
+		this.format = format;
+	}
+
+	public Result<List<ASTElement>> processAST(List<ASTElement> ast) {
+		ParserContext ctx = new ParserContext(format.getInstructions());
 		List<ASTElement> result = new ArrayList<>();
 		for (ASTElement astElement : ast) {
 			if (astElement instanceof ASTDeclaration) {
@@ -130,6 +136,18 @@ public class ASTProcessor {
 		if(body.getValues().containsKey("code")) {
 			code = ctx.validateEmptyableElement(body.getValues().get("code"), ElementType.CODE,
 					"method code", declaration);
+			// validate instructions
+			for (ASTInstruction instruction : code.getInstructions()) {
+				if(instruction == null) continue;
+				Instruction<?> insn = ctx.instructions.get(instruction.getIdentifier().getContent());
+				if(insn == null) {
+					ctx.throwError("Unknown instruction: " + instruction.getIdentifier().getContent(),
+							instruction.getIdentifier().getLocation());
+					continue;
+				}
+				// validate arguments
+				insn.verify(instruction, ctx);
+			}
 		}
 		int nameIndex = lastIndex - 2;
 		int descIndex = lastIndex - 1;
@@ -140,10 +158,91 @@ public class ASTProcessor {
 		return new ASTMethod(modifiers, name, desc, attributes.signature, attributes.annotations, parameters, code);
 	}
 
+	static ASTElement validateElementValue(ParserContext ctx, ASTElement value) {
+		switch (value.getType()) {
+			case NUMBER:
+			case STRING:
+				break;
+			case IDENTIFIER: {
+				ASTIdentifier identifier = (ASTIdentifier) value;
+				if(identifier.getContent().equals("true") || identifier.getContent().equals("false")) {
+					value = new ASTBool(identifier.getValue());
+				} else if (!identifier.getContent().startsWith("L")) {
+					ctx.throwUnexpectedElementError("class type or boolean", value);
+				}
+				break;
+			}
+			case EMPTY: {
+				value = ASTEmpty.EMPTY_ARRAY;
+				break;
+			}
+			case DECLARATION: {
+				ASTDeclaration decl = (ASTDeclaration) value;
+				if(decl.getKeyword() != null) {
+					value = parseDeclaration(ctx, decl);
+					switch (value.getType()) {
+						case ENUM:
+						case ANNOTATION:
+							break;
+						default:
+							ctx.throwUnexpectedElementError("annotation value", value);
+							return null;
+					}
+				} else {
+					if(decl.getElements().size() != 1) {
+						ctx.throwUnexpectedElementError("annotation value", value);
+						return null;
+					}
+					value = new ASTArray(Collections.singletonList(
+							validateElementValue(ctx, decl.getElements().get(0))));
+				}
+				break;
+			}
+			case ARRAY: {
+				ASTArray array = (ASTArray) value;
+				List<ASTElement> elements = new ArrayList<>();
+				for (ASTElement arrayValue : array.getValues()) {
+					if(arrayValue == null) continue;
+					elements.add(validateElementValue(ctx, arrayValue));
+				}
+				value = new ASTArray(elements);
+				break;
+			}
+			default:
+				ctx.throwUnexpectedElementError("annotation value", value);
+				return null;
+		}
+		return value;
+	}
+
+	public static ASTAnnotation parseAnnotation(ParserContext ctx, ASTDeclaration declaration) {
+		ASTIdentifier type = ctx.validateIdentifier(declaration.getElements().get(0), "annotation type",
+				declaration);
+		ASTObject values = ctx.validateEmptyableElement(declaration.getElements().get(1), ElementType.OBJECT,
+				"annotation values", declaration);
+		// parse object values
+		ElementMap<ASTIdentifier, ASTElement> map = new ElementMap<>();
+		for (var pair : values.getValues().getPairs()) {
+			ASTIdentifier key = ctx.validateIdentifier(pair.getFirst(), "annotation value key", declaration);
+			ASTElement value = validateElementValue(ctx, pair.getSecond());
+			map.put(key, value);
+		}
+		return new ASTAnnotation(type, map);
+	}
+
 	static {
 		ParserRegistry.register("class", ASTProcessor::parseClass);
 		ParserRegistry.register("field", ASTProcessor::parseField);
 		ParserRegistry.register("method", ASTProcessor::parseMethod);
+		ParserRegistry.register("annotation", ASTProcessor::parseAnnotation);
+		ParserRegistry.register("enum", (ctx, decl) -> {
+			ASTIdentifier type = ctx.validateElement(decl.getElements().get(0), ElementType.IDENTIFIER,
+					"enum type", decl);
+			ASTIdentifier name = ctx.validateElement(decl.getElements().get(1), ElementType.IDENTIFIER,
+					"enum name", decl);
+			if(type == null || name == null) return null;
+			return new ASTEnum(type, name);
+		});
 		ParserRegistry.register("signature", (ctx, decl) -> {
 			ctx.addSignature(ctx.validateElement(decl.getElements().get(0), ElementType.IDENTIFIER,
 					"signature", decl));
@@ -170,10 +269,15 @@ public class ASTProcessor {
 
 	}
 
-	private static class ParserContext {
+	public static class ParserContext {
 
 		private Attributes attributes = new Attributes();
 		private final ErrorCollector errorCollector = new ErrorCollector();
+		private final Instructions<?> instructions;
+
+		public ParserContext(Instructions<?> instructions) {
+			this.instructions = instructions;
+		}
 
 		public void throwError(String message, Location location) {
 			errorCollector.addError(new Error(message, location));
@@ -196,14 +300,14 @@ public class ASTProcessor {
 		}
 
 		@SuppressWarnings("unchecked")
-		<T> T validateElement(ASTElement e, ElementType expectedElementType, String description, ASTElement parent) {
+		public <T> T validateElement(ASTElement e, ElementType expectedElementType, String description, ASTElement parent) {
 			if(isNull(e, description, parent.getLocation())) return null;
 			if(isNotType(e, expectedElementType, description)) return null;
 			return (T) e;
 		}
 
 		@SuppressWarnings("unchecked")
-		<T> T validateEmptyableElement(ASTElement e, ElementType expectedElementType, String description, ASTElement parent) {
+		public <T> T validateEmptyableElement(ASTElement e, ElementType expectedElementType, String description, ASTElement parent) {
 			if(isNull(e, description, parent.getLocation())) return null;
 			if(e.getType() == ElementType.EMPTY) {
 				switch (expectedElementType) {
@@ -222,7 +326,7 @@ public class ASTProcessor {
 			return (T) e;
 		}
 
-		<T> List<T> validateArray(ASTArray array, ElementType expectedElements, String description, ASTElement parent) {
+		public <T> List<T> validateArray(ASTArray array, ElementType expectedElements, String description, ASTElement parent) {
 			if(isNull(array, description, parent.getLocation())) return Collections.emptyList();
 			List<T> result = new ArrayList<>();
 			for (ASTElement element : array.getValues()) {
@@ -232,6 +336,22 @@ public class ASTProcessor {
 				result.add((T) element);
 			}
 			return result;
+		}
+
+		public ASTObject validateObject(ASTElement e, String description, ASTElement parent, String... expectedKeys) {
+			if(isNull(e, description, parent.getLocation())) return null;
+			if(isNotType(e, ElementType.OBJECT, description)) return null;
+			ASTObject object = (ASTObject) e;
+			if(object.getValues().size() != expectedKeys.length) {
+				throwError("Expected " + expectedKeys.length + " keys in " + description, object.getLocation());
+			}
+			for (String expectedKey : expectedKeys) {
+				if(!object.getValues().containsKey(expectedKey)) {
+					throwError("Expected key '" + expectedKey + "' in " + description, object.getLocation());
+					return null;
+				}
+			}
+			return object;
 		}
 
 		ASTIdentifier validateIdentifier(ASTElement e, String description, ASTElement parent) {

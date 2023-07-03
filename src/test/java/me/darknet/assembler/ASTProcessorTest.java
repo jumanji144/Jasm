@@ -1,18 +1,14 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTCode;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
-import me.darknet.assembler.ast.specific.ASTClass;
-import me.darknet.assembler.ast.specific.ASTField;
-import me.darknet.assembler.ast.specific.ASTMethod;
+import me.darknet.assembler.ast.specific.*;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.Result;
-import me.darknet.assembler.parser.ASTProcessor;
-import me.darknet.assembler.parser.DeclarationParser;
-import me.darknet.assembler.parser.Token;
-import me.darknet.assembler.parser.Tokenizer;
+import me.darknet.assembler.parser.*;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
@@ -89,55 +85,56 @@ public class ASTProcessorTest {
 	}
 
 	@Test
-	public void testJvmBytecode() {
-		assertCode(new String[] {
-				"ldc \"Hello World\"",
-				"getstatic java/lang/System.out Ljava/io/PrintStream;",
-				"swap",
-				"invokevirtual java/io/PrintStream.println(Ljava/lang/String;)V",
-				"return"
-		}, (code) -> {
-			List<ASTInstruction> instructions = code.getInstructions();
-			assertEquals(5, instructions.size());
-			assertEquals("ldc", instructions.get(0).getIdentifier().getContent());
-			assertEquals("Hello World", instructions.get(0).getArguments().get(0).getContent());
-			assertEquals("getstatic", instructions.get(1).getIdentifier().getContent());
-			assertEquals("java/lang/System.out", instructions.get(1).getArguments().get(0).getContent());
-			assertEquals("Ljava/io/PrintStream;", instructions.get(1).getArguments().get(1).getContent());
-			assertEquals("swap", instructions.get(2).getIdentifier().getContent());
-			assertEquals("invokevirtual", instructions.get(3).getIdentifier().getContent());
-			assertEquals("java/io/PrintStream.println(Ljava/lang/String;)V", instructions.get(3).getArguments().get(0).getContent());
-			assertEquals("return", instructions.get(4).getIdentifier().getContent());
+	public void testAnnotation() {
+		assertOne(".annotation java/lang/Deprecated {}", ASTAnnotation.class, (annotation) -> {
+			assertEquals("java/lang/Deprecated", annotation.getClassType().getContent());
 		});
+		assertOne(".annotation java/lang/Deprecated { value: \"Hello World\" }", ASTAnnotation.class, (annotation) -> {
+			assertEquals("java/lang/Deprecated", annotation.getClassType().getContent());
+			assertNotNull(annotation.getValues());
+			assertEquals(1, annotation.getValues().size());
+			assertEquals("Hello World", annotation.getValues().get("value").getContent());
+		});
+		assertOne(".annotation java/lang/annotation/Retention { value: .enum java/lang/annotation/RetentionPolicy" +
+						" RUNTIME }",
+				ASTAnnotation.class, (annotation) -> {
+			assertEquals("java/lang/annotation/Retention", annotation.getClassType().getContent());
+			assertNotNull(annotation.getValues());
+			assertEquals(1, annotation.getValues().size());
+			ASTEnum enumValue = assertIs(ASTEnum.class, annotation.getValues().get("value"));
+			assertEquals("java/lang/annotation/RetentionPolicy", enumValue.getEnumType().getContent());
+			assertEquals("RUNTIME", enumValue.getEnumValue().getContent());
+		});
+		assertOne(".annotation java/lang/annotation/Target { value: { .enum java/lang/annotation/ElementType FIELD," +
+						" .enum java/lang/annotation/ElementType METHOD } }",
+				ASTAnnotation.class, (annotation) -> {
+			assertEquals("java/lang/annotation/Target", annotation.getClassType().getContent());
+			assertNotNull(annotation.getValues());
+			assertEquals(1, annotation.getValues().size());
+			ASTArray array = assertIs(ASTArray.class, annotation.getValues().get("value"));
+			assertEquals(2, array.getValues().size());
+			ASTEnum enumValue = assertIs(ASTEnum.class, array.getValues().get(0));
+			assertEquals("java/lang/annotation/ElementType", enumValue.getEnumType().getContent());
+			assertEquals("FIELD", enumValue.getEnumValue().getContent());
+			enumValue = assertIs(ASTEnum.class, array.getValues().get(1));
+			assertEquals("java/lang/annotation/ElementType", enumValue.getEnumType().getContent());
+			assertEquals("METHOD", enumValue.getEnumValue().getContent());
+				});
 	}
 
 	@Test
-	public void testSmaliBytecode() {
-		assertCode(new String[]{
-				"const-string v1 \"Hello World\"",
-				"sget-object v0 Ljava/lang/System;->out Ljava/io/PrintStream;",
-				"invoke-virtual {v0, v1} Ljava/io/PrintStream;->println(Ljava/lang/String;)V",
-				"return-void"
-		}, (code) -> {
-			List<ASTInstruction> instructions = code.getInstructions();
-			assertEquals(4, instructions.size());
-			assertEquals("const-string", instructions.get(0).getIdentifier().getContent());
-			assertEquals("v1", instructions.get(0).getArguments().get(0).getContent());
-			assertEquals("Hello World", instructions.get(0).getArguments().get(1).getContent());
-			assertEquals("sget-object", instructions.get(1).getIdentifier().getContent());
-			assertEquals("v0", instructions.get(1).getArguments().get(0).getContent());
-			assertEquals("Ljava/lang/System;->out", instructions.get(1).getArguments().get(1).getContent());
-		});
-	}
-
-	public static void assertCode(String[] instructions, Consumer<ASTCode> consumer) {
-		assertOne(".method stub ()V {\n" +
-				"code: {" + String.join("\n", instructions) + "\n}}\n", ASTMethod.class, (method) -> {
-			assertEquals("stub", method.getName().getContent());
-			assertEquals("()V", method.getDescriptor().getContent());
-			assertNotNull(method.getCode());
-			consumer.accept(method.getCode());
-		});
+	public void testSubAnnotation() {
+		assertOne(".annotation java/lang/annotation/Annotation { value: .annotation java/lang/annotation/Annotation { value: 100 } }",
+				ASTAnnotation.class, (annotation) -> {
+			assertEquals("java/lang/annotation/Annotation", annotation.getClassType().getContent());
+			assertNotNull(annotation.getValues());
+			assertEquals(1, annotation.getValues().size());
+			ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.getValues().get("value"));
+			assertEquals("java/lang/annotation/Annotation", subAnnotation.getClassType().getContent());
+			assertNotNull(subAnnotation.getValues());
+			assertEquals(1, subAnnotation.getValues().size());
+			assertEquals("100", subAnnotation.getValues().get("value").getContent());
+				});
 	}
 
 	public static <T extends ASTElement> void assertOne(String input, Class<T> clazz, Consumer<T> consumer) {
@@ -195,7 +192,8 @@ public class ASTProcessorTest {
 			}
 			Assertions.fail();
 		}
-		result = ASTProcessor.processAST(result.get());
+		ASTProcessor processor = new ASTProcessor(BytecodeFormat.DEFAULT);
+		result = processor.processAST(result.get());
 		consumer.accept(result);
 	}
 

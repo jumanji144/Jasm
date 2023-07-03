@@ -19,7 +19,7 @@ public class ASTObject extends ASTElement {
 		this.values = values;
 	}
 
-	public ElementMap<ASTIdentifier, @Nullable ASTElement> getValues() {
+	public ElementMap<ASTIdentifier, ASTElement> getValues() {
 		return values;
 	}
 }

@@ -9,6 +9,7 @@ public enum ElementType {
 	IDENTIFIER,
 	STRING,
 	NUMBER,
+	BOOL,
 	CODE,
 	CODE_INSTRUCTION,
 	COMMENT,
@@ -18,6 +19,7 @@ public enum ElementType {
 	METHOD,
 	FIELD,
 	ANNOTATION,
+	ENUM,
 	SIGNATURE,
 	CLASS_TYPE,
 	METHOD_TYPE

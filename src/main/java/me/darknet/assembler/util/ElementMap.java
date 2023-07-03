@@ -30,7 +30,7 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T extends B> @Nullable T get(String content) {
+	public <T extends B> T get(String content) {
 		for (Pair<A, B> pair : values) {
 			if (pair.getFirst().getContent().equals(content)) {
 				return (T) pair.getSecond();

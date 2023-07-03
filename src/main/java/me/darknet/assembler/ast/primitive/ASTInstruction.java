@@ -27,4 +27,9 @@ public class ASTInstruction extends ASTElement {
 		return arguments;
 	}
 
+	@SuppressWarnings("unchecked")
+	public <T extends ASTElement> T argument(int index, Class<T> type) {
+		return (T) arguments.get(index);
+	}
+
 }

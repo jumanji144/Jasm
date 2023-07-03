@@ -25,6 +25,12 @@ public class Error {
 		return location;
 	}
 
+	/**
+	 * Get a stacktrace estimate where the error was created within the parser.
+	 * <p>
+	 * Primarily used for debugging.
+	 * @return the stacktrace
+	 */
 	public StackTraceElement[] getInCodeSource() {
 		// remove the first 3 elements
 		// (1st is <init>, 2nd should be the error collector add function, 3rd is the error collector caller)

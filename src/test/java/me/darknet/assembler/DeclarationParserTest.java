@@ -229,6 +229,9 @@ public class DeclarationParserTest {
 				Location location = error.getLocation();
 				System.err.printf("%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
 						error.getMessage());
+				Throwable trace = new Throwable();
+				trace.setStackTrace(error.getInCodeSource());
+				trace.printStackTrace();
 			}
 			Assertions.fail();
 		}

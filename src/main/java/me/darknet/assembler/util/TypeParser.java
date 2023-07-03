@@ -68,4 +68,8 @@ public class TypeParser {
 		}
 	}
 
+	public static boolean isClassDescriptor(String descriptor) {
+		return descriptor.startsWith("L") && descriptor.endsWith(";");
+	}
+
 }
