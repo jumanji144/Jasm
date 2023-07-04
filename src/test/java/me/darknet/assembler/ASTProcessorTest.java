@@ -159,11 +159,6 @@ public class ASTProcessorTest {
 	public static void assertError(String input, Consumer<List<Error>> errorConsumer) {
 		parseString(input, (result) -> {
 			assertNotEquals(0, result.getErrors().size());
-			for (Error error : result.getErrors()) {
-				Location location = error.getLocation();
-				System.err.printf("%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
-						error.getMessage());
-			}
 			errorConsumer.accept(result.getErrors());
 		});
 	}
