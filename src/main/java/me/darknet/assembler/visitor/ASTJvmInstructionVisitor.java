@@ -2,7 +2,6 @@ package me.darknet.assembler.visitor;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.instructions.Constant;
 import me.darknet.assembler.instructions.Handle;

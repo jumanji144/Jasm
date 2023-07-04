@@ -1,7 +1,6 @@
 package me.darknet.assembler.visitor;
 
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.ast.primitive.ASTLiteral;
 import me.darknet.assembler.ast.specific.ASTValue;
 
 public interface ASTAnnotationVisitor {

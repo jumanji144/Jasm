@@ -12,8 +12,17 @@ public abstract class Instructions<V extends ASTInstructionVisitor> {
 
 	private final Map<String, Instruction<V>> instructions = new HashMap<>();
 	protected BiConsumer<ASTInstruction, V> defaultTranslator;
+
 	public Instructions() {
 		registerInstructions();
+	}
+
+	protected static Operand[] ops(Operands... operands) {
+		Operand[] ops = new Operand[operands.length];
+		for (int i = 0; i < operands.length; i++) {
+			ops[i] = operands[i].getOperand();
+		}
+		return ops;
 	}
 
 	protected abstract void registerInstructions();
@@ -27,25 +36,18 @@ public abstract class Instructions<V extends ASTInstructionVisitor> {
 	}
 
 	public void register(String name) {
-		register(name, new Operand[0], (instruction, visitor) -> {});
+		register(name, new Operand[0], (instruction, visitor) -> {
+		});
 	}
 
 	public void register(String... names) {
-		for(String name : names) {
+		for (String name : names) {
 			register(name);
 		}
 	}
 
 	public @Nullable Instruction<V> get(String name) {
 		return instructions.get(name);
-	}
-
-	protected static Operand[] ops(Operands... operands) {
-		Operand[] ops = new Operand[operands.length];
-		for(int i = 0; i < operands.length; i++) {
-			ops[i] = operands[i].getOperand();
-		}
-		return ops;
 	}
 
 }

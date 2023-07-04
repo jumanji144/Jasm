@@ -6,6 +6,7 @@ public interface ASTInstructionVisitor {
 
 	/**
 	 * Called on every instruction visit
+	 *
 	 * @param instruction The instruction
 	 */
 	void visitInstruction(ASTInstruction instruction);

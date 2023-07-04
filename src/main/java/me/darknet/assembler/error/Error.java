@@ -29,6 +29,7 @@ public class Error {
 	 * Get a stacktrace estimate where the error was created within the parser.
 	 * <p>
 	 * Primarily used for debugging.
+	 *
 	 * @return the stacktrace
 	 */
 	public StackTraceElement[] getInCodeSource() {

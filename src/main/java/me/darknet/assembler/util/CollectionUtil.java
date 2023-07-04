@@ -1,6 +1,5 @@
 package me.darknet.assembler.util;
 
-import me.darknet.assembler.ast.ASTElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -16,10 +15,10 @@ public class CollectionUtil {
 	}
 
 	public static <T> List<T> merge(final Collection<? extends @Nullable T> a, final Collection<? extends @Nullable T> b) {
-		if(a == null) {
+		if (a == null) {
 			return new ArrayList<>(b);
 		}
-		if(b == null) {
+		if (b == null) {
 			return new ArrayList<>(a);
 		}
 		List<T> list = new ArrayList<>(a);
@@ -29,10 +28,10 @@ public class CollectionUtil {
 
 	@SafeVarargs
 	public static <T> List<T> merge(final Collection<? extends @Nullable T> a, final @Nullable T... b) {
-		if(a == null) {
+		if (a == null) {
 			return fromArray(b);
 		}
-		if(b == null) {
+		if (b == null) {
 			return new ArrayList<>(a);
 		}
 		List<T> list = new ArrayList<>(a);

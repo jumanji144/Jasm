@@ -11,7 +11,7 @@ public class ASTObject extends ASTElement {
 
 	public ASTObject(ElementMap<ASTIdentifier, @Nullable ASTElement> values) {
 		super(ElementType.OBJECT, values.getElements());
-		if(values.size() != 0) {
+		if (values.size() != 0) {
 			this.value = values.get(0).getValue();
 		} else {
 			this.value = null;

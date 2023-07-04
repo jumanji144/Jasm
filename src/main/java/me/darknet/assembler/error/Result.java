@@ -4,6 +4,7 @@ import java.util.List;
 
 /**
  * Represents a result of an operation that can fail.
+ *
  * @param <T> The type of the value.
  */
 public class Result<T> {

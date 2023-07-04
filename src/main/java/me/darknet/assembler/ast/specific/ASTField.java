@@ -1,6 +1,5 @@
 package me.darknet.assembler.ast.specific;
 
-import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.visitor.Modifiers;

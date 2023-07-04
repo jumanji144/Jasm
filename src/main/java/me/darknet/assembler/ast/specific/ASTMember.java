@@ -20,7 +20,7 @@ public class ASTMember extends ASTElement {
 					 @Nullable ASTIdentifier signature,
 					 List<ASTAnnotation> annotations) {
 		super(type, CollectionUtil.merge(CollectionUtil.merge(modifiers.getModifiers(), annotations), name, signature));
-		if(modifiers.getModifiers().size() > 0) {
+		if (modifiers.getModifiers().size() > 0) {
 			this.value = modifiers.getModifiers().get(0).getValue();
 		} else {
 			this.value = name.getValue();

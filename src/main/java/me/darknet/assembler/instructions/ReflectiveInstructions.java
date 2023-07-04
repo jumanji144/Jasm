@@ -33,7 +33,7 @@ public abstract class ReflectiveInstructions<V extends ASTInstructionVisitor> ex
 	void reflectiveAction(ASTInstruction instruction, V instance, String translatorName) throws TransformationException {
 		try {
 			MethodHandle method = lookupCache.get(translatorName);
-			if(method == null) {
+			if (method == null) {
 				List<ASTElement> arguments = instruction.getArguments();
 				Class<?>[] argumentTypes = new Class<?>[arguments.size()];
 				for (int i = 0; i < arguments.size(); i++) {

@@ -5,7 +5,6 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTObject;
-import me.darknet.assembler.instructions.Constant;
 import me.darknet.assembler.instructions.Handle;
 import me.darknet.assembler.instructions.Operand;
 import me.darknet.assembler.instructions.Operands;
@@ -21,41 +20,41 @@ public enum JvmOperands implements Operands {
 		ASTObject object = context.validateObject(element, "table switch", element,
 				"min", "max", "default", "cases");
 
-		if(object == null) return;
+		if (object == null) return;
 
 		// start, end should be numbers
-		if(context.isNotType(object.getValues().get("min"), ElementType.NUMBER, "number")) return;
-		if(context.isNotType(object.getValues().get("max"), ElementType.NUMBER, "number")) return;
+		if (context.isNotType(object.getValues().get("min"), ElementType.NUMBER, "number")) return;
+		if (context.isNotType(object.getValues().get("max"), ElementType.NUMBER, "number")) return;
 
 		// default should be identifier
-		if(context.isNotType(object.getValues().get("default"), ElementType.IDENTIFIER, "identifier")) return;
+		if (context.isNotType(object.getValues().get("default"), ElementType.IDENTIFIER, "identifier")) return;
 
 		// cases should be array
-		if(context.isNotType(object.getValues().get("cases"), ElementType.ARRAY, "array")) return;
+		if (context.isNotType(object.getValues().get("cases"), ElementType.ARRAY, "array")) return;
 		context.validateArray(object.getValues().get("cases"), ElementType.IDENTIFIER, "label", element);
 
 	}),
 	LOOKUP_SWITCH((context, element) -> {
 		// lookup switch can be: default label, pairs
-		if(context.isNotType(element, ElementType.OBJECT, "lookup switch")) return;
+		if (context.isNotType(element, ElementType.OBJECT, "lookup switch")) return;
 
 		ASTObject object = (ASTObject) element;
-		if(object.getValues().size() < 1) {
+		if (object.getValues().size() < 1) {
 			context.throwUnexpectedElementError("default label", element);
 			return;
 		}
 
 		// default should be identifier
-		if(context.isNotType(object.getValues().get("default"), ElementType.IDENTIFIER, "identifier")) return;
+		if (context.isNotType(object.getValues().get("default"), ElementType.IDENTIFIER, "identifier")) return;
 		for (ASTElement elem : object.getValues().getElements()) {
-			if(context.isNotType(elem, ElementType.IDENTIFIER, "identifier")) return;
+			if (context.isNotType(elem, ElementType.IDENTIFIER, "identifier")) return;
 		}
 	}),
 	HANDLE(JvmOperands::verifyHandle),
 	ARGS((context, element) -> {
 		ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "args", element);
 		for (ASTElement value : array.getValues()) {
-			if(context.isNull(value, "args element", array.getLocation())) return;
+			if (context.isNull(value, "args element", array.getLocation())) return;
 			assert value != null;
 			JvmOperands.verifyConstant(context, value);
 		}
@@ -63,6 +62,12 @@ public enum JvmOperands implements Operands {
 	TYPE(((context, element) -> {
 		context.isNotType(element, ElementType.IDENTIFIER, "type");
 	}));
+
+	private final Operand operand;
+
+	JvmOperands(Operand.Processor operand) {
+		this.operand = new Operand(operand);
+	}
 
 	public static void verifyConstant(ASTProcessor.ParserContext context, ASTElement element) {
 		switch (element.getType()) {
@@ -85,7 +90,7 @@ public enum JvmOperands implements Operands {
 	}
 
 	public static void verifyHandle(ASTProcessor.ParserContext context, ASTElement element) {
-		if(context.isNotType(element, ElementType.ARRAY, "handle")) return;
+		if (context.isNotType(element, ElementType.ARRAY, "handle")) return;
 
 		ASTArray array = (ASTArray) element;
 		List<ASTIdentifier> values =
@@ -98,12 +103,6 @@ public enum JvmOperands implements Operands {
 		if (!Handle.KINDS.containsKey(values.get(0).getContent())) {
 			context.throwUnexpectedElementError("kind", values.get(0));
 		}
-	}
-
-	private final Operand operand;
-
-	JvmOperands(Operand.Processor operand) {
-		this.operand = new Operand(operand);
 	}
 
 	@Override

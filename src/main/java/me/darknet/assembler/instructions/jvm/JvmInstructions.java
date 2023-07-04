@@ -1,17 +1,8 @@
 package me.darknet.assembler.instructions.jvm;
 
-import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.ast.primitive.ASTNumber;
-import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.instructions.DefaultOperands;
-import me.darknet.assembler.instructions.Instructions;
-import me.darknet.assembler.instructions.Operand;
 import me.darknet.assembler.instructions.ReflectiveInstructions;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
-import org.objectweb.asm.Opcodes;
-
-import java.util.Base64;
 
 public class JvmInstructions extends ReflectiveInstructions<ASTJvmInstructionVisitor> {
 

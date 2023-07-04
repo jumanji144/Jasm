@@ -163,6 +163,7 @@ public class ASTProcessorTest {
 		});
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <T> @NotNull T assertIs(Class<T> shouldBe, Object is) {
 		assertNotNull(is);
 		assertInstanceOf(shouldBe, is);

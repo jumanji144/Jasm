@@ -9,9 +9,9 @@ import java.util.List;
 
 public class ASTElement {
 
+	protected final List<ASTElement> children;
 	protected ElementType type;
 	protected ASTElement parent;
-	protected final List<ASTElement> children;
 	protected Token value;
 
 	public ASTElement(ElementType type) {
@@ -25,7 +25,7 @@ public class ASTElement {
 	@SuppressWarnings("unchecked")
 	public ASTElement(ElementType type, List<? extends ASTElement> children) {
 		for (ASTElement child : children) {
-			if(child != null) {
+			if (child != null) {
 				child.parent = this;
 			}
 		}
@@ -54,11 +54,11 @@ public class ASTElement {
 	}
 
 	public Location getLocation() {
-		if(value == null) {
+		if (value == null) {
 			// go through children
 			for (ASTElement child : children) {
 				Location location = child.getLocation();
-				if(location != null) {
+				if (location != null) {
 					return location;
 				}
 			}

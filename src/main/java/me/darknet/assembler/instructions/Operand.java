@@ -8,9 +8,6 @@ import java.util.function.BiConsumer;
 
 public class Operand {
 
-	@FunctionalInterface
-	public interface Processor extends BiConsumer<ASTProcessor.ParserContext, ASTElement> { }
-
 	private final Processor verifier;
 
 	public Operand(Processor verifier) {
@@ -19,6 +16,10 @@ public class Operand {
 
 	public void verify(ASTProcessor.ParserContext context, @NotNull ASTElement element) {
 		verifier.accept(context, element);
+	}
+
+	@FunctionalInterface
+	public interface Processor extends BiConsumer<ASTProcessor.ParserContext, ASTElement> {
 	}
 
 }
