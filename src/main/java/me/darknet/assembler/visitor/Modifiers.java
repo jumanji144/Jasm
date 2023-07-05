@@ -24,7 +24,13 @@ public class Modifiers {
 			"synthetic",
 			"enum",
 			"annotation",
-			"module"
+			"module",
+			"super",
+			"interface",
+			"record",
+			"sealed",
+			"open",
+			"non-sealed"
 	);
 	private final List<ASTIdentifier> modifiers = new ArrayList<>();
 
