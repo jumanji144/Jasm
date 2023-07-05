@@ -65,7 +65,7 @@ public class ASTProcessor {
 		for (int i = 0; i < endIndex; i++) {
 			// modifiers MUST be IDENTIFIER
 			ASTIdentifier modifier = ctx.validateElement(elements.get(i), ElementType.IDENTIFIER,
-					"class modifier", declaration);
+					"access modifier", declaration);
 			if (modifier == null) continue;
 			String content = modifier.getContent();
 			// check if the modifier is valid
