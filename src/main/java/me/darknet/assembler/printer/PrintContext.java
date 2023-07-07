@@ -48,14 +48,24 @@ public class PrintContext<T extends PrintContext<?>> {
 		return new DeclObjectPrint(this);
 	}
 
+	public ArrayPrint array() {
+		sb.append("{ ");
+		return new ArrayPrint(this);
+	}
+
+	public CodePrint code() {
+		sb.append("{");
+		newline();
+		return new CodePrint(this);
+	}
+
 	public T newline() {
 		sb.append("\n").append(indent);
 		return (T) this;
 	}
 
-	public ArrayPrint array() {
-		sb.append("{ ");
-		return new ArrayPrint(this);
+	public T next() {
+		return (T) this;
 	}
 
 	public T indent() {
@@ -143,6 +153,36 @@ public class PrintContext<T extends PrintContext<?>> {
 			if(sb.charAt(sb.length() - 2) == ',')
 				sb.delete(sb.length() - 2, sb.length() - 1);
 			this.print("}");
+		}
+	}
+
+	public static class CodePrint extends PrintContext<CodePrint> {
+
+		public CodePrint(PrintContext<?> ctx) {
+			super(ctx);
+		}
+
+		public CodePrint instruction(String key) {
+			this.indent().print(indent).print(key);
+			return this;
+		}
+
+		public CodePrint arg() {
+			this.print(" ");
+			return this;
+		}
+
+		public CodePrint next() {
+			this.unindent().newline();
+			return this;
+		}
+
+		@Override
+		public void end() {
+			// remove last newline
+			if(sb.charAt(sb.length() - indent.length() - 1) == '\n')
+				sb.delete(sb.length() - indent.length() - 1, sb.length() - indent.length());
+			this.newline().print(indent).print("}");
 		}
 	}
 
