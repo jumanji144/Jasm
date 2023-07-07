@@ -156,6 +156,7 @@ public class ASTProcessor {
 			// validate instructions
 			for (ASTInstruction instruction : code.getInstructions()) {
 				if (instruction == null) continue;
+				if (instruction instanceof ASTLabel) continue;
 				Instruction<?> insn = ctx.instructions.get(instruction.getIdentifier().getContent());
 				if (insn == null) {
 					ctx.throwError("Unknown instruction: " + instruction.getIdentifier().getContent(),

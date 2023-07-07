@@ -51,6 +51,31 @@ public class InstructionsTest {
 	}
 
 	@Test
+	public void testLabel() {
+		assertCode(new String[] {
+				"L1:",
+				"getstatic java/lang/System.out Ljava/io/PrintStream;",
+				"L2:",
+				"ldc \"Hello World\"",
+				"L3:",
+				"invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V",
+				"return",
+				"L4:"
+		}, BytecodeFormat.JVM, (code) -> {
+			List<ASTInstruction> instructions = code.getInstructions();
+			assertEquals(8, instructions.size());
+			assertEquals("L1", instructions.get(0).getIdentifier().getContent());
+			assertEquals("getstatic", instructions.get(1).getIdentifier().getContent());
+			assertEquals("L2", instructions.get(2).getIdentifier().getContent());
+			assertEquals("ldc", instructions.get(3).getIdentifier().getContent());
+			assertEquals("L3", instructions.get(4).getIdentifier().getContent());
+			assertEquals("invokevirtual", instructions.get(5).getIdentifier().getContent());
+			assertEquals("return", instructions.get(6).getIdentifier().getContent());
+			assertEquals("L4", instructions.get(7).getIdentifier().getContent());
+		});
+	}
+
+	@Test
 	public void testLdc() {
 		assertCode(new String[] {
 				"ldc Ljava/lang/String;",

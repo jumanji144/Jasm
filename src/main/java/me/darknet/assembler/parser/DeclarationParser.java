@@ -321,6 +321,7 @@ public class DeclarationParser {
 		}
 		if (peek.getContent().equals(":")) {
 			ctx.leaveState(State.IN_INSTRUCTION);
+			ctx.take(":");
 			return new ASTLabel(new ASTIdentifier(instruction));
 		}
 		ASTIdentifier identifier = new ASTIdentifier(instruction);
