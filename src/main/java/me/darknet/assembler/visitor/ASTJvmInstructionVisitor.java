@@ -17,6 +17,8 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 
 	void visitIntInsn(ASTNumber operand);
 
+	void visitNewArrayInsn(ASTIdentifier type);
+
 	void visitLdcInsn(ASTElement constant);
 
 	void visitVarInsn(ASTIdentifier var);

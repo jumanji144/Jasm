@@ -26,9 +26,11 @@ public class JvmInstructions extends ReflectiveInstructions<ASTJvmInstructionVis
 				"i2s", "lcmp", "fcmpl", "fcmpg", "dcmpl", "dcmpg", "ireturn", "lreturn", "freturn", "dreturn",
 				"areturn", "return", "arraylength", "athrow", "monitorenter", "monitorexit");
 
-		registerIntProcessors("bipush", "sipush", "newarray");
+		registerIntProcessors("bipush", "sipush");
 
 		registerTypeProcessors("new", "anewarray", "checkcast", "instanceof");
+
+		register("newarray", ops(JvmOperands.NEW_ARRAY_TYPE), "visitNewArrayInsn");
 
 		register("ldc", ops(JvmOperands.CONSTANT), "visitLdcInsn");
 
