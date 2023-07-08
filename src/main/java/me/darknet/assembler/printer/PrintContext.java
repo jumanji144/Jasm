@@ -1,6 +1,22 @@
 package me.darknet.assembler.printer;
 
+import java.util.HashMap;
+import java.util.Map;
+
+@SuppressWarnings("unchecked")
 public class PrintContext<T extends PrintContext<?>> {
+
+	private static final Map<Character, String> BASE_ESCAPE_MAP = Map.ofEntries(
+			Map.entry('\b', "\\b"),
+			Map.entry('\t', "\\t"),
+			Map.entry('\n', "\\n"),
+			Map.entry('\f', "\\f"),
+			Map.entry('\r', "\\r"),
+			Map.entry('\"', "\\\""),
+			Map.entry('\\', "\\\\"),
+			Map.entry('\'', "\\'")
+	);
+	private static final Map<Character, String> LITERAL_ESCAPE_MAP = new HashMap<>();
 
 	protected String indent = "";
 	protected String indentStep = "  ";
@@ -32,7 +48,33 @@ public class PrintContext<T extends PrintContext<?>> {
 	}
 
 	public T element(String s) {
-		sb.append(s).append(" ");
+		print(s).print(" ");
+		return (T) this;
+	}
+
+	public T literal(String s) {
+		for (char c : s.toCharArray()) {
+			String escape = LITERAL_ESCAPE_MAP.get(c);
+			if (escape != null) {
+				sb.append(escape);
+			} else {
+				sb.append(c);
+			}
+		}
+		return (T) this;
+	}
+
+	public T string(String s) {
+		sb.append("\"");
+		for (char c : s.toCharArray()) {
+			String escape = BASE_ESCAPE_MAP.get(c);
+			if (escape != null) {
+				sb.append(escape);
+			} else {
+				sb.append(c);
+			}
+		}
+		sb.append("\"");
 		return (T) this;
 	}
 
@@ -184,6 +226,15 @@ public class PrintContext<T extends PrintContext<?>> {
 				sb.delete(sb.length() - indent.length() - 1, sb.length() - indent.length());
 			this.newline().print(indent).print("}");
 		}
+	}
+
+	static {
+		LITERAL_ESCAPE_MAP.putAll(BASE_ESCAPE_MAP);
+		LITERAL_ESCAPE_MAP.put(' ', "\\u0020");
+		LITERAL_ESCAPE_MAP.put(',', "\\u002C");
+		LITERAL_ESCAPE_MAP.put(':', "\\u003A");
+		LITERAL_ESCAPE_MAP.put('{', "\\u007B");
+		LITERAL_ESCAPE_MAP.put('}', "\\u007D");
 	}
 
 }
