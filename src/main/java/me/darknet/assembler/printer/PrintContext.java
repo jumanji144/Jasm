@@ -18,8 +18,17 @@ public class PrintContext<T extends PrintContext<?>> {
 	);
 	private static final Map<Character, String> LITERAL_ESCAPE_MAP = new HashMap<>();
 
+	static {
+		LITERAL_ESCAPE_MAP.putAll(BASE_ESCAPE_MAP);
+		LITERAL_ESCAPE_MAP.put(' ', "\\u0020");
+		LITERAL_ESCAPE_MAP.put(',', "\\u002C");
+		LITERAL_ESCAPE_MAP.put(':', "\\u003A");
+		LITERAL_ESCAPE_MAP.put('{', "\\u007B");
+		LITERAL_ESCAPE_MAP.put('}', "\\u007D");
+	}
+
 	protected String indent = "";
-	protected String indentStep = "  ";
+	protected String indentStep;
 	protected StringBuilder sb;
 
 	public PrintContext(String indentStep) {
@@ -147,7 +156,7 @@ public class PrintContext<T extends PrintContext<?>> {
 		@Override
 		public void end() {
 			// remove last comma
-			if(sb.charAt(sb.length() - indent.length() - 3) == ',')
+			if (sb.charAt(sb.length() - indent.length() - 3) == ',')
 				sb.delete(sb.length() - indent.length() - 3, sb.length() - indent.length());
 			this.newline().print("}");
 		}
@@ -167,7 +176,7 @@ public class PrintContext<T extends PrintContext<?>> {
 		@Override
 		public void end() {
 			// remove last newline
-			if(sb.charAt(sb.length() - indent.length() - 2) == '\n')
+			if (sb.charAt(sb.length() - indent.length() - 2) == '\n')
 				sb.delete(sb.length() - indent.length() - 2, sb.length() - indent.length() - 1);
 			this.newline().print("}");
 		}
@@ -192,7 +201,7 @@ public class PrintContext<T extends PrintContext<?>> {
 		@Override
 		public void end() {
 			// remove last comma
-			if(sb.charAt(sb.length() - 2) == ',')
+			if (sb.charAt(sb.length() - 2) == ',')
 				sb.delete(sb.length() - 2, sb.length() - 1);
 			this.print("}");
 		}
@@ -222,19 +231,10 @@ public class PrintContext<T extends PrintContext<?>> {
 		@Override
 		public void end() {
 			// remove last newline
-			if(sb.charAt(sb.length() - indent.length() - 1) == '\n')
+			if (sb.charAt(sb.length() - indent.length() - 1) == '\n')
 				sb.delete(sb.length() - indent.length() - 1, sb.length() - indent.length());
 			this.newline().print(indent).print("}");
 		}
-	}
-
-	static {
-		LITERAL_ESCAPE_MAP.putAll(BASE_ESCAPE_MAP);
-		LITERAL_ESCAPE_MAP.put(' ', "\\u0020");
-		LITERAL_ESCAPE_MAP.put(',', "\\u002C");
-		LITERAL_ESCAPE_MAP.put(':', "\\u003A");
-		LITERAL_ESCAPE_MAP.put('{', "\\u007B");
-		LITERAL_ESCAPE_MAP.put('}', "\\u007D");
 	}
 
 }

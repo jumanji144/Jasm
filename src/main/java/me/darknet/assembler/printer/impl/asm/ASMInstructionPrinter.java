@@ -39,6 +39,23 @@ public class ASMInstructionPrinter implements Opcodes {
 			H_INVOKEINTERFACE, "invokeinterface"
 	);
 
+	static {
+		try {
+			Field[] fields = Opcodes.class.getDeclaredFields();
+			boolean foundBase = false;
+			for (Field field : fields) {
+				if (field.getName().equals("NOP")) {
+					foundBase = true;
+				}
+				if (foundBase) {
+					OPCODES[(Integer) field.get(null)] = field.getName().toLowerCase();
+				}
+			}
+		} catch (IllegalAccessException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	private final Names localNames;
 	private final InsnList instructions;
 
@@ -56,11 +73,11 @@ public class ASMInstructionPrinter implements Opcodes {
 	}
 
 	void printConstant(Object cst, PrintContext<?> insn) {
-		if(cst instanceof String) {
+		if (cst instanceof String) {
 			insn.string((String) cst);
-		} else if(cst instanceof Number) {
+		} else if (cst instanceof Number) {
 			insn.print(cst.toString());
-		} else if(cst instanceof Type) {
+		} else if (cst instanceof Type) {
 			Type type = (Type) cst;
 			switch (type.getSort()) {
 				case Type.OBJECT: {
@@ -75,7 +92,7 @@ public class ASMInstructionPrinter implements Opcodes {
 					throw new IllegalArgumentException("Unknown type: " + type);
 				}
 			}
-		} else if(cst instanceof Handle) {
+		} else if (cst instanceof Handle) {
 			printHandle((Handle) cst, insn);
 		} else {
 			throw new IllegalArgumentException("Unknown constant: " + cst);
@@ -86,20 +103,20 @@ public class ASMInstructionPrinter implements Opcodes {
 		Map<Integer, String> labels = new HashMap<>();
 		int currentLabel = 0;
 		for (AbstractInsnNode instruction : instructions) {
-			if(instruction.getType() == LABEL) {
+			if (instruction.getType() == LABEL) {
 				LabelNode node = (LabelNode) instruction;
 				labels.put(instructions.indexOf(node), LabelUtil.getLabelName(currentLabel++));
 			}
 		}
 		for (AbstractInsnNode instruction : instructions) {
 			int op = instruction.getOpcode();
-			if(instruction.getType() == LABEL) {
+			if (instruction.getType() == LABEL) {
 				LabelNode node = (LabelNode) instruction;
 				ctx.print(ctx.getIndent()).print(labels.get(instructions.indexOf(node))).print(":");
 				ctx.newline();
 				continue;
 			}
-			if(instruction.getOpcode() >= 0) {
+			if (instruction.getOpcode() >= 0) {
 				String opcode = OPCODES[instruction.getOpcode()];
 				var insn = ctx.instruction(opcode);
 				switch (instruction.getType()) {
@@ -109,7 +126,7 @@ public class ASMInstructionPrinter implements Opcodes {
 					case INT_INSN: {
 						IntInsnNode node = (IntInsnNode) instruction;
 						String elem = Integer.toString(node.operand);
-						if(op == NEWARRAY) {
+						if (op == NEWARRAY) {
 							elem = NEWARRAY_TYPES.get(node.operand);
 						}
 						insn.arg().element(elem);
@@ -170,23 +187,6 @@ public class ASMInstructionPrinter implements Opcodes {
 				}
 				ctx.next();
 			}
-		}
-	}
-
-	static {
-		try {
-			Field[] fields = Opcodes.class.getDeclaredFields();
-			boolean foundBase = false;
-			for (Field field : fields) {
-				if (field.getName().equals("NOP")) {
-					foundBase = true;
-				}
-				if(foundBase) {
-					OPCODES[(Integer) field.get(null)] = field.getName().toLowerCase();
-				}
-			}
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException(e);
 		}
 	}
 

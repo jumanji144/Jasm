@@ -26,12 +26,12 @@ public class ASMAnnotationHolder {
 		ASMAnnotationHolder holder = new ASMAnnotationHolder();
 		holder.annotations.addAll(unNull(node.visibleAnnotations));
 		holder.annotations.addAll(unNull(node.invisibleAnnotations));
-		if(node.visibleParameterAnnotations != null) {
+		if (node.visibleParameterAnnotations != null) {
 			for (List<AnnotationNode> visibleParameterAnnotation : node.visibleParameterAnnotations) {
 				holder.annotations.addAll(visibleParameterAnnotation);
 			}
 		}
-		if(node.invisibleParameterAnnotations != null) {
+		if (node.invisibleParameterAnnotations != null) {
 			for (List<AnnotationNode> invisibleParameterAnnotation : node.invisibleParameterAnnotations) {
 				holder.annotations.addAll(invisibleParameterAnnotation);
 			}
@@ -52,12 +52,12 @@ public class ASMAnnotationHolder {
 		return holder;
 	}
 
-	public AnnotationNode getAnnotationNode(int index) {
-		return annotations.get(index);
-	}
-
 	static <T extends AnnotationNode> List<T> unNull(@Nullable List<T> list) {
 		return list == null ? Collections.emptyList() : list;
+	}
+
+	public AnnotationNode getAnnotationNode(int index) {
+		return annotations.get(index);
 	}
 
 }

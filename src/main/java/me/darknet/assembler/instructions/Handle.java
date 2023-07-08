@@ -15,13 +15,26 @@ public class Handle {
 			"newinvokespecial", Kind.NEW_INVOKE_SPECIAL,
 			"invokeinterface", Kind.INVOKE_INTERFACE
 	);
-	private Kind kind;
-	private String name;
-	private String descriptor;
+	private final Kind kind;
+	private final String name;
+	private final String descriptor;
+
 	public Handle(Kind kind, String name, String descriptor) {
 		this.kind = kind;
 		this.name = name;
 		this.descriptor = descriptor;
+	}
+
+	public Kind getKind() {
+		return kind;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public String getDescriptor() {
+		return descriptor;
 	}
 
 	public enum Kind {

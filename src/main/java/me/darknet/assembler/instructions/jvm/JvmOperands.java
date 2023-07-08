@@ -63,7 +63,7 @@ public enum JvmOperands implements Operands {
 		context.isNotType(element, ElementType.IDENTIFIER, "type");
 	})),
 	NEW_ARRAY_TYPE(((context, element) -> {
-		if(context.isNotType(element, ElementType.IDENTIFIER, "new array type")) return;
+		if (context.isNotType(element, ElementType.IDENTIFIER, "new array type")) return;
 		ASTIdentifier identifier = (ASTIdentifier) element;
 		switch (identifier.getContent()) {
 			case "boolean":

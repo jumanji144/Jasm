@@ -4,6 +4,7 @@ public class Constant {
 
 	private final Type type;
 	private final Object value;
+
 	public Constant(Type type, Object value) {
 		this.type = type;
 		this.value = value;

@@ -6,6 +6,7 @@ public class MemberInfo {
 	protected final String owner;
 	protected final String name;
 	protected final String desc;
+
 	public MemberInfo(MemberType memberType, String owner, String name, String desc) {
 		this.memberType = memberType;
 		this.owner = owner;
