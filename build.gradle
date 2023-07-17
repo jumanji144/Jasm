@@ -4,13 +4,22 @@ plugins {
 }
 
 group = 'me.darknet.assembler'
-version = '1.0-SNAPSHOT'
+version = '2.0.0'
 
 repositories {
     mavenCentral()
 }
 
-sourceCompatibility = targetCompatibility = 11
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allSource
+    archiveClassifier.set('sources')
+}
 
 dependencies {
 
@@ -30,10 +39,12 @@ test {
     useJUnitPlatform()
 }
 
+// publish with sources
 publishing {
     publications {
         maven(MavenPublication) {
             from components.java
+            artifact sourcesJar
         }
     }
 }
