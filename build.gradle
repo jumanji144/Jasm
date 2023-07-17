@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 group = 'me.darknet.assembler'
@@ -9,14 +10,16 @@ repositories {
     mavenCentral()
 }
 
+sourceCompatibility = targetCompatibility = 11
+
 dependencies {
 
     // asm-tree
-    implementation 'org.ow2.asm:asm:9.1'
-    implementation 'org.ow2.asm:asm-commons:9.1'
-    implementation 'org.ow2.asm:asm-util:9.1'
-    implementation 'org.ow2.asm:asm-analysis:9.1'
-    implementation 'org.ow2.asm:asm-tree:9.1'
+    implementation 'org.ow2.asm:asm:9.2'
+    implementation 'org.ow2.asm:asm-commons:9.2'
+    implementation 'org.ow2.asm:asm-util:9.2'
+    implementation 'org.ow2.asm:asm-analysis:9.2'
+    implementation 'org.ow2.asm:asm-tree:9.2'
     implementation 'org.jetbrains:annotations:24.0.0'
 
     testImplementation platform('org.junit:junit-bom:5.9.1')
@@ -25,4 +28,12 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
 }
