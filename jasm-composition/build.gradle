@@ -1,0 +1,8 @@
+apply plugin: 'java-library'
+
+dependencies {
+    api 'dev.xdark:blw-core:1.0'
+    implementation 'org.ow2.asm:asm:9.5'
+
+    api project(path: ':jasm-core')
+}
