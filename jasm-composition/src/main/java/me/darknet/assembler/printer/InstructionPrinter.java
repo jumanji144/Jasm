@@ -48,7 +48,7 @@ public class InstructionPrinter implements ExecutionEngine {
 
 		// map labels
 		int index = 0;
-		for (CodeElement codeElement : code.codeList()) {
+		for (CodeElement codeElement : code.elements()) {
 			if(codeElement instanceof Label label) {
 				labelNames.put(label.index(), LabelUtil.getLabelName(index++));
 			}
@@ -159,7 +159,7 @@ public class InstructionPrinter implements ExecutionEngine {
 	@Override
 	public void execute(VarInstruction instruction) {
 		ctx.instruction(OPCODES[instruction.opcode()])
-				.literal(names.getName(instruction.variableIndex(), code.codeList().indexOf(instruction)))
+				.literal(names.getName(instruction.variableIndex(), code.elements().indexOf(instruction)))
 				.next();
 	}
 
@@ -281,7 +281,7 @@ public class InstructionPrinter implements ExecutionEngine {
 	public void execute(VariableIncrementInstruction instruction) {
 		ctx.instruction(OPCODES[instruction.opcode()])
 				.arg()
-				.literal(names.getName(instruction.variableIndex(), code.codeList().indexOf(instruction)))
+				.literal(names.getName(instruction.variableIndex(), code.elements().indexOf(instruction)))
 				.arg()
 				.literal(Integer.toString(instruction.incrementBy()))
 				.next();

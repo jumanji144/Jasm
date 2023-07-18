@@ -40,7 +40,7 @@ public class MethodPrinter implements Printer {
 		}
 		var methodCode = method.code();
 		if(methodCode != null) {
-			var code = obj.value("code").code(methodCode.codeList().size());
+			var code = obj.value("code").code(methodCode.elements().size());
 			InstructionPrinter printer = new InstructionPrinter(code, methodCode, names);
 			StraightforwardSimulation simulation = new StraightforwardSimulation();
 			simulation.execute(printer, method);
