@@ -142,10 +142,10 @@ public class ASMMethodPrinter extends MethodPrinter implements Opcodes {
 				.print(modifiers(method.access))
 				.element(method.name)
 				.element(method.desc)
-				.object();
+				.object(2);
 		Names names = localNames();
 		if (!names.getParameters().isEmpty()) {
-			var arr = obj.value("parameters").array();
+			var arr = obj.value("parameters").array(names.getParameters().size());
 
 			for (String name : names.getParameters().values()) {
 				arr.print(name).arg();
@@ -154,7 +154,7 @@ public class ASMMethodPrinter extends MethodPrinter implements Opcodes {
 			arr.end();
 			obj.next();
 		}
-		var code = obj.value("code").code();
+		var code = obj.value("code").code(method.instructions.size());
 		ASMInstructionPrinter printer = new ASMInstructionPrinter(method.instructions, names);
 		printer.print(code);
 		code.end();

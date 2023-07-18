@@ -65,7 +65,7 @@ public class ASMInstructionPrinter implements Opcodes {
 	}
 
 	void printHandle(Handle handle, PrintContext<?> insn) {
-		var arr = insn.array();
+		var arr = insn.array(3);
 		arr.print(HANDLE_TYPES.get(handle.getTag()));
 		arr.arg().literal(handle.getOwner()).print(".").literal(handle.getName());
 		arr.arg().literal(handle.getDesc());
@@ -108,12 +108,21 @@ public class ASMInstructionPrinter implements Opcodes {
 				labels.put(instructions.indexOf(node), LabelUtil.getLabelName(currentLabel++));
 			}
 		}
+		int count = 0;
 		for (AbstractInsnNode instruction : instructions) {
 			int op = instruction.getOpcode();
 			if (instruction.getType() == LABEL) {
 				LabelNode node = (LabelNode) instruction;
 				ctx.print(ctx.getIndent()).print(labels.get(instructions.indexOf(node))).print(":");
-				ctx.newline();
+				ctx.indent().next(count++);
+				continue;
+			}
+			if(instruction.getType() == LINE) {
+				LineNumberNode node = (LineNumberNode) instruction;
+				ctx.instruction("line")
+						.arg().print(labels.get(instructions.indexOf(node.start)))
+						.arg().print(Integer.toString(node.line))
+						.next(count++);
 				continue;
 			}
 			if (instruction.getOpcode() >= 0) {
@@ -159,7 +168,7 @@ public class ASMInstructionPrinter implements Opcodes {
 						InvokeDynamicInsnNode node = (InvokeDynamicInsnNode) instruction;
 						insn.arg().literal(node.name).print(" ").literal(node.desc);
 						printHandle(node.bsm, insn);
-						var arr = insn.arg().array();
+						var arr = insn.arg().array(node.bsmArgs.length);
 						for (Object arg : node.bsmArgs) {
 							printConstant(arg, arr);
 							arr.arg();
@@ -185,7 +194,7 @@ public class ASMInstructionPrinter implements Opcodes {
 						break;
 					}
 				}
-				ctx.next();
+				ctx.next(count++);
 			}
 		}
 	}

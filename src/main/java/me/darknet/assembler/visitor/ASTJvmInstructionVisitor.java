@@ -1,12 +1,10 @@
 package me.darknet.assembler.visitor;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
-import me.darknet.assembler.instructions.Constant;
-import me.darknet.assembler.instructions.Handle;
-
-import java.util.List;
+import me.darknet.assembler.ast.primitive.ASTObject;
 
 public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 
@@ -29,16 +27,20 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 
 	void visitTypeInsn(ASTIdentifier type);
 
-	void visitLookupSwitchInsn(String defaultLabel, List<String> labels, List<Integer> keys);
+	void visitLookupSwitchInsn(ASTObject lookupSwitchObject);
 
-	void visitTableSwitchInsn(String defaultLabel, List<String> labels, int min, int max);
+	void visitTableSwitchInsn(ASTObject tableSwitchObject);
 
-	void visitFieldInsn(String owner, String name, String descriptor);
+	void visitFieldInsn(ASTIdentifier owner, ASTIdentifier name, ASTIdentifier descriptor);
 
-	void visitMethodInsn(String owner, String name, String descriptor, boolean itf);
+	void visitMethodInsn(ASTIdentifier owner, ASTIdentifier name, ASTIdentifier descriptor);
 
-	void visitInvokeDynamicInsn(String name, String descriptor, Handle bsm, List<Constant> bsmArgs);
+	void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTArray bsm, ASTArray bsmArgs);
 
-	void visitMultiANewArrayInsn(String descriptor, int numDimensions);
+	void visitMultiANewArrayInsn(ASTIdentifier descriptor, ASTNumber numDimensions);
+
+	void visitLabel(ASTIdentifier label);
+
+	void visitLineNumber(ASTIdentifier label, ASTNumber line);
 
 }

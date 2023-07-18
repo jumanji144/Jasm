@@ -79,7 +79,7 @@ public class ASMClassPrinter extends ClassPrinter implements Opcodes {
 				.element(".class")
 				.print(modifiers(node.access))
 				.element(node.name)
-				.declObject()
+				.declObject(node.methods.size())
 				.newline();
 		for (MethodNode method : node.methods) {
 			MethodPrinter printer = new ASMMethodPrinter(node, method);

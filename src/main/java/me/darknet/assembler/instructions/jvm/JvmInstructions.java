@@ -54,6 +54,9 @@ public class JvmInstructions extends ReflectiveInstructions<ASTJvmInstructionVis
 				"visitInvokeDynamicInsn");
 
 		register("multianewarray", ops(DefaultOperands.LITERAL, DefaultOperands.INTEGER), "visitMultiANewArrayInsn");
+
+		// intrinsics
+		register("line", ops(DefaultOperands.IDENTIFIER, DefaultOperands.INTEGER), "visitLineNumber");
 	}
 
 	void registerIntProcessors(String... names) {

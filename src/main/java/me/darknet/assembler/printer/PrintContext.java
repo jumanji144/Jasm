@@ -1,5 +1,6 @@
 package me.darknet.assembler.printer;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,11 +30,33 @@ public class PrintContext<T extends PrintContext<?>> {
 
 	protected String indent = "";
 	protected String indentStep;
-	protected StringBuilder sb;
+	protected Appendable sb;
+
+	public PrintContext(String indentStep, Appendable stream) {
+		this.indentStep = indentStep;
+		this.sb = stream;
+	}
 
 	public PrintContext(String indentStep) {
-		this.indentStep = indentStep;
-		this.sb = new StringBuilder();
+		this(indentStep, new StringBuilder());
+	}
+
+	T append(String s) {
+		try {
+			sb.append(s);
+		} catch (IOException e) {
+			// ignore
+		}
+		return (T) this;
+	}
+
+	T append(char c) {
+		try {
+			sb.append(c);
+		} catch (IOException e) {
+			// ignore
+		}
+		return (T) this;
 	}
 
 	public PrintContext(PrintContext<?> ctx) {
@@ -43,17 +66,15 @@ public class PrintContext<T extends PrintContext<?>> {
 	}
 
 	public T begin() {
-		sb.append(getIndent());
-		return (T) this;
+		return append(indent);
 	}
 
 	public void end() {
-		sb.append("\n");
+		append('\n');
 	}
 
 	public T print(String s) {
-		sb.append(s);
-		return (T) this;
+		return append(s);
 	}
 
 	public T element(String s) {
@@ -65,53 +86,53 @@ public class PrintContext<T extends PrintContext<?>> {
 		for (char c : s.toCharArray()) {
 			String escape = LITERAL_ESCAPE_MAP.get(c);
 			if (escape != null) {
-				sb.append(escape);
+				append(escape);
 			} else {
-				sb.append(c);
+				append(c);
 			}
 		}
 		return (T) this;
 	}
 
 	public T string(String s) {
-		sb.append("\"");
+		append('\"');
 		for (char c : s.toCharArray()) {
 			String escape = BASE_ESCAPE_MAP.get(c);
 			if (escape != null) {
-				sb.append(escape);
+				append(escape);
 			} else {
-				sb.append(c);
+				append(c);
 			}
 		}
-		sb.append("\"");
+		append('\"');
 		return (T) this;
 	}
 
-	public ObjectPrint object() {
-		sb.append("{");
+	public ObjectPrint object(int length) {
+		append("{");
 		newline();
-		return new ObjectPrint(this);
+		return new ObjectPrint(this, length);
 	}
 
-	public DeclObjectPrint declObject() {
-		sb.append("{");
+	public DeclObjectPrint declObject(int length) {
+		append("{");
 		newline();
-		return new DeclObjectPrint(this);
+		return new DeclObjectPrint(this, length);
 	}
 
-	public ArrayPrint array() {
-		sb.append("{ ");
-		return new ArrayPrint(this);
+	public ArrayPrint array(int length) {
+		append("{ ");
+		return new ArrayPrint(this, length);
 	}
 
-	public CodePrint code() {
-		sb.append("{");
+	public CodePrint code(int length) {
+		append("{");
 		newline();
-		return new CodePrint(this);
+		return new CodePrint(this, length);
 	}
 
 	public T newline() {
-		sb.append("\n").append(indent);
+		append("\n").append(indent);
 		return (T) this;
 	}
 
@@ -139,8 +160,12 @@ public class PrintContext<T extends PrintContext<?>> {
 
 	public static class ObjectPrint extends PrintContext<ObjectPrint> {
 
-		public ObjectPrint(PrintContext<?> ctx) {
+		private int length = 0;
+		private int index = 0;
+
+		public ObjectPrint(PrintContext<?> ctx, int length) {
 			super(ctx);
+			this.length = length;
 		}
 
 		public ObjectPrint value(String key) {
@@ -149,35 +174,37 @@ public class PrintContext<T extends PrintContext<?>> {
 		}
 
 		public ObjectPrint next() {
-			this.print(", ").newline();
+			if (index++ < length - 1)
+				this.print(",").newline();
 			return this;
 		}
 
 		@Override
 		public void end() {
-			// remove last comma
-			if (sb.charAt(sb.length() - indent.length() - 3) == ',')
-				sb.delete(sb.length() - indent.length() - 3, sb.length() - indent.length());
 			this.newline().print("}");
 		}
 	}
 
 	public static class DeclObjectPrint extends PrintContext<DeclObjectPrint> {
 
-		public DeclObjectPrint(PrintContext<?> ctx) {
+		private int length = 0;
+		private int index = 0;
+
+		public DeclObjectPrint(PrintContext<?> ctx, int length) {
 			super(ctx);
+			this.length = length;
 		}
 
 		public DeclObjectPrint next() {
-			this.unindent().newline().newline();
+			if (index++ < length - 1)
+				this.unindent().newline().newline();
+			else
+				this.unindent();
 			return this;
 		}
 
 		@Override
 		public void end() {
-			// remove last newline
-			if (sb.charAt(sb.length() - indent.length() - 2) == '\n')
-				sb.delete(sb.length() - indent.length() - 2, sb.length() - indent.length() - 1);
 			this.newline().print("}");
 		}
 
@@ -189,28 +216,34 @@ public class PrintContext<T extends PrintContext<?>> {
 
 	public static class ArrayPrint extends PrintContext<ArrayPrint> {
 
-		public ArrayPrint(PrintContext<?> ctx) {
+		private int length = 0;
+		private int index = 0;
+
+		public ArrayPrint(PrintContext<?> ctx, int length) {
 			super(ctx);
+			this.length = length;
 		}
 
 		public ArrayPrint arg() {
-			this.print(", ");
+			if (index++ < length - 1) this.print(", ");
+			else this.print(" ");
 			return this;
 		}
 
 		@Override
 		public void end() {
-			// remove last comma
-			if (sb.charAt(sb.length() - 2) == ',')
-				sb.delete(sb.length() - 2, sb.length() - 1);
 			this.print("}");
 		}
 	}
 
 	public static class CodePrint extends PrintContext<CodePrint> {
 
-		public CodePrint(PrintContext<?> ctx) {
+		private int length = 0;
+		private int index = 0;
+
+		public CodePrint(PrintContext<?> ctx, int length) {
 			super(ctx);
+			this.length = length;
 		}
 
 		public CodePrint instruction(String key) {
@@ -223,16 +256,14 @@ public class PrintContext<T extends PrintContext<?>> {
 			return this;
 		}
 
-		public CodePrint next() {
-			this.unindent().newline();
+		public CodePrint next(int index) {
+			if (index < length - 1) this.unindent().newline();
+			else this.unindent();
 			return this;
 		}
 
 		@Override
 		public void end() {
-			// remove last newline
-			if (sb.charAt(sb.length() - indent.length() - 1) == '\n')
-				sb.delete(sb.length() - indent.length() - 1, sb.length() - indent.length());
 			this.newline().print(indent).print("}");
 		}
 	}

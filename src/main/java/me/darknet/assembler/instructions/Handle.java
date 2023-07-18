@@ -1,5 +1,7 @@
 package me.darknet.assembler.instructions;
 
+import me.darknet.assembler.ast.primitive.ASTIdentifier;
+
 import java.util.Map;
 
 public class Handle {
@@ -16,10 +18,10 @@ public class Handle {
 			"invokeinterface", Kind.INVOKE_INTERFACE
 	);
 	private final Kind kind;
-	private final String name;
-	private final String descriptor;
+	private final ASTIdentifier name;
+	private final ASTIdentifier descriptor;
 
-	public Handle(Kind kind, String name, String descriptor) {
+	public Handle(Kind kind, ASTIdentifier name, ASTIdentifier descriptor) {
 		this.kind = kind;
 		this.name = name;
 		this.descriptor = descriptor;
@@ -29,11 +31,11 @@ public class Handle {
 		return kind;
 	}
 
-	public String getName() {
+	public ASTIdentifier getName() {
 		return name;
 	}
 
-	public String getDescriptor() {
+	public ASTIdentifier getDescriptor() {
 		return descriptor;
 	}
 
