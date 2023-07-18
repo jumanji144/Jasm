@@ -5,7 +5,7 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTObject;
-import me.darknet.assembler.instructions.Handle;
+import me.darknet.assembler.helper.Handle;
 import me.darknet.assembler.instructions.Operand;
 import me.darknet.assembler.instructions.Operands;
 import me.darknet.assembler.parser.ASTProcessor;

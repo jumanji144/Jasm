@@ -1,6 +1,6 @@
-package me.darknet.assembler.instructions;
+package me.darknet.assembler.helper;
 
-import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTArray;
 
 import java.util.Map;
 
@@ -18,10 +18,10 @@ public class Handle {
 			"invokeinterface", Kind.INVOKE_INTERFACE
 	);
 	private final Kind kind;
-	private final ASTIdentifier name;
-	private final ASTIdentifier descriptor;
+	private final String name;
+	private final String descriptor;
 
-	public Handle(Kind kind, ASTIdentifier name, ASTIdentifier descriptor) {
+	public Handle(Kind kind, String name, String descriptor) {
 		this.kind = kind;
 		this.name = name;
 		this.descriptor = descriptor;
@@ -31,11 +31,11 @@ public class Handle {
 		return kind;
 	}
 
-	public ASTIdentifier getName() {
+	public String getName() {
 		return name;
 	}
 
-	public ASTIdentifier getDescriptor() {
+	public String getDescriptor() {
 		return descriptor;
 	}
 
@@ -49,6 +49,14 @@ public class Handle {
 		INVOKE_SPECIAL,
 		NEW_INVOKE_SPECIAL,
 		INVOKE_INTERFACE
+	}
+
+	public static Handle from(ASTArray array) {
+		Handle.Kind kind = Handle.Kind.valueOf(array.getValues().get(0).getContent());
+		String name = array.getValues().get(1).getContent();
+		String descriptor = array.getValues().get(2).getContent();
+
+		return new Handle(kind, name, descriptor);
 	}
 
 }
