@@ -1,8 +1,9 @@
 package me.darknet.assembler.printer;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
+import static me.darknet.assembler.util.StringUtil.removeLast;
 
 @SuppressWarnings("unchecked")
 public class PrintContext<T extends PrintContext<?>> {
@@ -30,32 +31,20 @@ public class PrintContext<T extends PrintContext<?>> {
 
 	protected String indent = "";
 	protected String indentStep;
-	protected Appendable sb;
-
-	public PrintContext(String indentStep, Appendable stream) {
-		this.indentStep = indentStep;
-		this.sb = stream;
-	}
+	protected StringBuilder sb;
 
 	public PrintContext(String indentStep) {
-		this(indentStep, new StringBuilder());
+		this.indentStep = indentStep;
+		this.sb = new StringBuilder();
 	}
 
 	T append(String s) {
-		try {
-			sb.append(s);
-		} catch (IOException e) {
-			// ignore
-		}
+		sb.append(s);
 		return (T) this;
 	}
 
 	T append(char c) {
-		try {
-			sb.append(c);
-		} catch (IOException e) {
-			// ignore
-		}
+		sb.append(c);
 		return (T) this;
 	}
 
@@ -108,27 +97,27 @@ public class PrintContext<T extends PrintContext<?>> {
 		return (T) this;
 	}
 
-	public ObjectPrint object(int length) {
+	public ObjectPrint object() {
 		append("{");
 		newline();
-		return new ObjectPrint(this, length);
+		return new ObjectPrint(this);
 	}
 
-	public DeclObjectPrint declObject(int length) {
+	public DeclObjectPrint declObject() {
 		append("{");
 		newline();
-		return new DeclObjectPrint(this, length);
+		return new DeclObjectPrint(this);
 	}
 
-	public ArrayPrint array(int length) {
+	public ArrayPrint array() {
 		append("{ ");
-		return new ArrayPrint(this, length);
+		return new ArrayPrint(this);
 	}
 
-	public CodePrint code(int length) {
+	public CodePrint code() {
 		append("{");
 		newline();
-		return new CodePrint(this, length);
+		return new CodePrint(this);
 	}
 
 	public T newline() {
@@ -137,6 +126,7 @@ public class PrintContext<T extends PrintContext<?>> {
 	}
 
 	public T next() {
+		end();
 		return (T) this;
 	}
 
@@ -160,12 +150,8 @@ public class PrintContext<T extends PrintContext<?>> {
 
 	public static class ObjectPrint extends PrintContext<ObjectPrint> {
 
-		private int length = 0;
-		private int index = 0;
-
-		public ObjectPrint(PrintContext<?> ctx, int length) {
+		public ObjectPrint(PrintContext<?> ctx) {
 			super(ctx);
-			this.length = length;
 		}
 
 		public ObjectPrint value(String key) {
@@ -174,76 +160,62 @@ public class PrintContext<T extends PrintContext<?>> {
 		}
 
 		public ObjectPrint next() {
-			if (index++ < length - 1)
-				this.print(",").newline();
+			this.print(",").newline();
 			return this;
 		}
 
 		@Override
 		public void end() {
+			removeLast(sb, ",\n", 2);
 			this.newline().print("}");
 		}
 	}
 
 	public static class DeclObjectPrint extends PrintContext<DeclObjectPrint> {
 
-		private int length = 0;
-		private int index = 0;
-
-		public DeclObjectPrint(PrintContext<?> ctx, int length) {
+		public DeclObjectPrint(PrintContext<?> ctx) {
 			super(ctx);
-			this.length = length;
 		}
 
 		public DeclObjectPrint next() {
-			if (index++ < length - 1)
-				this.unindent().newline().newline();
-			else
-				this.unindent();
+			this.unindent().newline().newline();
 			return this;
 		}
 
 		@Override
 		public void end() {
+			removeLast(sb, "\n\n", 2);
 			this.newline().print("}");
 		}
 
-		public DeclObjectPrint value() {
-			this.indent();
+		public DeclObjectPrint begin() {
+			this.indent().print(indent);
 			return this;
 		}
 	}
 
 	public static class ArrayPrint extends PrintContext<ArrayPrint> {
 
-		private int length = 0;
-		private int index = 0;
-
-		public ArrayPrint(PrintContext<?> ctx, int length) {
+		public ArrayPrint(PrintContext<?> ctx) {
 			super(ctx);
-			this.length = length;
 		}
 
 		public ArrayPrint arg() {
-			if (index++ < length - 1) this.print(", ");
-			else this.print(" ");
+			this.print(", ");
 			return this;
 		}
 
 		@Override
 		public void end() {
-			this.print("}");
+			removeLast(sb, ", ", 2);
+			this.print(" }");
 		}
 	}
 
 	public static class CodePrint extends PrintContext<CodePrint> {
 
-		private int length = 0;
-		private int index = 0;
-
-		public CodePrint(PrintContext<?> ctx, int length) {
+		public CodePrint(PrintContext<?> ctx) {
 			super(ctx);
-			this.length = length;
 		}
 
 		public CodePrint instruction(String key) {
@@ -257,13 +229,13 @@ public class PrintContext<T extends PrintContext<?>> {
 		}
 
 		public CodePrint next() {
-			if (index++ < length - 1) this.unindent().newline();
-			else this.unindent();
+			this.unindent().newline();
 			return this;
 		}
 
 		@Override
 		public void end() {
+			removeLast(sb, "\n", 2);
 			this.newline().print(indent).print("}");
 		}
 	}
