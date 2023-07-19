@@ -2,7 +2,6 @@ package me.darknet.assembler.printer.jvm;
 
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.instruction.*;
-import dev.xdark.blw.constant.*;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.printer.jvm.util.LabelUtil;
@@ -14,17 +13,6 @@ import java.util.Map;
 public class InstructionPrinter implements IndexedExecutionEngine {
 
 	private final static String[] OPCODES = new String[256];
-	private static final Map<Integer, String> HANDLE_TYPES = Map.of(
-			1, "getfield",
-			2, "getstatic",
-			3, "putfield",
-			4, "putstatic",
-			5, "invokevirtual",
-			6, "invokestatic",
-			7, "invokespecial",
-			8, "newinvokespecial",
-			9, "invokeinterface"
-	);
 	private int currentIndex = 0;
 
 	static {
@@ -56,89 +44,9 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 		}
 	}
 
-	void printMethodHandle(MethodHandle handle) {
-		var array = ctx.array(3);
-		array.print(HANDLE_TYPES.get(handle.kind()))
-				.arg()
-					.literal(handle.owner().internalName())
-					.literal(".")
-					.literal(handle.name())
-				.arg()
-					.literal(handle.type().descriptor())
-				.end();
-	}
-
 	@Override
 	public void index(int index) {
 		currentIndex = index;
-	}
-
-	class ConstantPrinter implements ConstantSink {
-
-		protected final PrintContext<?> ctx;
-
-		public ConstantPrinter(PrintContext<?> ctx) {
-			this.ctx = ctx;
-		}
-
-		@Override
-		public void acceptString(OfString value) {
-			ctx.string(value.value());
-		}
-
-		@Override
-		public void acceptMethodHandle(OfMethodHandle value) {
-			printMethodHandle(value.value());
-		}
-
-		@Override
-		public void acceptType(OfType value) {
-			Type type = value.value();
-			if(type instanceof ObjectType ct) {
-				ctx.print("L").literal(ct.internalName()).literal(";");
-			} else {
-				ctx.literal(type.descriptor());
-			}
-		}
-
-		@Override
-		public void acceptDynamic(OfDynamic value) {
-			ConstantDynamic dynamic = value.value();
-			var array = ctx.array(4);
-			array.literal(dynamic.name())
-					.arg()
-						.literal(dynamic.type().descriptor())
-					.arg();
-			printMethodHandle(dynamic.methodHandle());
-			var bsmArray = array.arg().array(dynamic.args().size());
-			ConstantPrinter printer = new ConstantPrinter(bsmArray);
-			for (var arg : dynamic.args()) {
-				arg.accept(printer);
-			}
-			bsmArray.end();
-			array.end();
-		}
-
-		@Override
-		public void acceptLong(OfLong value) {
-			ctx.print(String.valueOf(value.value())).print("L");
-		}
-
-		@Override
-		public void acceptDouble(OfDouble value) {
-			ctx.print(String.valueOf(value.value())).print("D");
-		}
-
-		@Override
-		public void acceptInt(OfInt value) {
-			ctx.print(String.valueOf(value.value()));
-		}
-
-		@Override
-		public void acceptFloat(OfFloat value) {
-			ctx.print(String.valueOf(value.value())).print("F");
-		}
-
 	}
 
 	@Override
@@ -219,7 +127,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
 	@Override
 	public void execute(LookupSwitchInstruction instruction) {
-		var obj = ctx.instruction("lookupswitch").object(1 + instruction.targets().size());
+		var obj = ctx.instruction("lookupswitch").object();
 		obj.value("default").print(labelNames.get(instruction.defaultTarget().index())).next();
 		for (int i = 0; i < instruction.keys().length; i++) {
 			Label target = instruction.targets().get(i);
@@ -232,10 +140,10 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
 	@Override
 	public void execute(TableSwitchInstruction instruction) {
-		var obj = ctx.instruction("tableswitch").object(4);
+		var obj = ctx.instruction("tableswitch").object();
 		obj.value("min").print(String.valueOf(instruction.min())).next();
 		obj.value("max").print(String.valueOf(instruction.min() + instruction.targets().size())).next();
-		var arr = obj.value("targets").array(instruction.targets().size());
+		var arr = obj.value("targets").array();
 		for (Label target : instruction.targets()) {
 			arr.print(labelNames.get(target.index())).arg();
 		}
@@ -308,13 +216,15 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 				.arg()
 				.literal(instruction.type().descriptor())
 				.arg();
-		printMethodHandle(instruction.bootstrapHandle());
-		var bsmArray = ctx.arg().array(instruction.args().size());
+		ConstantPrinter.printMethodHandle(instruction.bootstrapHandle(), ctx);
+		var bsmArray = ctx.arg().array();
 		ConstantPrinter printer = new ConstantPrinter(bsmArray);
 		for (var arg : instruction.args()) {
 			arg.accept(printer);
+			bsmArray.arg();
 		}
 		bsmArray.end();
+		ctx.next();
 	}
 
 	@Override
