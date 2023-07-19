@@ -1,7 +1,7 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.printer.ClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
+import me.darknet.assembler.printer.jvm.ClassPrinter;
 
 import java.io.IOException;
 import java.io.InputStream;

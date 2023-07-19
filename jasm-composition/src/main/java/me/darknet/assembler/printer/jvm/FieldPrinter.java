@@ -1,7 +1,9 @@
-package me.darknet.assembler.printer;
+package me.darknet.assembler.printer.jvm;
 
 import dev.xdark.blw.classfile.Field;
-import me.darknet.assembler.printer.util.Modifiers;
+import me.darknet.assembler.printer.PrintContext;
+import me.darknet.assembler.printer.Printer;
+import me.darknet.assembler.printer.jvm.util.Modifiers;
 
 public class FieldPrinter implements Printer {
 

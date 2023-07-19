@@ -1,4 +1,4 @@
-package me.darknet.assembler.printer;
+package me.darknet.assembler.printer.jvm;
 
 import java.util.List;
 import java.util.Map;

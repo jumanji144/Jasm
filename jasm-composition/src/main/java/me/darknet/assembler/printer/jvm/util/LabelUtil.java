@@ -1,4 +1,4 @@
-package me.darknet.assembler.printer.util;
+package me.darknet.assembler.printer.jvm.util;
 
 public class LabelUtil {
 

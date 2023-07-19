@@ -1,4 +1,4 @@
-package me.darknet.assembler.printer;
+package me.darknet.assembler.printer.jvm;
 
 import dev.xdark.blw.classfile.ClassBuilder;
 import dev.xdark.blw.classfile.ClassFileView;
@@ -6,7 +6,9 @@ import dev.xdark.blw.classfile.Field;
 import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.type.InstanceType;
 import me.darknet.assembler.JasmInterface;
-import me.darknet.assembler.printer.util.Modifiers;
+import me.darknet.assembler.printer.PrintContext;
+import me.darknet.assembler.printer.Printer;
+import me.darknet.assembler.printer.jvm.util.Modifiers;
 
 import java.io.IOException;
 import java.io.InputStream;
