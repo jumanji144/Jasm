@@ -5,7 +5,7 @@ import me.darknet.assembler.printer.jvm.ClassPrinter;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringWriter;
+import java.util.Arrays;
 
 public class PrinterTest {
 
@@ -25,6 +25,15 @@ public class PrinterTest {
 				break;
 			}
 		}
+
+		String a = "Hello, world!";
+		char[] b = a.toCharArray();
+
+		int[] c = new int[10];
+		Object d = c;
+		if(!(d instanceof char[])) {
+			Arrays.stream(c).forEach(System.out::println);
+		}
 	}
 
 	private static class InnerClass$InnerClass {
@@ -37,10 +46,9 @@ public class PrinterTest {
 		InputStream thisClass = PrinterTest.class
 				.getResourceAsStream("/me/darknet/assembler/PrinterTest.class");
 		ClassPrinter printer = new ClassPrinter(thisClass);
-		StringWriter sw = new StringWriter();
-		PrintContext<?> ctx = new PrintContext<>("\t", sw);
+		PrintContext<?> ctx = new PrintContext<>("\t");
 		printer.print(ctx);
-		String output = sw.toString();
+		String output = ctx.toString();
 		System.out.println(output);
 	}
 
