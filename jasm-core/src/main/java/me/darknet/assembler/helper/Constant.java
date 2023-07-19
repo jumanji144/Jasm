@@ -8,14 +8,6 @@ import me.darknet.assembler.ast.primitive.ASTNumber;
 public record Constant(me.darknet.assembler.helper.Constant.Type type, Object value) {
 
 
-	public enum Type {
-		String,
-		Number,
-		ClassType,
-		MethodType,
-		MethodHandle
-	}
-
 	/**
 	 * Create a new constant from element
 	 *
@@ -42,6 +34,14 @@ public record Constant(me.darknet.assembler.helper.Constant.Type type, Object va
 			}
 		}
 		return null;
+	}
+
+	public enum Type {
+		String,
+		Number,
+		ClassType,
+		MethodType,
+		MethodHandle
 	}
 
 }

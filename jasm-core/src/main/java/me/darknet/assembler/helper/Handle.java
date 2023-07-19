@@ -18,6 +18,13 @@ public record Handle(Handle.Kind kind, String name, String descriptor) {
 			"invokeinterface", Kind.INVOKE_INTERFACE
 	);
 
+	public static Handle from(ASTArray array) {
+		Handle.Kind kind = Handle.Kind.valueOf(array.getValues().get(0).getContent());
+		String name = array.getValues().get(1).getContent();
+		String descriptor = array.getValues().get(2).getContent();
+
+		return new Handle(kind, name, descriptor);
+	}
 
 	public enum Kind {
 		GET_FIELD,
@@ -29,14 +36,6 @@ public record Handle(Handle.Kind kind, String name, String descriptor) {
 		INVOKE_SPECIAL,
 		NEW_INVOKE_SPECIAL,
 		INVOKE_INTERFACE
-	}
-
-	public static Handle from(ASTArray array) {
-		Handle.Kind kind = Handle.Kind.valueOf(array.getValues().get(0).getContent());
-		String name = array.getValues().get(1).getContent();
-		String descriptor = array.getValues().get(2).getContent();
-
-		return new Handle(kind, name, descriptor);
 	}
 
 }

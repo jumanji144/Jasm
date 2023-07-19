@@ -18,9 +18,61 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class InstructionsTest {
 
+	public static void assertCode(String[] instructions, BytecodeFormat format, Consumer<ASTCode> consumer) {
+		assertOne(".method stub ()V {\n" +
+				"code: {" + String.join("\n", instructions) + "\n}}\n", format, ASTMethod.class, (method) -> {
+			assertEquals("stub", method.getName().getContent());
+			assertEquals("()V", method.getDescriptor().getContent());
+			assertNotNull(method.getCode());
+			consumer.accept(method.getCode());
+		});
+	}
+
+	public static <T extends ASTElement> void assertOne(String input, BytecodeFormat format, Class<T> clazz, Consumer<T> consumer) {
+		parseString(input, format, (result) -> {
+			if (result.isErr()) {
+				for (Error error : result.getErrors()) {
+					Location location = error.getLocation();
+					System.err.printf("%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
+							error.getMessage());
+				}
+				Assertions.fail();
+			}
+			List<ASTElement> results = result.get();
+			assertEquals(1, results.size());
+			ASTElement element = results.get(0);
+			assertNotNull(element);
+			assertInstanceOf(clazz, element);
+			consumer.accept((T) element);
+		});
+	}
+
+	public static void parseString(String input, BytecodeFormat format, Consumer<Result<List<ASTElement>>> consumer) {
+		DeclarationParser parser = new DeclarationParser();
+		Tokenizer tokenizer = new Tokenizer();
+		List<Token> tokens = tokenizer.tokenize("<stdin>", input);
+		Assertions.assertNotNull(tokens);
+		Assertions.assertFalse(tokens.isEmpty());
+		Result<List<ASTElement>> result = parser.parseAny(tokens);
+		if (result.isErr()) {
+			for (Error error : result.getErrors()) {
+				Location location = error.getLocation();
+				System.err.printf("%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
+						error.getMessage());
+				Throwable trace = new Throwable();
+				trace.setStackTrace(error.getInCodeSource());
+				trace.printStackTrace();
+			}
+			Assertions.fail();
+		}
+		ASTProcessor processor = new ASTProcessor(format);
+		result = processor.processAST(result.get());
+		consumer.accept(result);
+	}
+
 	@Test
 	public void testJvmBytecode() {
-		assertCode(new String[] {
+		assertCode(new String[]{
 				"ldc \"Hello World\"",
 				"getstatic java/lang/System.out Ljava/io/PrintStream;",
 				"swap",
@@ -44,14 +96,15 @@ public class InstructionsTest {
 
 	@Test
 	public void testInvokeDynamic() {
-		assertCode(new String[] {
-			"invokedynamic foo (Ljava/lang/String;)V {invokestatic, me/darknet/assembler/InstructionsTest.bar, (Ljava/lang/String;)V} {}",
-		}, BytecodeFormat.JVM, (code) -> {});
+		assertCode(new String[]{
+				"invokedynamic foo (Ljava/lang/String;)V {invokestatic, me/darknet/assembler/InstructionsTest.bar, (Ljava/lang/String;)V} {}",
+		}, BytecodeFormat.JVM, (code) -> {
+		});
 	}
 
 	@Test
 	public void testLabel() {
-		assertCode(new String[] {
+		assertCode(new String[]{
 				"L1:",
 				"getstatic java/lang/System.out Ljava/io/PrintStream;",
 				"L2:",
@@ -76,7 +129,7 @@ public class InstructionsTest {
 
 	@Test
 	public void testLdc() {
-		assertCode(new String[] {
+		assertCode(new String[]{
 				"ldc Ljava/lang/String;",
 		}, BytecodeFormat.JVM, (code) -> {
 			List<ASTInstruction> instructions = code.getInstructions();
@@ -88,16 +141,16 @@ public class InstructionsTest {
 
 	@Test
 	public void testTableSwitch() {
-		assertCode(new String[] {
+		assertCode(new String[]{
 				"tableswitch { min: 10," +
-						      "max: 20," +
-						      "default: L1," +
-						      "cases: {" +
-								"L2," +
-								"L4," +
-								"L8" +
-						       "}" +
-							 "}",
+						"max: 20," +
+						"default: L1," +
+						"cases: {" +
+						"L2," +
+						"L4," +
+						"L8" +
+						"}" +
+						"}",
 		}, BytecodeFormat.JVM, (code) -> {
 			List<ASTInstruction> instructions = code.getInstructions();
 			assertEquals(1, instructions.size());
@@ -107,70 +160,18 @@ public class InstructionsTest {
 
 	@Test
 	public void testLookupSwitch() {
-		assertCode(new String[] {
+		assertCode(new String[]{
 				"lookupswitch {" +
-								"0: L2," +
-								"1: L4," +
-								"2: L8," +
-								"default: L10" +
-						      "}",
+						"0: L2," +
+						"1: L4," +
+						"2: L8," +
+						"default: L10" +
+						"}",
 		}, BytecodeFormat.JVM, (code) -> {
 			List<ASTInstruction> instructions = code.getInstructions();
 			assertEquals(1, instructions.size());
 			assertEquals("lookupswitch", instructions.get(0).getIdentifier().getContent());
 		});
-	}
-
-	public static void assertCode(String[] instructions, BytecodeFormat format, Consumer<ASTCode> consumer) {
-		assertOne(".method stub ()V {\n" +
-				"code: {" + String.join("\n", instructions) + "\n}}\n", format, ASTMethod.class, (method) -> {
-			assertEquals("stub", method.getName().getContent());
-			assertEquals("()V", method.getDescriptor().getContent());
-			assertNotNull(method.getCode());
-			consumer.accept(method.getCode());
-		});
-	}
-
-	public static <T extends ASTElement> void assertOne(String input, BytecodeFormat format, Class<T> clazz, Consumer<T> consumer) {
-		parseString(input, format, (result) -> {
-			if(result.isErr()) {
-				for (Error error : result.getErrors()) {
-					Location location = error.getLocation();
-					System.err.printf("%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
-							error.getMessage());
-				}
-				Assertions.fail();
-			}
-			List<ASTElement> results = result.get();
-			assertEquals(1, results.size());
-			ASTElement element = results.get(0);
-			assertNotNull(element);
-			assertInstanceOf(clazz, element);
-			consumer.accept((T) element);
-		});
-	}
-
-	public static void parseString(String input, BytecodeFormat format, Consumer<Result<List<ASTElement>>> consumer) {
-		DeclarationParser parser = new DeclarationParser();
-		Tokenizer tokenizer = new Tokenizer();
-		List<Token> tokens = tokenizer.tokenize("<stdin>", input);
-		Assertions.assertNotNull(tokens);
-		Assertions.assertFalse(tokens.isEmpty());
-		Result<List<ASTElement>> result = parser.parseAny(tokens);
-		if(result.isErr()) {
-			for (Error error : result.getErrors()) {
-				Location location = error.getLocation();
-				System.err.printf("%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
-						error.getMessage());
-				Throwable trace = new Throwable();
-				trace.setStackTrace(error.getInCodeSource());
-				trace.printStackTrace();
-			}
-			Assertions.fail();
-		}
-		ASTProcessor processor = new ASTProcessor(format);
-		result = processor.processAST(result.get());
-		consumer.accept(result);
 	}
 
 }

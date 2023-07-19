@@ -19,6 +19,45 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class DeclarationParserTest {
 
+	@SuppressWarnings("unchecked")
+	public static <T> @NotNull T assertIs(Class<T> shouldBe, Object is) {
+		assertNotNull(is);
+		assertInstanceOf(shouldBe, is);
+		return (T) is;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends ASTElement> void assertOne(String input, Class<T> clazz, Consumer<T> consumer) {
+		parseString(input, (result) -> {
+			assertEquals(1, result.size());
+			ASTElement element = result.get(0);
+			assertNotNull(element);
+			assertInstanceOf(clazz, element);
+			consumer.accept((T) element);
+		});
+	}
+
+	public static void parseString(String input, Consumer<List<ASTElement>> consumer) {
+		DeclarationParser parser = new DeclarationParser();
+		Tokenizer tokenizer = new Tokenizer();
+		List<Token> tokens = tokenizer.tokenize("<stdin>", input);
+		Assertions.assertNotNull(tokens);
+		Assertions.assertFalse(tokens.isEmpty());
+		Result<List<ASTElement>> result = parser.parseAny(tokens);
+		if (result.isErr()) {
+			for (Error error : result.getErrors()) {
+				Location location = error.getLocation();
+				System.err.printf("%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
+						error.getMessage());
+				Throwable trace = new Throwable();
+				trace.setStackTrace(error.getInCodeSource());
+				trace.printStackTrace();
+			}
+			Assertions.fail();
+		}
+		consumer.accept(result.get());
+	}
+
 	@Test
 	public void testBasicPrimitives() {
 		parseString("test", (result) -> {
@@ -158,34 +197,34 @@ public class DeclarationParserTest {
 	public void testNestedDeclaration() {
 		assertOne(".class public final HelloWorld { .field public name Ljava/lang/String; .field public output I }",
 				ASTDeclaration.class, (result) -> {
-			assertNotNull(result);
-			assertEquals(".class", result.getKeyword().getContent());
-			assertEquals(4, result.getElements().size());
-			ASTElement value = result.getElements().get(0);
-			assertIs(ASTIdentifier.class, value);
-			assertEquals("public", value.getContent());
-			value = result.getElements().get(1);
-			assertIs(ASTIdentifier.class, value);
-			assertEquals("final", value.getContent());
-			value = result.getElements().get(2);
-			assertIs(ASTIdentifier.class, value);
-			assertEquals("HelloWorld", value.getContent());
-			ASTDeclaration declaration = assertIs(ASTDeclaration.class, result.getElements().get(3));
-			// declaration only contains a list of declarations
-			assertEquals(2, declaration.getElements().size());
-			ASTDeclaration field1 = assertIs(ASTDeclaration.class, declaration.getElements().get(0));
-			assertEquals(".field", field1.getKeyword().getContent());
-			assertEquals(3, field1.getElements().size());
-			assertEquals("public", field1.getElements().get(0).getContent());
-			assertEquals("name", field1.getElements().get(1).getContent());
-			assertEquals("Ljava/lang/String;", field1.getElements().get(2).getContent());
-			ASTDeclaration field2 = assertIs(ASTDeclaration.class, declaration.getElements().get(1));
-			assertEquals(".field", field2.getKeyword().getContent());
-			assertEquals(3, field2.getElements().size());
-			assertEquals("public", field2.getElements().get(0).getContent());
-			assertEquals("output", field2.getElements().get(1).getContent());
-			assertEquals("I", field2.getElements().get(2).getContent());
-		});
+					assertNotNull(result);
+					assertEquals(".class", result.getKeyword().getContent());
+					assertEquals(4, result.getElements().size());
+					ASTElement value = result.getElements().get(0);
+					assertIs(ASTIdentifier.class, value);
+					assertEquals("public", value.getContent());
+					value = result.getElements().get(1);
+					assertIs(ASTIdentifier.class, value);
+					assertEquals("final", value.getContent());
+					value = result.getElements().get(2);
+					assertIs(ASTIdentifier.class, value);
+					assertEquals("HelloWorld", value.getContent());
+					ASTDeclaration declaration = assertIs(ASTDeclaration.class, result.getElements().get(3));
+					// declaration only contains a list of declarations
+					assertEquals(2, declaration.getElements().size());
+					ASTDeclaration field1 = assertIs(ASTDeclaration.class, declaration.getElements().get(0));
+					assertEquals(".field", field1.getKeyword().getContent());
+					assertEquals(3, field1.getElements().size());
+					assertEquals("public", field1.getElements().get(0).getContent());
+					assertEquals("name", field1.getElements().get(1).getContent());
+					assertEquals("Ljava/lang/String;", field1.getElements().get(2).getContent());
+					ASTDeclaration field2 = assertIs(ASTDeclaration.class, declaration.getElements().get(1));
+					assertEquals(".field", field2.getKeyword().getContent());
+					assertEquals(3, field2.getElements().size());
+					assertEquals("public", field2.getElements().get(0).getContent());
+					assertEquals("output", field2.getElements().get(1).getContent());
+					assertEquals("I", field2.getElements().get(2).getContent());
+				});
 	}
 
 	@Test
@@ -196,45 +235,6 @@ public class DeclarationParserTest {
 		Result<List<ASTElement>> result = parser.parseAny(tokens);
 		assertTrue(result.isErr());
 		assertEquals(2, result.getErrors().size());
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <T> @NotNull T assertIs(Class<T> shouldBe, Object is) {
-		assertNotNull(is);
-		assertInstanceOf(shouldBe, is);
-		return (T) is;
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <T extends ASTElement> void assertOne(String input, Class<T> clazz, Consumer<T> consumer) {
-		parseString(input, (result) -> {
-			assertEquals(1, result.size());
-			ASTElement element = result.get(0);
-			assertNotNull(element);
-			assertInstanceOf(clazz, element);
-			consumer.accept((T) element);
-		});
-	}
-
-	public static void parseString(String input, Consumer<List<ASTElement>> consumer) {
-		DeclarationParser parser = new DeclarationParser();
-		Tokenizer tokenizer = new Tokenizer();
-		List<Token> tokens = tokenizer.tokenize("<stdin>", input);
-		Assertions.assertNotNull(tokens);
-		Assertions.assertFalse(tokens.isEmpty());
-		Result<List<ASTElement>> result = parser.parseAny(tokens);
-		if(result.isErr()) {
-			for (Error error : result.getErrors()) {
-				Location location = error.getLocation();
-				System.err.printf("%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
-						error.getMessage());
-				Throwable trace = new Throwable();
-				trace.setStackTrace(error.getInCodeSource());
-				trace.printStackTrace();
-			}
-			Assertions.fail();
-		}
-		consumer.accept(result.get());
 	}
 
 }

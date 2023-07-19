@@ -21,7 +21,7 @@ public class TypeParserTest {
 	}
 
 	public String[] provideMemberInfo() {
-		return new String[] {
+		return new String[]{
 				"java/lang/String.toString ()Ljava/lang/String;",
 				"java/lang/String.value [C",
 				"name Ljava/lang/String;"
