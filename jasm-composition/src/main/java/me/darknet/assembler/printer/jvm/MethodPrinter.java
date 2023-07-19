@@ -1,13 +1,16 @@
 package me.darknet.assembler.printer.jvm;
 
+import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.code.Local;
+import dev.xdark.blw.type.ClassType;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.printer.Printer;
 import me.darknet.assembler.printer.jvm.util.Modifiers;
 import me.darknet.assembler.util.IndexedStraightforwardSimulation;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,7 +34,27 @@ public class MethodPrinter implements Printer {
 				);
 			}
 		}
-		return new Names(Map.of(), locals);
+		Map<Integer, String> parameterNames = new HashMap<>();
+		boolean isStatic = (method.accessFlags() & AccessFlag.ACC_STATIC) != 0;
+		int offset = isStatic ? 0 : 1;
+		if (!isStatic) {
+			parameterNames.put(0, "this");
+		}
+		List<ClassType> types = method.type().parameterTypes();
+		for (int i = 0; i < types.size(); i++) {
+			String name = null;
+			// search for parameter name in local variables, first reference of the index which matches the type
+			for (Names.Local local : locals) {
+				if (local.index() == i + offset) {
+					name = local.name();
+					break;
+				}
+			}
+			if (name == null)
+				name = "p" + (i + offset);
+			parameterNames.put(i + offset, name);
+		}
+		return new Names(parameterNames, locals);
 	}
 
 	@Override
