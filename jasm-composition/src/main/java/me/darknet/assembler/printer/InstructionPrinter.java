@@ -3,14 +3,14 @@ package me.darknet.assembler.printer;
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.constant.*;
-import dev.xdark.blw.simulation.ExecutionEngine;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.printer.util.LabelUtil;
+import me.darknet.assembler.util.IndexedExecutionEngine;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class InstructionPrinter implements ExecutionEngine {
+public class InstructionPrinter implements IndexedExecutionEngine {
 
 	private final static String[] OPCODES = new String[256];
 	private static final Map<Integer, String> HANDLE_TYPES = Map.of(
@@ -24,6 +24,7 @@ public class InstructionPrinter implements ExecutionEngine {
 			8, "newinvokespecial",
 			9, "invokeinterface"
 	);
+	private int currentIndex = 0;
 
 	static {
 		for (var field : Opcodes.class.getFields()) {
@@ -39,7 +40,6 @@ public class InstructionPrinter implements ExecutionEngine {
 	protected Code code;
 	protected Map<Integer, String> labelNames = new HashMap<>();
 	protected Names names;
-	protected int count;
 
 	public InstructionPrinter(PrintContext.CodePrint ctx, Code code, Names names) {
 		this.ctx = ctx;
@@ -65,6 +65,11 @@ public class InstructionPrinter implements ExecutionEngine {
 				.arg()
 					.literal(handle.type().descriptor())
 				.end();
+	}
+
+	@Override
+	public void index(int index) {
+		currentIndex = index;
 	}
 
 	class ConstantPrinter implements ConstantSink {
@@ -151,7 +156,55 @@ public class InstructionPrinter implements ExecutionEngine {
 
 	@Override
 	public void execute(ConstantInstruction<?> instruction) {
-		ctx.instruction("ldc");
+		String opcode;
+		switch (instruction) {
+			case ConstantInstruction.Int i -> {
+				// decide on opcode
+				int val = i.constant().value();
+				if(val == -1) {
+					ctx.instruction("iconst_m1").next();
+					return;
+				} else if(val >= 0 && val <= 5) {
+					ctx.instruction("iconst_" + val).next();
+					return;
+				} else if(val >= -128 && val <= 127) {
+					opcode = "bipush";
+				} else if(val >= -32768 && val <= 32767) {
+					opcode = "sipush";
+				} else {
+					opcode = "ldc";
+				}
+			}
+			case ConstantInstruction.Long i -> {
+				long val = i.constant().value();
+				if(val == 0 || val == 1) {
+					ctx.instruction("lconst_" + val).next();
+					return;
+				} else {
+					opcode = "ldc2_w";
+				}
+			}
+			case ConstantInstruction.Float i -> {
+				float val = i.constant().value();
+				if(val == 0 || val == 1 || val == 2) {
+					ctx.instruction("fconst_" + (int) val).next();
+					return;
+				} else {
+					opcode = "ldc";
+				}
+			}
+			case ConstantInstruction.Double i -> {
+				double val = i.constant().value();
+				if(val == 0 || val == 1) {
+					ctx.instruction("dconst_" + (int) val).next();
+					return;
+				} else {
+					opcode = "ldc2_w";
+				}
+			}
+			default -> opcode = "ldc";
+		}
+		ctx.instruction(opcode);
 		instruction.constant().accept(new ConstantPrinter(ctx));
 		ctx.next();
 	}
@@ -159,7 +212,7 @@ public class InstructionPrinter implements ExecutionEngine {
 	@Override
 	public void execute(VarInstruction instruction) {
 		ctx.instruction(OPCODES[instruction.opcode()])
-				.literal(names.getName(instruction.variableIndex(), code.elements().indexOf(instruction)))
+				.literal(names.getName(instruction.variableIndex(), currentIndex+1))
 				.next();
 	}
 
@@ -281,7 +334,7 @@ public class InstructionPrinter implements ExecutionEngine {
 	public void execute(VariableIncrementInstruction instruction) {
 		ctx.instruction(OPCODES[instruction.opcode()])
 				.arg()
-				.literal(names.getName(instruction.variableIndex(), code.elements().indexOf(instruction)))
+				.literal(names.getName(instruction.variableIndex(), currentIndex+1))
 				.arg()
 				.literal(Integer.toString(instruction.incrementBy()))
 				.next();

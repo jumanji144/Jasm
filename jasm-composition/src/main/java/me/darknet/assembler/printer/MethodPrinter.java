@@ -1,9 +1,11 @@
 package me.darknet.assembler.printer;
 
 import dev.xdark.blw.classfile.Method;
-import dev.xdark.blw.simulation.StraightforwardSimulation;
+import dev.xdark.blw.code.Local;
 import me.darknet.assembler.printer.util.Modifiers;
+import me.darknet.assembler.util.IndexedStraightforwardSimulation;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -16,7 +18,18 @@ public class MethodPrinter implements Printer {
 	}
 
 	public Names localNames() {
-		return new Names(Map.of(), List.of());
+		List<Names.Local> locals = new ArrayList<>();
+		if(method.code() != null) {
+			for (Local localVariable : method.code().localVariables()) {
+				locals.add(new Names.Local(
+						localVariable.index(),
+						localVariable.start().index(),
+						localVariable.end().index(),
+						localVariable.name())
+				);
+			}
+		}
+		return new Names(Map.of(), locals);
 	}
 
 	@Override
@@ -42,7 +55,7 @@ public class MethodPrinter implements Printer {
 		if(methodCode != null) {
 			var code = obj.value("code").code(methodCode.elements().size());
 			InstructionPrinter printer = new InstructionPrinter(code, methodCode, names);
-			StraightforwardSimulation simulation = new StraightforwardSimulation();
+			IndexedStraightforwardSimulation simulation = new IndexedStraightforwardSimulation();
 			simulation.execute(printer, method);
 			code.end();
 		}
