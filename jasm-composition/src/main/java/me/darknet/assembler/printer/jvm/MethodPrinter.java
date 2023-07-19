@@ -25,7 +25,7 @@ public class MethodPrinter implements Printer {
 
 	public Names localNames() {
 		List<Names.Local> locals = new ArrayList<>();
-		if(method.code() != null) {
+		if (method.code() != null) {
 			for (Local localVariable : method.code().localVariables()) {
 				locals.add(new Names.Local(
 						localVariable.index(),
@@ -62,11 +62,11 @@ public class MethodPrinter implements Printer {
 	public void print(PrintContext<?> ctx) {
 		memberPrinter.printAttributes(ctx);
 		var obj = memberPrinter.printDeclaration(ctx)
-					.element(method.name())
-					.element(method.type().descriptor())
-					.object();
+				.element(method.name())
+				.element(method.type().descriptor())
+				.object();
 		Names names = localNames();
-		if(!names.parameters().isEmpty()) {
+		if (!names.parameters().isEmpty()) {
 			var arr = obj.value("parameters").array();
 
 			for (String value : names.parameters().values()) {
@@ -77,7 +77,7 @@ public class MethodPrinter implements Printer {
 			obj.next();
 		}
 		var methodCode = method.code();
-		if(methodCode != null) {
+		if (methodCode != null) {
 			var code = obj.value("code").code();
 			InstructionPrinter printer = new InstructionPrinter(code, methodCode, names);
 			IndexedStraightforwardSimulation simulation = new IndexedStraightforwardSimulation();

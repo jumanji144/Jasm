@@ -22,7 +22,7 @@ public class FieldPrinter implements Printer {
 				.element(field.name())
 				.element(field.type().descriptor());
 		Constant constant = field.defaultValue();
-		if(constant != null) {
+		if (constant != null) {
 			constant.accept(new ConstantPrinter(ctx));
 		}
 		ctx.end();

@@ -31,14 +31,8 @@ public class PrinterTest {
 
 		int[] c = new int[10];
 		Object d = c;
-		if(!(d instanceof char[])) {
+		if (!(d instanceof char[])) {
 			Arrays.stream(c).forEach(System.out::println);
-		}
-	}
-
-	private static class InnerClass$InnerClass {
-		public void test() {
-			System.out.println("Hello, world!");
 		}
 	}
 
@@ -50,6 +44,12 @@ public class PrinterTest {
 		printer.print(ctx);
 		String output = ctx.toString();
 		System.out.println(output);
+	}
+
+	private static class InnerClass$InnerClass {
+		public void test() {
+			System.out.println("Hello, world!");
+		}
 	}
 
 }

@@ -38,6 +38,12 @@ public class PrintContext<T extends PrintContext<?>> {
 		this.sb = new StringBuilder();
 	}
 
+	public PrintContext(PrintContext<?> ctx) {
+		this.indentStep = ctx.indentStep;
+		this.sb = ctx.sb;
+		this.indent = ctx.indent;
+	}
+
 	T append(String s) {
 		sb.append(s);
 		return (T) this;
@@ -46,12 +52,6 @@ public class PrintContext<T extends PrintContext<?>> {
 	T append(char c) {
 		sb.append(c);
 		return (T) this;
-	}
-
-	public PrintContext(PrintContext<?> ctx) {
-		this.indentStep = ctx.indentStep;
-		this.sb = ctx.sb;
-		this.indent = ctx.indent;
 	}
 
 	public T begin() {

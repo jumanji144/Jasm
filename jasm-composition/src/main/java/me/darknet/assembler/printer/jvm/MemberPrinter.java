@@ -9,20 +9,15 @@ import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.printer.jvm.util.Modifiers;
 import org.jetbrains.annotations.Nullable;
 
-public record MemberPrinter(@Nullable Annotated annotated, @Nullable Signed signed, @Nullable Accessible accessible, Type type) {
-
-	enum Type {
-		CLASS,
-		FIELD,
-		METHOD
-	}
+public record MemberPrinter(@Nullable Annotated annotated, @Nullable Signed signed, @Nullable Accessible accessible,
+							Type type) {
 
 	public MemberPrinter(Member member, Type type) {
 		this(member, member, member, type);
 	}
 
 	public void printAttributes(PrintContext<?> ctx) {
-		if(annotated != null) {
+		if (annotated != null) {
 			for (Annotation invisibleRuntimeAnnotation : annotated.invisibleRuntimeAnnotations()) {
 				AnnotationPrinter printer = new AnnotationPrinter(invisibleRuntimeAnnotation);
 				printer.print(ctx);
@@ -32,13 +27,13 @@ public record MemberPrinter(@Nullable Annotated annotated, @Nullable Signed sign
 				printer.print(ctx);
 			}
 		}
-		if(signed != null && signed.signature() != null) {
+		if (signed != null && signed.signature() != null) {
 			ctx.begin().element(".signature").print(signed.signature()).next();
 		}
 	}
 
 	public PrintContext<?> printDeclaration(PrintContext<?> ctx) {
-		if(accessible != null) {
+		if (accessible != null) {
 			return ctx.begin().element(switch (type) {
 				case CLASS -> ".class";
 				case FIELD -> ".field";
@@ -50,5 +45,11 @@ public record MemberPrinter(@Nullable Annotated annotated, @Nullable Signed sign
 			}));
 		}
 		return ctx;
+	}
+
+	enum Type {
+		CLASS,
+		FIELD,
+		METHOD
 	}
 }

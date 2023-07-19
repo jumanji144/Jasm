@@ -28,15 +28,15 @@ public class ClassPrinter implements Printer {
 	public void print(PrintContext<?> ctx) {
 		memberPrinter.printAttributes(ctx);
 		var superClass = view.superClass();
-		if(superClass != null)
+		if (superClass != null)
 			ctx.begin().element(".super").print(superClass.internalName()).end();
 		for (InstanceType anInterface : view.interfaces()) {
 			ctx.begin().element(".implements").print(anInterface.internalName()).end();
 		}
 		var obj = memberPrinter.printDeclaration(ctx)
-					.element(view.type().internalName())
-					.declObject()
-					.newline();
+				.element(view.type().internalName())
+				.declObject()
+				.newline();
 		for (Method method : view.methods()) {
 			MethodPrinter printer = new MethodPrinter(method);
 			printer.print(obj);

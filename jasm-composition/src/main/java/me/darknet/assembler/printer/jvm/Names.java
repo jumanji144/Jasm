@@ -60,7 +60,8 @@ public record Names(Map<Integer, String> parameters, List<Local> locals) {
 		return name;
 	}
 
-	public record Local(int index, int start, int end, String name) {}
+	public record Local(int index, int start, int end, String name) {
+	}
 
 
 }

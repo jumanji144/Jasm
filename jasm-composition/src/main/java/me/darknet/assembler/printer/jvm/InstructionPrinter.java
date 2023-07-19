@@ -13,7 +13,6 @@ import java.util.Map;
 public class InstructionPrinter implements IndexedExecutionEngine {
 
 	private final static String[] OPCODES = new String[256];
-	private int currentIndex = 0;
 
 	static {
 		for (var field : Opcodes.class.getFields()) {
@@ -29,6 +28,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 	protected Code code;
 	protected Map<Integer, String> labelNames = new HashMap<>();
 	protected Names names;
+	private int currentIndex = 0;
 
 	public InstructionPrinter(PrintContext.CodePrint ctx, Code code, Names names) {
 		this.ctx = ctx;
@@ -38,7 +38,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 		// map labels
 		int index = 0;
 		for (CodeElement codeElement : code.elements()) {
-			if(codeElement instanceof Label label) {
+			if (codeElement instanceof Label label) {
 				labelNames.put(label.index(), LabelUtil.getLabelName(index++));
 			}
 		}
@@ -70,15 +70,15 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 			case ConstantInstruction.Int i -> {
 				// decide on opcode
 				int val = i.constant().value();
-				if(val == -1) {
+				if (val == -1) {
 					ctx.instruction("iconst_m1").next();
 					return;
-				} else if(val >= 0 && val <= 5) {
+				} else if (val >= 0 && val <= 5) {
 					ctx.instruction("iconst_" + val).next();
 					return;
-				} else if(val >= -128 && val <= 127) {
+				} else if (val >= -128 && val <= 127) {
 					opcode = "bipush";
-				} else if(val >= -32768 && val <= 32767) {
+				} else if (val >= -32768 && val <= 32767) {
 					opcode = "sipush";
 				} else {
 					opcode = "ldc";
@@ -86,7 +86,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 			}
 			case ConstantInstruction.Long i -> {
 				long val = i.constant().value();
-				if(val == 0 || val == 1) {
+				if (val == 0 || val == 1) {
 					ctx.instruction("lconst_" + val).next();
 					return;
 				} else {
@@ -95,7 +95,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 			}
 			case ConstantInstruction.Float i -> {
 				float val = i.constant().value();
-				if(val == 0 || val == 1 || val == 2) {
+				if (val == 0 || val == 1 || val == 2) {
 					ctx.instruction("fconst_" + (int) val).next();
 					return;
 				} else {
@@ -104,7 +104,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 			}
 			case ConstantInstruction.Double i -> {
 				double val = i.constant().value();
-				if(val == 0 || val == 1) {
+				if (val == 0 || val == 1) {
 					ctx.instruction("dconst_" + (int) val).next();
 					return;
 				} else {
@@ -121,7 +121,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 	@Override
 	public void execute(VarInstruction instruction) {
 		ctx.instruction(OPCODES[instruction.opcode()])
-				.literal(names.getName(instruction.variableIndex(), currentIndex+1))
+				.literal(names.getName(instruction.variableIndex(), currentIndex + 1))
 				.next();
 	}
 
@@ -187,7 +187,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 	@Override
 	public void execute(MethodInstruction instruction) {
 		String opcode = OPCODES[instruction.opcode()];
-		if(instruction.isInterface() && instruction.opcode() != Opcodes.INVOKEINTERFACE) {
+		if (instruction.isInterface() && instruction.opcode() != Opcodes.INVOKEINTERFACE) {
 			opcode += "interface";
 		}
 		ctx.instruction(opcode)
@@ -245,7 +245,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 	public void execute(VariableIncrementInstruction instruction) {
 		ctx.instruction(OPCODES[instruction.opcode()])
 				.arg()
-				.literal(names.getName(instruction.variableIndex(), currentIndex+1))
+				.literal(names.getName(instruction.variableIndex(), currentIndex + 1))
 				.arg()
 				.literal(Integer.toString(instruction.incrementBy()))
 				.next();
