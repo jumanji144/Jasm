@@ -1,26 +1,31 @@
 package me.darknet.assembler.printer.jvm;
 
 import dev.xdark.blw.classfile.Field;
+import dev.xdark.blw.constant.Constant;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.printer.Printer;
-import me.darknet.assembler.printer.jvm.util.Modifiers;
 
 public class FieldPrinter implements Printer {
 
 	protected Field field;
+	protected MemberPrinter memberPrinter;
 
 	public FieldPrinter(Field field) {
 		this.field = field;
+		this.memberPrinter = new MemberPrinter(field, MemberPrinter.Type.FIELD);
 	}
 
 	@Override
 	public void print(PrintContext<?> ctx) {
-		ctx.begin()
-				.element(".field")
-				.print(Modifiers.modifiers(field.accessFlags(), Modifiers.FIELD))
+		memberPrinter.printAttributes(ctx);
+		memberPrinter.printDeclaration(ctx)
 				.element(field.name())
-				.element(field.type().descriptor())
-				.end();
+				.element(field.type().descriptor());
+		Constant constant = field.defaultValue();
+		if(constant != null) {
+			constant.accept(new ConstantPrinter(ctx));
+		}
+		ctx.end();
 	}
 
 }

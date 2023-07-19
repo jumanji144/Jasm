@@ -8,7 +8,6 @@ import dev.xdark.blw.type.InstanceType;
 import me.darknet.assembler.JasmInterface;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.printer.Printer;
-import me.darknet.assembler.printer.jvm.util.Modifiers;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,35 +15,36 @@ import java.io.InputStream;
 public class ClassPrinter implements Printer {
 
 	protected ClassFileView view;
+	protected MemberPrinter memberPrinter;
 
 	public ClassPrinter(InputStream stream) throws IOException {
 		ClassBuilder builder = ClassBuilder.builder();
 		JasmInterface.LIBRARY.read(stream, builder);
 		view = builder.build();
+		this.memberPrinter = new MemberPrinter(view, view, view, MemberPrinter.Type.CLASS);
 	}
 
 	@Override
 	public void print(PrintContext<?> ctx) {
+		memberPrinter.printAttributes(ctx);
 		var superClass = view.superClass();
 		if(superClass != null)
 			ctx.begin().element(".super").print(superClass.internalName()).end();
 		for (InstanceType anInterface : view.interfaces()) {
 			ctx.begin().element(".implements").print(anInterface.internalName()).end();
 		}
-		var obj = ctx.begin()
-					.element(".class")
-					.print(Modifiers.modifiers(view.accessFlags(), Modifiers.CLASS))
+		var obj = memberPrinter.printDeclaration(ctx)
 					.element(view.type().internalName())
-					.declObject(view.methods().size())
+					.declObject()
 					.newline();
 		for (Method method : view.methods()) {
 			MethodPrinter printer = new MethodPrinter(method);
-			printer.print(obj.value());
+			printer.print(obj);
 			obj.next();
 		}
 		for (Field field : view.fields()) {
 			FieldPrinter printer = new FieldPrinter(field);
-			printer.print(obj.value());
+			printer.print(obj);
 			obj.next();
 		}
 		obj.end();

@@ -2,11 +2,10 @@ package me.darknet.assembler.printer.jvm;
 
 import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.classfile.Method;
-import dev.xdark.blw.code.Local;
+import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.type.ClassType;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.printer.Printer;
-import me.darknet.assembler.printer.jvm.util.Modifiers;
 import me.darknet.assembler.util.IndexedStraightforwardSimulation;
 
 import java.util.ArrayList;
@@ -17,9 +16,11 @@ import java.util.Map;
 public class MethodPrinter implements Printer {
 
 	protected Method method;
+	protected MemberPrinter memberPrinter;
 
 	public MethodPrinter(Method method) {
 		this.method = method;
+		this.memberPrinter = new MemberPrinter(method, MemberPrinter.Type.METHOD);
 	}
 
 	public Names localNames() {
@@ -59,15 +60,14 @@ public class MethodPrinter implements Printer {
 
 	@Override
 	public void print(PrintContext<?> ctx) {
-		var obj = ctx.begin()
-					.element(".method")
-					.print(Modifiers.modifiers(method.accessFlags(), Modifiers.METHOD))
+		memberPrinter.printAttributes(ctx);
+		var obj = memberPrinter.printDeclaration(ctx)
 					.element(method.name())
 					.element(method.type().descriptor())
-					.object(2);
+					.object();
 		Names names = localNames();
 		if(!names.parameters().isEmpty()) {
-			var arr = obj.value("parameters").array(names.parameters().size());
+			var arr = obj.value("parameters").array();
 
 			for (String value : names.parameters().values()) {
 				arr.print(value).arg();
@@ -78,7 +78,7 @@ public class MethodPrinter implements Printer {
 		}
 		var methodCode = method.code();
 		if(methodCode != null) {
-			var code = obj.value("code").code(methodCode.elements().size());
+			var code = obj.value("code").code();
 			InstructionPrinter printer = new InstructionPrinter(code, methodCode, names);
 			IndexedStraightforwardSimulation simulation = new IndexedStraightforwardSimulation();
 			simulation.execute(printer, method);
