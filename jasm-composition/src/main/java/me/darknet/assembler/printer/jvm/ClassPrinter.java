@@ -40,12 +40,12 @@ public class ClassPrinter implements Printer {
 		for (Method method : view.methods()) {
 			MethodPrinter printer = new MethodPrinter(method);
 			printer.print(obj);
-			obj.next();
+			obj.doubleNext();
 		}
 		for (Field field : view.fields()) {
 			FieldPrinter printer = new FieldPrinter(field);
 			printer.print(obj);
-			obj.next();
+			obj.doubleNext();
 		}
 		obj.end();
 	}

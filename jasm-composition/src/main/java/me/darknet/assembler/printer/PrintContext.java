@@ -178,13 +178,18 @@ public class PrintContext<T extends PrintContext<?>> {
 		}
 
 		public DeclObjectPrint next() {
+			this.unindent().newline();
+			return this;
+		}
+
+		public DeclObjectPrint doubleNext() {
 			this.unindent().newline().newline();
 			return this;
 		}
 
 		@Override
 		public void end() {
-			removeLast(sb, "\n\n", 2);
+			removeLast(sb, "\n", 1);
 			this.newline().print("}");
 		}
 
