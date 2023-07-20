@@ -159,14 +159,24 @@ public class PrintContext<T extends PrintContext<?>> {
 			return this;
 		}
 
+		public ObjectPrint literalValue(String key) {
+			this.print(indent).literal(key).print(": ");
+			return this;
+		}
+
 		public ObjectPrint next() {
 			this.print(",").newline();
 			return this;
 		}
 
 		@Override
+		public ObjectPrint begin() {
+			return this;
+		}
+
+		@Override
 		public void end() {
-			removeLast(sb, ",\n", 2);
+			removeLast(sb, ",\n", 2 + indent.length());
 			this.newline().print("}");
 		}
 	}
