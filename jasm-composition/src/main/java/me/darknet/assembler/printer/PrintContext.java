@@ -99,7 +99,7 @@ public class PrintContext<T extends PrintContext<?>> {
 
 	public ObjectPrint object() {
 		append("{");
-		newline();
+		line();
 		return new ObjectPrint(this);
 	}
 
@@ -116,12 +116,17 @@ public class PrintContext<T extends PrintContext<?>> {
 
 	public CodePrint code() {
 		append("{");
-		newline();
+		line();
 		return new CodePrint(this);
 	}
 
 	public T newline() {
 		append("\n").append(indent);
+		return (T) this;
+	}
+
+	public T line() {
+		append("\n");
 		return (T) this;
 	}
 
@@ -152,6 +157,7 @@ public class PrintContext<T extends PrintContext<?>> {
 
 		public ObjectPrint(PrintContext<?> ctx) {
 			super(ctx);
+			indent();
 		}
 
 		public ObjectPrint value(String key) {
@@ -165,7 +171,7 @@ public class PrintContext<T extends PrintContext<?>> {
 		}
 
 		public ObjectPrint next() {
-			this.print(",").newline();
+			this.print(",").line();
 			return this;
 		}
 
@@ -177,6 +183,7 @@ public class PrintContext<T extends PrintContext<?>> {
 		@Override
 		public void end() {
 			removeLast(sb, ",\n", 2 + indent.length());
+			unindent();
 			this.newline().print("}");
 		}
 	}
@@ -231,11 +238,16 @@ public class PrintContext<T extends PrintContext<?>> {
 
 		public CodePrint(PrintContext<?> ctx) {
 			super(ctx);
+			indent();
 		}
 
 		public CodePrint instruction(String key) {
-			this.indent().print(indent).print(key).print(" ");
+			this.print(indent).print(key).print(" ");
 			return this;
+		}
+
+		public CodePrint label(String key) {
+			return this.unindent().print(indent).print(key).print(": ").indent();
 		}
 
 		public CodePrint arg() {
@@ -244,14 +256,15 @@ public class PrintContext<T extends PrintContext<?>> {
 		}
 
 		public CodePrint next() {
-			this.unindent().newline();
+			this.line();
 			return this;
 		}
 
 		@Override
 		public void end() {
 			removeLast(sb, "\n", 2);
-			this.newline().print(indent).print("}");
+			unindent();
+			this.line().print(indent).print("}");
 		}
 	}
 

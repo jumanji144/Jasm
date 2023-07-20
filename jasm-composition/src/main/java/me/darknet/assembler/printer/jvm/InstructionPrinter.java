@@ -51,11 +51,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
 	@Override
 	public void label(Label label) {
-		ctx.begin()
-				.print(labelNames.get(label.index()))
-				.print(":")
-				.indent() // simulate indentation, to offset new line indentation
-				.next();
+		ctx.label(labelNames.get(label.index())).next();
 	}
 
 	@Override
@@ -134,8 +130,8 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 			int key = instruction.keys()[i];
 			obj.value(String.valueOf(key)).print(labelNames.get(target.index())).next();
 		}
-		obj.indent().end();
-		ctx.unindent().newline();
+		obj.end();
+		ctx.next();
 	}
 
 	@Override

@@ -30,7 +30,7 @@ public class PrinterTest {
 			value = "Hello, world!",
 			values = {"Hello, world!", "Hello, world!"},
 			number = 15,
-			notNull = @NotNull
+			notNull = @NotNull("Hello, world!")
 	)
 	public static final synchronized void test(String test) {
 		System.out.println("Hello, world!");
@@ -93,7 +93,7 @@ public class PrinterTest {
 		InputStream thisClass = PrinterTest.class
 				.getResourceAsStream("/me/darknet/assembler/PrinterTest.class");
 		ClassPrinter printer = new ClassPrinter(thisClass);
-		PrintContext<?> ctx = new PrintContext<>("\t");
+		PrintContext<?> ctx = new PrintContext<>("   ");
 		printer.print(ctx);
 		String output = ctx.toString();
 		System.out.println(output);
@@ -122,6 +122,17 @@ public class PrinterTest {
 		}
 		ASTProcessor processor = new ASTProcessor(BytecodeFormat.DEFAULT);
 		result = processor.processAST(result.get());
+		if(result.isErr()) {
+			for (Error error : result.getErrors()) {
+				Location location = error.getLocation();
+				System.err.printf("%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
+						error.getMessage());
+				Throwable trace = new Throwable();
+				trace.setStackTrace(error.getInCodeSource());
+				trace.printStackTrace();
+			}
+			Assertions.fail();
+		}
 		consumer.accept(result);
 	}
 

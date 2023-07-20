@@ -4,10 +4,12 @@ import dev.xdark.blw.classfile.ClassBuilder;
 import dev.xdark.blw.classfile.ClassFileView;
 import dev.xdark.blw.classfile.Field;
 import dev.xdark.blw.classfile.Method;
+import dev.xdark.blw.classfile.attribute.InnerClass;
 import dev.xdark.blw.type.InstanceType;
 import me.darknet.assembler.JasmInterface;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.printer.Printer;
+import me.darknet.assembler.printer.jvm.util.Modifiers;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,6 +34,23 @@ public class ClassPrinter implements Printer {
 			ctx.begin().element(".super").print(superClass.internalName()).end();
 		for (InstanceType anInterface : view.interfaces()) {
 			ctx.begin().element(".implements").print(anInterface.internalName()).end();
+		}
+		for (InnerClass innerClass : view.innerClasses()) {
+			var obj = ctx.begin()
+					.element(".inner")
+					.print(Modifiers.modifiers(innerClass.accessFlags(), Modifiers.CLASS))
+					.object();
+			String name = innerClass.innerName();
+			if (name != null) {
+				obj.value("name").literal(name).next();
+			}
+			obj.value("inner").print(innerClass.type().internalName()).next();
+			InstanceType outer = innerClass.outerType();
+			if (outer != null) {
+				obj.value("outer").print(outer.internalName()).next();
+			}
+			obj.end();
+			ctx.end();
 		}
 		var obj = memberPrinter.printDeclaration(ctx)
 				.element(view.type().internalName())
