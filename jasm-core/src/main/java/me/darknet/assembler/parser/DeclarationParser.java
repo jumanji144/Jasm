@@ -350,12 +350,11 @@ public class DeclarationParser {
 		IN_INSTRUCTION
 	}
 
-	private static class ParserContext {
+	private static class ParserContext extends Stateful<State> {
 
 		private final DeclarationParser parser;
 		private final List<Token> tokens;
 		private final ErrorCollector errorCollector = new ErrorCollector();
-		private final LinkedList<State> stateStack = new LinkedList<>();
 		private int idx = 0;
 		private Token latest;
 
@@ -447,36 +446,6 @@ public class DeclarationParser {
 				return null;
 			}
 			return element;
-		}
-
-		public void enterState(State state) {
-			this.stateStack.push(state);
-		}
-
-		public void leaveState() {
-			this.stateStack.poll();
-		}
-
-		/**
-		 * Purely cosmetic method to make the code more readable
-		 *
-		 * @param value state to indicate which one you are leaving
-		 * @param <T>   used to allow any value to be passed in
-		 */
-		public <T> void leaveState(T value) {
-			this.stateStack.poll();
-		}
-
-		public State getState() {
-			return stateStack.peek();
-		}
-
-		public boolean isInState(State state) {
-			return stateStack.contains(state);
-		}
-
-		public boolean isCurrentState(State state) {
-			return stateStack.peek() == state;
 		}
 
 		public void throwError(Error error) {

@@ -55,6 +55,11 @@ public class JvmInstructions extends ReflectiveInstructions<ASTJvmInstructionVis
 
 		register("multianewarray", ops(DefaultOperands.LITERAL, DefaultOperands.INTEGER), "visitMultiANewArrayInsn");
 
+		register("jsr_w", ops(DefaultOperands.LABEL), "visitJumpInsn");
+		register("goto_w", ops(DefaultOperands.LABEL), "visitJumpInsn");
+		register("ldc_w", ops(JvmOperands.CONSTANT), "visitLdcInsn");
+		register("ldc2_w", ops(JvmOperands.CONSTANT), "visitLdcInsn");
+
 		// intrinsics
 		register("line", ops(DefaultOperands.IDENTIFIER, DefaultOperands.INTEGER), "visitLineNumber");
 	}

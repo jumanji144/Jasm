@@ -23,8 +23,13 @@ public class ASTProcessor {
 		ParserRegistry.register("field", ASTProcessor::parseField);
 		ParserRegistry.register("method", ASTProcessor::parseMethod);
 		ParserRegistry.register("annotation", ASTProcessor::parseAnnotation);
+		ParserRegistry.register("inner", ASTProcessor::parseInner);
 		ParserRegistry.register("enum", (ctx, decl) -> {
-			ASTIdentifier type = ctx.validateElement(decl.getElements().get(0), ElementType.IDENTIFIER,
+			if(!ctx.isInState(State.IN_ANNOTATION)) {
+				ctx.throwError("enum declaration outside of annotation", decl.getLocation());
+				return null;
+			}
+ 			ASTIdentifier type = ctx.validateElement(decl.getElements().get(0), ElementType.IDENTIFIER,
 					"enum type", decl);
 			ASTIdentifier name = ctx.validateElement(decl.getElements().get(1), ElementType.IDENTIFIER,
 					"enum name", decl);
@@ -239,13 +244,37 @@ public class ASTProcessor {
 		ASTObject values = ctx.validateEmptyableElement(declaration.getElements().get(1), ElementType.OBJECT,
 				"annotation values", declaration);
 		// parse object values
+		ctx.enterState(State.IN_ANNOTATION);
 		ElementMap<ASTIdentifier, ASTElement> map = new ElementMap<>();
 		for (var pair : values.getValues().getPairs()) {
 			ASTIdentifier key = ctx.validateIdentifier(pair.getFirst(), "annotation value key", declaration);
 			ASTElement value = validateElementValue(ctx, pair.getSecond());
 			map.put(key, value);
 		}
+		ctx.leaveState();
 		return new ASTAnnotation(type, map);
+	}
+
+	public static ASTInner parseInner(ParserContext ctx, ASTDeclaration declaration) {
+		List<@Nullable ASTElement> elements = declaration.getElements();
+		if (elements.size() < 2) {
+			ctx.throwError("Expected inner class modifiers and body", declaration.getLocation());
+			return null;
+		}
+		int modifiersIndex = 0;
+		int bodyIndex = elements.size() - 1;
+
+		ASTObject body = ctx.validateElement(elements.get(bodyIndex), ElementType.OBJECT,
+				"inner class body", declaration);
+
+		Modifiers modifiers = parseModifiers(ctx, modifiersIndex, declaration);
+
+		ElementMap<ASTIdentifier, ASTElement> values = body.getValues();
+		ASTIdentifier name = ctx.validateMaybeIdentifier(values.get("name"), "inner class name", declaration);
+		ASTIdentifier inner = ctx.validateIdentifier(values.get("inner"), "inner class type", declaration);
+		ASTIdentifier outer = ctx.validateMaybeIdentifier(values.get("outer"), "outer class type", declaration);
+
+		return new ASTInner(modifiers, name, outer, inner);
 	}
 
 	public Result<List<ASTElement>> processAST(List<ASTElement> ast) {
@@ -275,7 +304,11 @@ public class ASTProcessor {
 
 	}
 
-	public static class ParserContext {
+	enum State {
+		IN_ANNOTATION
+	}
+
+	public static class ParserContext extends Stateful<State> {
 
 		private final ErrorCollector errorCollector = new ErrorCollector();
 		private final Instructions<?> instructions;
@@ -362,6 +395,10 @@ public class ASTProcessor {
 
 		ASTIdentifier validateIdentifier(ASTElement e, String description, ASTElement parent) {
 			if (isNull(e, description, parent.getLocation())) return null;
+			return validateMaybeIdentifier(e, description, parent);
+		}
+
+		ASTIdentifier validateMaybeIdentifier(ASTElement e, String description, ASTElement parent) {
 			// can be NUMBER or IDENTIFIER
 			if (!(e instanceof ASTLiteral)) {
 				throwUnexpectedElementError(description, e);

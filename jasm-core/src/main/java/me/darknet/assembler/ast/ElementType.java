@@ -20,6 +20,7 @@ public enum ElementType {
 	FIELD,
 	ANNOTATION,
 	ENUM,
+	INNER_CLASS,
 	SIGNATURE,
 	CLASS_TYPE,
 	METHOD_TYPE
