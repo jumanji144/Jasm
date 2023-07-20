@@ -1,7 +1,7 @@
 package me.darknet.assembler.instructions;
 
 import me.darknet.assembler.ast.ElementType;
-import me.darknet.assembler.ast.primitive.ASTLabel;
+import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTLiteral;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 
@@ -24,7 +24,7 @@ public enum DefaultOperands implements Operands {
 		}
 	}),
 	LABEL((context, element) -> {
-		if (!(element instanceof ASTLabel)) {
+		if (!(element instanceof ASTIdentifier)) {
 			context.throwUnexpectedElementError("label", element);
 		}
 	});
