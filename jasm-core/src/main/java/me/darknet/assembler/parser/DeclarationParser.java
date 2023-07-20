@@ -222,7 +222,7 @@ public class DeclarationParser {
 			} else if (state == State.IN_OBJECT) {
 				// detection is a bit hacky, but it works
 				// check if over next token is a : or next token is a }
-				if (peek.getContent().equals("}")) {
+				if (peek.getContent().equals("}") || peek.getContent().equals(",")) {
 					break;
 				}
 				Token next = ctx.peek(1);
