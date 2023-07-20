@@ -189,6 +189,27 @@ public class ASTProcessorTest {
 					assertEquals(1, subAnnotation.getValues().size());
 					assertEquals("100", subAnnotation.getValues().get("value").getContent());
 				});
+
+		assertOne(".annotation me/darknet/assembler/PrinterTest$TestAnnotation { " +
+				" number: 15, " +
+				" notNull: .annotation org/jetbrains/annotations/NotNull {}, " +
+				" values: { \"Hello, world!\", \"Hello, world!\" }, " +
+				" value: \"Hello, world!\" " +
+				"}", ASTAnnotation.class, (annotation) -> {
+					assertEquals("me/darknet/assembler/PrinterTest$TestAnnotation", annotation.getClassType().getContent());
+					assertNotNull(annotation.getValues());
+					assertEquals(4, annotation.getValues().size());
+					assertEquals("15", annotation.getValues().get("number").getContent());
+					ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.getValues().get("notNull"));
+					assertEquals("org/jetbrains/annotations/NotNull", subAnnotation.getClassType().getContent());
+					assertNotNull(subAnnotation.getValues());
+					assertEquals(0, subAnnotation.getValues().size());
+					ASTArray array = assertIs(ASTArray.class, annotation.getValues().get("values"));
+					assertEquals(2, array.getValues().size());
+					assertEquals("Hello, world!", array.getValues().get(0).getContent());
+					assertEquals("Hello, world!", array.getValues().get(1).getContent());
+					assertEquals("Hello, world!", annotation.getValues().get("value").getContent());
+		});
 	}
 
 }
