@@ -21,10 +21,12 @@ public record MemberPrinter(@Nullable Annotated annotated, @Nullable Signed sign
 			for (Annotation invisibleRuntimeAnnotation : annotated.invisibleRuntimeAnnotations()) {
 				AnnotationPrinter printer = new AnnotationPrinter(invisibleRuntimeAnnotation);
 				printer.print(ctx);
+				ctx.next();
 			}
 			for (Annotation invisibleTypeAnnotation : annotated.visibleRuntimeAnnotations()) {
 				AnnotationPrinter printer = new AnnotationPrinter(invisibleTypeAnnotation);
 				printer.print(ctx);
+				ctx.next();
 			}
 		}
 		if (signed != null && signed.signature() != null) {
