@@ -5,7 +5,7 @@ import dev.xdark.blw.classfile.Accessible;
 import dev.xdark.blw.classfile.Annotated;
 import dev.xdark.blw.classfile.Member;
 import dev.xdark.blw.classfile.Signed;
-import me.darknet.assembler.printer.util.Modifiers;
+import me.darknet.assembler.util.Modifiers;
 import org.jetbrains.annotations.Nullable;
 
 public record MemberPrinter(@Nullable Annotated annotated, @Nullable Signed signed, @Nullable Accessible accessible,

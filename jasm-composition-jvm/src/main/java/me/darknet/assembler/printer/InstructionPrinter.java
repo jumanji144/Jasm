@@ -3,8 +3,8 @@ package me.darknet.assembler.printer;
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.type.*;
-import me.darknet.assembler.printer.util.LabelUtil;
 import me.darknet.assembler.util.IndexedExecutionEngine;
+import me.darknet.assembler.util.LabelUtil;
 
 import java.util.HashMap;
 import java.util.Map;

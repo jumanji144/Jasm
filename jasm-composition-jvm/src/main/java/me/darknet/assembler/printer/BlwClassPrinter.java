@@ -9,7 +9,7 @@ import dev.xdark.blw.classfile.Field;
 import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.classfile.attribute.InnerClass;
 import dev.xdark.blw.type.InstanceType;
-import me.darknet.assembler.printer.util.Modifiers;
+import me.darknet.assembler.util.Modifiers;
 import org.objectweb.asm.ClassWriter;
 
 import java.io.IOException;
@@ -19,7 +19,7 @@ public class BlwClassPrinter implements ClassPrinter {
 
 	protected ClassFileView view;
 	protected MemberPrinter memberPrinter;
-	private final BytecodeLibrary library = new AsmBytecodeLibrary(ClassWriterProvider.flags(ClassWriter.COMPUTE_FRAMES));
+	private static final BytecodeLibrary library = new AsmBytecodeLibrary(ClassWriterProvider.flags(ClassWriter.COMPUTE_FRAMES));
 
 	public BlwClassPrinter(InputStream stream) throws IOException {
 		ClassBuilder builder = ClassBuilder.builder();
