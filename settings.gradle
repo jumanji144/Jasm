@@ -1,4 +1,4 @@
 rootProject.name = 'Jasm'
 
 include 'jasm-core'
-include 'jasm-composition'
+include 'jasm-composition-jvm'
