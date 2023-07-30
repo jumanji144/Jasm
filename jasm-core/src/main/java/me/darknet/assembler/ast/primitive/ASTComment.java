@@ -6,9 +6,9 @@ import me.darknet.assembler.parser.Token;
 
 public class ASTComment extends ASTElement {
 
-	public ASTComment(Token comment) {
-		super(ElementType.COMMENT);
-		this.value = comment;
-	}
+    public ASTComment(Token comment) {
+        super(ElementType.COMMENT);
+        this.value = comment;
+    }
 
 }

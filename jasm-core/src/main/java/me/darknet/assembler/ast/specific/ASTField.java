@@ -9,23 +9,21 @@ import java.util.List;
 
 public class ASTField extends ASTMember {
 
-	private final ASTIdentifier descriptor;
-	private final @Nullable ASTValue value;
+    private final ASTIdentifier descriptor;
+    private final @Nullable ASTValue value;
 
-	public ASTField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor,
-					@Nullable List<ASTAnnotation> annotations,
-					@Nullable ASTIdentifier signature,
-					@Nullable ASTValue value) {
-		super(ElementType.FIELD, modifiers, name, signature, annotations);
-		this.descriptor = descriptor;
-		this.value = value;
-	}
+    public ASTField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor,
+            @Nullable List<ASTAnnotation> annotations, @Nullable ASTIdentifier signature, @Nullable ASTValue value) {
+        super(ElementType.FIELD, modifiers, name, signature, annotations);
+        this.descriptor = descriptor;
+        this.value = value;
+    }
 
-	public ASTIdentifier getDescriptor() {
-		return descriptor;
-	}
+    public ASTIdentifier getDescriptor() {
+        return descriptor;
+    }
 
-	public @Nullable ASTValue getFieldValue() {
-		return value;
-	}
+    public @Nullable ASTValue getFieldValue() {
+        return value;
+    }
 }

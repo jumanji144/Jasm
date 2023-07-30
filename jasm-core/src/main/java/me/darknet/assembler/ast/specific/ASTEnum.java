@@ -6,21 +6,21 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 
 public class ASTEnum extends ASTElement {
 
-	private final ASTIdentifier enumType;
-	private final ASTIdentifier enumValue;
+    private final ASTIdentifier enumType;
+    private final ASTIdentifier enumValue;
 
-	public ASTEnum(ASTIdentifier type, ASTIdentifier value) {
-		super(ElementType.ENUM, type, value);
-		this.enumType = type;
-		this.enumValue = value;
-	}
+    public ASTEnum(ASTIdentifier type, ASTIdentifier value) {
+        super(ElementType.ENUM, type, value);
+        this.enumType = type;
+        this.enumValue = value;
+    }
 
-	public ASTIdentifier getEnumType() {
-		return enumType;
-	}
+    public ASTIdentifier getEnumType() {
+        return enumType;
+    }
 
-	public ASTIdentifier getEnumValue() {
-		return enumValue;
-	}
+    public ASTIdentifier getEnumValue() {
+        return enumValue;
+    }
 
 }

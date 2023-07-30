@@ -7,19 +7,19 @@ import org.jetbrains.annotations.Nullable;
 
 public class ASTObject extends ASTElement {
 
-	private final ElementMap<ASTIdentifier, @Nullable ASTElement> values;
+    private final ElementMap<ASTIdentifier, @Nullable ASTElement> values;
 
-	public ASTObject(ElementMap<ASTIdentifier, @Nullable ASTElement> values) {
-		super(ElementType.OBJECT, values.getElements());
-		if (values.size() != 0) {
-			this.value = values.get(0).getValue();
-		} else {
-			this.value = null;
-		}
-		this.values = values;
-	}
+    public ASTObject(ElementMap<ASTIdentifier, @Nullable ASTElement> values) {
+        super(ElementType.OBJECT, values.getElements());
+        if (values.size() != 0) {
+            this.value = values.get(0).getValue();
+        } else {
+            this.value = null;
+        }
+        this.values = values;
+    }
 
-	public ElementMap<ASTIdentifier, ASTElement> getValues() {
-		return values;
-	}
+    public ElementMap<ASTIdentifier, ASTElement> getValues() {
+        return values;
+    }
 }

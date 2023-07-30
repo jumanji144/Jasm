@@ -13,40 +13,43 @@ import java.util.Map;
 
 public abstract class ReflectiveInstructions<V extends ASTInstructionVisitor> extends Instructions<V> {
 
-	private final Class<V> visitorClass;
-	private Map<String, MethodHandle> lookupCache;
+    private final Class<V> visitorClass;
+    private Map<String, MethodHandle> lookupCache;
 
-	public ReflectiveInstructions(Class<V> visitorClass, String defaultMethod) {
-		super();
-		this.defaultTranslator = (instruction, visitor) -> reflectiveAction(instruction, visitor, defaultMethod);
-		this.visitorClass = visitorClass;
-	}
+    public ReflectiveInstructions(Class<V> visitorClass, String defaultMethod) {
+        super();
+        this.defaultTranslator = (instruction, visitor) -> reflectiveAction(instruction, visitor, defaultMethod);
+        this.visitorClass = visitorClass;
+    }
 
-	protected void register(String name, String translatorName) {
-		register(name, new Operand[0], (instruction, visitor) -> reflectiveAction(instruction, visitor, translatorName));
-	}
+    protected void register(String name, String translatorName) {
+        register(
+                name, new Operand[0], (instruction, visitor) -> reflectiveAction(instruction, visitor, translatorName)
+        );
+    }
 
-	protected void register(String name, Operand[] operands, String translatorName) {
-		register(name, operands, (instruction, visitor) -> reflectiveAction(instruction, visitor, translatorName));
-	}
+    protected void register(String name, Operand[] operands, String translatorName) {
+        register(name, operands, (instruction, visitor) -> reflectiveAction(instruction, visitor, translatorName));
+    }
 
-	void reflectiveAction(ASTInstruction instruction, V instance, String translatorName) throws TransformationException {
-		try {
-			MethodHandle method = lookupCache.get(translatorName);
-			if (method == null) {
-				List<ASTElement> arguments = instruction.getArguments();
-				Class<?>[] argumentTypes = new Class<?>[arguments.size()];
-				for (int i = 0; i < arguments.size(); i++) {
-					argumentTypes[i] = arguments.get(i).getClass();
-				}
-				method = MethodHandles.lookup().unreflect(visitorClass.getMethod(translatorName, argumentTypes));
-				lookupCache.put(translatorName, method);
-			}
-			List<Object> arguments = new ArrayList<>(instruction.getArguments());
-			arguments.add(0, instance);
-			method.invokeExact(arguments.toArray());
-		} catch (Throwable e) {
-			throw new TransformationException("Failed to invoke translator method", e);
-		}
-	}
+    void reflectiveAction(ASTInstruction instruction, V instance, String translatorName)
+            throws TransformationException {
+        try {
+            MethodHandle method = lookupCache.get(translatorName);
+            if (method == null) {
+                List<ASTElement> arguments = instruction.getArguments();
+                Class<?>[] argumentTypes = new Class<?>[arguments.size()];
+                for (int i = 0; i < arguments.size(); i++) {
+                    argumentTypes[i] = arguments.get(i).getClass();
+                }
+                method = MethodHandles.lookup().unreflect(visitorClass.getMethod(translatorName, argumentTypes));
+                lookupCache.put(translatorName, method);
+            }
+            List<Object> arguments = new ArrayList<>(instruction.getArguments());
+            arguments.add(0, instance);
+            method.invokeExact(arguments.toArray());
+        } catch (Throwable e) {
+            throw new TransformationException("Failed to invoke translator method", e);
+        }
+    }
 }

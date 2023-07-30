@@ -4,8 +4,8 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 
 public interface ASTMethodVisitor extends ASTDeclarationVisitor {
 
-	void visitParameter(int index, ASTIdentifier name);
+    void visitParameter(int index, ASTIdentifier name);
 
-	ASTJvmInstructionVisitor visitJvmCode();
+    ASTJvmInstructionVisitor visitJvmCode();
 
 }

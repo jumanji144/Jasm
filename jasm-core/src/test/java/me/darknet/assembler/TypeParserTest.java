@@ -10,23 +10,19 @@ import org.junit.jupiter.params.provider.MethodSource;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TypeParserTest {
 
-	@ParameterizedTest
-	@MethodSource("me.darknet.assembler.TypeParserTest#provideMemberInfo")
-	public void testParseMemberInfo(String input) {
-		String[] args = input.split(" ");
-		String name = args[0];
-		String descriptor = args[1];
-		MemberInfo memberInfo = TypeParser.parseMemberInfo(name, descriptor);
-		Assertions.assertNotNull(memberInfo);
-	}
+    @ParameterizedTest
+    @MethodSource("me.darknet.assembler.TypeParserTest#provideMemberInfo")
+    public void testParseMemberInfo(String input) {
+        String[] args = input.split(" ");
+        String name = args[0];
+        String descriptor = args[1];
+        MemberInfo memberInfo = TypeParser.parseMemberInfo(name, descriptor);
+        Assertions.assertNotNull(memberInfo);
+    }
 
-	public String[] provideMemberInfo() {
-		return new String[]{
-				"java/lang/String.toString ()Ljava/lang/String;",
-				"java/lang/String.value [C",
-				"name Ljava/lang/String;"
-		};
-	}
-
+    public String[] provideMemberInfo() {
+        return new String[] { "java/lang/String.toString ()Ljava/lang/String;", "java/lang/String.value [C",
+                "name Ljava/lang/String;" };
+    }
 
 }

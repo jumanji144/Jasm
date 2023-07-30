@@ -8,21 +8,21 @@ import me.darknet.assembler.util.ElementMap;
 
 public class ASTAnnotation extends ASTElement {
 
-	private final ASTIdentifier classType;
-	private final ElementMap<ASTIdentifier, ASTElement> values;
+    private final ASTIdentifier classType;
+    private final ElementMap<ASTIdentifier, ASTElement> values;
 
-	public ASTAnnotation(ASTIdentifier classType, ElementMap<ASTIdentifier, ASTElement> values) {
-		super(ElementType.ANNOTATION, CollectionUtil.merge(values.getElements(), classType));
-		this.classType = classType;
-		this.values = values;
-	}
+    public ASTAnnotation(ASTIdentifier classType, ElementMap<ASTIdentifier, ASTElement> values) {
+        super(ElementType.ANNOTATION, CollectionUtil.merge(values.getElements(), classType));
+        this.classType = classType;
+        this.values = values;
+    }
 
-	public ASTIdentifier getClassType() {
-		return classType;
-	}
+    public ASTIdentifier getClassType() {
+        return classType;
+    }
 
-	public ElementMap<ASTIdentifier, ASTElement> getValues() {
-		return values;
-	}
+    public ElementMap<ASTIdentifier, ASTElement> getValues() {
+        return values;
+    }
 
 }

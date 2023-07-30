@@ -10,31 +10,29 @@ import java.util.List;
 
 public class ASTMethod extends ASTMember {
 
-	private final ASTIdentifier descriptor;
-	private final List<ASTIdentifier> parameters;
-	private final ASTCode code;
+    private final ASTIdentifier descriptor;
+    private final List<ASTIdentifier> parameters;
+    private final ASTCode code;
 
-	public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor,
-					 @Nullable ASTIdentifier signature,
-					 @Nullable List<ASTAnnotation> annotations,
-					 List<ASTIdentifier> parameters, ASTCode code) {
-		super(ElementType.METHOD, modifiers, name, signature, annotations);
-		this.descriptor = descriptor;
-		this.parameters = parameters;
-		this.code = code;
-	}
+    public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor,
+            @Nullable ASTIdentifier signature, @Nullable List<ASTAnnotation> annotations,
+            List<ASTIdentifier> parameters, ASTCode code) {
+        super(ElementType.METHOD, modifiers, name, signature, annotations);
+        this.descriptor = descriptor;
+        this.parameters = parameters;
+        this.code = code;
+    }
 
-	public ASTIdentifier getDescriptor() {
-		return descriptor;
-	}
+    public ASTIdentifier getDescriptor() {
+        return descriptor;
+    }
 
-	public List<ASTIdentifier> getParameters() {
-		return parameters;
-	}
+    public List<ASTIdentifier> getParameters() {
+        return parameters;
+    }
 
-	public ASTCode getCode() {
-		return code;
-	}
-
+    public ASTCode getCode() {
+        return code;
+    }
 
 }

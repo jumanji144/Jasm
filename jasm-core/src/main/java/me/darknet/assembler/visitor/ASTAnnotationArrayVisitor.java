@@ -5,12 +5,12 @@ import me.darknet.assembler.ast.specific.ASTValue;
 
 public interface ASTAnnotationArrayVisitor {
 
-	void visitValue(ASTValue value);
+    void visitValue(ASTValue value);
 
-	void visitEnumValue(ASTIdentifier className, ASTIdentifier enumName);
+    void visitEnumValue(ASTIdentifier className, ASTIdentifier enumName);
 
-	ASTAnnotationVisitor visitAnnotationValue(ASTIdentifier className);
+    ASTAnnotationVisitor visitAnnotationValue(ASTIdentifier className);
 
-	ASTAnnotationArrayVisitor visitArrayValue();
+    ASTAnnotationArrayVisitor visitArrayValue();
 
 }

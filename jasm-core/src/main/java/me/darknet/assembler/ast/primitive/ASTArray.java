@@ -8,15 +8,15 @@ import java.util.List;
 
 public class ASTArray extends ASTElement {
 
-	private final List<@Nullable ASTElement> values;
+    private final List<@Nullable ASTElement> values;
 
-	public ASTArray(List<@Nullable ASTElement> values) {
-		super(ElementType.ARRAY, values);
-		this.values = values;
-	}
+    public ASTArray(List<@Nullable ASTElement> values) {
+        super(ElementType.ARRAY, values);
+        this.values = values;
+    }
 
-	public List<@Nullable ASTElement> getValues() {
-		return values;
-	}
+    public List<@Nullable ASTElement> getValues() {
+        return values;
+    }
 
 }

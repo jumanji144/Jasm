@@ -6,8 +6,8 @@ import me.darknet.assembler.parser.Token;
 
 public class ASTString extends ASTValue {
 
-	public ASTString(Token value) {
-		super(ElementType.STRING, value);
-	}
+    public ASTString(Token value) {
+        super(ElementType.STRING, value);
+    }
 
 }

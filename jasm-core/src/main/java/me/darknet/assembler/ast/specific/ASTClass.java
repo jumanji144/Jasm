@@ -10,32 +10,30 @@ import java.util.List;
 
 public class ASTClass extends ASTMember {
 
-	private final @Nullable ASTIdentifier superName;
-	private final List<ASTIdentifier> interfaces;
-	private final List<ASTElement> contents;
+    private final @Nullable ASTIdentifier superName;
+    private final List<ASTIdentifier> interfaces;
+    private final List<ASTElement> contents;
 
-	public ASTClass(Modifiers modifiers, ASTIdentifier name,
-					@Nullable ASTIdentifier signature,
-					List<ASTAnnotation> annotations,
-					@Nullable ASTIdentifier superName,
-					List<ASTIdentifier> interfaces, List<ASTElement> contents) {
-		super(ElementType.CLASS, modifiers, name, signature, annotations);
-		this.children.addAll(contents);
-		this.superName = superName;
-		this.interfaces = interfaces;
-		this.contents = contents;
-	}
+    public ASTClass(Modifiers modifiers, ASTIdentifier name, @Nullable ASTIdentifier signature,
+            List<ASTAnnotation> annotations, @Nullable ASTIdentifier superName, List<ASTIdentifier> interfaces,
+            List<ASTElement> contents) {
+        super(ElementType.CLASS, modifiers, name, signature, annotations);
+        this.children.addAll(contents);
+        this.superName = superName;
+        this.interfaces = interfaces;
+        this.contents = contents;
+    }
 
-	public @Nullable ASTIdentifier getSuperName() {
-		return superName;
-	}
+    public @Nullable ASTIdentifier getSuperName() {
+        return superName;
+    }
 
-	public List<ASTIdentifier> getInterfaces() {
-		return interfaces;
-	}
+    public List<ASTIdentifier> getInterfaces() {
+        return interfaces;
+    }
 
-	public List<ASTElement> getContents() {
-		return contents;
-	}
+    public List<ASTElement> getContents() {
+        return contents;
+    }
 
 }

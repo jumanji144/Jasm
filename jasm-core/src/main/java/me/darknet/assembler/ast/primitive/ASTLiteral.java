@@ -6,9 +6,9 @@ import me.darknet.assembler.parser.Token;
 
 public class ASTLiteral extends ASTElement {
 
-	public ASTLiteral(ElementType type, Token value) {
-		super(type);
-		this.value = value;
-	}
+    public ASTLiteral(ElementType type, Token value) {
+        super(type);
+        this.value = value;
+    }
 
 }

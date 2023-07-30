@@ -1,25 +1,25 @@
 package me.darknet.assembler.instructions;
 
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.parser.ASTProcessor;
+import me.darknet.assembler.parser.processor.ASTProcessor;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.BiConsumer;
 
 public class Operand {
 
-	private final Processor verifier;
+    private final Processor verifier;
 
-	public Operand(Processor verifier) {
-		this.verifier = verifier;
-	}
+    public Operand(Processor verifier) {
+        this.verifier = verifier;
+    }
 
-	public void verify(ASTProcessor.ParserContext context, @NotNull ASTElement element) {
-		verifier.accept(context, element);
-	}
+    public void verify(ASTProcessor.ParserContext context, @NotNull ASTElement element) {
+        verifier.accept(context, element);
+    }
 
-	@FunctionalInterface
-	public interface Processor extends BiConsumer<ASTProcessor.ParserContext, ASTElement> {
-	}
+    @FunctionalInterface
+    public interface Processor extends BiConsumer<ASTProcessor.ParserContext, ASTElement> {
+    }
 
 }

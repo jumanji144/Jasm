@@ -9,62 +9,62 @@ import java.util.List;
 
 public class ASTElement {
 
-	protected final List<ASTElement> children;
-	protected ElementType type;
-	protected ASTElement parent;
-	protected Token value;
+    protected final List<ASTElement> children;
+    protected ElementType type;
+    protected ASTElement parent;
+    protected Token value;
 
-	public ASTElement(ElementType type) {
-		this(type, Collections.emptyList());
-	}
+    public ASTElement(ElementType type) {
+        this(type, Collections.emptyList());
+    }
 
-	public ASTElement(ElementType type, ASTElement... children) {
-		this(type, Arrays.asList(children));
-	}
+    public ASTElement(ElementType type, ASTElement... children) {
+        this(type, Arrays.asList(children));
+    }
 
-	@SuppressWarnings("unchecked")
-	public ASTElement(ElementType type, List<? extends ASTElement> children) {
-		for (ASTElement child : children) {
-			if (child != null) {
-				child.parent = this;
-			}
-		}
-		this.type = type;
-		this.children = (List<ASTElement>) children;
-	}
+    @SuppressWarnings("unchecked")
+    public ASTElement(ElementType type, List<? extends ASTElement> children) {
+        for (ASTElement child : children) {
+            if (child != null) {
+                child.parent = this;
+            }
+        }
+        this.type = type;
+        this.children = (List<ASTElement>) children;
+    }
 
-	public String getContent() {
-		return value == null ? null : value.getContent();
-	}
+    public String getContent() {
+        return value == null ? null : value.getContent();
+    }
 
-	public Token getValue() {
-		return value;
-	}
+    public Token getValue() {
+        return value;
+    }
 
-	public ElementType getType() {
-		return type;
-	}
+    public ElementType getType() {
+        return type;
+    }
 
-	public ASTElement getParent() {
-		return parent;
-	}
+    public ASTElement getParent() {
+        return parent;
+    }
 
-	public List<ASTElement> getChildren() {
-		return children;
-	}
+    public List<ASTElement> getChildren() {
+        return children;
+    }
 
-	public Location getLocation() {
-		if (value == null) {
-			// go through children
-			for (ASTElement child : children) {
-				Location location = child.getLocation();
-				if (location != null) {
-					return location;
-				}
-			}
-		} else {
-			return value.getLocation();
-		}
-		return null;
-	}
+    public Location getLocation() {
+        if (value == null) {
+            // go through children
+            for (ASTElement child : children) {
+                Location location = child.getLocation();
+                if (location != null) {
+                    return location;
+                }
+            }
+        } else {
+            return value.getLocation();
+        }
+        return null;
+    }
 }

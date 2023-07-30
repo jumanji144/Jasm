@@ -5,14 +5,15 @@ import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.util.EscapeUtil;
 
 public class ASTIdentifier extends ASTLiteral {
-	public ASTIdentifier(Token value) {
-		super(ElementType.IDENTIFIER, value);
-	}
+    public ASTIdentifier(Token value) {
+        super(ElementType.IDENTIFIER, value);
+    }
 
-	/**
-	 * @return the literal value of this identifier, aka escape sequences are unescaped
-	 */
-	public String literal() {
-		return EscapeUtil.unescape(getContent());
-	}
+    /**
+     * @return the literal value of this identifier, aka escape sequences are
+     *         unescaped
+     */
+    public String literal() {
+        return EscapeUtil.unescape(getContent());
+    }
 }

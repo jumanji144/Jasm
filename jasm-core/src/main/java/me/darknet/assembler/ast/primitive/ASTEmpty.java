@@ -11,12 +11,12 @@ import java.util.Collections;
  */
 public class ASTEmpty extends ASTElement {
 
-	public static final ASTArray EMPTY_ARRAY = new ASTArray(Collections.emptyList());
-	public static final ASTCode EMPTY_CODE = new ASTCode(Collections.emptyList());
-	public static final ASTObject EMPTY_OBJECT = new ASTObject(ElementMap.empty());
+    public static final ASTArray EMPTY_ARRAY = new ASTArray(Collections.emptyList());
+    public static final ASTCode EMPTY_CODE = new ASTCode(Collections.emptyList());
+    public static final ASTObject EMPTY_OBJECT = new ASTObject(ElementMap.empty());
 
-	public ASTEmpty() {
-		super(ElementType.EMPTY);
-	}
+    public ASTEmpty() {
+        super(ElementType.EMPTY);
+    }
 
 }

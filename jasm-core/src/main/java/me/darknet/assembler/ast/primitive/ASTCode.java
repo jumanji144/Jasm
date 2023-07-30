@@ -8,15 +8,15 @@ import java.util.List;
 
 public class ASTCode extends ASTElement {
 
-	private final List<@Nullable ASTInstruction> instructions;
+    private final List<@Nullable ASTInstruction> instructions;
 
-	public ASTCode(List<@Nullable ASTInstruction> instructions) {
-		super(ElementType.CODE, instructions);
-		this.instructions = instructions;
-	}
+    public ASTCode(List<@Nullable ASTInstruction> instructions) {
+        super(ElementType.CODE, instructions);
+        this.instructions = instructions;
+    }
 
-	public List<@Nullable ASTInstruction> getInstructions() {
-		return instructions;
-	}
+    public List<@Nullable ASTInstruction> getInstructions() {
+        return instructions;
+    }
 
 }

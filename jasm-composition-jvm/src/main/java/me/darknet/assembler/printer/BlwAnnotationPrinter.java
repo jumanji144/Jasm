@@ -4,13 +4,13 @@ import dev.xdark.blw.annotation.*;
 
 public class BlwAnnotationPrinter implements AnnotationPrinter {
 
-	private final Annotation annotation;
+    private final Annotation annotation;
 
-	public BlwAnnotationPrinter(Annotation annotation) {
-		this.annotation = annotation;
-	}
+    public BlwAnnotationPrinter(Annotation annotation) {
+        this.annotation = annotation;
+    }
 
-	void printElement(PrintContext<?> ctx, Element element) {
+    void printElement(PrintContext<?> ctx, Element element) {
 		switch (element) {
 			case ElementInt ei -> ctx.print(Integer.toString(ei.value()));
 			case ElementLong el -> ctx.print(el.value() + "L");
@@ -42,22 +42,19 @@ public class BlwAnnotationPrinter implements AnnotationPrinter {
 		}
 	}
 
-	@Override
-	public void print(PrintContext<?> ctx) {
-		ctx.begin()
-				.element(".annotation")
-				.literal(annotation.type().internalName())
-				.print(" ");
-		if(annotation.names().isEmpty()) {
-			ctx.print("{}");
-			return;
-		}
-		var obj = ctx.object();
-		for (var entry : annotation) {
-			obj.literalValue(entry.getKey());
-			printElement(obj, entry.getValue());
-			obj.next();
-		}
-		obj.end();
-	}
+    @Override
+    public void print(PrintContext<?> ctx) {
+        ctx.begin().element(".annotation").literal(annotation.type().internalName()).print(" ");
+        if (annotation.names().isEmpty()) {
+            ctx.print("{}");
+            return;
+        }
+        var obj = ctx.object();
+        for (var entry : annotation) {
+            obj.literalValue(entry.getKey());
+            printElement(obj, entry.getValue());
+            obj.next();
+        }
+        obj.end();
+    }
 }

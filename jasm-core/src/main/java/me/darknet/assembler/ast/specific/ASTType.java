@@ -5,8 +5,8 @@ import me.darknet.assembler.parser.Token;
 
 public class ASTType extends ASTValue {
 
-	public ASTType(ElementType type, Token value) {
-		super(type, value);
-	}
+    public ASTType(ElementType type, Token value) {
+        super(type, value);
+    }
 
 }

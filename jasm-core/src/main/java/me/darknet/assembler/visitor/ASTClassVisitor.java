@@ -6,13 +6,13 @@ import org.jetbrains.annotations.Nullable;
 
 public interface ASTClassVisitor extends ASTDeclarationVisitor {
 
-	void visitSuperClass(ASTIdentifier superClass);
+    void visitSuperClass(ASTIdentifier superClass);
 
-	void visitInterface(ASTIdentifier interfaceName);
+    void visitInterface(ASTIdentifier interfaceName);
 
-	void visitSourceFile(ASTString sourceFile);
+    void visitSourceFile(ASTString sourceFile);
 
-	void visitInnerClass(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
-						 ASTIdentifier innerClass);
+    void visitInnerClass(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
+            ASTIdentifier innerClass);
 
 }

@@ -4,11 +4,12 @@ import me.darknet.assembler.ast.primitive.ASTInstruction;
 
 public interface ASTInstructionVisitor {
 
-	/**
-	 * Called on every instruction visit
-	 *
-	 * @param instruction The instruction
-	 */
-	void visitInstruction(ASTInstruction instruction);
+    /**
+     * Called on every instruction visit
+     *
+     * @param instruction
+     *                    The instruction
+     */
+    void visitInstruction(ASTInstruction instruction);
 
 }

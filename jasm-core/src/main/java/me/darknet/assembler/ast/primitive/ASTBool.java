@@ -6,12 +6,12 @@ import me.darknet.assembler.parser.Token;
 
 public class ASTBool extends ASTValue {
 
-	public ASTBool(Token value) {
-		super(ElementType.BOOL, value);
-	}
+    public ASTBool(Token value) {
+        super(ElementType.BOOL, value);
+    }
 
-	public boolean getBool() {
-		return Boolean.parseBoolean(getValue().getContent());
-	}
+    public boolean getBool() {
+        return Boolean.parseBoolean(getValue().getContent());
+    }
 
 }
