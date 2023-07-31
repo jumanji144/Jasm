@@ -14,7 +14,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     private final static String[] OPCODES = new String[256];
 
     static {
-        for (var field : Opcodes.class.getFields()) {
+        for (var field : JavaOpcodes.class.getFields()) {
             try {
                 OPCODES[field.getInt(null)] = field.getName().toLowerCase();
             } catch (IllegalAccessException e) {
@@ -59,59 +59,54 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     }
 
     @Override
-	public void execute(ConstantInstruction<?> instruction) {
-		String opcode;
-		switch (instruction) {
-			case ConstantInstruction.Int i -> {
-				// decide on opcode
-				int val = i.constant().value();
-				if (val == -1) {
-					ctx.instruction("iconst_m1").next();
-					return;
-				} else if (val >= 0 && val <= 5) {
-					ctx.instruction("iconst_" + val).next();
-					return;
-				} else if (val >= -128 && val <= 127) {
-					opcode = "bipush";
-				} else if (val >= -32768 && val <= 32767) {
-					opcode = "sipush";
-				} else {
-					opcode = "ldc";
-				}
-			}
-			case ConstantInstruction.Long i -> {
-				long val = i.constant().value();
-				if (val == 0 || val == 1) {
-					ctx.instruction("lconst_" + val).next();
-					return;
-				} else {
-					opcode = "ldc2_w";
-				}
-			}
-			case ConstantInstruction.Float i -> {
-				float val = i.constant().value();
-				if (val == 0 || val == 1 || val == 2) {
-					ctx.instruction("fconst_" + (int) val).next();
-					return;
-				} else {
-					opcode = "ldc";
-				}
-			}
-			case ConstantInstruction.Double i -> {
-				double val = i.constant().value();
-				if (val == 0 || val == 1) {
-					ctx.instruction("dconst_" + (int) val).next();
-					return;
-				} else {
-					opcode = "ldc2_w";
-				}
-			}
-			default -> opcode = "ldc";
-		}
-		ctx.instruction(opcode);
-		instruction.constant().accept(new ConstantPrinter(ctx));
-		ctx.next();
-	}
+    public void execute(ConstantInstruction<?> instruction) {
+        String opcode;
+        if (instruction instanceof ConstantInstruction.Int i) {
+            int val = i.constant().value();
+            if (val == -1) {
+                ctx.instruction("iconst_m1").next();
+                return;
+            } else if (val >= 0 && val <= 5) {
+                ctx.instruction("iconst_" + val).next();
+                return;
+            } else if (val >= -128 && val <= 127) {
+                opcode = "bipush";
+            } else if (val >= -32768 && val <= 32767) {
+                opcode = "sipush";
+            } else {
+                opcode = "ldc";
+            }
+        } else if (instruction instanceof ConstantInstruction.Long i) {
+            long val = i.constant().value();
+            if (val == 0 || val == 1) {
+                ctx.instruction("lconst_" + val).next();
+                return;
+            } else {
+                opcode = "ldc2_w";
+            }
+        } else if (instruction instanceof ConstantInstruction.Float i) {
+            float val = i.constant().value();
+            if (val == 0 || val == 1 || val == 2) {
+                ctx.instruction("fconst_" + (int) val).next();
+                return;
+            } else {
+                opcode = "ldc";
+            }
+        } else if (instruction instanceof ConstantInstruction.Double i) {
+            double val = i.constant().value();
+            if (val == 0 || val == 1) {
+                ctx.instruction("dconst_" + (int) val).next();
+                return;
+            } else {
+                opcode = "ldc2_w";
+            }
+        } else {
+            opcode = "ldc";
+        }
+        ctx.instruction(opcode);
+        instruction.constant().accept(new ConstantPrinter(ctx));
+        ctx.next();
+    }
 
     @Override
     public void execute(VarInstruction instruction) {
@@ -180,7 +175,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     @Override
     public void execute(MethodInstruction instruction) {
         String opcode = OPCODES[instruction.opcode()];
-        if (instruction.isInterface() && instruction.opcode() != Opcodes.INVOKEINTERFACE) {
+        if (instruction.isInterface() && instruction.opcode() != JavaOpcodes.INVOKEINTERFACE) {
             opcode += "interface";
         }
         ctx.instruction(opcode).literal(instruction.owner().internalName()).print(".").literal(instruction.name())
@@ -223,6 +218,87 @@ public class InstructionPrinter implements IndexedExecutionEngine {
         ctx.instruction(OPCODES[instruction.opcode()]).arg()
                 .literal(names.getName(instruction.variableIndex(), currentIndex + 1)).arg()
                 .literal(Integer.toString(instruction.incrementBy())).next();
+    }
+
+    @Override
+    public void execute(PrimitiveConversionInstruction primitiveConversionInstruction) {
+        primitiveConversionInstruction.accept(new PrimitiveConversion() {
+            @Override
+            public void i2l() {
+                ctx.instruction("i2l");
+            }
+
+            @Override
+            public void i2f() {
+                ctx.instruction("i2f");
+            }
+
+            @Override
+            public void i2d() {
+                ctx.instruction("i2d");
+            }
+
+            @Override
+            public void l2i() {
+                ctx.instruction("l2i");
+            }
+
+            @Override
+            public void l2f() {
+                ctx.instruction("l2f");
+            }
+
+            @Override
+            public void l2d() {
+                ctx.instruction("l2d");
+            }
+
+            @Override
+            public void f2i() {
+                ctx.instruction("f2i");
+            }
+
+            @Override
+            public void f2l() {
+                ctx.instruction("f2l");
+            }
+
+            @Override
+            public void f2d() {
+                ctx.instruction("f2d");
+            }
+
+            @Override
+            public void d2i() {
+                ctx.instruction("d2i");
+            }
+
+            @Override
+            public void d2l() {
+                ctx.instruction("d2l");
+            }
+
+            @Override
+            public void d2f() {
+                ctx.instruction("d2f");
+            }
+
+            @Override
+            public void i2b() {
+                ctx.instruction("i2b");
+            }
+
+            @Override
+            public void i2c() {
+                ctx.instruction("i2c");
+            }
+
+            @Override
+            public void i2s() {
+                ctx.instruction("i2s");
+            }
+        });
+        ctx.next();
     }
 
     @Override

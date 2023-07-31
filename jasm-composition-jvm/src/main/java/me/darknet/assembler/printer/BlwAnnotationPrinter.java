@@ -11,36 +11,42 @@ public class BlwAnnotationPrinter implements AnnotationPrinter {
     }
 
     void printElement(PrintContext<?> ctx, Element element) {
-		switch (element) {
-			case ElementInt ei -> ctx.print(Integer.toString(ei.value()));
-			case ElementLong el -> ctx.print(el.value() + "L");
-			case ElementFloat ef -> ctx.print(ef.value() + "F");
-			case ElementDouble ed -> ctx.print(ed.value() + "D");
-			case ElementString es -> ctx.string(es.value());
-			case ElementBoolean eb -> ctx.print(Boolean.toString(eb.value()));
-			case ElementByte eb -> ctx.print(Byte.toString(eb.value()));
-			// TODO char parsing | case ElementChar ec -> ctx.print("'" + ec.value() + "'");
-			case ElementShort es -> ctx.print(Short.toString(es.value()));
-			case ElementEnum ee -> ctx.element(".enum")
-					.literal(ee.type().internalName())
-					.print(".")
-					.literal(ee.name());
-			case ElementType et -> ctx.print("L").literal(et.value().internalName()).literal(";");
-			case Annotation ea -> {
-				BlwAnnotationPrinter printer = new BlwAnnotationPrinter(ea);
-				printer.print(ctx);
-			}
-			case ElementArray ea -> {
-				var array = ctx.array();
-				for (var entry : ea) {
-					printElement(array, entry);
-					array.arg();
-				}
-				array.end();
-			}
-			default -> throw new IllegalStateException("Unexpected value: " + element);
-		}
-	}
+        if (element instanceof ElementInt ei) {
+            ctx.print(Integer.toString(ei.value()));
+        } else if (element instanceof ElementLong el) {
+            ctx.print(el.value() + "L");
+        } else if (element instanceof ElementFloat ef) {
+            ctx.print(ef.value() + "F");
+        } else if (element instanceof ElementDouble ed) {
+            ctx.print(ed.value() + "D");
+        } else if (element instanceof ElementString es) {
+            ctx.string(es.value());
+        } else if (element instanceof ElementBoolean eb) {
+            ctx.print(Boolean.toString(eb.value()));
+        } else if (element instanceof ElementByte eb) {
+            ctx.print(Byte.toString(eb.value()));
+            // TODO char parsing | case ElementChar ec -> ctx.print("'" + ec.value() + "'");
+        } else if (element instanceof ElementShort es) {
+            ctx.print(Short.toString(es.value()));
+        } else if (element instanceof ElementEnum ee) {
+            ctx.element(".enum").literal(ee.type().internalName()).print(".").literal(ee.name());
+        } else if (element instanceof ElementType et) {
+            ctx.print("L").literal(et.value().internalName()).literal(";");
+        } else if (element instanceof Annotation) {
+            Annotation ea = (Annotation) element;
+            BlwAnnotationPrinter printer = new BlwAnnotationPrinter(ea);
+            printer.print(ctx);
+        } else if (element instanceof ElementArray ea) {
+            var array = ctx.array();
+            for (var entry : ea) {
+                printElement(array, entry);
+                array.arg();
+            }
+            array.end();
+        } else {
+            throw new IllegalStateException("Unexpected value: " + element);
+        }
+    }
 
     @Override
     public void print(PrintContext<?> ctx) {
