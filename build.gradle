@@ -26,7 +26,7 @@ subprojects {
 
     java {
         toolchain {
-            languageVersion = JavaLanguageVersion.of(20)
+            languageVersion = JavaLanguageVersion.of(17)
         }
 
         withSourcesJar()
@@ -52,7 +52,6 @@ subprojects {
         testLogging {
             events "passed", "skipped", "failed"
         }
-        jvmArgs '--enable-preview'
     }
 
     dependencies {
@@ -81,7 +80,5 @@ subprojects {
             testImplementation 'org.junit.jupiter:junit-jupiter'
         }
     }
-
-    tasks.withType(JavaCompile)*.options*.compilerArgs*.add '--enable-preview'
 
 }
