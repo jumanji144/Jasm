@@ -14,7 +14,7 @@ public class ProcessorList {
 
     private ProcessorAttributes attributes = new ProcessorAttributes();
 
-    private List<Integer> attributeIndexes = new ArrayList<>();
+    private final List<Integer> attributeIndexes = new ArrayList<>();
 
     public void add(ASTElement element) {
         result.add(element);
@@ -32,57 +32,52 @@ public class ProcessorList {
             result.remove(attributeIndex);
         }
 
+        attributeIndexes.clear();
+
         return attributes;
     }
 
-    private void addAttribute(ASTElement element) {
-        attributeIndexes.add(result.indexOf(element));
+    private void addAttribute() {
+        attributeIndexes.add(result.size());
     }
 
     // mutators
 
     public void addAnnotation(ASTAnnotation annotation) {
         this.attributes.annotations.add(annotation);
-        addAttribute(annotation);
     }
 
     public void setSignature(ASTIdentifier signature) {
         this.attributes.signature = signature;
-        addAttribute(signature);
     }
 
     public void addInterface(ASTIdentifier interfaceName) {
         this.attributes.interfaces.add(interfaceName);
-        addAttribute(interfaceName);
     }
 
     public void setSuperName(ASTIdentifier superName) {
         this.attributes.superName = superName;
-        addAttribute(superName);
     }
 
     public void addInner(ASTInner inner) {
         this.attributes.inners.add(inner);
-        addAttribute(inner);
     }
 
     public void setSourceFile(ASTIdentifier sourceFile) {
         this.attributes.sourceFile = sourceFile;
-        addAttribute(sourceFile);
     }
 
     public void addNestMember(ASTIdentifier nestMember) {
         this.attributes.nestMembers.add(nestMember);
-        addAttribute(nestMember);
     }
 
     public void addNestHost(ASTIdentifier nestHost) {
         this.attributes.nestHosts.add(nestHost);
-        addAttribute(nestHost);
     }
 
     public void removeAnnotation(ASTAnnotation value) {
         this.attributes.annotations.remove(value);
+        this.attributeIndexes.remove((Integer) result.indexOf(value));
     }
 
 }

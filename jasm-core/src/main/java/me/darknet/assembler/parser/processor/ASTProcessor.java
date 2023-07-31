@@ -40,22 +40,22 @@ public class ASTProcessor {
             return new ASTEnum(type, name);
         });
         ParserRegistry.register("signature", (ctx, decl) -> {
-            ctx.result.setSignature(
-                    ctx.validateElement(decl.getElements().get(0), ElementType.IDENTIFIER, "signature", decl)
-            );
-            return null;
+            ASTIdentifier signature = ctx
+                    .validateElement(decl.getElements().get(0), ElementType.IDENTIFIER, "signature", decl);
+            ctx.result.setSignature(signature);
+            return signature;
         });
         ParserRegistry.register("super", (ctx, decl) -> {
-            ctx.result.setSuperName(
-                    ctx.validateElement(decl.getElements().get(0), ElementType.IDENTIFIER, "super name", decl)
-            );
-            return null;
+            ASTIdentifier superName = ctx
+                    .validateElement(decl.getElements().get(0), ElementType.IDENTIFIER, "super name", decl);
+            ctx.result.setSuperName(superName);
+            return superName;
         });
         ParserRegistry.register("interface", (ctx, decl) -> {
-            ctx.result.addInterface(
-                    ctx.validateElement(decl.getElements().get(0), ElementType.IDENTIFIER, "interface name", decl)
-            );
-            return null;
+            ASTIdentifier interfaceName = ctx
+                    .validateElement(decl.getElements().get(0), ElementType.IDENTIFIER, "interface name", decl);
+            ctx.result.addInterface(interfaceName);
+            return interfaceName;
         });
     }
 
@@ -202,7 +202,8 @@ public class ASTProcessor {
 
     static ASTElement validateElementValue(ParserContext ctx, ASTElement value) {
         switch (value.getType()) {
-            case NUMBER, STRING -> {}
+            case NUMBER, STRING -> {
+            }
             case IDENTIFIER -> {
                 ASTIdentifier identifier = (ASTIdentifier) value;
                 if (identifier.getContent().equals("true") || identifier.getContent().equals("false")) {
@@ -219,15 +220,14 @@ public class ASTProcessor {
                     switch (value.getType()) {
                         case ENUM -> {
                         }
-                        case ANNOTATION ->
-                                ctx.result.removeAnnotation((ASTAnnotation) value); // remove them from attributes
+                        case ANNOTATION -> ctx.result.removeAnnotation((ASTAnnotation) value); // remove them from attributes
                         default -> {
                             ctx.throwUnexpectedElementError("annotation value", value);
                             return null;
                         }
                     }
                 } else {
-                	if (decl.getElements().size() != 1) {
+                    if (decl.getElements().size() != 1) {
                         ctx.throwUnexpectedElementError("annotation value", value);
                         return null;
                     }
