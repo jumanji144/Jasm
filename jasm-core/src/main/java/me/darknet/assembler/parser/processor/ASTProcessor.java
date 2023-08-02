@@ -268,8 +268,10 @@ public class ASTProcessor {
             map.put(key, value);
         }
         ctx.leaveState();
-        ctx.result.addAnnotation(new ASTAnnotation(type, map));
-        return new ASTAnnotation(type, map);
+        ASTAnnotation annotation = new ASTAnnotation(type, map);
+        if(!ctx.isInState(State.IN_ANNOTATION)) // if not inside annotation, add it as an attribute
+            ctx.result.addAnnotation(annotation);
+        return annotation;
     }
 
     public static ASTInner parseInner(ParserContext ctx, ASTDeclaration declaration) {
@@ -291,7 +293,11 @@ public class ASTProcessor {
         ASTIdentifier inner = ctx.validateIdentifier(values.get("inner"), "inner class type", declaration);
         ASTIdentifier outer = ctx.validateMaybeIdentifier(values.get("outer"), "outer class type", declaration);
 
-        return new ASTInner(modifiers, name, outer, inner);
+        ASTInner innerClass = new ASTInner(modifiers, name, outer, inner);
+
+        ctx.result.addInner(innerClass);
+
+        return innerClass;
     }
 
     public Result<List<ASTElement>> processAST(List<ASTElement> ast) {

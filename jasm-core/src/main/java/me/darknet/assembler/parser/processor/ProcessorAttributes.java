@@ -1,5 +1,6 @@
 package me.darknet.assembler.parser.processor;
 
+import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTInner;
@@ -20,5 +21,8 @@ public class ProcessorAttributes {
     public ASTIdentifier sourceFile;
     public final List<ASTIdentifier> nestMembers = new ArrayList<>();
     public final List<ASTIdentifier> nestHosts = new ArrayList<>();
+
+    // all attributes
+    List<ASTElement> attributes = new ArrayList<>();
 
 }

@@ -12,6 +12,7 @@ import me.darknet.assembler.printer.BlwClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Assertions;
 
 import java.io.IOException;
@@ -20,7 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
-@NotNull
+@Nullable
 public class PrinterTest {
 
     private int test = 15;
