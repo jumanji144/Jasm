@@ -5,7 +5,7 @@ import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 
-public record Constant(me.darknet.assembler.helper.Constant.Type type, Object value) {
+public record Constant(Type type, Object value) {
 
     /**
      * Create a new constant from element
@@ -16,25 +16,26 @@ public record Constant(me.darknet.assembler.helper.Constant.Type type, Object va
      * @return the constant
      */
     public static Constant from(ASTElement element) {
-        switch (element.getType()) {
+        return switch (element.getType()) {
             case NUMBER:
                 ASTNumber number = (ASTNumber) element;
-                return new Constant(Constant.Type.Number, number.getNumber());
-            case STRING:
-                return new Constant(Constant.Type.String, element.getValue());
+                yield new Constant(Constant.Type.Number, number.getNumber());
+            case STRING: new Constant(Constant.Type.String, element.getValue());
             case IDENTIFIER:
                 ASTIdentifier identifier = (ASTIdentifier) element;
-                if (identifier.getContent().startsWith("L")) {
-                    return new Constant(Constant.Type.ClassType, identifier.getContent());
+                if (identifier.getContent().startsWith("L")) { // is class
+                    yield new Constant(Constant.Type.ClassType, identifier.getContent());
                 } else {
-                    return new Constant(Constant.Type.MethodType, identifier.getContent());
+                    // must be method `(` or method type `L`
+                    yield new Constant(Constant.Type.MethodType, identifier.getContent());
                 }
             case ARRAY: {
                 ASTArray array = (ASTArray) element;
-                return new Constant(Constant.Type.MethodHandle, Handle.from(array));
+                yield new Constant(Constant.Type.MethodHandle, Handle.from(array));
             }
-        }
-        return null;
+            default:
+                throw new IllegalStateException("Unexpected value: " + element.getType());
+        };
     }
 
     public enum Type {

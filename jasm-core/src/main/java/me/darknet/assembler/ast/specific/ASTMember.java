@@ -3,7 +3,9 @@ package me.darknet.assembler.ast.specific;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CollectionUtil;
+import me.darknet.assembler.visitor.ASTDeclarationVisitor;
 import me.darknet.assembler.visitor.Modifiers;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,7 +21,7 @@ public class ASTMember extends ASTElement {
     public ASTMember(ElementType type, Modifiers modifiers, ASTIdentifier name, @Nullable ASTIdentifier signature,
             List<ASTAnnotation> annotations) {
         super(type, CollectionUtil.merge(CollectionUtil.merge(modifiers.getModifiers(), annotations), name));
-        if (modifiers.getModifiers().size() > 0) {
+        if (!modifiers.getModifiers().isEmpty()) {
             this.value = modifiers.getModifiers().get(0).getValue();
         } else {
             this.value = name.getValue();
@@ -44,6 +46,13 @@ public class ASTMember extends ASTElement {
 
     public @Nullable List<ASTAnnotation> getAnnotations() {
         return annotations;
+    }
+
+    protected void accept(ErrorCollector collector, ASTDeclarationVisitor visitor) {
+        for (ASTAnnotation annotation : annotations) {
+            annotation.accept(collector, visitor.visitAnnotation(annotation.getClassType()));
+        }
+        visitor.visitSignature(signature);
     }
 
 }

@@ -2,6 +2,8 @@ package me.darknet.assembler.ast.specific;
 
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.visitor.ASTFieldVisitor;
 import me.darknet.assembler.visitor.Modifiers;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,5 +27,10 @@ public class ASTField extends ASTMember {
 
     public @Nullable ASTValue getFieldValue() {
         return value;
+    }
+
+    public void accept(ErrorCollector collector, ASTFieldVisitor visitor) {
+        super.accept(collector, visitor);
+        visitor.visitValue(value);
     }
 }

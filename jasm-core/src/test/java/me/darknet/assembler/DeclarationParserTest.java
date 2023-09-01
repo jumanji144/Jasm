@@ -44,7 +44,7 @@ public class DeclarationParserTest {
         Assertions.assertNotNull(tokens);
         Assertions.assertFalse(tokens.isEmpty());
         Result<List<ASTElement>> result = parser.parseAny(tokens);
-        if (result.isErr()) {
+        if (result.hasErr()) {
             for (Error error : result.getErrors()) {
                 Location location = error.getLocation();
                 System.err.printf(
@@ -240,7 +240,7 @@ public class DeclarationParserTest {
         Tokenizer tokenizer = new Tokenizer();
         List<Token> tokens = tokenizer.tokenize("<stdin>", "{ test, 4.... { {");
         Result<List<ASTElement>> result = parser.parseAny(tokens);
-        assertTrue(result.isErr());
+        assertTrue(result.hasErr());
         assertEquals(2, result.getErrors().size());
     }
 

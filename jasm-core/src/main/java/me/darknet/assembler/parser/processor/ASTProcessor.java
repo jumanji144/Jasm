@@ -169,6 +169,7 @@ public class ASTProcessor {
                 parameters = ctx.validateArray(array, ElementType.IDENTIFIER, "method parameter", declaration);
         }
         ASTCode code = null;
+        List<Instruction<?>> instructions = new ArrayList<>();
         if (body.getValues().containsKey("code")) {
             code = ctx.validateEmptyableElement(
                     body.getValues().get("code"), ElementType.CODE, "method code", declaration
@@ -189,6 +190,7 @@ public class ASTProcessor {
                 }
                 // validate arguments
                 insn.verify(instruction, ctx);
+                instructions.add(insn);
             }
         }
         int nameIndex = lastIndex - 2;
@@ -197,7 +199,9 @@ public class ASTProcessor {
         ASTIdentifier desc = ctx.validateIdentifier(elements.get(descIndex), "method descriptor", declaration);
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
         ProcessorAttributes attributes = ctx.result.collectAttributes();
-        return new ASTMethod(modifiers, name, desc, attributes.signature, attributes.annotations, parameters, code);
+        return new ASTMethod(modifiers, name, desc, attributes.signature, attributes.annotations, parameters, code,
+                instructions, ctx.format
+        );
     }
 
     static ASTElement validateElementValue(ParserContext ctx, ASTElement value) {
@@ -301,7 +305,7 @@ public class ASTProcessor {
     }
 
     public Result<List<ASTElement>> processAST(List<ASTElement> ast) {
-        ParserContext ctx = new ParserContext(format.getInstructions());
+        ParserContext ctx = new ParserContext(format);
         for (ASTElement astElement : ast) {
             if (astElement instanceof ASTDeclaration) {
                 ctx.add(parseDeclaration(ctx, (ASTDeclaration) astElement));
@@ -324,11 +328,13 @@ public class ASTProcessor {
     public static class ParserContext extends Stateful<State> {
 
         private final ErrorCollector errorCollector = new ErrorCollector();
+        private final BytecodeFormat format;
         private final Instructions<?> instructions;
         private ProcessorList result = new ProcessorList();
 
-        public ParserContext(Instructions<?> instructions) {
-            this.instructions = instructions;
+        public ParserContext(BytecodeFormat format) {
+            this.format = format;
+            this.instructions = format.getInstructions();
         }
 
         public void add(ASTElement element) {
@@ -347,6 +353,13 @@ public class ASTProcessor {
             return false;
         }
 
+        /**
+         * Check if the element is not the expected type.
+         * @param element the element to check
+         * @param type the expected type
+         * @param expected the expected description
+         * @return true if the element is not the expected type
+         */
         public boolean isNotType(ASTElement element, ElementType type, String expected) {
             if (element.getType() != type) {
                 throwUnexpectedElementError(expected, element);
@@ -355,6 +368,15 @@ public class ASTProcessor {
             return false;
         }
 
+        /**
+         * Validate an element and return it if it is the expected type and not null
+         * @param e the element to validate
+         * @param expectedElementType the expected type
+         * @param description the description of the element
+         * @param parent the parent element
+         * @return the element if it is the expected type and not null
+         * @param <T> the type of the element
+         */
         @SuppressWarnings("unchecked")
         public <T> T validateElement(ASTElement e, ElementType expectedElementType, String description,
                 ASTElement parent) {
@@ -365,6 +387,16 @@ public class ASTProcessor {
             return (T) e;
         }
 
+        /**
+         * Validate an empty able element and return the element or the empty singleton if it is the expected
+         * type
+         * @param e the element to validate
+         * @param expectedElementType the expected type
+         * @param description the description of the element
+         * @param parent the parent element
+         * @return the element or the empty singleton if it is the expected type, if not null
+         * @param <T> the type of the element
+         */
         @SuppressWarnings("unchecked")
         public <T> T validateEmptyableElement(ASTElement e, ElementType expectedElementType, String description,
                 ASTElement parent) {
@@ -386,6 +418,16 @@ public class ASTProcessor {
             return (T) e;
         }
 
+        /**
+         * Validate array elements to be the expected type
+         * @param array the array to validate
+         * @param expectedElements the expected type
+         * @param description the description of the array
+         * @param parent the parent element
+         * @return the list of elements that are the expected type
+         * @param <T> the type of the elements
+         */
+        @SuppressWarnings("unchecked")
         public <T> List<T> validateArray(ASTArray array, ElementType expectedElements, String description,
                 ASTElement parent) {
             if (isNull(array, description, parent.getLocation()))
@@ -402,6 +444,14 @@ public class ASTProcessor {
             return result;
         }
 
+        /**
+         * Validate that all keys are present in the object
+         * @param e the object to validate
+         * @param description the description of the object
+         * @param parent the parent element
+         * @param expectedKeys the expected keys
+         * @return the object if all keys are present
+         */
         public ASTObject validateObject(ASTElement e, String description, ASTElement parent, String... expectedKeys) {
             if (isNull(e, description, parent.getLocation()))
                 return null;
@@ -474,6 +524,14 @@ public class ASTProcessor {
 
         public void throwUnexpectedElementError(String expected, ASTElement actual) {
             throwError("Expected " + expected + " but got " + actual.getType().toString(), actual.getLocation());
+        }
+
+        public Instructions<?> getInstructions() {
+            return instructions;
+        }
+
+        public BytecodeFormat getFormat() {
+            return format;
         }
     }
 

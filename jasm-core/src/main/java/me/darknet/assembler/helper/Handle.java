@@ -1,10 +1,11 @@
 package me.darknet.assembler.helper;
 
 import me.darknet.assembler.ast.primitive.ASTArray;
+import org.jetbrains.annotations.Contract;
 
 import java.util.Map;
 
-public record Handle(Handle.Kind kind, String name, String descriptor) {
+public record Handle(Kind kind, String name, String descriptor) {
 
     public static Map<String, Kind> KINDS = Map.of(
             "getfield", Kind.GET_FIELD, "getstatic", Kind.GET_STATIC, "putfield", Kind.PUT_FIELD, "putstatic",
@@ -12,7 +13,9 @@ public record Handle(Handle.Kind kind, String name, String descriptor) {
             Kind.INVOKE_SPECIAL, "newinvokespecial", Kind.NEW_INVOKE_SPECIAL, "invokeinterface", Kind.INVOKE_INTERFACE
     );
 
+    @Contract(pure = true)
     public static Handle from(ASTArray array) {
+        // assert that the array has 3 elements
         Handle.Kind kind = Handle.Kind.valueOf(array.getValues().get(0).getContent());
         String name = array.getValues().get(1).getContent();
         String descriptor = array.getValues().get(2).getContent();

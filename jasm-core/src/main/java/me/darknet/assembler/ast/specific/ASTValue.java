@@ -11,4 +11,8 @@ public class ASTValue extends ASTElement {
         this.value = value;
     }
 
+    public ASTValue(ElementType type, ASTElement... children) {
+        super(type, children);
+    }
+
 }

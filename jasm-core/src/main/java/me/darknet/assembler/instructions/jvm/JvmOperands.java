@@ -75,17 +75,9 @@ public enum JvmOperands implements Operands {
             return;
         ASTIdentifier identifier = (ASTIdentifier) element;
         switch (identifier.getContent()) {
-            case "boolean":
-            case "byte":
-            case "char":
-            case "short":
-            case "int":
-            case "float":
-            case "long":
-            case "double":
-                break;
-            default:
-                context.throwUnexpectedElementError("boolean, byte, char, short, int, float, long or double", element);
+            case "boolean", "byte", "char", "short", "int", "float", "long", "double" -> {}
+            default ->
+                    context.throwUnexpectedElementError("boolean, byte, char, short, int, float, long or double", element);
         }
     }));
 

@@ -31,19 +31,16 @@ public class Tokenizer {
             }
             if (ctx.isString()) {
                 switch (c) {
-                    case '"':
+                    case '"' -> {
                         ctx.collectToken();
                         ctx.inString = false;
                         ctx.index++;
-                        break;
-                    case '\\': {
+                    }
+                    case '\\' -> {
                         ctx.index++;
                         ctx.processEscape();
-                        break;
                     }
-                    default:
-                        ctx.forward();
-                        break;
+                    default -> ctx.forward();
                 }
             } else if (Character.isWhitespace(c)) {
                 ctx.collectToken();
@@ -84,7 +81,7 @@ public class Tokenizer {
         private boolean inString;
         private boolean inComment;
         private StringBuffer buffer;
-        private List<Token> tokens = new ArrayList<>();
+        private final List<Token> tokens = new ArrayList<>();
 
         private String input, source;
 

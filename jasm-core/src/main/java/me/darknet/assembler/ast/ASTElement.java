@@ -2,6 +2,7 @@ package me.darknet.assembler.ast;
 
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.util.Location;
+import org.jetbrains.annotations.Contract;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,6 +34,7 @@ public class ASTElement {
         this.children = (List<ASTElement>) children;
     }
 
+    @Contract(pure = true)
     public String getContent() {
         return value == null ? null : value.getContent();
     }

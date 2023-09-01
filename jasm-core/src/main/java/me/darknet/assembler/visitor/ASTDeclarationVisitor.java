@@ -4,7 +4,7 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 
 public interface ASTDeclarationVisitor {
 
-    ASTAnnotationVisitor visitAnnotation(ASTIdentifier name);
+    ASTAnnotationVisitor visitAnnotation(ASTIdentifier classType);
 
     void visitSignature(ASTIdentifier signature);
 

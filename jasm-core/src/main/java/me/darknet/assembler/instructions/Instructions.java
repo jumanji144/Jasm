@@ -25,6 +25,9 @@ public abstract class Instructions<V extends ASTInstructionVisitor> {
         return ops;
     }
 
+    /**
+     * Register all instructions needed for this instruction set.
+     */
     protected abstract void registerInstructions();
 
     public void register(String name, Operand[] operands, BiConsumer<ASTInstruction, V> translator) {

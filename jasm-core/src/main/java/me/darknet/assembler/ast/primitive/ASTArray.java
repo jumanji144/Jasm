@@ -2,6 +2,7 @@ package me.darknet.assembler.ast.primitive;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -15,6 +16,7 @@ public class ASTArray extends ASTElement {
         this.values = values;
     }
 
+    @Contract(pure = true)
     public List<@Nullable ASTElement> getValues() {
         return values;
     }

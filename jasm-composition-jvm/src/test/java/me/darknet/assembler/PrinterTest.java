@@ -118,7 +118,7 @@ public class PrinterTest {
         Assertions.assertNotNull(tokens);
         Assertions.assertFalse(tokens.isEmpty());
         Result<List<ASTElement>> result = parser.parseAny(tokens);
-        if (result.isErr()) {
+        if (result.hasErr()) {
             for (Error error : result.getErrors()) {
                 Location location = error.getLocation();
                 System.err.printf(
@@ -133,7 +133,7 @@ public class PrinterTest {
         }
         ASTProcessor processor = new ASTProcessor(BytecodeFormat.DEFAULT);
         result = processor.processAST(result.get());
-        if (result.isErr()) {
+        if (result.hasErr()) {
             for (Error error : result.getErrors()) {
                 Location location = error.getLocation();
                 System.err.printf(

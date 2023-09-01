@@ -3,6 +3,8 @@ package me.darknet.assembler.ast.specific;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.visitor.ASTClassVisitor;
 import me.darknet.assembler.visitor.Modifiers;
 import org.jetbrains.annotations.Nullable;
 
@@ -36,4 +38,25 @@ public class ASTClass extends ASTMember {
         return contents;
     }
 
+    public void accept(ErrorCollector collector, ASTClassVisitor visitor) {
+        super.accept(collector, visitor);
+
+        visitor.visitSuperClass(superName);
+        for (ASTIdentifier anInterface : interfaces) {
+            visitor.visitInterface(anInterface);
+        }
+
+        for (ASTElement declaration : contents) {
+            if(declaration instanceof ASTField field) {
+                field.accept(collector,
+                        visitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor()));
+            } else if (declaration instanceof ASTMethod method) {
+                method.accept(collector,
+                        visitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor()));
+            } else {
+                collector.addError("Don't know how to process: "
+                        + declaration.getType(), declaration.getLocation());
+            }
+        }
+    }
 }

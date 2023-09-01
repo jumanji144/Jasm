@@ -15,4 +15,8 @@ public interface ASTClassVisitor extends ASTDeclarationVisitor {
     void visitInnerClass(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
             ASTIdentifier innerClass);
 
+    ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor);
+
+    ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor);
+
 }

@@ -37,7 +37,7 @@ public class InstructionsTest {
     public static <T extends ASTElement> void assertOne(String input, BytecodeFormat format, Class<T> clazz,
             Consumer<T> consumer) {
         parseString(input, format, (result) -> {
-            if (result.isErr()) {
+            if (result.hasErr()) {
                 for (Error error : result.getErrors()) {
                     Location location = error.getLocation();
                     System.err.printf(
@@ -63,7 +63,7 @@ public class InstructionsTest {
         Assertions.assertNotNull(tokens);
         Assertions.assertFalse(tokens.isEmpty());
         Result<List<ASTElement>> result = parser.parseAny(tokens);
-        if (result.isErr()) {
+        if (result.hasErr()) {
             for (Error error : result.getErrors()) {
                 Location location = error.getLocation();
                 System.err.printf(
