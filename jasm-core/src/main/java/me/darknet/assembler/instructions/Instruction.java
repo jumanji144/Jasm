@@ -19,18 +19,18 @@ public class Instruction<V extends ASTInstructionVisitor> {
     }
 
     public void verify(ASTInstruction instruction, ASTProcessor.ParserContext context) {
-        if (instruction.getArguments().size() != operands.length) {
+        if (instruction.arguments().size() != operands.length) {
             context.throwError(
-                    "Expected " + operands.length + " operands, got " + instruction.getArguments().size(),
-                    instruction.getLocation()
+                    "Expected " + operands.length + " operands, got " + instruction.arguments().size(),
+                    instruction.location()
             );
             return;
         }
         for (int i = 0; i < operands.length; i++) {
             @Nullable
-            ASTElement arg = instruction.getArguments().get(i);
+            ASTElement arg = instruction.arguments().get(i);
             if (arg == null) {
-                context.throwError("Expected operand " + i + " to be present", instruction.getLocation());
+                context.throwError("Expected operand " + i + " to be present", instruction.location());
                 return;
             }
             operands[i].verify(context, arg);

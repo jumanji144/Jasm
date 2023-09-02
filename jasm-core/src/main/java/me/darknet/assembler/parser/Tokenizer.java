@@ -163,11 +163,7 @@ public class Tokenizer {
             return input.charAt(index + 1);
         }
 
-        static final Pattern NUMBER_PATTERN = Pattern.compile(
-                "-?((((\\d[\\d_]*\\.(\\d[\\d_]*)?([eE]-?\\d[\\d_]*)?)|(\\.(\\d[\\d_]*)([eE]-?\\d[\\d_]*)?)|" +
-                       "((\\d[\\d_]*)([eE]-?\\d[\\d_]*))|(0[xX][\\dA-Fa-f_]*(\\.[\\dA-Fa-f_]*)?[pP]-?\\d[\\d_]*)" +
-                        ")[fFdD]?)|(((0[xX][\\dA-fa-f_]+)|(\\d[\\d_]*))[LlFfDd]?))");
-
+        static final Pattern NUMBER_PATTERN = Pattern.compile("-?(?:(?:(?:(?:(?:\\d[\\d_]*\\.(?:\\d[\\d_]*)?([eE]-?\\d[\\d_]*)?)|(?:\\.(?:\\d[\\d_]*)(?:[eE]-?\\d[\\d_]*)?)|(?:(?:\\d[\\d_]*)(?:[eE]-?\\d[\\d_]*))|(?:0[xX][\\dA-Fa-f_]*(\\.[\\dA-Fa-f_]*)?[pP]-?\\d[\\d_]*))[fFdD]?)|(?:(?:(?:0[xX][\\dA-fa-f_]+)|(?:\\d[\\d_]*))[LlFfDd]?)))");
         boolean checkIfNumber(String content) {
             switch (content.toLowerCase()) { // floating point numbers
                 case "nan", "infinity", "+infinity", "-infinity" -> {

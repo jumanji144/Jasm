@@ -16,9 +16,9 @@ public record Handle(Kind kind, String name, String descriptor) {
     @Contract(pure = true)
     public static Handle from(ASTArray array) {
         // assert that the array has 3 elements
-        Handle.Kind kind = Handle.Kind.valueOf(array.getValues().get(0).getContent());
-        String name = array.getValues().get(1).getContent();
-        String descriptor = array.getValues().get(2).getContent();
+        Handle.Kind kind = Handle.Kind.valueOf(array.values().get(0).content());
+        String name = array.values().get(1).content();
+        String descriptor = array.values().get(2).content();
 
         return new Handle(kind, name, descriptor);
     }

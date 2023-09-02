@@ -22,7 +22,7 @@ public class Modifiers {
         modifiers.add(modifier);
     }
 
-    public List<ASTIdentifier> getModifiers() {
+    public List<ASTIdentifier> modifiers() {
         return modifiers;
     }
 

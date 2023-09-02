@@ -23,19 +23,19 @@ public enum JvmOperands implements Operands {
             return;
 
         // start, end should be numbers
-        if (context.isNotType(object.getValues().get("min"), ElementType.NUMBER, "number"))
+        if (context.isNotType(object.values().get("min"), ElementType.NUMBER, "number"))
             return;
-        if (context.isNotType(object.getValues().get("max"), ElementType.NUMBER, "number"))
+        if (context.isNotType(object.values().get("max"), ElementType.NUMBER, "number"))
             return;
 
         // default should be identifier
-        if (context.isNotType(object.getValues().get("default"), ElementType.IDENTIFIER, "identifier"))
+        if (context.isNotType(object.values().get("default"), ElementType.IDENTIFIER, "identifier"))
             return;
 
         // cases should be array
-        if (context.isNotType(object.getValues().get("cases"), ElementType.ARRAY, "array"))
+        if (context.isNotType(object.values().get("cases"), ElementType.ARRAY, "array"))
             return;
-        context.validateArray(object.getValues().get("cases"), ElementType.IDENTIFIER, "label", element);
+        context.validateArray(object.values().get("cases"), ElementType.IDENTIFIER, "label", element);
 
     }),
     LOOKUP_SWITCH((context, element) -> {
@@ -44,15 +44,15 @@ public enum JvmOperands implements Operands {
             return;
 
         ASTObject object = (ASTObject) element;
-        if (object.getValues().size() < 1) {
+        if (object.values().size() < 1) {
             context.throwUnexpectedElementError("default label", element);
             return;
         }
 
         // default should be identifier
-        if (context.isNotType(object.getValues().get("default"), ElementType.IDENTIFIER, "identifier"))
+        if (context.isNotType(object.values().get("default"), ElementType.IDENTIFIER, "identifier"))
             return;
-        for (ASTElement elem : object.getValues().getElements()) {
+        for (ASTElement elem : object.values().elements()) {
             if (context.isNotType(elem, ElementType.IDENTIFIER, "identifier"))
                 return;
         }
@@ -60,8 +60,8 @@ public enum JvmOperands implements Operands {
     HANDLE(JvmOperands::verifyHandle),
     ARGS((context, element) -> {
         ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "args", element);
-        for (ASTElement value : array.getValues()) {
-            if (context.isNull(value, "args element", array.getLocation()))
+        for (ASTElement value : array.values()) {
+            if (context.isNull(value, "args element", array.location()))
                 return;
             assert value != null;
             JvmOperands.verifyConstant(context, value);
@@ -74,7 +74,7 @@ public enum JvmOperands implements Operands {
         if (context.isNotType(element, ElementType.IDENTIFIER, "new array type"))
             return;
         ASTIdentifier identifier = (ASTIdentifier) element;
-        switch (identifier.getContent()) {
+        switch (identifier.content()) {
             case "boolean", "byte", "char", "short", "int", "float", "long", "double" -> {}
             default ->
                     context.throwUnexpectedElementError("boolean, byte, char, short, int, float, long or double", element);
@@ -88,12 +88,12 @@ public enum JvmOperands implements Operands {
     }
 
     public static void verifyConstant(ASTProcessor.ParserContext context, ASTElement element) {
-        switch (element.getType()) {
+        switch (element.type()) {
             case NUMBER:
             case STRING:
                 break;
             case IDENTIFIER: {
-                if (!element.getContent().startsWith("L") && !element.getContent().startsWith("(")) {
+                if (!element.content().startsWith("L") && !element.content().startsWith("(")) {
                     context.throwUnexpectedElementError("class or method type", element);
                 }
                 break;
@@ -118,7 +118,7 @@ public enum JvmOperands implements Operands {
             return;
         }
         // first should be kind
-        if (!Handle.KINDS.containsKey(values.get(0).getContent())) {
+        if (!Handle.KINDS.containsKey(values.get(0).content())) {
             context.throwUnexpectedElementError("kind", values.get(0));
         }
     }

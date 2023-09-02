@@ -9,7 +9,7 @@ import dev.xdark.blw.classfile.Field;
 import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.classfile.attribute.InnerClass;
 import dev.xdark.blw.type.InstanceType;
-import me.darknet.assembler.util.Modifiers;
+import me.darknet.assembler.util.BlwModifiers;
 import org.objectweb.asm.ClassWriter;
 
 import java.io.IOException;
@@ -41,7 +41,7 @@ public class BlwClassPrinter implements ClassPrinter {
         }
         for (InnerClass innerClass : view.innerClasses()) {
             var obj = ctx.begin().element(".inner")
-                    .print(Modifiers.modifiers(innerClass.accessFlags(), Modifiers.CLASS)).object();
+                    .print(BlwModifiers.modifiers(innerClass.accessFlags(), BlwModifiers.CLASS)).object();
             String name = innerClass.innerName();
             if (name != null) {
                 obj.value("name").literal(name).next();

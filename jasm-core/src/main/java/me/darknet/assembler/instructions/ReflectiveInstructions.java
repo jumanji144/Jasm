@@ -37,7 +37,7 @@ public abstract class ReflectiveInstructions<V extends ASTInstructionVisitor> ex
         try {
             MethodHandle method = lookupCache.get(translatorName);
             if (method == null) {
-                List<ASTElement> arguments = instruction.getArguments();
+                List<ASTElement> arguments = instruction.arguments();
                 Class<?>[] argumentTypes = new Class<?>[arguments.size()];
                 for (int i = 0; i < arguments.size(); i++) {
                     argumentTypes[i] = arguments.get(i).getClass();
@@ -45,7 +45,7 @@ public abstract class ReflectiveInstructions<V extends ASTInstructionVisitor> ex
                 method = MethodHandles.lookup().unreflect(visitorClass.getMethod(translatorName, argumentTypes));
                 lookupCache.put(translatorName, method);
             }
-            List<Object> arguments = new ArrayList<>(instruction.getArguments());
+            List<Object> arguments = new ArrayList<>(instruction.arguments());
             arguments.add(0, instance);
             method.invokeExact(arguments.toArray());
         } catch (Throwable e) {

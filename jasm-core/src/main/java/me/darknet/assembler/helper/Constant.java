@@ -16,25 +16,25 @@ public record Constant(Type type, Object value) {
      * @return the constant
      */
     public static Constant from(ASTElement element) {
-        return switch (element.getType()) {
+        return switch (element.type()) {
             case NUMBER:
                 ASTNumber number = (ASTNumber) element;
-                yield new Constant(Constant.Type.Number, number.getNumber());
-            case STRING: new Constant(Constant.Type.String, element.getValue());
+                yield new Constant(Constant.Type.Number, number.number());
+            case STRING: new Constant(Constant.Type.String, element.value());
             case IDENTIFIER:
                 ASTIdentifier identifier = (ASTIdentifier) element;
-                if (identifier.getContent().startsWith("L")) { // is class
-                    yield new Constant(Constant.Type.ClassType, identifier.getContent());
+                if (identifier.content().startsWith("L")) { // is class
+                    yield new Constant(Constant.Type.ClassType, identifier.content());
                 } else {
                     // must be method `(` or method type `L`
-                    yield new Constant(Constant.Type.MethodType, identifier.getContent());
+                    yield new Constant(Constant.Type.MethodType, identifier.content());
                 }
             case ARRAY: {
                 ASTArray array = (ASTArray) element;
                 yield new Constant(Constant.Type.MethodHandle, Handle.from(array));
             }
             default:
-                throw new IllegalStateException("Unexpected value: " + element.getType());
+                throw new IllegalStateException("Unexpected value: " + element.type());
         };
     }
 

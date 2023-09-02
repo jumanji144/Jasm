@@ -218,8 +218,8 @@ public class DeclarationParser {
 
     private ASTDeclaration parseDeclaration() {
         ASTIdentifier identifier = new ASTIdentifier(ctx.takeAny());
-        if (identifier.getContent().charAt(0) != '.') {
-            ctx.throwExpectedError("identifier starting with '.'", identifier.getContent());
+        if (identifier.content().charAt(0) != '.') {
+            ctx.throwExpectedError("identifier starting with '.'", identifier.content());
             return null;
         }
         State state = ctx.getState();
@@ -463,7 +463,7 @@ public class DeclarationParser {
             }
             boolean valid = false;
             for (ElementType validType : validTypes) {
-                if (element.getType() == validType) {
+                if (element.type() == validType) {
                     valid = true;
                     break;
                 }
@@ -473,8 +473,8 @@ public class DeclarationParser {
                         .addError(
                                 new Error(
                                         "Expected one of " + Arrays.toString(validTypes) + " but got "
-                                                + element.getType(),
-                                        element.getValue().getLocation()
+                                                + element.type(),
+                                        element.value().getLocation()
                                 )
                         );
                 return null;

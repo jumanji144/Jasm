@@ -34,44 +34,44 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
     @SuppressWarnings("unchecked")
     public <T extends B> T get(String content) {
         for (Pair<A, B> pair : values) {
-            if (pair.getFirst().getContent().equals(content)) {
+            if (pair.getFirst().content().equals(content)) {
                 return (T) pair.getSecond();
             }
         }
         return null;
     }
 
-    public A getKey(int index) {
+    public A key(int index) {
         return values.get(index).getFirst();
     }
 
-    public A getKey(String content) {
+    public A key(String content) {
         for (Pair<A, B> pair : values) {
-            if (pair.getFirst().getContent().equals(content)) {
+            if (pair.getFirst().content().equals(content)) {
                 return pair.getFirst();
             }
         }
         return null;
     }
 
-    public Pair<A, B> getPair(int index) {
+    public Pair<A, B> pair(int index) {
         return values.get(index);
     }
 
-    public Collection<Pair<A, B>> getPairs() {
+    public Collection<Pair<A, B>> pairs() {
         return values;
     }
 
     public boolean containsKey(String content) {
         for (Pair<A, B> pair : values) {
-            if (pair.getFirst().getContent().equals(content)) {
+            if (pair.getFirst().content().equals(content)) {
                 return true;
             }
         }
         return false;
     }
 
-    public List<ASTElement> getElements() {
+    public List<ASTElement> elements() {
         List<ASTElement> elements = new ArrayList<>();
         for (Pair<A, B> pair : values) {
             elements.add(pair.getFirst());

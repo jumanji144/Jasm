@@ -27,14 +27,14 @@ public class Transformer {
         ErrorCollector collector = new ErrorCollector();
         for (ASTElement declaration : declarations) {
             if(declaration instanceof ASTField field) {
-                field.accept(collector, visitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor()));
+                field.accept(collector, visitor.visitField(field.modifiers(), field.name(), field.descriptor()));
             } else if (declaration instanceof ASTMethod method) {
-                method.accept(collector, visitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor()));
+                method.accept(collector, visitor.visitMethod(method.modifiers(), method.name(), method.descriptor()));
             } else if (declaration instanceof ASTClass clazz) {
-                clazz.accept(collector, visitor.visitClass(clazz.getModifiers(), clazz.getName()));
+                clazz.accept(collector, visitor.visitClass(clazz.modifiers(), clazz.name()));
             } else {
                 collector.addError("Don't know how to process: "
-                        + declaration.getType(), declaration.getLocation());
+                        + declaration.type(), declaration.location());
             }
         }
         return new Result<>(null, collector.getErrors());

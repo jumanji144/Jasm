@@ -39,9 +39,10 @@ public class TokenizerTest {
     @Test
     public void testNumbers() {
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", "0 -10 10f 10.16F 10.161616D 10L 0xDEADBEEF 0E10 0.3e10f");
+        List<Token> tokens = tokenizer.tokenize("<stdin>",
+                "0 -10 10f 10.16F 10.161616D 10L 0xDEADBEEF 0E10 0.3e10f 6.02214076e23");
         Assertions.assertNotNull(tokens);
-        Assertions.assertEquals(9, tokens.size());
+        Assertions.assertEquals(10, tokens.size());
         Assertions.assertEquals("0", tokens.get(0).getContent());
         Assertions.assertEquals("-10", tokens.get(1).getContent());
         Assertions.assertEquals("10f", tokens.get(2).getContent());
@@ -51,6 +52,7 @@ public class TokenizerTest {
         Assertions.assertEquals("0xDEADBEEF", tokens.get(6).getContent());
         Assertions.assertEquals("0E10", tokens.get(7).getContent());
         Assertions.assertEquals("0.3e10f", tokens.get(8).getContent());
+        Assertions.assertEquals("6.02214076e23", tokens.get(9).getContent());
         for (Token token : tokens) {
             Assertions.assertSame(token.getType(), TokenType.NUMBER);
         }

@@ -5,7 +5,7 @@ import dev.xdark.blw.classfile.Accessible;
 import dev.xdark.blw.classfile.Annotated;
 import dev.xdark.blw.classfile.Member;
 import dev.xdark.blw.classfile.Signed;
-import me.darknet.assembler.util.Modifiers;
+import me.darknet.assembler.util.BlwModifiers;
 import org.jetbrains.annotations.Nullable;
 
 public record MemberPrinter(
@@ -40,10 +40,10 @@ public record MemberPrinter(
                 case CLASS -> ".class";
                 case FIELD -> ".field";
                 case METHOD -> ".method";
-            }).print(Modifiers.modifiers(accessible.accessFlags(), switch (type) {
-                case CLASS -> Modifiers.CLASS;
-                case FIELD -> Modifiers.FIELD;
-                case METHOD -> Modifiers.METHOD;
+            }).print(BlwModifiers.modifiers(accessible.accessFlags(), switch (type) {
+                case CLASS -> BlwModifiers.CLASS;
+                case FIELD -> BlwModifiers.FIELD;
+                case METHOD -> BlwModifiers.METHOD;
             }));
         }
         return ctx;
