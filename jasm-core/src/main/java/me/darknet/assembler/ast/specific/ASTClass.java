@@ -40,6 +40,7 @@ public class ASTClass extends ASTMember {
 
     public void accept(ErrorCollector collector, ASTClassVisitor visitor) {
         super.accept(collector, visitor);
+        if(visitor == null) return;
 
         visitor.visitSuperClass(superName);
         for (ASTIdentifier anInterface : interfaces) {
@@ -58,5 +59,7 @@ public class ASTClass extends ASTMember {
                         + declaration.getType(), declaration.getLocation());
             }
         }
+
+        visitor.visitEnd();
     }
 }

@@ -23,4 +23,8 @@ public class Location {
         return source;
     }
 
+    @Override
+    public String toString() {
+        return source + ":" + line + ":" + column;
+    }
 }

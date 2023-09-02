@@ -13,4 +13,6 @@ public interface ASTAnnotationVisitor {
 
     ASTAnnotationArrayVisitor visitArrayValue(ASTIdentifier name);
 
+    void visitEnd();
+
 }

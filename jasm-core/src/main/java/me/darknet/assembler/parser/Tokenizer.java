@@ -5,6 +5,7 @@ import me.darknet.assembler.util.Range;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class Tokenizer {
 
@@ -162,37 +163,18 @@ public class Tokenizer {
             return input.charAt(index + 1);
         }
 
+        static final Pattern NUMBER_PATTERN = Pattern.compile(
+                "-?((((\\d[\\d_]*\\.(\\d[\\d_]*)?([eE]-?\\d[\\d_]*)?)|(\\.(\\d[\\d_]*)([eE]-?\\d[\\d_]*)?)|" +
+                       "((\\d[\\d_]*)([eE]-?\\d[\\d_]*))|(0[xX][\\dA-Fa-f_]*(\\.[\\dA-Fa-f_]*)?[pP]-?\\d[\\d_]*)" +
+                        ")[fFdD]?)|(((0[xX][\\dA-fa-f_]+)|(\\d[\\d_]*))[LlFfDd]?))");
+
         boolean checkIfNumber(String content) {
-            boolean numberAppeared = false;
-            boolean isHex = false;
             switch (content.toLowerCase()) { // floating point numbers
                 case "nan", "infinity", "+infinity", "-infinity" -> {
                     return true;
                 }
             }
-            for (int j = 0; j < content.length(); j++) {
-                char c2 = content.charAt(j);
-                if (c2 == '-') {
-                    if (j == 0 || isExponent(content.charAt(j - 1)))
-                        continue;
-                    return false;
-                }
-                if(isNumber(c2)) {
-                    numberAppeared = true;
-                    continue;
-                }
-                if (numberAppeared) { // check if there was a number before
-                    if (c2 == 'x') { // hex number
-                        isHex = true; // toggle state
-                        continue;
-                    }
-                    if(isNumberContinuation(c2) || isNumberSuffix(c2)) continue;
-                    if(isHex && !isHex(c2)) return false;
-                } else {
-                    return false;
-                }
-            }
-            return true;
+            return NUMBER_PATTERN.matcher(content).matches();
         }
 
         public TokenType getType(String content) {

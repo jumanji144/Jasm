@@ -31,6 +31,8 @@ public class ASTField extends ASTMember {
 
     public void accept(ErrorCollector collector, ASTFieldVisitor visitor) {
         super.accept(collector, visitor);
-        visitor.visitValue(value);
+        if(visitor == null) return;
+        if(value != null) visitor.visitValue(value);
+        visitor.visitEnd();
     }
 }

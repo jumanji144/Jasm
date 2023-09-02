@@ -21,7 +21,7 @@ public class ASTDeclaration extends ASTElement {
     public ASTDeclaration(ASTIdentifier keyword, List<@Nullable ASTElement> elements) {
         super(ElementType.DECLARATION, CollectionUtil.merge(elements, keyword));
         if (keyword == null) {
-            this.value = elements.get(0).getValue();
+            this.value = elements.isEmpty() ? null : elements.get(0).getValue();
         } else {
             this.value = keyword.getValue();
         }

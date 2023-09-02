@@ -62,6 +62,10 @@ public class ASTMethod extends ASTMember {
             for (int i = 0; i < instructions.size(); i++) {
                 instructions.get(i).transform(code.getInstructions().get(i), instructionVisitor);
             }
+
+            instructionVisitor.visitEnd();
         }
+
+        visitor.visitEnd();
     }
 }

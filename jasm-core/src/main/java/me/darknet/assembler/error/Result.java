@@ -49,6 +49,13 @@ public class Result<T> {
     }
 
     /**
+     * @return true if the result has a value, false if the value is null.
+     */
+    public boolean hasValue() {
+        return value != null;
+    }
+
+    /**
      * Applies the given consumer if the result is ok.
      * @param consumer The consumer to apply.
      * @return This

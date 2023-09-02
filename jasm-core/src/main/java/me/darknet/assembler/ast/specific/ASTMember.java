@@ -49,6 +49,10 @@ public class ASTMember extends ASTElement {
     }
 
     protected void accept(ErrorCollector collector, ASTDeclarationVisitor visitor) {
+        if(visitor == null) {
+            collector.addError("Unable to process member", null);
+            return;
+        }
         for (ASTAnnotation annotation : annotations) {
             annotation.accept(collector, visitor.visitAnnotation(annotation.getClassType()));
         }

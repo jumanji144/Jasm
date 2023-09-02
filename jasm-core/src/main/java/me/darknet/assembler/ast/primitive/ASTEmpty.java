@@ -14,6 +14,7 @@ public class ASTEmpty extends ASTElement {
     public static final ASTArray EMPTY_ARRAY = new ASTArray(Collections.emptyList());
     public static final ASTCode EMPTY_CODE = new ASTCode(Collections.emptyList());
     public static final ASTObject EMPTY_OBJECT = new ASTObject(ElementMap.empty());
+    public static final ASTDeclaration EMPTY_DECLARATION = new ASTDeclaration(null, Collections.emptyList());
 
     public ASTEmpty() {
         super(ElementType.EMPTY);

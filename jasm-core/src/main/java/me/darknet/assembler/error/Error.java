@@ -40,4 +40,8 @@ public class Error {
         return stackTrace;
     }
 
+    @Override
+    public String toString() {
+        return getLocation() == null ? getMessage() : getLocation().toString() + ": " + getMessage();
+    }
 }

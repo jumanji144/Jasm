@@ -58,6 +58,8 @@ public class ASTAnnotation extends ASTElement {
                         + arrayValue.getType(), arrayValue.getLocation());
             }
         }
+
+        visitor.visitEnd();
     }
 
     public void accept(ErrorCollector collector, ASTAnnotationVisitor visitor) {
@@ -82,6 +84,8 @@ public class ASTAnnotation extends ASTElement {
                         + value.getType(), value.getLocation());
             }
         }
+
+        visitor.visitEnd();
     }
 
 }

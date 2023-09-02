@@ -59,6 +59,9 @@ public class ASTElement {
         if (value == null) {
             // go through children
             for (ASTElement child : children) {
+                if(child == null) {
+                    continue;
+                }
                 Location location = child.getLocation();
                 if (location != null) {
                     return location;

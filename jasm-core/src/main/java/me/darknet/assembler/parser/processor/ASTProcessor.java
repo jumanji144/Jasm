@@ -93,15 +93,15 @@ public class ASTProcessor {
     private static ASTClass parseClass(ParserContext ctx, ASTDeclaration declaration) {
         // first try to find a body, must be at the end
         List<@Nullable ASTElement> elements = declaration.getElements();
-        int bodyIndex = elements.size() - 1;
-        ASTDeclaration body = ctx
-                .validateElement(elements.get(bodyIndex), ElementType.DECLARATION, "class body", declaration);
-        if (body == null)
-            return null;
-        if (bodyIndex == 0) { // name must be included
-            ctx.throwError("Expected class name", body.getLocation());
+        if(elements.size() < 2) { // atleast name + body
+            ctx.throwError("Expected class name and body", declaration.getLocation());
             return null;
         }
+        int bodyIndex = elements.size() - 1;
+        ASTDeclaration body = ctx
+                .validateEmptyableElement(elements.get(bodyIndex), ElementType.DECLARATION, "class body", declaration);
+        if (body == null)
+            return null;
         int nameIndex = bodyIndex - 1;
         // name is a explicit identifier
         ASTIdentifier name = ctx.validateIdentifier(elements.get(nameIndex), "class name", declaration);
@@ -407,6 +407,7 @@ public class ASTProcessor {
                     case OBJECT -> ASTEmpty.EMPTY_OBJECT;
                     case ARRAY -> ASTEmpty.EMPTY_ARRAY;
                     case CODE -> ASTEmpty.EMPTY_CODE;
+                    case DECLARATION -> ASTEmpty.EMPTY_DECLARATION;
                     default -> {
                         throwUnexpectedElementError(description, e);
                         yield null;

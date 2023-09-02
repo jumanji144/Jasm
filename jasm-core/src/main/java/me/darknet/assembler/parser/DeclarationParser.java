@@ -32,6 +32,9 @@ public class DeclarationParser {
      * @return {@link ParsingResult} of the parsing
      */
     public ParsingResult<List<@Nullable ASTElement>> parseDeclarations(Collection<Token> tokens) {
+        if(tokens.isEmpty()) {
+            return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+        }
         Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
         this.ctx = new ParserContext(this, new ArrayList<>(filtered.getSecond()));
         List<ASTElement> declarations = new ArrayList<>();
@@ -52,6 +55,9 @@ public class DeclarationParser {
      * @return {@link ParsingResult} of the parsing
      */
     public ParsingResult<List<@Nullable ASTElement>> parseAny(Collection<Token> tokens) {
+        if(tokens.isEmpty()) {
+            return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+        }
         Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
         this.ctx = new ParserContext(this, new ArrayList<>(filtered.getSecond()));
         List<ASTElement> result = new ArrayList<>();
@@ -218,6 +224,10 @@ public class DeclarationParser {
         }
         State state = ctx.getState();
         Token peek = ctx.peek();
+        if(peek == null) {
+            ctx.throwEofError("content");
+            return null;
+        }
         List<ASTElement> elements = new ArrayList<>();
         while (!peek.getContent().startsWith(".")) {
             elements.add(parse());

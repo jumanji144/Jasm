@@ -3,6 +3,7 @@ package me.darknet.assembler.error;
 import me.darknet.assembler.util.Location;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -18,6 +19,14 @@ public class ErrorCollector {
 
     public void addError(String message, Location location) {
         errors.add(new Error(message, location));
+    }
+
+    public void addAll(Collection<Error> errors) {
+        this.errors.addAll(errors);
+    }
+
+    public boolean hasErr() {
+        return !errors.isEmpty();
     }
 
     public List<Error> getErrors() {
