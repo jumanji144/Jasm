@@ -18,16 +18,16 @@ public class ASTAnnotation extends ASTElement {
     private final ElementMap<ASTIdentifier, ASTElement> values;
 
     public ASTAnnotation(ASTIdentifier classType, ElementMap<ASTIdentifier, ASTElement> values) {
-        super(ElementType.ANNOTATION, CollectionUtil.merge(values.getElements(), classType));
+        super(ElementType.ANNOTATION, CollectionUtil.merge(values.elements(), classType));
         this.classType = classType;
         this.values = values;
     }
 
-    public ASTIdentifier getClassType() {
+    public ASTIdentifier classType() {
         return classType;
     }
 
-    public ElementMap<ASTIdentifier, ASTElement> getValues() {
+    public ElementMap<ASTIdentifier, ASTElement> values() {
         return values;
     }
 
@@ -35,13 +35,13 @@ public class ASTAnnotation extends ASTElement {
         // TODO: due to huge annotations, i would advice for a process queue.
         // But this is not a problem for now until xxDark notices this code, which i hope
         // he does not.
-        for (ASTElement arrayValue : array.getValues()) {
+        for (ASTElement arrayValue : array.values()) {
             if(arrayValue instanceof ASTValue val) {
                 visitor.visitValue(val);
             } else if(arrayValue instanceof ASTEnum astEnum) {
-                visitor.visitEnumValue(astEnum.getEnumType(), astEnum.getEnumValue());
+                visitor.visitEnumValue(astEnum.enumType(), astEnum.enumValue());
             } else if(arrayValue instanceof ASTAnnotation annotation) {
-                ASTAnnotationVisitor anno = visitor.visitAnnotationValue(annotation.getClassType());
+                ASTAnnotationVisitor anno = visitor.visitAnnotationValue(annotation.classType());
                 annotation.accept(collector, anno);
             } else if(arrayValue instanceof ASTArray astArray) {
                 ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue();
@@ -51,11 +51,11 @@ public class ASTAnnotation extends ASTElement {
                 accept(collector, arrayVisitor, ASTEmpty.EMPTY_ARRAY);
             } else {
                 if(arrayValue == null) {
-                    collector.addError("Unprocessable value in array", array.getLocation());
+                    collector.addError("Unprocessable value in array", array.location());
                     continue;
                 }
                 collector.addError("Don't know how to process: "
-                        + arrayValue.getType(), arrayValue.getLocation());
+                        + arrayValue.type(), arrayValue.location());
             }
         }
 
@@ -63,25 +63,25 @@ public class ASTAnnotation extends ASTElement {
     }
 
     public void accept(ErrorCollector collector, ASTAnnotationVisitor visitor) {
-        for (Pair<ASTIdentifier, ASTElement> pair : values.getPairs()) {
+        for (Pair<ASTIdentifier, ASTElement> pair : values.pairs()) {
             ASTElement value = pair.getSecond();
             if(value instanceof ASTValue val) {
                 visitor.visitValue(pair.getFirst(), val);
             } else if(value instanceof ASTEnum astEnum) {
-                visitor.visitEnumValue(pair.getFirst(), astEnum.getEnumType(), astEnum.getEnumValue());
+                visitor.visitEnumValue(pair.getFirst(), astEnum.enumType(), astEnum.enumValue());
             } else if(value instanceof ASTArray array) {
                 ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue(pair.getFirst());
                 accept(collector, arrayVisitor, array);
             } else if(value instanceof ASTAnnotation annotation) {
-                ASTAnnotationVisitor anno = visitor.visitAnnotationValue(pair.getFirst(), annotation.getClassType());
+                ASTAnnotationVisitor anno = visitor.visitAnnotationValue(pair.getFirst(), annotation.classType());
                 annotation.accept(collector, anno);
             } else {
                 if(value == null) {
-                    collector.addError("Unprocessable value in annotation", getLocation());
+                    collector.addError("Unprocessable value in annotation", location());
                     continue;
                 }
                 collector.addError("Don't know how to process: "
-                        + value.getType(), value.getLocation());
+                        + value.type(), value.location());
             }
         }
 

@@ -14,6 +14,6 @@ public class ASTIdentifier extends ASTLiteral {
      *         unescaped
      */
     public String literal() {
-        return EscapeUtil.unescape(getContent());
+        return EscapeUtil.unescape(content());
     }
 }

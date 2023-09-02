@@ -35,34 +35,34 @@ public class ASTElement {
     }
 
     @Contract(pure = true)
-    public String getContent() {
+    public String content() {
         return value == null ? null : value.getContent();
     }
 
-    public Token getValue() {
+    public Token value() {
         return value;
     }
 
-    public ElementType getType() {
+    public ElementType type() {
         return type;
     }
 
-    public ASTElement getParent() {
+    public ASTElement parent() {
         return parent;
     }
 
-    public List<ASTElement> getChildren() {
+    public List<ASTElement> children() {
         return children;
     }
 
-    public Location getLocation() {
+    public Location location() {
         if (value == null) {
             // go through children
             for (ASTElement child : children) {
                 if(child == null) {
                     continue;
                 }
-                Location location = child.getLocation();
+                Location location = child.location();
                 if (location != null) {
                     return location;
                 }

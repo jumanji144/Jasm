@@ -15,7 +15,7 @@ public class ASTCode extends ASTElement {
         this.instructions = instructions;
     }
 
-    public List<@Nullable ASTInstruction> getInstructions() {
+    public List<@Nullable ASTInstruction> instructions() {
         return instructions;
     }
 

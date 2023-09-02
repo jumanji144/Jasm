@@ -18,11 +18,11 @@ public class ASTInstruction extends ASTElement {
         this.arguments = arguments;
     }
 
-    public ASTIdentifier getIdentifier() {
+    public ASTIdentifier identifier() {
         return identifier;
     }
 
-    public List<@Nullable ASTElement> getArguments() {
+    public List<@Nullable ASTElement> arguments() {
         return arguments;
     }
 

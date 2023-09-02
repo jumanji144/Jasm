@@ -10,8 +10,8 @@ public class ASTBool extends ASTValue {
         super(ElementType.BOOL, value);
     }
 
-    public boolean getBool() {
-        return Boolean.parseBoolean(getValue().getContent());
+    public boolean bool() {
+        return Boolean.parseBoolean(value().getContent());
     }
 
 }

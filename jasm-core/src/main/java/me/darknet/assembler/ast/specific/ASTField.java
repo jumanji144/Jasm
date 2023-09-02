@@ -21,11 +21,11 @@ public class ASTField extends ASTMember {
         this.value = value;
     }
 
-    public ASTIdentifier getDescriptor() {
+    public ASTIdentifier descriptor() {
         return descriptor;
     }
 
-    public @Nullable ASTValue getFieldValue() {
+    public @Nullable ASTValue fieldValue() {
         return value;
     }
 

@@ -17,7 +17,7 @@ public class ASTArray extends ASTElement {
     }
 
     @Contract(pure = true)
-    public List<@Nullable ASTElement> getValues() {
+    public List<@Nullable ASTElement> values() {
         return values;
     }
 

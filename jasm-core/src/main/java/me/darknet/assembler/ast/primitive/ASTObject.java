@@ -10,16 +10,16 @@ public class ASTObject extends ASTElement {
     private final ElementMap<ASTIdentifier, @Nullable ASTElement> values;
 
     public ASTObject(ElementMap<ASTIdentifier, @Nullable ASTElement> values) {
-        super(ElementType.OBJECT, values.getElements());
+        super(ElementType.OBJECT, values.elements());
         if (values.size() != 0) {
-            this.value = values.get(0).getValue();
+            this.value = values.get(0).value();
         } else {
             this.value = null;
         }
         this.values = values;
     }
 
-    public ElementMap<ASTIdentifier, ASTElement> getValues() {
+    public ElementMap<ASTIdentifier, ASTElement> values() {
         return values;
     }
 }

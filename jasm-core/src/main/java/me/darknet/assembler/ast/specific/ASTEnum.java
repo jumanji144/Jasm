@@ -15,11 +15,11 @@ public class ASTEnum extends ASTElement {
         this.enumValue = value;
     }
 
-    public ASTIdentifier getEnumType() {
+    public ASTIdentifier enumType() {
         return enumType;
     }
 
-    public ASTIdentifier getEnumValue() {
+    public ASTIdentifier enumValue() {
         return enumValue;
     }
 

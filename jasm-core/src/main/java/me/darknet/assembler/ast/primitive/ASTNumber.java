@@ -10,8 +10,8 @@ public class ASTNumber extends ASTValue {
         super(ElementType.NUMBER, number);
     }
 
-    public Number getNumber() {
-        String value = getContent();
+    public Number number() {
+        String value = content();
         int radix = 10;
         if (value.startsWith("0x") || value.startsWith("0X")) {
             radix = 16;
@@ -23,7 +23,7 @@ public class ASTNumber extends ASTValue {
             }
             return Double.parseDouble(value);
         } else {
-            if (value.endsWith("L")) {
+            if (value.endsWith("L") || value.endsWith("l")) {
                 return Long.parseLong(value.substring(0, value.length() - 1), radix);
             }
             return Integer.parseInt(value, radix);
@@ -31,7 +31,7 @@ public class ASTNumber extends ASTValue {
     }
 
     public boolean isWide() {
-        String value = getContent();
+        String value = content();
         if (value.contains(".")) {
             return !value.endsWith("f") && !value.endsWith("F");
         } else {
@@ -40,23 +40,23 @@ public class ASTNumber extends ASTValue {
     }
 
     public int asInt() {
-        return getNumber().intValue();
+        return number().intValue();
     }
 
     public long asLong() {
-        return getNumber().longValue();
+        return number().longValue();
     }
 
     public float asFloat() {
-        return getNumber().floatValue();
+        return number().floatValue();
     }
 
     public double asDouble() {
-        return getNumber().doubleValue();
+        return number().doubleValue();
     }
 
     public boolean isFloatingPoint() {
-        String value = getContent();
+        String value = content();
         return value.contains(".");
     }
 }

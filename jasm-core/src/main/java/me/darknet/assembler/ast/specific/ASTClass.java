@@ -26,15 +26,15 @@ public class ASTClass extends ASTMember {
         this.contents = contents;
     }
 
-    public @Nullable ASTIdentifier getSuperName() {
+    public @Nullable ASTIdentifier superName() {
         return superName;
     }
 
-    public List<ASTIdentifier> getInterfaces() {
+    public List<ASTIdentifier> interfaces() {
         return interfaces;
     }
 
-    public List<ASTElement> getContents() {
+    public List<ASTElement> contents() {
         return contents;
     }
 
@@ -50,13 +50,13 @@ public class ASTClass extends ASTMember {
         for (ASTElement declaration : contents) {
             if(declaration instanceof ASTField field) {
                 field.accept(collector,
-                        visitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor()));
+                        visitor.visitField(field.modifiers(), field.name(), field.descriptor()));
             } else if (declaration instanceof ASTMethod method) {
                 method.accept(collector,
-                        visitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor()));
+                        visitor.visitMethod(method.modifiers(), method.name(), method.descriptor()));
             } else {
                 collector.addError("Don't know how to process: "
-                        + declaration.getType(), declaration.getLocation());
+                        + declaration.type(), declaration.location());
             }
         }
 

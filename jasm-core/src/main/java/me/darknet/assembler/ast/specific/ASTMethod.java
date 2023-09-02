@@ -33,19 +33,19 @@ public class ASTMethod extends ASTMember {
         this.format = format;
     }
 
-    public ASTIdentifier getDescriptor() {
+    public ASTIdentifier descriptor() {
         return descriptor;
     }
 
-    public List<ASTIdentifier> getParameters() {
+    public List<ASTIdentifier> parameters() {
         return parameters;
     }
 
-    public ASTCode getCode() {
+    public ASTCode code() {
         return code;
     }
 
-    public List<Instruction<?>> getInstructions() {
+    public List<Instruction<?>> instructions() {
         return instructions;
     }
 
@@ -60,7 +60,7 @@ public class ASTMethod extends ASTMember {
         };
         if (instructionVisitor != null) {
             for (int i = 0; i < instructions.size(); i++) {
-                instructions.get(i).transform(code.getInstructions().get(i), instructionVisitor);
+                instructions.get(i).transform(code.instructions().get(i), instructionVisitor);
             }
 
             instructionVisitor.visitEnd();

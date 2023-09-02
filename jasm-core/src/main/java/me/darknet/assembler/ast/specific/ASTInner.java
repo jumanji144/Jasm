@@ -16,26 +16,26 @@ public class ASTInner extends ASTElement {
 
     public ASTInner(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
             ASTIdentifier innerClass) {
-        super(ElementType.INNER_CLASS, CollectionUtil.merge(modifiers.getModifiers(), name, innerClass, outerClass));
+        super(ElementType.INNER_CLASS, CollectionUtil.merge(modifiers.modifiers(), name, innerClass, outerClass));
         this.modifiers = modifiers;
         this.name = name;
         this.outerClass = outerClass;
         this.innerClass = innerClass;
     }
 
-    public Modifiers getModifiers() {
+    public Modifiers modifiers() {
         return modifiers;
     }
 
-    public @Nullable ASTIdentifier getName() {
+    public @Nullable ASTIdentifier name() {
         return name;
     }
 
-    public @Nullable ASTIdentifier getOuterClass() {
+    public @Nullable ASTIdentifier outerClass() {
         return outerClass;
     }
 
-    public ASTIdentifier getInnerClass() {
+    public ASTIdentifier innerClass() {
         return innerClass;
     }
 

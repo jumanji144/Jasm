@@ -20,11 +20,11 @@ public class ASTMember extends ASTElement {
 
     public ASTMember(ElementType type, Modifiers modifiers, ASTIdentifier name, @Nullable ASTIdentifier signature,
             List<ASTAnnotation> annotations) {
-        super(type, CollectionUtil.merge(CollectionUtil.merge(modifiers.getModifiers(), annotations), name));
-        if (!modifiers.getModifiers().isEmpty()) {
-            this.value = modifiers.getModifiers().get(0).getValue();
+        super(type, CollectionUtil.merge(CollectionUtil.merge(modifiers.modifiers(), annotations), name));
+        if (!modifiers.modifiers().isEmpty()) {
+            this.value = modifiers.modifiers().get(0).value();
         } else {
-            this.value = name.getValue();
+            this.value = name.value();
         }
         this.modifiers = modifiers;
         this.name = name;
@@ -32,19 +32,19 @@ public class ASTMember extends ASTElement {
         this.annotations = annotations;
     }
 
-    public Modifiers getModifiers() {
+    public Modifiers modifiers() {
         return modifiers;
     }
 
-    public ASTIdentifier getName() {
+    public ASTIdentifier name() {
         return name;
     }
 
-    public @Nullable ASTIdentifier getSignature() {
+    public @Nullable ASTIdentifier signature() {
         return signature;
     }
 
-    public @Nullable List<ASTAnnotation> getAnnotations() {
+    public @Nullable List<ASTAnnotation> annotations() {
         return annotations;
     }
 
@@ -54,7 +54,7 @@ public class ASTMember extends ASTElement {
             return;
         }
         for (ASTAnnotation annotation : annotations) {
-            annotation.accept(collector, visitor.visitAnnotation(annotation.getClassType()));
+            annotation.accept(collector, visitor.visitAnnotation(annotation.classType()));
         }
         visitor.visitSignature(signature);
     }

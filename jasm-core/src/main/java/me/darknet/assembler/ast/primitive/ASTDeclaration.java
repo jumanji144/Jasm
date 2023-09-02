@@ -11,7 +11,7 @@ import java.util.List;
  * AST element representing a declaration (.keyword) where it's children are the
  * elements of the declaration. A declaration can contain sub-declarations.
  *
- * @see #getElements() for the elements of the declaration.
+ * @see #elements() for the elements of the declaration.
  */
 public class ASTDeclaration extends ASTElement {
 
@@ -21,19 +21,19 @@ public class ASTDeclaration extends ASTElement {
     public ASTDeclaration(ASTIdentifier keyword, List<@Nullable ASTElement> elements) {
         super(ElementType.DECLARATION, CollectionUtil.merge(elements, keyword));
         if (keyword == null) {
-            this.value = elements.isEmpty() ? null : elements.get(0).getValue();
+            this.value = elements.isEmpty() ? null : elements.get(0).value();
         } else {
-            this.value = keyword.getValue();
+            this.value = keyword.value();
         }
         this.keyword = keyword;
         this.elements = elements;
     }
 
-    public ASTIdentifier getKeyword() {
+    public ASTIdentifier keyword() {
         return keyword;
     }
 
-    public List<@Nullable ASTElement> getElements() {
+    public List<@Nullable ASTElement> elements() {
         return elements;
     }
 
