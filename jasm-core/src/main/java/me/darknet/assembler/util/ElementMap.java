@@ -28,27 +28,27 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
 
     @SuppressWarnings("unchecked")
     public <T extends B> T get(int index) {
-        return (T) values.get(index).getSecond();
+        return (T) values.get(index).second();
     }
 
     @SuppressWarnings("unchecked")
     public <T extends B> T get(String content) {
         for (Pair<A, B> pair : values) {
-            if (pair.getFirst().content().equals(content)) {
-                return (T) pair.getSecond();
+            if (pair.first().content().equals(content)) {
+                return (T) pair.second();
             }
         }
         return null;
     }
 
     public A key(int index) {
-        return values.get(index).getFirst();
+        return values.get(index).first();
     }
 
     public A key(String content) {
         for (Pair<A, B> pair : values) {
-            if (pair.getFirst().content().equals(content)) {
-                return pair.getFirst();
+            if (pair.first().content().equals(content)) {
+                return pair.first();
             }
         }
         return null;
@@ -64,7 +64,7 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
 
     public boolean containsKey(String content) {
         for (Pair<A, B> pair : values) {
-            if (pair.getFirst().content().equals(content)) {
+            if (pair.first().content().equals(content)) {
                 return true;
             }
         }
@@ -74,8 +74,8 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
     public List<ASTElement> elements() {
         List<ASTElement> elements = new ArrayList<>();
         for (Pair<A, B> pair : values) {
-            elements.add(pair.getFirst());
-            elements.add(pair.getSecond());
+            elements.add(pair.first());
+            elements.add(pair.second());
         }
         return elements;
     }

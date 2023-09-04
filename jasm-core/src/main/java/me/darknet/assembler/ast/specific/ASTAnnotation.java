@@ -67,16 +67,16 @@ public class ASTAnnotation extends ASTElement {
 
     public void accept(ErrorCollector collector, ASTAnnotationVisitor visitor) {
         for (Pair<ASTIdentifier, ASTElement> pair : values.pairs()) {
-            ASTElement value = pair.getSecond();
+            ASTElement value = pair.second();
             if (value instanceof ASTValue val) {
-                visitor.visitValue(pair.getFirst(), val);
+                visitor.visitValue(pair.first(), val);
             } else if (value instanceof ASTEnum astEnum) {
-                visitor.visitEnumValue(pair.getFirst(), astEnum.enumType(), astEnum.enumValue());
+                visitor.visitEnumValue(pair.first(), astEnum.enumType(), astEnum.enumValue());
             } else if (value instanceof ASTArray array) {
-                ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue(pair.getFirst());
+                ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue(pair.first());
                 accept(collector, arrayVisitor, array);
             } else if (value instanceof ASTAnnotation annotation) {
-                ASTAnnotationVisitor anno = visitor.visitAnnotationValue(pair.getFirst(), annotation.classType());
+                ASTAnnotationVisitor anno = visitor.visitAnnotationValue(pair.first(), annotation.classType());
                 annotation.accept(collector, anno);
             } else {
                 if (value == null) {

@@ -262,8 +262,8 @@ public class ASTProcessor {
         ctx.enterState(State.IN_ANNOTATION);
         ElementMap<ASTIdentifier, ASTElement> map = new ElementMap<>();
         for (var pair : values.values().pairs()) {
-            ASTIdentifier key = ctx.validateIdentifier(pair.getFirst(), "annotation value key", declaration);
-            ASTElement value = validateElementValue(ctx, pair.getSecond());
+            ASTIdentifier key = ctx.validateIdentifier(pair.first(), "annotation value key", declaration);
+            ASTElement value = validateElementValue(ctx, pair.second());
             map.put(key, value);
         }
         ctx.leaveState();
@@ -366,6 +366,13 @@ public class ASTProcessor {
                 return true;
             }
             return false;
+        }
+
+        public boolean validateCorrect(ASTElement e, ElementType expectedElementType, String description,
+                                       ASTElement parent) {
+            if (isNull(e, description, parent.location()))
+                return true;
+            return isNotType(e, expectedElementType, description);
         }
 
         /**

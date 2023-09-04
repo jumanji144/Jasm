@@ -36,12 +36,12 @@ public class DeclarationParser {
             return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
         }
         Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
-        this.ctx = new ParserContext(this, new ArrayList<>(filtered.getSecond()));
+        this.ctx = new ParserContext(this, new ArrayList<>(filtered.second()));
         List<ASTElement> declarations = new ArrayList<>();
         while (!this.ctx.done()) {
             declarations.add(parseDeclaration());
         }
-        return new ParsingResult<>(declarations, ctx.errorCollector.getErrors(), filtered.getFirst());
+        return new ParsingResult<>(declarations, ctx.errorCollector.getErrors(), filtered.first());
     }
 
     /**
@@ -59,13 +59,13 @@ public class DeclarationParser {
             return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
         }
         Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
-        this.ctx = new ParserContext(this, new ArrayList<>(filtered.getSecond()));
+        this.ctx = new ParserContext(this, new ArrayList<>(filtered.second()));
         List<ASTElement> result = new ArrayList<>();
         while (!this.ctx.done()) {
             ASTElement element = parse();
             result.add(element);
         }
-        return new ParsingResult<>(result, ctx.errorCollector.getErrors(), filtered.getFirst());
+        return new ParsingResult<>(result, ctx.errorCollector.getErrors(), filtered.first());
     }
 
     private Pair<List<ASTComment>, Collection<Token>> filterComments(Collection<Token> tokens) {

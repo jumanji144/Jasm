@@ -23,19 +23,20 @@ public enum JvmOperands implements Operands {
             return;
 
         // start, end should be numbers
-        if (context.isNotType(object.values().get("min"), ElementType.NUMBER, "number"))
+        if (context.validateCorrect(object.value("min"), ElementType.NUMBER, "number", object))
             return;
-        if (context.isNotType(object.values().get("max"), ElementType.NUMBER, "number"))
+        if (context.validateCorrect(object.value("max"), ElementType.NUMBER, "number", object))
             return;
 
         // default should be identifier
-        if (context.isNotType(object.values().get("default"), ElementType.IDENTIFIER, "identifier"))
+        if (context.validateCorrect(object.value("default"), ElementType.IDENTIFIER, "identifier",
+                object))
             return;
 
         // cases should be array
-        if (context.isNotType(object.values().get("cases"), ElementType.ARRAY, "array"))
+        if (context.validateCorrect(object.value("cases"), ElementType.ARRAY, "array", object))
             return;
-        context.validateArray(object.values().get("cases"), ElementType.IDENTIFIER, "label", element);
+        context.validateArray(object.value("cases"), ElementType.IDENTIFIER, "label", element);
 
     }),
     LOOKUP_SWITCH((context, element) -> {
@@ -50,7 +51,8 @@ public enum JvmOperands implements Operands {
         }
 
         // default should be identifier
-        if (context.isNotType(object.values().get("default"), ElementType.IDENTIFIER, "identifier"))
+        if (context.validateCorrect(object.value("default"), ElementType.IDENTIFIER, "identifier",
+                object))
             return;
         for (ASTElement elem : object.values().elements()) {
             if (context.isNotType(elem, ElementType.IDENTIFIER, "identifier"))
@@ -90,21 +92,15 @@ public enum JvmOperands implements Operands {
 
     public static void verifyConstant(ASTProcessor.ParserContext context, ASTElement element) {
         switch (element.type()) {
-            case NUMBER:
-            case STRING:
-                break;
-            case IDENTIFIER: {
+            case NUMBER, STRING -> {
+            }
+            case IDENTIFIER -> {
                 if (!element.content().startsWith("L") && !element.content().startsWith("(")) {
                     context.throwUnexpectedElementError("class or method type", element);
                 }
-                break;
             }
-            case ARRAY: {
-                verifyHandle(context, element);
-                break;
-            }
-            default:
-                context.throwUnexpectedElementError("constant", element);
+            case ARRAY -> verifyHandle(context, element);
+            default -> context.throwUnexpectedElementError("constant", element);
         }
     }
 
