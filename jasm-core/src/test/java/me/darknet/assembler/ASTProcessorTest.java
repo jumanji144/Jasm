@@ -26,7 +26,7 @@ public class ASTProcessorTest {
     public static <T extends ASTElement> void assertOne(String input, Class<T> clazz, Consumer<T> consumer) {
         parseString(input, (result) -> {
             if (result.hasErr()) {
-                for (Error error : result.getErrors()) {
+                for (Error error : result.errors()) {
                     Location location = error.getLocation();
                     System.err.printf(
                             "%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
@@ -46,8 +46,8 @@ public class ASTProcessorTest {
 
     public static void assertError(String input, Consumer<List<Error>> errorConsumer) {
         parseString(input, (result) -> {
-            assertNotEquals(0, result.getErrors().size());
-            errorConsumer.accept(result.getErrors());
+            assertNotEquals(0, result.errors().size());
+            errorConsumer.accept(result.errors());
         });
     }
 
@@ -66,7 +66,7 @@ public class ASTProcessorTest {
         Assertions.assertFalse(tokens.isEmpty());
         Result<List<ASTElement>> result = parser.parseAny(tokens);
         if (result.hasErr()) {
-            for (Error error : result.getErrors()) {
+            for (Error error : result.errors()) {
                 Location location = error.getLocation();
                 System.err.printf(
                         "%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
@@ -212,9 +212,7 @@ public class ASTProcessorTest {
                         + " notNull: .annotation org/jetbrains/annotations/NotNull {}, "
                         + " values: { \"Hello, world!\", \"Hello, world!\" }, " + " value: \"Hello, world!\" " + "}",
                 ASTAnnotation.class, (annotation) -> {
-                    assertEquals(
-                            "me/darknet/assembler/PrinterTest$TestAnnotation", annotation.classType().content()
-                    );
+                    assertEquals("me/darknet/assembler/PrinterTest$TestAnnotation", annotation.classType().content());
                     assertNotNull(annotation.values());
                     assertEquals(4, annotation.values().size());
                     assertEquals("15", annotation.values().get("number").content());
