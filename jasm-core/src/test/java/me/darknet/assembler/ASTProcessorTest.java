@@ -87,7 +87,7 @@ public class ASTProcessorTest {
     public void testSimpleClass() {
         assertOne(".class public HelloWorld { .field public static final a I }", ASTClass.class, (clazz) -> {
             assertEquals("HelloWorld", clazz.name().content());
-            ASTField field = assertIs(ASTField.class, clazz.contents().get(0));
+            ASTField field = assertIs(ASTField.class, clazz.content(0));
             assertNotNull(field);
             assertEquals("a", field.name().content());
             assertEquals("I", field.descriptor().content());
@@ -158,7 +158,7 @@ public class ASTProcessorTest {
             assertEquals("java/lang/Deprecated", annotation.classType().content());
             assertNotNull(annotation.values());
             assertEquals(1, annotation.values().size());
-            assertEquals("Hello World", annotation.values().get("value").content());
+            assertEquals("Hello World", annotation.value("value").content());
         });
         assertOne(
                 ".annotation java/lang/annotation/Retention { value: .enum java/lang/annotation/RetentionPolicy"
@@ -167,7 +167,7 @@ public class ASTProcessorTest {
                     assertEquals("java/lang/annotation/Retention", annotation.classType().content());
                     assertNotNull(annotation.values());
                     assertEquals(1, annotation.values().size());
-                    ASTEnum enumValue = assertIs(ASTEnum.class, annotation.values().get("value"));
+                    ASTEnum enumValue = assertIs(ASTEnum.class, annotation.value("value"));
                     assertEquals("java/lang/annotation/RetentionPolicy", enumValue.enumType().content());
                     assertEquals("RUNTIME", enumValue.enumValue().content());
                 }
@@ -179,12 +179,12 @@ public class ASTProcessorTest {
                     assertEquals("java/lang/annotation/Target", annotation.classType().content());
                     assertNotNull(annotation.values());
                     assertEquals(1, annotation.values().size());
-                    ASTArray array = assertIs(ASTArray.class, annotation.values().get("value"));
+                    ASTArray array = assertIs(ASTArray.class, annotation.value("value"));
                     assertEquals(2, array.values().size());
-                    ASTEnum enumValue = assertIs(ASTEnum.class, array.values().get(0));
+                    ASTEnum enumValue = assertIs(ASTEnum.class, array.value(0));
                     assertEquals("java/lang/annotation/ElementType", enumValue.enumType().content());
                     assertEquals("FIELD", enumValue.enumValue().content());
-                    enumValue = assertIs(ASTEnum.class, array.values().get(1));
+                    enumValue = assertIs(ASTEnum.class, array.value(1));
                     assertEquals("java/lang/annotation/ElementType", enumValue.enumType().content());
                     assertEquals("METHOD", enumValue.enumValue().content());
                 }
@@ -199,11 +199,11 @@ public class ASTProcessorTest {
                     assertEquals("java/lang/annotation/Annotation", annotation.classType().content());
                     assertNotNull(annotation.values());
                     assertEquals(1, annotation.values().size());
-                    ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.values().get("value"));
+                    ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.value("value"));
                     assertEquals("java/lang/annotation/Annotation", subAnnotation.classType().content());
                     assertNotNull(subAnnotation.values());
                     assertEquals(1, subAnnotation.values().size());
-                    assertEquals("100", subAnnotation.values().get("value").content());
+                    assertEquals("100", subAnnotation.value("value").content());
                 }
         );
 
@@ -215,20 +215,20 @@ public class ASTProcessorTest {
                     assertEquals("me/darknet/assembler/PrinterTest$TestAnnotation", annotation.classType().content());
                     assertNotNull(annotation.values());
                     assertEquals(4, annotation.values().size());
-                    assertEquals("15", annotation.values().get("number").content());
-                    ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.values().get("notNull"));
+                    assertEquals("15", annotation.value("number").content());
+                    ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.value("notNull"));
                     assertEquals("org/jetbrains/annotations/NotNull", subAnnotation.classType().content());
                     assertNotNull(subAnnotation.values());
                     assertEquals(0, subAnnotation.values().size());
-                    ASTArray array = assertIs(ASTArray.class, annotation.values().get("values"));
+                    ASTArray array = assertIs(ASTArray.class, annotation.value("values"));
                     assertEquals(2, array.values().size());
                     // assert that all elements are not null
                     for (ASTElement element : array.values()) {
                         assertNotNull(element);
                     }
-                    assertEquals("Hello, world!", array.values().get(0).content());
-                    assertEquals("Hello, world!", array.values().get(1).content());
-                    assertEquals("Hello, world!", annotation.values().get("value").content());
+                    assertEquals("Hello, world!", array.value(0).content());
+                    assertEquals("Hello, world!", array.value(1).content());
+                    assertEquals("Hello, world!", annotation.value("value").content());
                 }
         );
     }

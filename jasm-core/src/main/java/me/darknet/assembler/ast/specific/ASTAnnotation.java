@@ -31,6 +31,10 @@ public class ASTAnnotation extends ASTElement {
         return values;
     }
 
+    public <T extends ASTElement> T value(String name) {
+        return values.get(name);
+    }
+
     void accept(ErrorCollector collector, ASTAnnotationArrayVisitor visitor, ASTArray array) {
         // TODO: due to huge annotations, i would advice for a process queue.
         // But this is not a problem for now until xxDark notices this code, which i hope

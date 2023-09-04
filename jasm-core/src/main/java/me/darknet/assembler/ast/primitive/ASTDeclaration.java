@@ -37,4 +37,8 @@ public class ASTDeclaration extends ASTElement {
         return elements;
     }
 
+    public @Nullable ASTElement element(int index) {
+        return elements.get(index);
+    }
+
 }

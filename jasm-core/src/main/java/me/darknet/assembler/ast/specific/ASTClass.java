@@ -38,6 +38,10 @@ public class ASTClass extends ASTMember {
         return contents;
     }
 
+    public @Nullable ASTElement content(int index) {
+        return contents.get(index);
+    }
+
     public void accept(ErrorCollector collector, ASTClassVisitor visitor) {
         super.accept(collector, visitor);
         if (visitor == null)
