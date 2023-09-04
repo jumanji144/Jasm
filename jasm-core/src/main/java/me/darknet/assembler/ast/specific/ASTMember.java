@@ -49,7 +49,7 @@ public class ASTMember extends ASTElement {
     }
 
     protected void accept(ErrorCollector collector, ASTDeclarationVisitor visitor) {
-        if(visitor == null) {
+        if (visitor == null) {
             collector.addError("Unable to process member", null);
             return;
         }

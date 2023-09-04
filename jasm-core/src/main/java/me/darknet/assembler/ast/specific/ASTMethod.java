@@ -22,9 +22,8 @@ public class ASTMethod extends ASTMember {
     private final BytecodeFormat format;
 
     public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor,
-                     @Nullable ASTIdentifier signature, @Nullable List<ASTAnnotation> annotations,
-                     List<ASTIdentifier> parameters, ASTCode code, List<Instruction<?>> instructions,
-                     BytecodeFormat format) {
+            @Nullable ASTIdentifier signature, @Nullable List<ASTAnnotation> annotations,
+            List<ASTIdentifier> parameters, ASTCode code, List<Instruction<?>> instructions, BytecodeFormat format) {
         super(ElementType.METHOD, modifiers, name, signature, annotations);
         this.descriptor = descriptor;
         this.parameters = parameters;

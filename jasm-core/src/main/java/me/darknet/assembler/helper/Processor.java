@@ -14,19 +14,16 @@ import java.util.function.Consumer;
 public class Processor {
 
     public static void processSource(String code, String source, Consumer<List<ASTElement>> consumer,
-                                     BiConsumer<List<ASTElement>, List<Error>> error, BytecodeFormat format) {
-        new DeclarationParser()
-                .parseDeclarations(new Tokenizer()
-                        .tokenize(source, code)
-                     ).ifOk(lAst ->
-                        new ASTProcessor(format).processAST(lAst)
-                            .ifOk(consumer)
-                            .ifErr(error)
-                     ).ifErr(error);
+            BiConsumer<List<ASTElement>, List<Error>> error, BytecodeFormat format) {
+        new DeclarationParser().parseDeclarations(new Tokenizer().tokenize(source, code))
+                .ifOk(lAst -> new ASTProcessor(format).processAST(lAst)
+                    .ifOk(consumer)
+                    .ifErr(error))
+                .ifErr(error);
     }
 
     public static void processSource(String code, String source, Consumer<List<ASTElement>> consumer,
-                                     Consumer<List<Error>> error, BytecodeFormat format) {
+            Consumer<List<Error>> error, BytecodeFormat format) {
         processSource(code, source, consumer, (unused, errors) -> error.accept(errors), format);
     }
 

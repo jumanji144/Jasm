@@ -18,13 +18,13 @@ public class TokenizerTest {
         List<Token> tokens = tokenizer.tokenize("<stdin>", "{ \"Hello World\", type: \"java/lang/HelloWorld\" }");
         Assertions.assertNotNull(tokens);
         Assertions.assertEquals(7, tokens.size());
-        Assertions.assertEquals("{", tokens.get(0).getContent());
-        Assertions.assertEquals("Hello World", tokens.get(1).getContent());
-        Assertions.assertEquals(",", tokens.get(2).getContent());
-        Assertions.assertEquals("type", tokens.get(3).getContent());
-        Assertions.assertEquals(":", tokens.get(4).getContent());
-        Assertions.assertEquals("java/lang/HelloWorld", tokens.get(5).getContent());
-        Assertions.assertEquals("}", tokens.get(6).getContent());
+        Assertions.assertEquals("{", tokens.get(0).content());
+        Assertions.assertEquals("Hello World", tokens.get(1).content());
+        Assertions.assertEquals(",", tokens.get(2).content());
+        Assertions.assertEquals("type", tokens.get(3).content());
+        Assertions.assertEquals(":", tokens.get(4).content());
+        Assertions.assertEquals("java/lang/HelloWorld", tokens.get(5).content());
+        Assertions.assertEquals("}", tokens.get(6).content());
     }
 
     @Test
@@ -33,28 +33,28 @@ public class TokenizerTest {
         List<Token> tokens = tokenizer.tokenize("<stdin>", "\"Hello \\u0020World\\\"\\\\");
         Assertions.assertNotNull(tokens);
         Assertions.assertEquals(1, tokens.size());
-        Assertions.assertEquals("Hello  World\"\\", tokens.get(0).getContent());
+        Assertions.assertEquals("Hello  World\"\\", tokens.get(0).content());
     }
 
     @Test
     public void testNumbers() {
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>",
-                "0 -10 10f 10.16F 10.161616D 10L 0xDEADBEEF 0E10 0.3e10f 6.02214076e23");
+        List<Token> tokens = tokenizer
+                .tokenize("<stdin>", "0 -10 10f 10.16F 10.161616D 10L 0xDEADBEEF 0E10 0.3e10f 6.02214076e23");
         Assertions.assertNotNull(tokens);
         Assertions.assertEquals(10, tokens.size());
-        Assertions.assertEquals("0", tokens.get(0).getContent());
-        Assertions.assertEquals("-10", tokens.get(1).getContent());
-        Assertions.assertEquals("10f", tokens.get(2).getContent());
-        Assertions.assertEquals("10.16F", tokens.get(3).getContent());
-        Assertions.assertEquals("10.161616D", tokens.get(4).getContent());
-        Assertions.assertEquals("10L", tokens.get(5).getContent());
-        Assertions.assertEquals("0xDEADBEEF", tokens.get(6).getContent());
-        Assertions.assertEquals("0E10", tokens.get(7).getContent());
-        Assertions.assertEquals("0.3e10f", tokens.get(8).getContent());
-        Assertions.assertEquals("6.02214076e23", tokens.get(9).getContent());
+        Assertions.assertEquals("0", tokens.get(0).content());
+        Assertions.assertEquals("-10", tokens.get(1).content());
+        Assertions.assertEquals("10f", tokens.get(2).content());
+        Assertions.assertEquals("10.16F", tokens.get(3).content());
+        Assertions.assertEquals("10.161616D", tokens.get(4).content());
+        Assertions.assertEquals("10L", tokens.get(5).content());
+        Assertions.assertEquals("0xDEADBEEF", tokens.get(6).content());
+        Assertions.assertEquals("0E10", tokens.get(7).content());
+        Assertions.assertEquals("0.3e10f", tokens.get(8).content());
+        Assertions.assertEquals("6.02214076e23", tokens.get(9).content());
         for (Token token : tokens) {
-            Assertions.assertSame(token.getType(), TokenType.NUMBER);
+            Assertions.assertSame(token.type(), TokenType.NUMBER);
         }
     }
 

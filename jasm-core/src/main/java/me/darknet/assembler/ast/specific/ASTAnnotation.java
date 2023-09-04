@@ -36,26 +36,25 @@ public class ASTAnnotation extends ASTElement {
         // But this is not a problem for now until xxDark notices this code, which i hope
         // he does not.
         for (ASTElement arrayValue : array.values()) {
-            if(arrayValue instanceof ASTValue val) {
+            if (arrayValue instanceof ASTValue val) {
                 visitor.visitValue(val);
-            } else if(arrayValue instanceof ASTEnum astEnum) {
+            } else if (arrayValue instanceof ASTEnum astEnum) {
                 visitor.visitEnumValue(astEnum.enumType(), astEnum.enumValue());
-            } else if(arrayValue instanceof ASTAnnotation annotation) {
+            } else if (arrayValue instanceof ASTAnnotation annotation) {
                 ASTAnnotationVisitor anno = visitor.visitAnnotationValue(annotation.classType());
                 annotation.accept(collector, anno);
-            } else if(arrayValue instanceof ASTArray astArray) {
+            } else if (arrayValue instanceof ASTArray astArray) {
                 ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue();
                 accept(collector, arrayVisitor, astArray);
-            } else if(arrayValue instanceof ASTEmpty) {
+            } else if (arrayValue instanceof ASTEmpty) {
                 ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue();
                 accept(collector, arrayVisitor, ASTEmpty.EMPTY_ARRAY);
             } else {
-                if(arrayValue == null) {
+                if (arrayValue == null) {
                     collector.addError("Unprocessable value in array", array.location());
                     continue;
                 }
-                collector.addError("Don't know how to process: "
-                        + arrayValue.type(), arrayValue.location());
+                collector.addError("Don't know how to process: " + arrayValue.type(), arrayValue.location());
             }
         }
 
@@ -65,23 +64,22 @@ public class ASTAnnotation extends ASTElement {
     public void accept(ErrorCollector collector, ASTAnnotationVisitor visitor) {
         for (Pair<ASTIdentifier, ASTElement> pair : values.pairs()) {
             ASTElement value = pair.getSecond();
-            if(value instanceof ASTValue val) {
+            if (value instanceof ASTValue val) {
                 visitor.visitValue(pair.getFirst(), val);
-            } else if(value instanceof ASTEnum astEnum) {
+            } else if (value instanceof ASTEnum astEnum) {
                 visitor.visitEnumValue(pair.getFirst(), astEnum.enumType(), astEnum.enumValue());
-            } else if(value instanceof ASTArray array) {
+            } else if (value instanceof ASTArray array) {
                 ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue(pair.getFirst());
                 accept(collector, arrayVisitor, array);
-            } else if(value instanceof ASTAnnotation annotation) {
+            } else if (value instanceof ASTAnnotation annotation) {
                 ASTAnnotationVisitor anno = visitor.visitAnnotationValue(pair.getFirst(), annotation.classType());
                 annotation.accept(collector, anno);
             } else {
-                if(value == null) {
+                if (value == null) {
                     collector.addError("Unprocessable value in annotation", location());
                     continue;
                 }
-                collector.addError("Don't know how to process: "
-                        + value.type(), value.location());
+                collector.addError("Don't know how to process: " + value.type(), value.location());
             }
         }
 

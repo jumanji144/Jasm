@@ -20,12 +20,14 @@ public class Result<T> {
         this.value = value;
     }
 
-    public List<Error> getErrors() {
+    public List<Error> errors() {
         return errors;
     }
 
     /**
-     * Returns the value of the result, the existence of the value does not depend on the result being ok or not.
+     * Returns the value of the result, the existence of the value does not depend
+     * on the result being ok or not.
+     *
      * @return The value of the result.
      */
     public T get() {
@@ -38,7 +40,7 @@ public class Result<T> {
      * @see #hasErr()
      */
     public boolean isOk() {
-        return !hasErr();
+        return !hasErr() && hasValue();
     }
 
     /**
@@ -57,7 +59,10 @@ public class Result<T> {
 
     /**
      * Applies the given consumer if the result is ok.
-     * @param consumer The consumer to apply.
+     *
+     * @param consumer
+     *                 The consumer to apply.
+     *
      * @return This
      */
     public Result<T> ifOk(Consumer<T> consumer) {
@@ -69,7 +74,10 @@ public class Result<T> {
 
     /**
      * Applies the given consumer if the result has an error.
-     * @param consumer The consumer to apply.
+     *
+     * @param consumer
+     *                 The consumer to apply.
+     *
      * @return This
      */
     public Result<T> ifErr(BiConsumer<T, List<Error>> consumer) {
@@ -79,9 +87,19 @@ public class Result<T> {
         return this;
     }
 
-     /**
+    public Result<T> ifErr(Consumer<List<Error>> consumer) {
+        if (hasErr()) {
+            consumer.accept(errors);
+        }
+        return this;
+    }
+
+    /**
      * Applies the given consumer if the result is ok or an error.
-     * @param consumer The consumer to apply.
+     *
+     * @param consumer
+     *                 The consumer to apply.
+     *
      * @return This
      */
     public Result<T> ifAny(BiConsumer<T, List<Error>> consumer) {

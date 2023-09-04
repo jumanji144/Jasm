@@ -31,10 +31,8 @@ public class ASTProcessor {
                 ctx.throwError("enum declaration outside of annotation", decl.location());
                 return null;
             }
-            ASTIdentifier type = ctx
-                    .validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "enum type", decl);
-            ASTIdentifier name = ctx
-                    .validateElement(decl.elements().get(1), ElementType.IDENTIFIER, "enum name", decl);
+            ASTIdentifier type = ctx.validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "enum type", decl);
+            ASTIdentifier name = ctx.validateElement(decl.elements().get(1), ElementType.IDENTIFIER, "enum name", decl);
             if (type == null || name == null)
                 return null;
             return new ASTEnum(type, name);
@@ -93,7 +91,7 @@ public class ASTProcessor {
     private static ASTClass parseClass(ParserContext ctx, ASTDeclaration declaration) {
         // first try to find a body, must be at the end
         List<@Nullable ASTElement> elements = declaration.elements();
-        if(elements.size() < 2) { // atleast name + body
+        if (elements.size() < 2) { // atleast name + body
             ctx.throwError("Expected class name and body", declaration.location());
             return null;
         }
@@ -107,8 +105,8 @@ public class ASTProcessor {
         ASTIdentifier name = ctx.validateIdentifier(elements.get(nameIndex), "class name", declaration);
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
         List<ASTElement> classBody = ctx.parseDeclarations(
-                body.elements(), "class member or member attribute", body.location(), "field", "method",
-                "annotation", "signature"
+                body.elements(), "class member or member attribute", body.location(), "field", "method", "annotation",
+                "signature"
         );
         ProcessorAttributes attributes = ctx.result.collectAttributes();
         return new ASTClass(
@@ -128,10 +126,9 @@ public class ASTProcessor {
         int nameIndex = lastIndex - 1;
         ASTElement last = elements.get(lastIndex);
         ASTValue value = null;
-        if (last instanceof ASTObject) {
+        if (last instanceof ASTObject obj) {
             descIndex = lastIndex - 1; // if there is a value name and descriptor will be pushed back
             nameIndex = lastIndex - 2;
-            ASTObject obj = (ASTObject) last;
             ASTElement elem = obj.values().get("value");
             if (!(elem instanceof ASTValue) || obj.values().size() != 1) {
                 ctx.throwUnexpectedElementError("field value", elem == null ? last : elem);
@@ -171,9 +168,8 @@ public class ASTProcessor {
         ASTCode code = null;
         List<Instruction<?>> instructions = new ArrayList<>();
         if (body.values().containsKey("code")) {
-            code = ctx.validateEmptyableElement(
-                    body.values().get("code"), ElementType.CODE, "method code", declaration
-            );
+            code = ctx
+                    .validateEmptyableElement(body.values().get("code"), ElementType.CODE, "method code", declaration);
             // validate instructions
             for (ASTInstruction instruction : code.instructions()) {
                 if (instruction == null)
@@ -199,8 +195,9 @@ public class ASTProcessor {
         ASTIdentifier desc = ctx.validateIdentifier(elements.get(descIndex), "method descriptor", declaration);
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
         ProcessorAttributes attributes = ctx.result.collectAttributes();
-        return new ASTMethod(modifiers, name, desc, attributes.signature, attributes.annotations, parameters, code,
-                instructions, ctx.format
+        return new ASTMethod(
+                modifiers, name, desc, attributes.signature, attributes.annotations, parameters, code, instructions,
+                ctx.format
         );
     }
 
@@ -235,9 +232,7 @@ public class ASTProcessor {
                         ctx.throwUnexpectedElementError("annotation value", value);
                         return null;
                     }
-                    value = new ASTArray(
-                            Collections.singletonList(validateElementValue(ctx, decl.elements().get(0)))
-                    );
+                    value = new ASTArray(Collections.singletonList(validateElementValue(ctx, decl.elements().get(0))));
                 }
             }
             case ARRAY -> {
@@ -273,7 +268,7 @@ public class ASTProcessor {
         }
         ctx.leaveState();
         ASTAnnotation annotation = new ASTAnnotation(type, map);
-        if(!ctx.isInState(State.IN_ANNOTATION)) // if not inside annotation, add it as an attribute
+        if (!ctx.isInState(State.IN_ANNOTATION)) // if not inside annotation, add it as an attribute
             ctx.result.addAnnotation(annotation);
         return annotation;
     }
@@ -355,9 +350,14 @@ public class ASTProcessor {
 
         /**
          * Check if the element is not the expected type.
-         * @param element the element to check
-         * @param type the expected type
-         * @param expected the expected description
+         *
+         * @param element
+         *                 the element to check
+         * @param type
+         *                 the expected type
+         * @param expected
+         *                 the expected description
+         *
          * @return true if the element is not the expected type
          */
         public boolean isNotType(ASTElement element, ElementType type, String expected) {
@@ -370,12 +370,20 @@ public class ASTProcessor {
 
         /**
          * Validate an element and return it if it is the expected type and not null
-         * @param e the element to validate
-         * @param expectedElementType the expected type
-         * @param description the description of the element
-         * @param parent the parent element
+         *
+         * @param e
+         *                            the element to validate
+         * @param expectedElementType
+         *                            the expected type
+         * @param description
+         *                            the description of the element
+         * @param parent
+         *                            the parent element
+         *
          * @return the element if it is the expected type and not null
-         * @param <T> the type of the element
+         *
+         * @param <T>
+         *            the type of the element
          */
         @SuppressWarnings("unchecked")
         public <T> T validateElement(ASTElement e, ElementType expectedElementType, String description,
@@ -388,14 +396,23 @@ public class ASTProcessor {
         }
 
         /**
-         * Validate an empty able element and return the element or the empty singleton if it is the expected
-         * type
-         * @param e the element to validate
-         * @param expectedElementType the expected type
-         * @param description the description of the element
-         * @param parent the parent element
-         * @return the element or the empty singleton if it is the expected type, if not null
-         * @param <T> the type of the element
+         * Validate an empty able element and return the element or the empty singleton
+         * if it is the expected type
+         *
+         * @param e
+         *                            the element to validate
+         * @param expectedElementType
+         *                            the expected type
+         * @param description
+         *                            the description of the element
+         * @param parent
+         *                            the parent element
+         *
+         * @return the element or the empty singleton if it is the expected type, if not
+         *         null
+         *
+         * @param <T>
+         *            the type of the element
          */
         @SuppressWarnings("unchecked")
         public <T> T validateEmptyableElement(ASTElement e, ElementType expectedElementType, String description,
@@ -421,12 +438,20 @@ public class ASTProcessor {
 
         /**
          * Validate array elements to be the expected type
-         * @param array the array to validate
-         * @param expectedElements the expected type
-         * @param description the description of the array
-         * @param parent the parent element
+         *
+         * @param array
+         *                         the array to validate
+         * @param expectedElements
+         *                         the expected type
+         * @param description
+         *                         the description of the array
+         * @param parent
+         *                         the parent element
+         *
          * @return the list of elements that are the expected type
-         * @param <T> the type of the elements
+         *
+         * @param <T>
+         *            the type of the elements
          */
         @SuppressWarnings("unchecked")
         public <T> List<T> validateArray(ASTArray array, ElementType expectedElements, String description,
@@ -447,10 +472,16 @@ public class ASTProcessor {
 
         /**
          * Validate that all keys are present in the object
-         * @param e the object to validate
-         * @param description the description of the object
-         * @param parent the parent element
-         * @param expectedKeys the expected keys
+         *
+         * @param e
+         *                     the object to validate
+         * @param description
+         *                     the description of the object
+         * @param parent
+         *                     the parent element
+         * @param expectedKeys
+         *                     the expected keys
+         *
          * @return the object if all keys are present
          */
         public ASTObject validateObject(ASTElement e, String description, ASTElement parent, String... expectedKeys) {
@@ -541,7 +572,7 @@ public class ASTProcessor {
         private static final DeclarationParser<? extends ASTElement> DEFAULT_PARSER = (ctx, declaration) -> {
             ctx.throwError(
                     "Unknown declaration: " + declaration.keyword().content(),
-                    declaration.keyword().value().getLocation()
+                    declaration.keyword().value().location()
             );
             return null;
         };

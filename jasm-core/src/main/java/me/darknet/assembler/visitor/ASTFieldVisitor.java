@@ -1,9 +1,9 @@
 package me.darknet.assembler.visitor;
 
-import me.darknet.assembler.ast.specific.ASTValue;
+import me.darknet.assembler.ast.ASTElement;
 
 public interface ASTFieldVisitor extends ASTDeclarationVisitor {
 
-    void visitValue(ASTValue value);
+    void visitValue(ASTElement value);
 
 }

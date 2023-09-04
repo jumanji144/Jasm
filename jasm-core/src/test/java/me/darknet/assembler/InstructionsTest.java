@@ -38,7 +38,7 @@ public class InstructionsTest {
             Consumer<T> consumer) {
         parseString(input, format, (result) -> {
             if (result.hasErr()) {
-                for (Error error : result.getErrors()) {
+                for (Error error : result.errors()) {
                     Location location = error.getLocation();
                     System.err.printf(
                             "%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
@@ -64,7 +64,7 @@ public class InstructionsTest {
         Assertions.assertFalse(tokens.isEmpty());
         Result<List<ASTElement>> result = parser.parseAny(tokens);
         if (result.hasErr()) {
-            for (Error error : result.getErrors()) {
+            for (Error error : result.errors()) {
                 Location location = error.getLocation();
                 System.err.printf(
                         "%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),

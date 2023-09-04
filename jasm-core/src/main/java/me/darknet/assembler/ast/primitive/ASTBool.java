@@ -11,7 +11,7 @@ public class ASTBool extends ASTValue {
     }
 
     public boolean bool() {
-        return Boolean.parseBoolean(value().getContent());
+        return Boolean.parseBoolean(value().content());
     }
 
 }

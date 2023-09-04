@@ -19,22 +19,25 @@ public class Transformer {
     }
 
     /**
-     * Transform a list of declarations into the transformers {@link Transformer#visitor}
-     * @param declarations the declarations to transform
+     * Transform a list of declarations into the transformers
+     * {@link Transformer#visitor}
+     *
+     * @param declarations
+     *                     the declarations to transform
+     *
      * @return the result of the transformation
      */
     public Result<Void> transform(List<ASTElement> declarations) {
         ErrorCollector collector = new ErrorCollector();
         for (ASTElement declaration : declarations) {
-            if(declaration instanceof ASTField field) {
+            if (declaration instanceof ASTField field) {
                 field.accept(collector, visitor.visitField(field.modifiers(), field.name(), field.descriptor()));
             } else if (declaration instanceof ASTMethod method) {
                 method.accept(collector, visitor.visitMethod(method.modifiers(), method.name(), method.descriptor()));
             } else if (declaration instanceof ASTClass clazz) {
                 clazz.accept(collector, visitor.visitClass(clazz.modifiers(), clazz.name()));
             } else {
-                collector.addError("Don't know how to process: "
-                        + declaration.type(), declaration.location());
+                collector.addError("Don't know how to process: " + declaration.type(), declaration.location());
             }
         }
         return new Result<>(null, collector.getErrors());

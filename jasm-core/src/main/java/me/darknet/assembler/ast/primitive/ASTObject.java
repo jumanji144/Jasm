@@ -22,4 +22,8 @@ public class ASTObject extends ASTElement {
     public ElementMap<ASTIdentifier, ASTElement> values() {
         return values;
     }
+
+    public <T extends @Nullable ASTElement> T value(String name) {
+        return values.get(name);
+    }
 }

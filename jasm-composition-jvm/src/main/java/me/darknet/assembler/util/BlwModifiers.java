@@ -160,6 +160,16 @@ public class BlwModifiers {
         return builder.toString();
     }
 
+    public static int modifier(String modifier, int type) {
+        return switch (type) {
+            case 0 -> getModifier(modifier);
+            case 1 -> getClassModifier(modifier);
+            case 2 -> getMethodModifier(modifier);
+            case 3 -> getFieldModifier(modifier);
+            default -> 0;
+        };
+    }
+
     public static int modifiers(String modifiers, int type) {
         String[] split = modifiers.split(" ");
         int result = 0;

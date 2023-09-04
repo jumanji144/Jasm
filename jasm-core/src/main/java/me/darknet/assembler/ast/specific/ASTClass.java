@@ -40,7 +40,8 @@ public class ASTClass extends ASTMember {
 
     public void accept(ErrorCollector collector, ASTClassVisitor visitor) {
         super.accept(collector, visitor);
-        if(visitor == null) return;
+        if (visitor == null)
+            return;
 
         visitor.visitSuperClass(superName);
         for (ASTIdentifier anInterface : interfaces) {
@@ -48,15 +49,12 @@ public class ASTClass extends ASTMember {
         }
 
         for (ASTElement declaration : contents) {
-            if(declaration instanceof ASTField field) {
-                field.accept(collector,
-                        visitor.visitField(field.modifiers(), field.name(), field.descriptor()));
+            if (declaration instanceof ASTField field) {
+                field.accept(collector, visitor.visitField(field.modifiers(), field.name(), field.descriptor()));
             } else if (declaration instanceof ASTMethod method) {
-                method.accept(collector,
-                        visitor.visitMethod(method.modifiers(), method.name(), method.descriptor()));
+                method.accept(collector, visitor.visitMethod(method.modifiers(), method.name(), method.descriptor()));
             } else {
-                collector.addError("Don't know how to process: "
-                        + declaration.type(), declaration.location());
+                collector.addError("Don't know how to process: " + declaration.type(), declaration.location());
             }
         }
 

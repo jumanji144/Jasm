@@ -36,7 +36,7 @@ public class ASTElement {
 
     @Contract(pure = true)
     public String content() {
-        return value == null ? null : value.getContent();
+        return value == null ? null : value.content();
     }
 
     public Token value() {
@@ -59,7 +59,7 @@ public class ASTElement {
         if (value == null) {
             // go through children
             for (ASTElement child : children) {
-                if(child == null) {
+                if (child == null) {
                     continue;
                 }
                 Location location = child.location();
@@ -68,8 +68,9 @@ public class ASTElement {
                 }
             }
         } else {
-            return value.getLocation();
+            return value.location();
         }
         return null;
     }
+
 }

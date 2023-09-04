@@ -68,6 +68,33 @@ public record Names(Map<Integer, String> parameters, List<Local> locals) {
         return name;
     }
 
+    public int getLocalIndex(String name, int position) {
+        for (var local : locals) {
+            if (local.name.equals(name) && local.start <= position && local.end >= position) {
+                return local.index;
+            }
+        }
+        return -1;
+    }
+
+    public int getParameterIndex(String name) {
+        for (var entry : parameters.entrySet()) {
+            if (entry.getValue().equals(name)) {
+                return entry.getKey();
+            }
+        }
+        return -1;
+    }
+
+    public int getIndex(String name, int position) {
+        var index = getLocalIndex(name, position);
+        if (index == -1) {
+            index = getParameterIndex(name);
+        }
+        // can't assume that the format is <v><index> so we can't just remove the v
+        return -1;
+    }
+
     public record Local(int index, int start, int end, String name) {
     }
 

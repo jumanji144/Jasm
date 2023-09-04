@@ -23,7 +23,7 @@ public class EscapeTest {
         List<Token> tokens = tokenizer.tokenize("<stdin>", "\"" + EscapeUtil.escapeString(input) + "\"");
         assertNotNull(tokens);
         assertEquals(1, tokens.size());
-        assertEquals(input, tokens.get(0).getContent());
+        assertEquals(input, tokens.get(0).content());
     }
 
     @ParameterizedTest
@@ -46,8 +46,8 @@ public class EscapeTest {
         List<Token> tokens = tokenizer.tokenize("<stdin>", EscapeUtil.escapeLiteral(input));
         assertNotNull(tokens);
         assertEquals(1, tokens.size());
-        System.out.println(tokens.get(0).getContent());
-        assertEquals(input, EscapeUtil.unescape(tokens.get(0).getContent()));
+        System.out.println(tokens.get(0).content());
+        assertEquals(input, EscapeUtil.unescape(tokens.get(0).content()));
     }
 
 }

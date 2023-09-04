@@ -20,14 +20,15 @@ public record Constant(Type type, Object value) {
             case NUMBER:
                 ASTNumber number = (ASTNumber) element;
                 yield new Constant(Constant.Type.Number, number.number());
-            case STRING: new Constant(Constant.Type.String, element.value());
+            case STRING:
+                new Constant(Constant.Type.String, element.value());
             case IDENTIFIER:
                 ASTIdentifier identifier = (ASTIdentifier) element;
                 if (identifier.content().startsWith("L")) { // is class
-                    yield new Constant(Constant.Type.ClassType, identifier.content());
+                    yield new Constant(Constant.Type.ClassType, identifier.literal());
                 } else {
                     // must be method `(` or method type `L`
-                    yield new Constant(Constant.Type.MethodType, identifier.content());
+                    yield new Constant(Constant.Type.MethodType, identifier.literal());
                 }
             case ARRAY: {
                 ASTArray array = (ASTArray) element;

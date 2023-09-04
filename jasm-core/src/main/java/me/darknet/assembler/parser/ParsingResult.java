@@ -21,7 +21,7 @@ public class ParsingResult<T> extends Result<T> {
         this.comments = comments;
     }
 
-    public List<ASTComment> getComments() {
+    public List<ASTComment> comments() {
         return comments;
     }
 
