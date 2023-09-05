@@ -8,13 +8,14 @@ import me.darknet.assembler.visitor.ASTInstructionVisitor;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public abstract class ReflectiveInstructions<V extends ASTInstructionVisitor> extends Instructions<V> {
 
     private final Class<V> visitorClass;
-    private Map<String, MethodHandle> lookupCache;
+    private final Map<String, MethodHandle> lookupCache = new HashMap<>();
 
     public ReflectiveInstructions(Class<V> visitorClass, String defaultMethod) {
         super();
@@ -47,7 +48,7 @@ public abstract class ReflectiveInstructions<V extends ASTInstructionVisitor> ex
             }
             List<Object> arguments = new ArrayList<>(instruction.arguments());
             arguments.add(0, instance);
-            method.invokeExact(arguments.toArray());
+            method.invokeWithArguments(arguments);
         } catch (Throwable e) {
             throw new TransformationException("Failed to invoke translator method", e);
         }

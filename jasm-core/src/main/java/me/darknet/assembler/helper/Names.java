@@ -1,4 +1,4 @@
-package me.darknet.assembler.printer;
+package me.darknet.assembler.helper;
 
 import java.util.List;
 import java.util.Map;
@@ -77,6 +77,15 @@ public record Names(Map<Integer, String> parameters, List<Local> locals) {
         return -1;
     }
 
+    public int getLocalIndexFlat(String name) {
+        for (var local : locals) {
+            if (local.name.equals(name)) {
+                return local.index;
+            }
+        }
+        return -1;
+    }
+
     public int getParameterIndex(String name) {
         for (var entry : parameters.entrySet()) {
             if (entry.getValue().equals(name)) {
@@ -95,7 +104,6 @@ public record Names(Map<Integer, String> parameters, List<Local> locals) {
         return -1;
     }
 
-    public record Local(int index, int start, int end, String name) {
-    }
+    public record Local(int index, int start, int end, String name, String descriptor) {}
 
 }

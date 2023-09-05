@@ -119,29 +119,25 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
     /**
      * Visit a field instruction
      *
-     * @param owner
-     *                   the owner of the field
-     * @param name
-     *                   the name of the field
+     * @param path
+     *                  the path to the field, this is in the format of [owner].[name]
      * @param descriptor
      *                   the descriptor of the field
      */
-    void visitFieldInsn(ASTIdentifier owner, ASTIdentifier name, ASTIdentifier descriptor);
+    void visitFieldInsn(ASTIdentifier path, ASTIdentifier descriptor);
 
     /**
      * Visit a method instruction
      *
-     * @param owner
-     *                   the owner of the method
-     * @param name
-     *                   the name of the method
+     * @param path
+     *                  the path to the field, this is in the format of [owner].[name]
      * @param descriptor
      *                   the descriptor of the method
      *
      * @note the existence of `invokexinterface`, which corresponds to the `itf`
      *       flag on the instruction being `true`
      */
-    void visitMethodInsn(ASTIdentifier owner, ASTIdentifier name, ASTIdentifier descriptor);
+    void visitMethodInsn(ASTIdentifier path, ASTIdentifier descriptor);
 
     /**
      * Visit a invoke dynamic instruction

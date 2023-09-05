@@ -1,7 +1,12 @@
 apply plugin: 'java-library'
 
+repositories {
+    mavenCentral()
+    maven { url = 'https://jitpack.io' }
+}
+
 dependencies {
-    api 'dev.xdark:blw-core:1.0'
+    api 'com.github.Nowilltolife:blw:b347ed28e2'
     implementation 'org.ow2.asm:asm:9.5'
 
     api project(path: ':jasm-core')

@@ -4,6 +4,7 @@ import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.type.ClassType;
+import me.darknet.assembler.helper.Names;
 import me.darknet.assembler.util.IndexedStraightforwardSimulation;
 
 import java.util.ArrayList;
@@ -28,7 +29,7 @@ public class BlwMethodPrinter implements MethodPrinter {
                 locals.add(
                         new Names.Local(
                                 localVariable.index(), localVariable.start().index(), localVariable.end().index(),
-                                localVariable.name()
+                                localVariable.name(), localVariable.type().descriptor()
                         )
                 );
             }

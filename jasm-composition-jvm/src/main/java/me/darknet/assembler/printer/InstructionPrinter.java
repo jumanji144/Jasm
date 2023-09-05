@@ -3,6 +3,7 @@ package me.darknet.assembler.printer;
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.type.*;
+import me.darknet.assembler.helper.Names;
 import me.darknet.assembler.util.IndexedExecutionEngine;
 import me.darknet.assembler.util.LabelUtil;
 

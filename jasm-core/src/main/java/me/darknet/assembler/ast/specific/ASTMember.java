@@ -56,7 +56,7 @@ public class ASTMember extends ASTElement {
         for (ASTAnnotation annotation : annotations) {
             annotation.accept(collector, visitor.visitAnnotation(annotation.classType()));
         }
-        visitor.visitSignature(signature);
+        if(signature != null) visitor.visitSignature(signature);
     }
 
 }
