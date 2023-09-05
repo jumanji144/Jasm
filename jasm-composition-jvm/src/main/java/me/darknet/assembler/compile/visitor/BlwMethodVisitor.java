@@ -2,6 +2,7 @@ package me.darknet.assembler.compile.visitor;
 
 import dev.xdark.blw.classfile.attribute.Parameter;
 import dev.xdark.blw.classfile.attribute.generic.GenericParameter;
+import dev.xdark.blw.code.generic.GenericCodeBuilder;
 import dev.xdark.blw.type.MethodType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.compile.builder.BlwReplaceMethodBuilder;
@@ -35,7 +36,7 @@ public class BlwMethodVisitor extends BlwMemberVisitor implements ASTMethodVisit
 
     @Override
     public ASTJvmInstructionVisitor visitJvmCode() {
-        return new BlwCodeVisitor(type, builder.code(), parameterNames);
+        return new BlwCodeVisitor(type, (GenericCodeBuilder.Nested<?>) builder.code(), parameterNames);
     }
 
     @Override

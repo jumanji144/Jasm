@@ -39,7 +39,6 @@ public class Instruction<V extends ASTInstructionVisitor> {
 
     @SuppressWarnings("unchecked")
     public void transform(ASTInstruction instruction, ASTInstructionVisitor visitor) {
-        visitor.visitInstruction(instruction);
         translator.accept(instruction, (V) visitor);
     }
 

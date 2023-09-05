@@ -166,14 +166,6 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
     void visitMultiANewArrayInsn(ASTIdentifier descriptor, ASTNumber numDimensions);
 
     /**
-     * Visit a label
-     *
-     * @param label
-     *              the label
-     */
-    void visitLabel(ASTIdentifier label);
-
-    /**
      * Visit a line number
      *
      * @param label

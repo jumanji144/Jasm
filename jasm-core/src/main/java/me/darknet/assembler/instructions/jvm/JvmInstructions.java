@@ -6,15 +6,15 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.instructions.DefaultOperands;
-import me.darknet.assembler.instructions.ReflectiveInstructions;
+import me.darknet.assembler.instructions.Instructions;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 
-public class JvmInstructions extends ReflectiveInstructions<ASTJvmInstructionVisitor> {
+public class JvmInstructions extends Instructions<ASTJvmInstructionVisitor> {
 
     public final static JvmInstructions INSTANCE = new JvmInstructions();
 
     private JvmInstructions() {
-        super(ASTJvmInstructionVisitor.class, "visitInsn");
+        super();
     }
 
     @Override

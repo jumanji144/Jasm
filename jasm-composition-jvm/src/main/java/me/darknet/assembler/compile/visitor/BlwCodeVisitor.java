@@ -1,7 +1,11 @@
 package me.darknet.assembler.compile.visitor;
 
-import dev.xdark.blw.code.*;
+import dev.xdark.blw.code.Instruction;
+import dev.xdark.blw.code.JavaOpcodes;
+import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.attribute.generic.GenericLocal;
+import dev.xdark.blw.code.generic.GenericCodeBuilder;
+import dev.xdark.blw.code.generic.GenericCodeListBuilder;
 import dev.xdark.blw.code.generic.GenericLabel;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.constant.OfDouble;
@@ -11,6 +15,8 @@ import dev.xdark.blw.constant.OfLong;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
+import me.darknet.assembler.compile.analysis.BlwAnalysisEngine;
+import me.darknet.assembler.compile.analysis.BlwCodeListSimulation;
 import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.ConstantMapper;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
@@ -21,8 +27,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     private final Label begin;
     private final Label end;
-    private final CodeBuilder.Nested<?> meta;
-    private final CodeListBuilder.Nested<?> list;
+    private final GenericCodeBuilder.Nested<?> meta;
+    private final GenericCodeListBuilder.Nested<?> list;
     private final Map<String, GenericLabel> labels = new HashMap<>();
     private final MethodType type;
     private final List<String> parameters;
@@ -30,9 +36,9 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private ASTInstruction last;
     private int opcode = 0;
 
-    public BlwCodeVisitor(MethodType type, CodeBuilder.Nested<?> builder, List<String> parameters) {
+    public BlwCodeVisitor(MethodType type, GenericCodeBuilder.Nested<?> builder, List<String> parameters) {
         this.meta = builder;
-        this.list = builder.codeList();
+        this.list = (GenericCodeListBuilder.Nested<?>) builder.codeList();
         this.type = type;
         this.parameters = parameters;
         this.begin = new GenericLabel();
@@ -62,6 +68,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitInstruction(ASTInstruction instruction) {
         last = instruction;
+        if(instruction instanceof ASTLabel) return;
         opcode = BlwOpcodes.opcode(instruction.identifier().content());
     }
 
@@ -238,7 +245,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitLabel(ASTIdentifier label) {
-        getOrCreateLabel(label.content());
+        list.element(getOrCreateLabel(label.content()));
     }
 
     @Override
@@ -250,6 +257,13 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     public void visitEnd() {
         list.element(end);
         List<ClassType> paramTypes = type.parameterTypes();
+
+        // analyze stack
+        BlwAnalysisEngine engine = new BlwAnalysisEngine(paramTypes, paramTypes.size() + locals.size());
+
+        BlwCodeListSimulation simulation = new BlwCodeListSimulation();
+        simulation.execute(engine, list.build());
+
         for (int i = 0; i < parameters.size(); i++) {
             String name = parameters.get(i);
             ClassType type = paramTypes.get(i);
@@ -258,8 +272,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         for (int i = 0; i < locals.size(); i++) {
             int index = i + parameters.size();
             String name = locals.get(i);
-            // TODO: analyze local types
-            meta.localVariable(new GenericLocal(begin, end, index, name, null, null));
+            meta.localVariable(new GenericLocal(begin, end, index, name, engine.local(index), null));
         }
     }
 

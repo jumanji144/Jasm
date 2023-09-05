@@ -3,6 +3,8 @@ package me.darknet.assembler.ast.specific;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTCode;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.instructions.Instruction;
 import me.darknet.assembler.parser.BytecodeFormat;
@@ -58,8 +60,16 @@ public class ASTMethod extends ASTMember {
             case DALVIK -> null;
         };
         if (instructionVisitor != null) {
+            int instructionIndex = 0;
             for (int i = 0; i < instructions.size(); i++) {
-                instructions.get(i).transform(code.instructions().get(i), instructionVisitor);
+                ASTInstruction instruction = code.instructions().get(i);
+                if(instruction instanceof ASTLabel lab) {
+                    instructionVisitor.visitLabel(lab.identifier());
+                } else {
+                    instructionVisitor.visitInstruction(instruction);
+                    instructions.get(instructionIndex++).transform(code.instructions().get(i),
+                            instructionVisitor);
+                }
             }
 
             instructionVisitor.visitEnd();
