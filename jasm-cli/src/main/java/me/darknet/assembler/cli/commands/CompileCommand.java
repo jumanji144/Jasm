@@ -1,0 +1,134 @@
+package me.darknet.assembler.cli.commands;
+
+import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.compile.BlwCompiler;
+import me.darknet.assembler.compile.BlwCompilerOptions;
+import me.darknet.assembler.compiler.Compiler;
+import me.darknet.assembler.compiler.CompilerOptions;
+import me.darknet.assembler.helper.Processor;
+import picocli.CommandLine;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.List;
+import java.util.Optional;
+
+@CommandLine.Command(
+        name = "compile", description = "Compile Java Assembler source code", mixinStandardHelpOptions = true
+)
+public class CompileCommand implements Runnable {
+
+    @CommandLine.Parameters(index = "0", description = "Source file", arity = "0..1", paramLabel = "file")
+    private Optional<File> source;
+
+    @CommandLine.Option(names = { "-o", "--output" }, description = "Output file", required = true, paramLabel = "file")
+    private File output;
+
+    @CommandLine.Option(names = { "-s", "--source" }, description = "Source code", paramLabel = "code")
+    private Optional<String> sourceCode;
+
+    @CommandLine.Option(names = { "-ov", "--overlay" }, description = "Overlay class file\nRequired for non-class code", paramLabel = "file")
+    private Optional<File> overlay;
+
+    @CommandLine.Option(names = { "-at", "--annotation-target" }, description = "Annotation target", paramLabel = "target")
+    private Optional<String> annotationTarget;
+
+    @CommandLine.Option(
+            names = { "-bv",
+                    "--bytecode-version" }, description = "Bytecode version (default: ${DEFAULT-VALUE})", defaultValue = "8", paramLabel = "version"
+    )
+    private int bytecodeVersion;
+
+    private Compiler compiler;
+    private CompilerOptions<?> options;
+
+    private void configureCompiler() {
+        switch (MainCommand.target) {
+            case JVM -> {
+                compiler = new BlwCompiler();
+                options = new BlwCompilerOptions();
+            }
+            case DALVIK -> throw new UnsupportedOperationException("Dalvik target is not supported yet");
+            default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
+        }
+
+        options.version(bytecodeVersion)
+                .overlay(overlay.map(file -> {
+                    try {
+                        return Files.readAllBytes(file.toPath());
+                    } catch (IOException e) {
+                        System.err.println("Failed to read overlay file: " + e.getMessage());
+                        System.exit(1);
+                        return null;
+                    }
+                }).orElse(null))
+                .annotationPath(annotationTarget.orElse(null));
+    }
+
+    private void validateAst(List<ASTElement> ast) {
+        if (ast.size() != 1) {
+            System.err.println("Expected exactly one class, method or field declaration");
+            System.exit(1);
+        }
+
+        switch (ast.get(0).type()) {
+            case CLASS -> {}
+            case METHOD, FIELD -> {
+                if(overlay.isEmpty()) {
+                    System.err.println("Overlay is required for non-class code");
+                    System.exit(1);
+                }
+            }
+            case ANNOTATION -> {
+                if(overlay.isEmpty() || annotationTarget.isEmpty()) {
+                    System.err.println("Overlay and annotation target are required for annotation code");
+                    System.exit(1);
+                }
+            }
+            default -> {
+                System.err.println("Expected exactly one class, method or field declaration");
+                System.exit(1);
+            }
+        }
+    }
+
+    @Override
+    public void run() {
+
+        String code = sourceCode.map(String::trim).orElse("");
+        String src = source.map(File::getAbsolutePath).orElse("<stdin>");
+
+        if (source.isPresent()) {
+            try {
+                code = Files.readString(source.get().toPath());
+            } catch (IOException e) {
+                System.err.println("Failed to read source file: " + e.getMessage());
+                System.exit(1);
+            }
+        }
+
+        configureCompiler();
+
+        Processor.processSource(code, src, ast -> {
+            validateAst(ast);
+
+            compiler.compile(ast, options).ifErr((unused, errors) -> {
+                System.err.println("Failed to compile source file:");
+                errors.forEach(System.err::println);
+                System.exit(1);
+            }).ifOk((bytes) -> {
+                try {
+                    Files.write(output.toPath(), bytes);
+                } catch (IOException e) {
+                    System.err.println("Failed to write output file: " + e.getMessage());
+                    System.exit(1);
+                }
+            });
+        }, errors -> {
+            System.err.println("Failed to parse source file:");
+            errors.forEach(System.err::println);
+            System.exit(1);
+        }, MainCommand.target);
+    }
+}

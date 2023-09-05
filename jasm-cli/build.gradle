@@ -1,0 +1,26 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+dependencies {
+    // picocli
+    implementation 'info.picocli:picocli:4.7.5'
+    annotationProcessor 'info.picocli:picocli-codegen:4.7.5'
+
+    api project(path: ':jasm-composition-jvm')
+    // api project(path: ':jasm-composition-dalvik // TODO
+}
+
+shadowJar {
+    archiveBaseName.set('jasm')
+    archiveVersion.set('2.0.0')
+    archiveClassifier.set('cli')
+    manifest {
+        attributes 'Main-Class': 'me.darknet.assembler.cli.JasmCli'
+    }
+}
+
+compileJava {
+    options.compilerArgs += ["-Aproject=${project.group}/${project.name}"]
+}
