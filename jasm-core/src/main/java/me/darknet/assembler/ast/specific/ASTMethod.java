@@ -61,14 +61,13 @@ public class ASTMethod extends ASTMember {
         };
         if (instructionVisitor != null) {
             int instructionIndex = 0;
-            for (int i = 0; i < instructions.size(); i++) {
+            for (int i = 0; i < code.instructions().size(); i++) {
                 ASTInstruction instruction = code.instructions().get(i);
                 if(instruction instanceof ASTLabel lab) {
                     instructionVisitor.visitLabel(lab.identifier());
                 } else {
                     instructionVisitor.visitInstruction(instruction);
-                    instructions.get(instructionIndex++).transform(code.instructions().get(i),
-                            instructionVisitor);
+                    instructions.get(instructionIndex++).transform(instruction, instructionVisitor);
                 }
             }
 

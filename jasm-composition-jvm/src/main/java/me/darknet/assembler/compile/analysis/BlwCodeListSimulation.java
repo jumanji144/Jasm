@@ -12,9 +12,15 @@ import java.util.List;
 public class BlwCodeListSimulation implements Simulation<ExecutionEngine, List<CodeElement>> {
     @Override
     public void execute(ExecutionEngine engine, List<CodeElement> method) {
-        for (CodeElement element : method) {
-            if(element instanceof Label l) {
-                engine.label(l);
+        ForkingCodeWalker walker = new ForkingCodeWalker(method, (BlwAnalysisEngine) engine);
+        while (true) {
+            walker.advance();
+            CodeElement element = walker.element();
+            if (element == null) {
+                return;
+            }
+            if (element instanceof Label) {
+                engine.label((Label) element);
             } else {
                 ExecutionEngines.execute(engine, (Instruction) element);
             }

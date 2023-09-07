@@ -17,8 +17,10 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.compile.analysis.BlwAnalysisEngine;
 import me.darknet.assembler.compile.analysis.BlwCodeListSimulation;
+import me.darknet.assembler.compile.analysis.Frame;
 import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.ConstantMapper;
+import me.darknet.assembler.util.TypedVariable;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 
 import java.util.*;
@@ -30,16 +32,15 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final GenericCodeBuilder.Nested<?> meta;
     private final GenericCodeListBuilder.Nested<?> list;
     private final Map<String, GenericLabel> labels = new HashMap<>();
-    private final MethodType type;
-    private final List<String> parameters;
+    private final List<TypedVariable> parameters;
     private final List<String> locals = new ArrayList<>();
     private ASTInstruction last;
     private int opcode = 0;
 
-    public BlwCodeVisitor(MethodType type, GenericCodeBuilder.Nested<?> builder, List<String> parameters) {
+    public BlwCodeVisitor(GenericCodeBuilder.Nested<?> builder,
+                          List<TypedVariable> parameters) {
         this.meta = builder;
         this.list = (GenericCodeListBuilder.Nested<?>) builder.codeList();
-        this.type = type;
         this.parameters = parameters;
         this.begin = new GenericLabel();
         this.end = new GenericLabel();
@@ -256,23 +257,26 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitEnd() {
         list.element(end);
-        List<ClassType> paramTypes = type.parameterTypes();
+        List<ClassType> paramTypes = parameters.stream().map(TypedVariable::type).toList();
 
         // analyze stack
-        BlwAnalysisEngine engine = new BlwAnalysisEngine(paramTypes, paramTypes.size() + locals.size());
+        BlwAnalysisEngine engine = new BlwAnalysisEngine(paramTypes, parameters.size() + locals.size());
 
         BlwCodeListSimulation simulation = new BlwCodeListSimulation();
         simulation.execute(engine, list.build());
 
+        Frame frame = engine.frame();
+
         for (int i = 0; i < parameters.size(); i++) {
-            String name = parameters.get(i);
-            ClassType type = paramTypes.get(i);
-            meta.localVariable(new GenericLocal(begin, end, i, name, type, null));
+            TypedVariable parameter = parameters.get(i);
+            meta.localVariable(new GenericLocal(begin, end, i, parameter.name(), parameter.type(), null));
         }
+
+        int paramCount = paramTypes.size();
         for (int i = 0; i < locals.size(); i++) {
-            int index = i + parameters.size();
+            int index = i + paramCount;
             String name = locals.get(i);
-            meta.localVariable(new GenericLocal(begin, end, index, name, engine.local(index), null));
+            meta.localVariable(new GenericLocal(begin, end, index, name, frame.local(index), null));
         }
     }
 

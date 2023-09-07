@@ -28,7 +28,7 @@ public class BlwReplaceClassBuilder implements ClassBuilder {
     private int accessFlags;
     private String signature;
     private ConstantPool pool;
-    private InstanceType type;
+    public InstanceType type;
     private InstanceType superClass;
     private List<InstanceType> interfaces = List.of();
     private JavaVersion version;

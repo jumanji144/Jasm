@@ -1,5 +1,6 @@
 package me.darknet.assembler.compile.visitor;
 
+import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.TypeReader;
@@ -66,7 +67,8 @@ public class BlwClassVisitor implements ASTClassVisitor {
                 .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD))
                 .reduce(0, (a, b) -> a | b);
         MethodType type = Types.methodType(descriptor.literal());
-        return new BlwMethodVisitor(type, builder.method(accessFlags, name.literal(), type)
+        return new BlwMethodVisitor(builder.type, type, (accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
+                builder.method(accessFlags, name.literal(), type)
         );
     }
 

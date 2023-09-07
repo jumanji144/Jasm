@@ -1,5 +1,6 @@
 package me.darknet.assembler.compile.visitor;
 
+import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.TypeReader;
@@ -62,7 +63,9 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, BlwCompilerOptions 
                 .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD))
                 .reduce(0, (a, b) -> a | b);
         MethodType type = Types.methodType(descriptor.literal());
-        return new BlwMethodVisitor(type,builder.method(accessFlags, name.literal(), type)
+        return new BlwMethodVisitor(Types.instanceType(Object.class), type,
+                (accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
+            builder.method(accessFlags, name.literal(), type)
         );
     }
 }
