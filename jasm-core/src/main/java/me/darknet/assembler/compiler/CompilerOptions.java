@@ -19,4 +19,8 @@ public interface CompilerOptions<B extends CompilerOptions<?>> {
     B annotationPath(String path);
 
     String annotationPath();
+
+    InheritanceChecker inheritanceChecker();
+
+    B inheritanceChecker(InheritanceChecker checker);
 }

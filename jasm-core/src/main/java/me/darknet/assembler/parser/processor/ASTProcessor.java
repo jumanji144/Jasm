@@ -562,7 +562,8 @@ public class ASTProcessor {
         }
 
         public void throwUnexpectedElementError(String expected, ASTElement actual) {
-            throwError("Expected " + expected + " but got " + actual.type().toString(), actual.location());
+            throwError("Expected " + expected + " but got "
+                    + actual.type().name().toLowerCase() + " '" + actual.content() + "'", actual.location());
         }
 
         public Instructions<?> getInstructions() {

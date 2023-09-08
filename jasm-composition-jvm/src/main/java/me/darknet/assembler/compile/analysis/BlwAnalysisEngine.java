@@ -5,18 +5,18 @@ import dev.xdark.blw.code.JavaOpcodes;
 import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.constant.*;
-import dev.xdark.blw.simulation.ExecutionEngine;
 import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.Types;
 
 import java.util.List;
 
-public class BlwAnalysisEngine implements ExecutionEngine, JavaOpcodes {
+public class BlwAnalysisEngine implements AnalysisEngine, JavaOpcodes {
 
     private Frame frame;
 
-    public BlwAnalysisEngine(List<ClassType> parameters, int numLocals) {
-        this.frame = new Frame(numLocals);
+    public BlwAnalysisEngine(List<ClassType> parameters) {
+        this.frame = new Frame();
+        this.frame.locals(parameters, 0);
     }
 
     public void frame(Frame frame) {
@@ -28,7 +28,8 @@ public class BlwAnalysisEngine implements ExecutionEngine, JavaOpcodes {
     }
 
     @Override
-    public void label(Label label) {}
+    public void label(Label label) {
+    }
 
     @Override
     public void execute(SimpleInstruction instruction) {
@@ -63,7 +64,8 @@ public class BlwAnalysisEngine implements ExecutionEngine, JavaOpcodes {
                 ClassType type4 = frame.pop();
                 frame.push(type2, type1, type4, type3, type2, type1);
             }
-            case POP, IINC, IRETURN, LRETURN, FRETURN, DRETURN, ARETURN, POP2 -> frame.pop();
+            case POP, IINC, IRETURN, LRETURN, FRETURN, DRETURN, ARETURN -> frame.pop();
+            case POP2 -> frame.pop2();
             case SWAP -> {
                 ClassType type1 = frame.pop();
                 ClassType type2 = frame.pop();
@@ -74,42 +76,53 @@ public class BlwAnalysisEngine implements ExecutionEngine, JavaOpcodes {
                 frame.push(Types.INT);
             }
             case LADD, LSUB, LMUL, LDIV, LREM, LSHL, LSHR, LUSHR, LAND, LOR, LXOR -> {
-                frame.pop2();
-                frame.push(Types.LONG);
+                frame.pop(4); // LONG + TOP, LONG + TOP
+                frame.pushType(Types.LONG);
             }
             case FADD, FSUB, FMUL, FDIV, FREM -> {
                 frame.pop2();
                 frame.push(Types.FLOAT);
             }
             case DADD, DSUB, DMUL, DDIV, DREM -> {
-                frame.pop2();
-                frame.push(Types.DOUBLE);
+                frame.pop(4);
+                frame.pushType(Types.DOUBLE);
             }
             case INEG, LNEG, FNEG, DNEG -> {
-                frame.pop();
-                frame.push(frame.peek());
+                ClassType type = frame.pop();
+                frame.pushType(type);
             }
+            case ATHROW -> {
+                ClassType type = frame.pop();
+                if(type == null) {
+                    frame.push(Types.type(NullPointerException.class));
+                } else {
+                    frame.push(type);
+                }
+            }
+            case ACONST_NULL -> frame.pushNull();
         }
     }
 
     @Override
     public void execute(ConstantInstruction<?> instruction) {
         Constant constant = instruction.constant();
-        if(constant instanceof OfInt) {
+        if (constant instanceof OfInt) {
             frame.push(Types.INT);
-        } else if(constant instanceof OfLong) {
+        } else if (constant instanceof OfLong) {
             frame.push(Types.LONG);
-        } else if(constant instanceof OfFloat) {
+            frame.push(Types.VOID); // top
+        } else if (constant instanceof OfFloat) {
             frame.push(Types.FLOAT);
-        } else if(constant instanceof OfDouble) {
+        } else if (constant instanceof OfDouble) {
             frame.push(Types.DOUBLE);
-        } else if(constant instanceof OfString) {
+            frame.push(Types.VOID); // top
+        } else if (constant instanceof OfString) {
             frame.push(Types.type(String.class));
-        } else if(constant instanceof OfMethodHandle mh) {
+        } else if (constant instanceof OfMethodHandle mh) {
             frame.push(Types.methodType(mh.value().type().descriptor()).returnType());
-        } else if(constant instanceof OfDynamic dyn) {
+        } else if (constant instanceof OfDynamic dyn) {
             frame.push(dyn.value().type());
-        } else if(constant instanceof OfType tp) {
+        } else if (constant instanceof OfType tp) {
             frame.push((ClassType) tp.value());
         }
     }
@@ -117,16 +130,26 @@ public class BlwAnalysisEngine implements ExecutionEngine, JavaOpcodes {
     @Override
     public void execute(VarInstruction instruction) {
         switch (instruction.opcode()) {
-            case ILOAD, LLOAD, FLOAD, DLOAD, ALOAD -> frame.push(frame.local(instruction.variableIndex()));
-            case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> frame.local(instruction.variableIndex(), frame.pop());
+            case ILOAD, LLOAD, FLOAD, DLOAD, ALOAD -> {
+                frame.push(frame.local(instruction.variableIndex()));
+                if (instruction.opcode() == LLOAD || instruction.opcode() == DLOAD)
+                    frame.push(Types.VOID);
+            }
+            case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> {
+                if (instruction.opcode() == LSTORE || instruction.opcode() == DSTORE)
+                    frame.pop();
+                frame.local(instruction.variableIndex(), frame.pop());
+            }
         }
     }
 
     @Override
-    public void execute(LookupSwitchInstruction instruction) {}
+    public void execute(LookupSwitchInstruction instruction) {
+    }
 
     @Override
-    public void execute(TableSwitchInstruction instruction) {}
+    public void execute(TableSwitchInstruction instruction) {
+    }
 
     @Override
     public void execute(InstanceofInstruction instruction) {
@@ -148,41 +171,56 @@ public class BlwAnalysisEngine implements ExecutionEngine, JavaOpcodes {
     @Override
     public void execute(MethodInstruction instruction) {
         List<ClassType> types = instruction.type().parameterTypes();
-        frame.pop(types.size() + (instruction.opcode() == INVOKESTATIC ? 0 : 1));
-        frame.push(instruction.type().returnType());
+        int size = types.size();
+        if (instruction.opcode() != INVOKESTATIC) {
+            frame.pop();
+        }
+        for (int i = 0; i < size; i++) {
+            frame.pop(types.get(i));
+        }
+        if (instruction.type().returnType() != Types.VOID)
+            frame.pushType(instruction.type().returnType());
     }
 
     @Override
     public void execute(FieldInstruction instruction) {
-        if(instruction.opcode() != GETSTATIC)
+        if (instruction.opcode() != GETSTATIC)
             frame.pop();
 
-        frame.push(instruction.type());
+        frame.pushType(instruction.type());
     }
 
     @Override
     public void execute(InvokeDynamicInstruction instruction) {
         frame.pop();
-        frame.push((ClassType) instruction.type());
+        frame.pushType((ClassType) instruction.type());
     }
 
     @Override
-    public void execute(ImmediateJumpInstruction instruction) {}
+    public void execute(ImmediateJumpInstruction instruction) {
+    }
 
     @Override
-    public void execute(ConditionalJumpInstruction instruction) {}
+    public void execute(ConditionalJumpInstruction instruction) {
+        switch (instruction.opcode()) {
+            case IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE, IFNULL, IFNONNULL -> frame.pop();
+            case IF_ICMPEQ, IF_ICMPNE, IF_ICMPLT, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE, IF_ACMPEQ, IF_ACMPNE -> frame.pop(2);
+        }
+    }
 
     @Override
-    public void execute(VariableIncrementInstruction instruction) {}
+    public void execute(VariableIncrementInstruction instruction) {
+    }
 
     @Override
     public void execute(PrimitiveConversionInstruction instruction) {
         frame.pop();
-        frame.push(instruction.to());
+        frame.pushType(instruction.to());
     }
 
     @Override
-    public void execute(Instruction instruction) {}
+    public void execute(Instruction instruction) {
+    }
 
     public ClassType local(int index) {
         return frame.local(index);

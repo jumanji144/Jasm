@@ -54,8 +54,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
     @Override
     public ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
         int accessFlags = modifiers.modifiers().stream()
-                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.FIELD))
-                .reduce(0, (a, b) -> a | b);
+                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.FIELD)).reduce(0, (a, b) -> a | b);
         return new BlwFieldVisitor(
                 builder.field(accessFlags, name.literal(), new TypeReader(descriptor.literal()).requireClassType())
         );
@@ -64,10 +63,11 @@ public class BlwClassVisitor implements ASTClassVisitor {
     @Override
     public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
         int accessFlags = modifiers.modifiers().stream()
-                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD))
-                .reduce(0, (a, b) -> a | b);
+                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD)).reduce(0, (a, b) -> a | b);
         MethodType type = Types.methodType(descriptor.literal());
-        return new BlwMethodVisitor(builder.type, type, (accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
+        return new BlwMethodVisitor(
+                options.inheritanceChecker(), builder.type, type,
+                (accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
                 builder.method(accessFlags, name.literal(), type)
         );
     }

@@ -42,7 +42,10 @@ public class BlwReplaceFieldBuilder extends BlwReplaceMemberBuilder implements B
 
     @Override
     public final Field build() {
-        return new GenericField(accessFlags, name, signature, visibleRuntimeAnnotations(), invisibleRuntimeAnnotation(), type, defaultValue);
+        return new GenericField(
+                accessFlags, name, signature, visibleRuntimeAnnotations(), invisibleRuntimeAnnotation(), type,
+                defaultValue
+        );
     }
 
     public static final class Root extends BlwReplaceFieldBuilder implements FieldBuilder.Root {
@@ -93,7 +96,8 @@ public class BlwReplaceFieldBuilder extends BlwReplaceMemberBuilder implements B
         }
     }
 
-    public static final class Nested<U extends Builder> extends BlwReplaceFieldBuilder implements FieldBuilder.Nested<U> {
+    public static final class Nested<U extends Builder> extends BlwReplaceFieldBuilder
+            implements FieldBuilder.Nested<U> {
         private final U upstream;
 
         public Nested(int accessFlags, String name, ClassType type, U upstream) {
@@ -122,7 +126,8 @@ public class BlwReplaceFieldBuilder extends BlwReplaceMemberBuilder implements B
         }
 
         @Override
-        public @Nullable AnnotationBuilder.Nested<FieldBuilder.Nested<U>> invisibleRuntimeAnnotation(InstanceType type) {
+        public @Nullable AnnotationBuilder.Nested<FieldBuilder.Nested<U>> invisibleRuntimeAnnotation(
+                InstanceType type) {
             //noinspection unchecked
             return (AnnotationBuilder.Nested<FieldBuilder.Nested<U>>) super.invisibleRuntimeAnnotation(type);
         }

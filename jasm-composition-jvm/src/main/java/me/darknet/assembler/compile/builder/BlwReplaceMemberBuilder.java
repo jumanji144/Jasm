@@ -42,7 +42,7 @@ public abstract class BlwReplaceMemberBuilder implements MemberBuilder {
     }
 
     public @Nullable AnnotationBuilder.Nested<? extends MemberBuilder> visibleRuntimeAnnotation(InstanceType type,
-                                                                                                int index) {
+            int index) {
         var builder = new GenericAnnotationBuilder.Nested<>(type, (Builder) this);
         visibleRuntimeAnnotations.put(type.descriptor() + index, builder);
         //noinspection unchecked
@@ -50,19 +50,20 @@ public abstract class BlwReplaceMemberBuilder implements MemberBuilder {
     }
 
     public @Nullable AnnotationBuilder.Nested<? extends MemberBuilder> invisibleRuntimeAnnotation(InstanceType type,
-                                                                                                  int index) {
+            int index) {
         var builder = new GenericAnnotationBuilder.Nested<>(type, (Builder) this);
         invisibleRuntimeAnnotations.put(type.descriptor() + index, builder);
         //noinspection unchecked
         return (AnnotationBuilder.Nested) builder;
     }
 
-
     protected final List<Annotation> visibleRuntimeAnnotations() {
-        return visibleRuntimeAnnotations.values().stream().map(builder -> ((BuilderShadow<Annotation>) builder).build()).toList();
+        return visibleRuntimeAnnotations.values().stream().map(builder -> ((BuilderShadow<Annotation>) builder).build())
+                .toList();
     }
 
     protected final List<Annotation> invisibleRuntimeAnnotation() {
-        return invisibleRuntimeAnnotations.values().stream().map(builder -> ((BuilderShadow<Annotation>) builder).build()).toList();
+        return invisibleRuntimeAnnotations.values().stream()
+                .map(builder -> ((BuilderShadow<Annotation>) builder).build()).toList();
     }
 }

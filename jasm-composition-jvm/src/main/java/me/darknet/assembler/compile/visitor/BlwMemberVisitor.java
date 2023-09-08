@@ -27,5 +27,6 @@ public class BlwMemberVisitor implements ASTDeclarationVisitor {
     }
 
     @Override
-    public void visitEnd() {}
+    public void visitEnd() {
+    }
 }

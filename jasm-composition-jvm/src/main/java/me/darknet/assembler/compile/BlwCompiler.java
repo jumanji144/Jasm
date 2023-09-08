@@ -26,7 +26,7 @@ public class BlwCompiler implements Compiler {
     );
 
     private void applyOverlay(ErrorCollector collector, ClassBuilder builder, byte[] overlay) {
-        if(overlay != null) {
+        if (overlay != null) {
             try {
                 library.read(new ByteArrayInputStream(overlay), builder);
             } catch (IOException e) {
@@ -52,7 +52,7 @@ public class BlwCompiler implements Compiler {
         builder.version(blwOptions.version);
 
         applyOverlay(collector, builder, blwOptions.overlay);
-        if(collector.hasErr()) {
+        if (collector.hasErr()) {
             return new Result<>(null, collector.getErrors());
         }
 

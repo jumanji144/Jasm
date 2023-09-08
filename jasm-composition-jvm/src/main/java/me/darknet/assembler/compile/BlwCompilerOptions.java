@@ -2,6 +2,7 @@ package me.darknet.assembler.compile;
 
 import dev.xdark.blw.version.JavaVersion;
 import me.darknet.assembler.compiler.CompilerOptions;
+import me.darknet.assembler.compiler.InheritanceChecker;
 import org.objectweb.asm.ClassWriter;
 
 public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
@@ -10,6 +11,7 @@ public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
     JavaVersion version;
     byte[] overlay;
     String annotationPath;
+    InheritanceChecker inheritanceChecker;
 
     public BlwCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
@@ -64,5 +66,16 @@ public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
     @Override
     public byte[] overlay() {
         return this.overlay;
+    }
+
+    @Override
+    public InheritanceChecker inheritanceChecker() {
+        return this.inheritanceChecker;
+    }
+
+    @Override
+    public BlwCompilerOptions inheritanceChecker(InheritanceChecker checker) {
+        this.inheritanceChecker = checker;
+        return this;
     }
 }

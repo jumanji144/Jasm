@@ -40,8 +40,7 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, BlwCompilerOptions 
     @Override
     public ASTClassVisitor visitClass(Modifiers modifiers, ASTIdentifier name) {
         int accessFlags = modifiers.modifiers().stream()
-                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.CLASS))
-                .reduce(0, (a, b) -> a | b);
+                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.CLASS)).reduce(0, (a, b) -> a | b);
         builder.accessFlags(accessFlags);
         builder.type(Types.instanceTypeFromInternalName(name.literal()));
         return new BlwClassVisitor(options, builder);
@@ -50,8 +49,7 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, BlwCompilerOptions 
     @Override
     public ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
         int accessFlags = modifiers.modifiers().stream()
-                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.FIELD))
-                .reduce(0, (a, b) -> a | b);
+                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.FIELD)).reduce(0, (a, b) -> a | b);
         return new BlwFieldVisitor(
                 builder.field(accessFlags, name.literal(), new TypeReader(descriptor.literal()).requireClassType())
         );
@@ -60,12 +58,12 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, BlwCompilerOptions 
     @Override
     public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
         int accessFlags = modifiers.modifiers().stream()
-                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD))
-                .reduce(0, (a, b) -> a | b);
+                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD)).reduce(0, (a, b) -> a | b);
         MethodType type = Types.methodType(descriptor.literal());
-        return new BlwMethodVisitor(Types.instanceType(Object.class), type,
+        return new BlwMethodVisitor(
+                options.inheritanceChecker(), Types.instanceType(Object.class), type,
                 (accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
-            builder.method(accessFlags, name.literal(), type)
+                builder.method(accessFlags, name.literal(), type)
         );
     }
 }

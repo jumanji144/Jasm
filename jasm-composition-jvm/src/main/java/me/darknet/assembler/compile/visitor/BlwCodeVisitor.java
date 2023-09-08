@@ -1,5 +1,6 @@
 package me.darknet.assembler.compile.visitor;
 
+import dev.xdark.blw.code.Code;
 import dev.xdark.blw.code.Instruction;
 import dev.xdark.blw.code.JavaOpcodes;
 import dev.xdark.blw.code.Label;
@@ -15,12 +16,13 @@ import dev.xdark.blw.constant.OfLong;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
+import me.darknet.assembler.compile.analysis.AnalysisSimulation;
 import me.darknet.assembler.compile.analysis.BlwAnalysisEngine;
-import me.darknet.assembler.compile.analysis.BlwCodeListSimulation;
 import me.darknet.assembler.compile.analysis.Frame;
+import me.darknet.assembler.compile.analysis.LocalInfo;
+import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.ConstantMapper;
-import me.darknet.assembler.util.TypedVariable;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 
 import java.util.*;
@@ -31,33 +33,61 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final Label end;
     private final GenericCodeBuilder.Nested<?> meta;
     private final GenericCodeListBuilder.Nested<?> list;
+    private final InheritanceChecker checker;
     private final Map<String, GenericLabel> labels = new HashMap<>();
-    private final List<TypedVariable> parameters;
+    private final List<LocalInfo> parameters;
     private final List<String> locals = new ArrayList<>();
     private ASTInstruction last;
     private int opcode = 0;
 
-    public BlwCodeVisitor(GenericCodeBuilder.Nested<?> builder,
-                          List<TypedVariable> parameters) {
+    public BlwCodeVisitor(InheritanceChecker checker, GenericCodeBuilder.Nested<?> builder,
+            List<LocalInfo> parameters) {
         this.meta = builder;
         this.list = (GenericCodeListBuilder.Nested<?>) builder.codeList();
+        this.checker = checker;
         this.parameters = parameters;
         this.begin = new GenericLabel();
         this.end = new GenericLabel();
         list.element(begin);
     }
 
+    public int getParameterIndex(String name) {
+        for (LocalInfo parameter : parameters) {
+            if (parameter.name().equals(name)) {
+                return parameter.index();
+            }
+        }
+        return -1;
+    }
+
     public int getOrCreateLocal(String name) {
-        int index = parameters.indexOf(name);
-        if(index > -1) return index;
+        int index = getParameterIndex(name);
+        if (index > -1)
+            return index;
         index = locals.indexOf(name);
-        if(index > -1) return index + parameters.size();
+        if (index > -1)
+            return index + parameters.size();
         locals.add(name);
         return locals.size() + parameters.size() - 1;
     }
 
+    public int getOrCreateLocalVar(String name, int opcode) {
+        int index = getParameterIndex(name);
+        if (index > -1)
+            return index;
+        index = locals.indexOf(name);
+        if (index > -1)
+            return index + parameters.size();
+        locals.add(name);
+        index = locals.size() + parameters.size() - 1;
+        if (opcode == LSTORE || opcode == DSTORE || opcode == LLOAD || opcode == DLOAD) {
+            locals.add(null);
+        }
+        return index;
+    }
+
     public Label getOrCreateLabel(String name) {
-        if(labels.containsKey(name)) {
+        if (labels.containsKey(name)) {
             return labels.get(name);
         } else {
             GenericLabel label = new GenericLabel();
@@ -69,7 +99,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitInstruction(ASTInstruction instruction) {
         last = instruction;
-        if(instruction instanceof ASTLabel) return;
+        if (instruction instanceof ASTLabel)
+            return;
         opcode = BlwOpcodes.opcode(instruction.identifier().content());
     }
 
@@ -78,8 +109,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         String content = last.identifier().content();
         add(switch (content) {
             case "iconst_m1" -> new ConstantInstruction.Int(new OfInt(-1));
-            case "iconst_0", "iconst_1", "iconst_2", "iconst_3", "iconst_4", "iconst_5",
-                    "lconst_0", "lconst_1", "fconst_0", "fconst_1", "fconst_2", "dconst_0", "dconst_1" -> {
+            case "iconst_0", "iconst_1", "iconst_2", "iconst_3", "iconst_4", "iconst_5", "lconst_0", "lconst_1", "fconst_0", "fconst_1", "fconst_2", "dconst_0", "dconst_1" -> {
                 int value = content.charAt(content.length() - 1) - '0';
                 yield switch (content.charAt(0)) {
                     case 'i' -> new ConstantInstruction.Int(new OfInt(value));
@@ -89,8 +119,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
                     default -> throw new IllegalStateException("Unexpected value: " + content.charAt(0));
                 };
             }
-            case "i2l", "i2f", "i2d", "l2i", "l2f", "l2d", "f2i", "f2l", "f2d", "d2i", "d2l", "d2f",
-                    "i2b", "i2c", "i2s" -> {
+            case "i2l", "i2f", "i2d", "l2i", "l2f", "l2d", "f2i", "f2l", "f2d", "d2i", "d2l", "d2f", "i2b", "i2c", "i2s" -> {
                 PrimitiveType from = switch (content.charAt(0)) {
                     case 'i' -> Types.INT;
                     case 'l' -> Types.LONG;
@@ -138,8 +167,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitVarInsn(ASTIdentifier var) {
-        add(new VarInstruction(opcode, getOrCreateLocal(var.literal())));
-
+        add(new VarInstruction(opcode, getOrCreateLocalVar(var.literal(), opcode)));
     }
 
     @Override
@@ -176,14 +204,17 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         List<Integer> keys = new ArrayList<>();
         List<Label> labels = new ArrayList<>();
         for (var pair : lookupSwitchObject.values().pairs()) {
-            if(pair.first().content().equals("default")) continue;
+            if (pair.first().content().equals("default"))
+                continue;
             keys.add(Integer.parseInt(pair.first().content()));
             labels.add(getOrCreateLabel(pair.second().content()));
         }
-        add(new LookupSwitchInstruction(
-                keys.stream().mapToInt(Integer::intValue).toArray(),
-                getOrCreateLabel(defaultLabel.content()),
-                labels));
+        add(
+                new LookupSwitchInstruction(
+                        keys.stream().mapToInt(Integer::intValue).toArray(), getOrCreateLabel(defaultLabel.content()),
+                        labels
+                )
+        );
     }
 
     @Override
@@ -200,10 +231,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             assert value instanceof ASTIdentifier;
             labels.add(getOrCreateLabel(value.content()));
         }
-        add(new TableSwitchInstruction(
-                min.asInt(),
-                getOrCreateLabel(defaultLabel.content()),
-                labels));
+        add(new TableSwitchInstruction(min.asInt(), getOrCreateLabel(defaultLabel.content()), labels));
     }
 
     @Override
@@ -231,12 +259,12 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTArray bsm, ASTArray bsmArgs) {
-        add(new InvokeDynamicInstruction(
-                name.literal(),
-                new TypeReader(descriptor.literal()).read(),
-                ConstantMapper.fromArray(bsm),
-                bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
-        ));
+        add(
+                new InvokeDynamicInstruction(
+                        name.literal(), new TypeReader(descriptor.literal()).read(), ConstantMapper.fromArray(bsm),
+                        bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
+                )
+        );
     }
 
     @Override
@@ -257,26 +285,34 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitEnd() {
         list.element(end);
-        List<ClassType> paramTypes = parameters.stream().map(TypedVariable::type).toList();
+        List<ClassType> paramTypes = new ArrayList<>();
+        for (LocalInfo parameter : parameters) {
+            paramTypes.add(parameter.type());
+        }
 
         // analyze stack
-        BlwAnalysisEngine engine = new BlwAnalysisEngine(paramTypes, parameters.size() + locals.size());
+        BlwAnalysisEngine engine = new BlwAnalysisEngine(paramTypes);
 
-        BlwCodeListSimulation simulation = new BlwCodeListSimulation();
-        simulation.execute(engine, list.build());
+        AnalysisSimulation simulation = new AnalysisSimulation(checker);
+        Code code = meta.build();
+        simulation.execute(engine, new AnalysisSimulation.Info(code.elements(), code.tryCatchBlocks()));
 
         Frame frame = engine.frame();
 
-        for (int i = 0; i < parameters.size(); i++) {
-            TypedVariable parameter = parameters.get(i);
-            meta.localVariable(new GenericLocal(begin, end, i, parameter.name(), parameter.type(), null));
+        for (LocalInfo parameter : parameters) {
+            meta.localVariable(
+                    new GenericLocal(begin, end, parameter.index(), parameter.name(), parameter.type(), null)
+            );
         }
 
-        int paramCount = paramTypes.size();
-        for (int i = 0; i < locals.size(); i++) {
-            int index = i + paramCount;
-            String name = locals.get(i);
-            meta.localVariable(new GenericLocal(begin, end, index, name, frame.local(index), null));
+        int paramOffset = parameters.size();
+        for (var entry : frame.locals().entrySet()) {
+            int index = entry.getKey();
+            if (index < paramOffset)
+                continue;
+            ClassType type = entry.getValue();
+            String name = this.locals.get(index - paramOffset);
+            meta.localVariable(new GenericLocal(begin, end, index, name, type, null));
         }
     }
 

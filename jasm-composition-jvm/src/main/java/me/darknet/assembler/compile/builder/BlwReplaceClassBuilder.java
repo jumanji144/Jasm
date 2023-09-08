@@ -135,7 +135,6 @@ public class BlwReplaceClassBuilder implements ClassBuilder {
         throw new UnsupportedOperationException();
     }
 
-
     @Override
     public ClassBuilder innerClasses(List<InnerClass> innerClasses) {
         this.innerClasses = innerClasses;
@@ -174,21 +173,9 @@ public class BlwReplaceClassBuilder implements ClassBuilder {
     @Override
     public ClassFileView build() {
         return new GenericClassFileView(
-                version,
-                pool,
-                accessFlags,
-                type,
-                superClass,
-                signature,
-                interfaces,
-                buildList(methods.values()),
-                buildList(fields.values()),
-                innerClasses,
-                nestHost,
-                sourceFile,
-                sourceDebug,
-                buildList(visibleRuntimeAnnotations.values()),
-                buildList(invisibleRuntimeAnnotations.values())
+                version, pool, accessFlags, type, superClass, signature, interfaces, buildList(methods.values()),
+                buildList(fields.values()), innerClasses, nestHost, sourceFile, sourceDebug,
+                buildList(visibleRuntimeAnnotations.values()), buildList(invisibleRuntimeAnnotations.values())
         );
     }
 

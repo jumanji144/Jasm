@@ -96,15 +96,8 @@ public class BlwReplaceMethodBuilder extends BlwReplaceMemberBuilder implements 
         Reflectable<Code> code;
         Reflectable<? extends Element> annotationDefault;
         return new GenericMethod(
-                accessFlags,
-                name,
-                signature,
-                visibleRuntimeAnnotations(),
-                invisibleRuntimeAnnotation(),
-                type,
-                (code = this.code) == null ? null : code.reflectAs(),
-                exceptionTypes,
-                parameters,
+                accessFlags, name, signature, visibleRuntimeAnnotations(), invisibleRuntimeAnnotation(), type,
+                (code = this.code) == null ? null : code.reflectAs(), exceptionTypes, parameters,
                 (annotationDefault = this.annotationDefault) == null ? null : annotationDefault.reflectAs()
         );
     }
@@ -180,7 +173,8 @@ public class BlwReplaceMethodBuilder extends BlwReplaceMemberBuilder implements 
         }
     }
 
-    public static final class Nested<U extends Builder> extends BlwReplaceMethodBuilder implements MethodBuilder.Nested<U> {
+    public static final class Nested<U extends Builder> extends BlwReplaceMethodBuilder
+            implements MethodBuilder.Nested<U> {
         private final U upstream;
 
         public Nested(int accessFlags, String name, MethodType type, U upstream) {
@@ -221,7 +215,8 @@ public class BlwReplaceMethodBuilder extends BlwReplaceMemberBuilder implements 
         }
 
         @Override
-        public @Nullable AnnotationBuilder.Nested<MethodBuilder.Nested<U>> invisibleRuntimeAnnotation(InstanceType type) {
+        public @Nullable AnnotationBuilder.Nested<MethodBuilder.Nested<U>> invisibleRuntimeAnnotation(
+                InstanceType type) {
             //noinspection unchecked
             return (AnnotationBuilder.Nested<MethodBuilder.Nested<U>>) super.invisibleRuntimeAnnotation(type);
         }
