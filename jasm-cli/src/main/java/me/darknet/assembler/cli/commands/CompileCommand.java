@@ -3,6 +3,7 @@ package me.darknet.assembler.cli.commands;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.compile.BlwCompiler;
 import me.darknet.assembler.compile.BlwCompilerOptions;
+import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compiler.Compiler;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.helper.Processor;
@@ -54,7 +55,7 @@ public class CompileCommand implements Runnable {
         }
 
         options.version(bytecodeVersion)
-                .overlay(overlay.map(file -> {
+                .overlay(new JavaClassRepresentation(overlay.map(file -> {
                     try {
                         return Files.readAllBytes(file.toPath());
                     } catch (IOException e) {
@@ -62,7 +63,7 @@ public class CompileCommand implements Runnable {
                         System.exit(1);
                         return null;
                     }
-                }).orElse(null))
+                }).orElse(null)))
                 .annotationPath(annotationTarget.orElse(null));
     }
 
@@ -117,12 +118,18 @@ public class CompileCommand implements Runnable {
                 System.err.println("Failed to compile source file:");
                 errors.forEach(System.err::println);
                 System.exit(1);
-            }).ifOk((bytes) -> {
-                try {
-                    Files.write(output.toPath(), bytes);
-                } catch (IOException e) {
-                    System.err.println("Failed to write output file: " + e.getMessage());
-                    System.exit(1);
+            }).ifOk((representation) -> {
+                switch (MainCommand.target) {
+                    case JVM -> {
+                        try {
+                            Files.write(output.toPath(), ((JavaClassRepresentation) representation).data());
+                        } catch (IOException e) {
+                            System.err.println("Failed to write output file: " + e.getMessage());
+                            System.exit(1);
+                        }
+                    }
+                    case DALVIK -> throw new UnsupportedOperationException("Dalvik target is not supported yet");
+                    default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
                 }
             });
         }, errors -> {

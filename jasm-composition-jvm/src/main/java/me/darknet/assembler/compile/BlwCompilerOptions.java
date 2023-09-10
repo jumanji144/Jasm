@@ -1,6 +1,7 @@
 package me.darknet.assembler.compile;
 
 import dev.xdark.blw.version.JavaVersion;
+import me.darknet.assembler.compiler.ClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.objectweb.asm.ClassWriter;
@@ -9,7 +10,7 @@ public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
 
     int asmArgs = 0;
     JavaVersion version;
-    byte[] overlay;
+    JavaClassRepresentation overlay;
     String annotationPath;
     InheritanceChecker inheritanceChecker;
 
@@ -58,13 +59,15 @@ public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
     }
 
     @Override
-    public BlwCompilerOptions overlay(byte[] bytes) {
-        this.overlay = bytes;
+    public BlwCompilerOptions overlay(ClassRepresentation representation) {
+        if(!(representation instanceof JavaClassRepresentation))
+            throw new IllegalArgumentException("ClassRepresentation must be a JavaClassRepresentation");
+        this.overlay = (JavaClassRepresentation) representation;
         return this;
     }
 
     @Override
-    public byte[] overlay() {
+    public ClassRepresentation overlay() {
         return this.overlay;
     }
 

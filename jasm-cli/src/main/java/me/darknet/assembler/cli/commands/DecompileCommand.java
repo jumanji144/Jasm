@@ -2,6 +2,7 @@ package me.darknet.assembler.cli.commands;
 
 import me.darknet.assembler.printer.BlwClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
+import me.darknet.assembler.printer.Printer;
 import picocli.CommandLine;
 
 import java.io.File;
@@ -39,7 +40,14 @@ public class DecompileCommand implements Runnable {
         try {
             PrintContext<?> ctx = new PrintContext<>(indent);
 
-            BlwClassPrinter printer = new BlwClassPrinter(Files.newInputStream(source.toPath()));
+            Printer printer;
+
+            switch (MainCommand.target) {
+                case JVM -> printer = new BlwClassPrinter(Files.newInputStream(source.toPath()));
+                case DALVIK -> throw new UnsupportedOperationException("Dalvik target is not supported yet");
+                default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
+            }
+
             printer.print(ctx);
 
             out.write(ctx.toString().getBytes());

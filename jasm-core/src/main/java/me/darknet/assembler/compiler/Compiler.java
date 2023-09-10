@@ -15,6 +15,6 @@ public interface Compiler {
      *
      * @return The result of the compilation process
      */
-    Result<byte[]> compile(List<ASTElement> ast, CompilerOptions<?> options);
+    Result<? extends ClassRepresentation> compile(List<ASTElement> ast, CompilerOptions<?> options);
 
 }

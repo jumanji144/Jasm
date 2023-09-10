@@ -36,7 +36,7 @@ public class BlwCompiler implements Compiler {
     }
 
     @Override
-    public Result<byte[]> compile(List<ASTElement> ast, CompilerOptions<?> options) {
+    public Result<JavaClassRepresentation> compile(List<ASTElement> ast, CompilerOptions<?> options) {
 
         BlwCompilerOptions blwOptions = (BlwCompilerOptions) options;
         BlwReplaceClassBuilder builder = new BlwReplaceClassBuilder();
@@ -51,7 +51,7 @@ public class BlwCompiler implements Compiler {
 
         builder.version(blwOptions.version);
 
-        applyOverlay(collector, builder, blwOptions.overlay);
+        applyOverlay(collector, builder, blwOptions.overlay.data());
         if (collector.hasErr()) {
             return new Result<>(null, collector.getErrors());
         }
@@ -68,7 +68,7 @@ public class BlwCompiler implements Compiler {
                 // we cannot continue, the result might be very corrupted
                 return new Result<>(null, collector.getErrors());
             }
-            return new Result<>(out.toByteArray(), collector.getErrors());
+            return new Result<>(new JavaClassRepresentation(out.toByteArray()), collector.getErrors());
         }
 
         return new Result<>(null, collector.getErrors());

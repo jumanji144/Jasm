@@ -81,11 +81,56 @@ public class DeclarationParser {
         return new Pair<>(comments, filtered);
     }
 
+    private @Nullable ASTElement parseOperator(Token token) {
+        char operator = token.content().charAt(0);
+        if (operator != '{') {
+            ctx.takeAny();
+            ctx.throwExpectedError("{", token.content());
+            return null;
+        }
+        if (ctx.isCurrentState(State.IN_OBJECT)) {
+            Token objectKey = ctx.peek(-2);
+            if (objectKey != null && objectKey.content().equals("code")) {
+                // this is the only way I could easily sneak in the code format into the parser
+                return parseCode();
+            }
+        }
+        Token next = ctx.peek(1);
+        if (next == null) {
+            ctx.take("{");
+            ctx.throwEofError("identifier");
+            return null;
+        }
+        if (next.type().equals(TokenType.OPERATOR)) {
+            if (next.content().equals("}")) { // empty object
+                return parseEmpty();
+            }
+        }
+        if (next.content().startsWith(".")) {
+            return parseArrayOrNestedDeclaration();
+        }
+        // now we need to determine if it's an array or an object
+        // it is an object if they there will be a : after the identifier
+        Token peek = ctx.peek(2);
+        if (peek == null) {
+            ctx.throwEofError(":, } or ,");
+            return null;
+        }
+        if (peek.type().equals(TokenType.OPERATOR)) {
+            if (peek.content().equals(":")) {
+                return parseObject();
+            }
+        }
+
+        // can't determine that it's an object, must be array
+        return parseArray();
+    }
+
     private @Nullable ASTElement parse() {
         Token token = ctx.peek();
 
         switch (token.type()) {
-            case IDENTIFIER: {
+            case IDENTIFIER -> {
                 String content = token.content();
                 if (content.charAt(0) == '.') {
                     // begin of declaration
@@ -93,57 +138,18 @@ public class DeclarationParser {
                 } else
                     return new ASTIdentifier(ctx.takeAny());
             }
-            case NUMBER: {
+            case NUMBER -> {
                 return new ASTNumber(ctx.takeAny());
             }
-            case STRING: {
+            case STRING -> {
                 return new ASTString(ctx.takeAny());
             }
-            case OPERATOR: {
-                char operator = token.content().charAt(0);
-                if (operator == '{') {
-                    if (ctx.isCurrentState(State.IN_OBJECT)) {
-                        Token objectKey = ctx.peek(-2);
-                        if (objectKey != null && objectKey.content().equals("code")) {
-                            // this is the only way I could easily sneak in the code format into the parser
-                            return parseCode();
-                        }
-                    }
-                    Token next = ctx.peek(1);
-                    if (next == null) {
-                        ctx.take("{");
-                        ctx.throwEofError("identifier");
-                        return null;
-                    }
-                    if (next.type().equals(TokenType.OPERATOR)) {
-                        if (next.content().equals("}")) { // empty object
-                            return parseEmpty();
-                        }
-                    }
-                    if (next.content().startsWith(".")) {
-                        return parseArrayOrNestedDeclaration();
-                    }
-                    // now we need to determine if it's an array or an object
-                    // it is an object if they there will be a : after the identifier
-                    Token peek = ctx.peek(2);
-                    if (peek == null) {
-                        ctx.throwEofError(":, } or ,");
-                        return null;
-                    }
-                    if (peek.type().equals(TokenType.OPERATOR)) {
-                        if (peek.content().equals(":")) {
-                            return parseObject();
-                        }
-                    }
-                    return parseArray();
-                } else {
-                    ctx.takeAny();
-                    ctx.throwExpectedError("{", token.content());
-                }
+            case OPERATOR -> {
+                return parseOperator(token);
             }
-            default: {
-                ctx.errorCollector.addError(new Error("Unexpected token " + token.content(), token.location()));
-            }
+            default -> ctx.errorCollector.addError(
+                    new Error("Unexpected token " + token.content(), token.location())
+            );
         }
         return null;
     }
