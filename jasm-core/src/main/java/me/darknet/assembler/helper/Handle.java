@@ -16,7 +16,7 @@ public record Handle(Kind kind, String name, String descriptor) {
     @Contract(pure = true)
     public static Handle from(ASTArray array) {
         // assert that the array has 3 elements
-        Handle.Kind kind = Handle.Kind.valueOf(array.values().get(0).content());
+        Handle.Kind kind = KINDS.get(array.values().get(0).content());
         String name = array.values().get(1).content();
         String descriptor = array.values().get(2).content();
 
@@ -32,7 +32,11 @@ public record Handle(Kind kind, String name, String descriptor) {
         INVOKE_STATIC,
         INVOKE_SPECIAL,
         NEW_INVOKE_SPECIAL,
-        INVOKE_INTERFACE
+        INVOKE_INTERFACE;
+
+        public static Kind from(String name) {
+            return KINDS.get(name);
+        }
     }
 
 }

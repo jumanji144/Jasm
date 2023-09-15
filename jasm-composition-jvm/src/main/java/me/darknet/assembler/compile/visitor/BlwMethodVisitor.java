@@ -58,7 +58,7 @@ public class BlwMethodVisitor extends BlwMemberVisitor implements ASTMethodVisit
         for (int i = 0; i < type.parameterTypes().size(); i++) {
             String name;
             if (i < parameterNames.size()) {
-                name = parameterNames.get(i);
+                name = parameterNames.get(i + (isStatic ? 0 : 1));
             } else {
                 name = "p" + i;
             }

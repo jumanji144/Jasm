@@ -49,7 +49,7 @@ public class ASTProcessor {
             ctx.result.setSuperName(superName);
             return superName;
         });
-        ParserRegistry.register("interface", (ctx, decl) -> {
+        ParserRegistry.register("implements", (ctx, decl) -> {
             ASTIdentifier interfaceName = ctx
                     .validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "interface name", decl);
             ctx.result.addInterface(interfaceName);

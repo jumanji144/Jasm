@@ -21,7 +21,7 @@ import java.util.List;
 
 public class BlwCompiler implements Compiler {
 
-    private static final BytecodeLibrary library = new AsmBytecodeLibrary(
+    public static final BytecodeLibrary library = new AsmBytecodeLibrary(
             ClassWriterProvider.flags(ClassWriter.COMPUTE_FRAMES)
     );
 
@@ -51,7 +51,8 @@ public class BlwCompiler implements Compiler {
 
         builder.version(blwOptions.version);
 
-        applyOverlay(collector, builder, blwOptions.overlay.data());
+        if(blwOptions.overlay != null)
+            applyOverlay(collector, builder, blwOptions.overlay.data());
         if (collector.hasErr()) {
             return new Result<>(null, collector.getErrors());
         }

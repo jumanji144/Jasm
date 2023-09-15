@@ -20,6 +20,10 @@ public class PrintContext<T extends PrintContext<?>> {
         this.sb = new StringBuilder();
     }
 
+    public void clear() {
+        this.sb = new StringBuilder();
+    }
+
     public PrintContext(PrintContext<?> ctx) {
         this.indentStep = ctx.indentStep;
         this.sb = ctx.sb;

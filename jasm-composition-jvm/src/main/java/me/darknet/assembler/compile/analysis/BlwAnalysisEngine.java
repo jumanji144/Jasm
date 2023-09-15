@@ -6,6 +6,7 @@ import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.constant.*;
 import dev.xdark.blw.type.ClassType;
+import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.Types;
 
 import java.util.List;
@@ -93,7 +94,7 @@ public class BlwAnalysisEngine implements AnalysisEngine, JavaOpcodes {
             }
             case ATHROW -> {
                 ClassType type = frame.pop();
-                if(type == null) {
+                if(type == Frame.NULL) {
                     frame.push(Types.type(NullPointerException.class));
                 } else {
                     frame.push(type);
@@ -192,8 +193,15 @@ public class BlwAnalysisEngine implements AnalysisEngine, JavaOpcodes {
 
     @Override
     public void execute(InvokeDynamicInstruction instruction) {
-        frame.pop();
-        frame.pushType((ClassType) instruction.type());
+        switch (instruction.bootstrapHandle().kind()) {
+            case 0, 2, 4, 6, 7, 8, 9 -> frame.pop(); // pop `this`
+        }
+        if(instruction.type() instanceof MethodType mt) {
+            frame.pop(mt.parameterTypes().size());
+            frame.pushType(mt.returnType());
+        } else {
+            frame.pushType((ClassType) instruction.type());
+        }
     }
 
     @Override

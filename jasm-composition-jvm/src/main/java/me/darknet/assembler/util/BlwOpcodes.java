@@ -11,6 +11,11 @@ public class BlwOpcodes {
     private static final Map<String, Integer> opcodes = new HashMap<>();
 
     public static int opcode(String name) {
+        if(name.endsWith("interface")) {
+            String prefix = name.substring(0, name.length() - 9);
+            if(prefix.length() == 6) return JavaOpcodes.INVOKEINTERFACE;
+            else return opcodes.get(prefix);
+        }
         return opcodes.get(name);
     }
 
