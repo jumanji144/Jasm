@@ -1,12 +1,12 @@
 package me.darknet.assembler;
 
 import dev.xdark.blw.classfile.ClassBuilder;
-import me.darknet.assembler.compile.BlwCompiler;
-import me.darknet.assembler.compile.BlwCompilerOptions;
+import me.darknet.assembler.compile.JvmCompiler;
+import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.helper.Processor;
 import me.darknet.assembler.parser.BytecodeFormat;
-import me.darknet.assembler.printer.BlwClassPrinter;
+import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,8 +27,8 @@ public class CompilerTest {
     public void roundTrip(File source) throws IOException {
         // print a class, compile it and print it again. Then compare the two
 
-        BlwClassPrinter printer = new BlwClassPrinter(Files.newInputStream(source.toPath()));
-        BlwCompilerOptions options = new BlwCompilerOptions();
+        JvmClassPrinter printer = new JvmClassPrinter(Files.newInputStream(source.toPath()));
+        JvmCompilerOptions options = new JvmCompilerOptions();
 
         PrintContext<?> ctx = new PrintContext<>("    ");
 
@@ -37,13 +37,13 @@ public class CompilerTest {
         String first = ctx.toString();
 
         Processor.processSource(first, "<test>", (ast) -> {
-            BlwCompiler compiler = new BlwCompiler();
+            JvmCompiler compiler = new JvmCompiler();
             compiler.compile(ast, options).ifOk((representation) -> {
                 byte[] bytes = representation.data();
 
                 // check if bytes are valid
                 try {
-                    BlwCompiler.library.read(new ByteArrayInputStream(bytes), ClassBuilder.builder());
+                    JvmCompiler.library.read(new ByteArrayInputStream(bytes), ClassBuilder.builder());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

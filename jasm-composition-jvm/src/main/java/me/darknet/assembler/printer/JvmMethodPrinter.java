@@ -12,12 +12,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class BlwMethodPrinter implements MethodPrinter {
+public class JvmMethodPrinter implements MethodPrinter {
 
     protected Method method;
     protected MemberPrinter memberPrinter;
 
-    public BlwMethodPrinter(Method method) {
+    public JvmMethodPrinter(Method method) {
         this.method = method;
         this.memberPrinter = new MemberPrinter(method, MemberPrinter.Type.METHOD);
     }

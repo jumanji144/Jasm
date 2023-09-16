@@ -2,11 +2,11 @@ package me.darknet.assembler.printer;
 
 import dev.xdark.blw.annotation.*;
 
-public class BlwAnnotationPrinter implements AnnotationPrinter {
+public class JvmAnnotationPrinter implements AnnotationPrinter {
 
     private final Annotation annotation;
 
-    public BlwAnnotationPrinter(Annotation annotation) {
+    public JvmAnnotationPrinter(Annotation annotation) {
         this.annotation = annotation;
     }
 
@@ -34,7 +34,7 @@ public class BlwAnnotationPrinter implements AnnotationPrinter {
             ctx.print("L").literal(et.value().internalName()).literal(";");
         } else if (element instanceof Annotation) {
             Annotation ea = (Annotation) element;
-            BlwAnnotationPrinter printer = new BlwAnnotationPrinter(ea);
+            JvmAnnotationPrinter printer = new JvmAnnotationPrinter(ea);
             printer.print(ctx);
         } else if (element instanceof ElementArray ea) {
             var array = ctx.array();

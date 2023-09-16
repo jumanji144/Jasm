@@ -3,12 +3,12 @@ package me.darknet.assembler.printer;
 import dev.xdark.blw.classfile.Field;
 import dev.xdark.blw.constant.Constant;
 
-public class BlwFieldPrinter implements FieldPrinter {
+public class JvmFieldPrinter implements FieldPrinter {
 
     protected Field field;
     protected MemberPrinter memberPrinter;
 
-    public BlwFieldPrinter(Field field) {
+    public JvmFieldPrinter(Field field) {
         this.field = field;
         this.memberPrinter = new MemberPrinter(field, MemberPrinter.Type.FIELD);
     }

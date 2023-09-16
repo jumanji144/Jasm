@@ -8,7 +8,7 @@ import me.darknet.assembler.parser.DeclarationParser;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.Tokenizer;
 import me.darknet.assembler.parser.processor.ASTProcessor;
-import me.darknet.assembler.printer.BlwClassPrinter;
+import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
@@ -102,7 +102,7 @@ public class PrinterTest {
     public static void main(String[] args) throws IOException {
         InputStream thisClass = PrinterTest.class.getResourceAsStream("/me/darknet/assembler/PrinterTest.class");
         PrintContext<?> ctx = new PrintContext<>("    ");
-        BlwClassPrinter printer = new BlwClassPrinter(thisClass);
+        JvmClassPrinter printer = new JvmClassPrinter(thisClass);
         printer.print(ctx);
         String output = ctx.toString();
         System.out.println(output);

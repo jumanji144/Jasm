@@ -15,7 +15,7 @@ import org.objectweb.asm.ClassWriter;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class BlwClassPrinter implements ClassPrinter {
+public class JvmClassPrinter implements ClassPrinter {
 
     protected ClassFileView view;
     protected MemberPrinter memberPrinter;
@@ -23,7 +23,7 @@ public class BlwClassPrinter implements ClassPrinter {
             ClassWriterProvider.flags(ClassWriter.COMPUTE_FRAMES)
     );
 
-    public BlwClassPrinter(InputStream stream) throws IOException {
+    public JvmClassPrinter(InputStream stream) throws IOException {
         ClassBuilder builder = ClassBuilder.builder();
         library.read(stream, builder);
         view = builder.build();
@@ -56,13 +56,13 @@ public class BlwClassPrinter implements ClassPrinter {
         }
         var obj = memberPrinter.printDeclaration(ctx).element(view.type().internalName()).declObject().newline();
         for (Field field : view.fields()) {
-            BlwFieldPrinter printer = new BlwFieldPrinter(field);
+            JvmFieldPrinter printer = new JvmFieldPrinter(field);
             printer.print(obj);
             obj.next();
         }
         obj.line();
         for (Method method : view.methods()) {
-            BlwMethodPrinter printer = new BlwMethodPrinter(method);
+            JvmMethodPrinter printer = new JvmMethodPrinter(method);
             printer.print(obj);
             obj.doubleNext();
         }
@@ -79,7 +79,7 @@ public class BlwClassPrinter implements ClassPrinter {
         // find method
         for (Method method : view.methods()) {
             if (method.name().equals(name) && method.type().descriptor().equals(descriptor)) {
-                return new BlwMethodPrinter(method);
+                return new JvmMethodPrinter(method);
             }
         }
         return null;
@@ -90,7 +90,7 @@ public class BlwClassPrinter implements ClassPrinter {
         // find field
         for (Field field : view.fields()) {
             if (field.name().equals(name) && field.type().descriptor().equals(descriptor)) {
-                return new BlwFieldPrinter(field);
+                return new JvmFieldPrinter(field);
             }
         }
         return null;

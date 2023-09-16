@@ -19,12 +19,12 @@ public record MemberPrinter(
     public void printAttributes(PrintContext<?> ctx) {
         if (annotated != null) {
             for (Annotation invisibleRuntimeAnnotation : annotated.invisibleRuntimeAnnotations()) {
-                BlwAnnotationPrinter printer = new BlwAnnotationPrinter(invisibleRuntimeAnnotation);
+                JvmAnnotationPrinter printer = new JvmAnnotationPrinter(invisibleRuntimeAnnotation);
                 printer.print(ctx);
                 ctx.next();
             }
             for (Annotation invisibleTypeAnnotation : annotated.visibleRuntimeAnnotations()) {
-                BlwAnnotationPrinter printer = new BlwAnnotationPrinter(invisibleTypeAnnotation);
+                JvmAnnotationPrinter printer = new JvmAnnotationPrinter(invisibleTypeAnnotation);
                 printer.print(ctx);
                 ctx.next();
             }
@@ -54,13 +54,13 @@ public record MemberPrinter(
             // go through the annotations
             for (int i = 0; i < annotated.visibleRuntimeAnnotations().size(); i++) {
                 if (i == index) {
-                    return new BlwAnnotationPrinter(annotated.visibleRuntimeAnnotations().get(i));
+                    return new JvmAnnotationPrinter(annotated.visibleRuntimeAnnotations().get(i));
                 }
             }
             for (int i = annotated.visibleRuntimeAnnotations().size(); i < annotated.invisibleRuntimeAnnotations()
                     .size() + annotated.visibleRuntimeAnnotations().size(); i++) {
                 if (i == index) {
-                    return new BlwAnnotationPrinter(annotated.invisibleRuntimeAnnotations().get(i));
+                    return new JvmAnnotationPrinter(annotated.invisibleRuntimeAnnotations().get(i));
                 }
             }
         }

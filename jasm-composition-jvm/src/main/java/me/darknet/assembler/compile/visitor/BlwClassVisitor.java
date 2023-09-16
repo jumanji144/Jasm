@@ -7,7 +7,7 @@ import dev.xdark.blw.type.TypeReader;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
-import me.darknet.assembler.compile.BlwCompilerOptions;
+import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.util.BlwModifiers;
 import me.darknet.assembler.visitor.*;
@@ -19,10 +19,10 @@ import java.util.List;
 public class BlwClassVisitor implements ASTClassVisitor {
 
     private final BlwReplaceClassBuilder builder;
-    private final BlwCompilerOptions options;
+    private final JvmCompilerOptions options;
     private final List<InstanceType> interfaces = new ArrayList<>();
 
-    public BlwClassVisitor(BlwCompilerOptions options, BlwReplaceClassBuilder builder) {
+    public BlwClassVisitor(JvmCompilerOptions options, BlwReplaceClassBuilder builder) {
         this.options = options;
         this.builder = builder;
     }

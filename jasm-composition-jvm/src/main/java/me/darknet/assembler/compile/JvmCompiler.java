@@ -19,7 +19,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 
-public class BlwCompiler implements Compiler {
+public class JvmCompiler implements Compiler {
 
     public static final BytecodeLibrary library = new AsmBytecodeLibrary(
             ClassWriterProvider.flags(ClassWriter.COMPUTE_FRAMES)
@@ -38,7 +38,7 @@ public class BlwCompiler implements Compiler {
     @Override
     public Result<JavaClassRepresentation> compile(List<ASTElement> ast, CompilerOptions<?> options) {
 
-        BlwCompilerOptions blwOptions = (BlwCompilerOptions) options;
+        JvmCompilerOptions blwOptions = (JvmCompilerOptions) options;
         BlwReplaceClassBuilder builder = new BlwReplaceClassBuilder();
 
         ErrorCollector collector = new ErrorCollector();

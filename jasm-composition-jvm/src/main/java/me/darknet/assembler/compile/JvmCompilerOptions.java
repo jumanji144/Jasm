@@ -6,7 +6,7 @@ import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.objectweb.asm.ClassWriter;
 
-public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
+public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
 
     int asmArgs = 0;
     JavaVersion version;
@@ -14,12 +14,12 @@ public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
     String annotationPath;
     InheritanceChecker inheritanceChecker;
 
-    public BlwCompilerOptions() {
+    public JvmCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
         this.version = JavaVersion.V8;
     }
 
-    public BlwCompilerOptions computeFrames(boolean computeFrames) {
+    public JvmCompilerOptions computeFrames(boolean computeFrames) {
         if (computeFrames) {
             this.asmArgs |= ClassWriter.COMPUTE_FRAMES;
         } else {
@@ -28,7 +28,7 @@ public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
         return this;
     }
 
-    public BlwCompilerOptions computeMaxs(boolean computeMaxs) {
+    public JvmCompilerOptions computeMaxs(boolean computeMaxs) {
         if (computeMaxs) {
             this.asmArgs |= ClassWriter.COMPUTE_MAXS;
         } else {
@@ -37,7 +37,7 @@ public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
         return this;
     }
 
-    public BlwCompilerOptions version(int version) {
+    public JvmCompilerOptions version(int version) {
         this.version = JavaVersion.jdkVersion(version);
         return this;
     }
@@ -48,7 +48,7 @@ public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
     }
 
     @Override
-    public BlwCompilerOptions annotationPath(String path) {
+    public JvmCompilerOptions annotationPath(String path) {
         this.annotationPath = path;
         return this;
     }
@@ -59,7 +59,7 @@ public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
     }
 
     @Override
-    public BlwCompilerOptions overlay(ClassRepresentation representation) {
+    public JvmCompilerOptions overlay(ClassRepresentation representation) {
         if(!(representation instanceof JavaClassRepresentation))
             throw new IllegalArgumentException("ClassRepresentation must be a JavaClassRepresentation");
         this.overlay = (JavaClassRepresentation) representation;
@@ -77,7 +77,7 @@ public class BlwCompilerOptions implements CompilerOptions<BlwCompilerOptions> {
     }
 
     @Override
-    public BlwCompilerOptions inheritanceChecker(InheritanceChecker checker) {
+    public JvmCompilerOptions inheritanceChecker(InheritanceChecker checker) {
         this.inheritanceChecker = checker;
         return this;
     }

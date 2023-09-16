@@ -6,12 +6,12 @@ import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.TypeReader;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.compile.BlwCompilerOptions;
+import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.util.BlwModifiers;
 import me.darknet.assembler.visitor.*;
 
-public record BlwRootVisitor(BlwReplaceClassBuilder builder, BlwCompilerOptions options) implements ASTRootVisitor {
+public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions options) implements ASTRootVisitor {
 
     @Override
     public ASTAnnotationVisitor visitAnnotation(ASTIdentifier name) {
