@@ -30,6 +30,10 @@ public class PrintContext<T extends PrintContext<?>> {
         this.indent = ctx.indent;
     }
 
+    public void setIndentStep(String indent) {
+        this.indentStep = indent;
+    }
+
     T append(String s) {
         sb.append(s);
         return (T) this;
