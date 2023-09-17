@@ -107,4 +107,12 @@ public class Result<T> {
         return this;
     }
 
+    public static <T> Result<T> ok(T value) {
+        return new Result<>(value, List.of());
+    }
+
+    public static <T> Result<T> err(List<Error> errors) {
+        return new Result<>(null, errors);
+    }
+
 }
