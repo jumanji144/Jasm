@@ -116,6 +116,14 @@ public class Result<T> {
         }
     }
 
+    public <N> Result<N> flatMap(Function<T, Result<N>> mapper) {
+        if (isOk()) {
+            return mapper.apply(value);
+        } else {
+            return Result.err(errors);
+        }
+    }
+
     public static <T> Result<T> ok(T value) {
         return new Result<>(value, List.of());
     }
