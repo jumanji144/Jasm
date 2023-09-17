@@ -3,6 +3,7 @@ package me.darknet.assembler.error;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Represents a result of an operation that can have errors.
@@ -105,6 +106,14 @@ public class Result<T> {
     public Result<T> ifAny(BiConsumer<T, List<Error>> consumer) {
         consumer.accept(value, errors);
         return this;
+    }
+
+    public <N> Result<N> map(Function<T, N> mapper) {
+        if (isOk()) {
+            return Result.ok(mapper.apply(value));
+        } else {
+            return Result.err(errors);
+        }
     }
 
     public static <T> Result<T> ok(T value) {
