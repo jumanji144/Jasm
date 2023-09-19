@@ -180,6 +180,7 @@ public class DeclarationParser {
             if (!peek.content().equals("}")) {
                 if (ctx.take(",") == null)
                     return null;
+                peek = ctx.peek();
             }
         }
         if (ctx.take("}") == null)

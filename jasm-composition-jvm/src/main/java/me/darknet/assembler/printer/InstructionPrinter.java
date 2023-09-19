@@ -138,7 +138,9 @@ public class InstructionPrinter implements IndexedExecutionEngine {
             arr.print(labelNames.get(target.index())).arg();
         }
         arr.end();
-        obj.value("default").print(labelNames.get(instruction.defaultTarget().index()));
+        obj.next();
+        obj.value("default").print(labelNames.get(instruction.defaultTarget().index())).end();
+        ctx.next();
     }
 
     @Override
