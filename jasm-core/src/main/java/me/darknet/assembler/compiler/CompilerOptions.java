@@ -34,9 +34,9 @@ public interface CompilerOptions<B extends CompilerOptions<?>> {
      * The path format is as follows:
      *
      * <pre>
-     *     Class target: [class name].[index]
-     *     Method target: [class name].method.[method name].[method descriptor].[index]
-     *     Field target: [class name].field.[field name].[field descriptor].[index]
+     *     Class target: this.[index]
+     *     Method target: this.method.[method name].[method descriptor].[index]
+     *     Field target: this.field.[field name].[field descriptor].[index]
      * </pre>
      * @param path The path to set
      * @return The options

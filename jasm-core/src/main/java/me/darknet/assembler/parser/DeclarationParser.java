@@ -85,7 +85,7 @@ public class DeclarationParser {
         char operator = token.content().charAt(0);
         if (operator != '{') {
             ctx.takeAny();
-            ctx.throwExpectedError("{", token.content());
+            ctx.throwUnexpectedError(token.content());
             return null;
         }
         if (ctx.isCurrentState(State.IN_OBJECT)) {
@@ -155,9 +155,9 @@ public class DeclarationParser {
     }
 
     private ASTEmpty parseEmpty() {
-        ctx.take("{");
+        Token begin = ctx.take("{");
         ctx.take("}");
-        return new ASTEmpty();
+        return new ASTEmpty(begin);
     }
 
     private ASTArray parseArray() {
@@ -505,6 +505,14 @@ public class DeclarationParser {
                 return;
             }
             throwError(new Error("Expected '" + expected + "' but got '" + got + "'", latest.location()));
+        }
+
+        public void throwUnexpectedError(String got) {
+            if (latest == null) {
+                throwEofError("any token");
+                return;
+            }
+            throwError(new Error("Unexpected token '" + got + "'", latest.location()));
         }
 
     }

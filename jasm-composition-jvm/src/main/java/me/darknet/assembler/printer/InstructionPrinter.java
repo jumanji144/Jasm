@@ -133,7 +133,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
         var obj = ctx.instruction("tableswitch").object();
         obj.value("min").print(String.valueOf(instruction.min())).next();
         obj.value("max").print(String.valueOf(instruction.min() + instruction.targets().size())).next();
-        var arr = obj.value("targets").array();
+        var arr = obj.value("cases").array();
         for (Label target : instruction.targets()) {
             arr.print(labelNames.get(target.index())).arg();
         }

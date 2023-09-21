@@ -114,7 +114,7 @@ public class PrinterTest {
     public static void parseString(String input, Consumer<Result<List<ASTElement>>> consumer) {
         DeclarationParser parser = new DeclarationParser();
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", input);
+        List<Token> tokens = tokenizer.tokenize("<stdin>", input).get();
         Assertions.assertNotNull(tokens);
         Assertions.assertFalse(tokens.isEmpty());
         Result<List<ASTElement>> result = parser.parseAny(tokens);

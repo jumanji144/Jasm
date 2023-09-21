@@ -15,7 +15,7 @@ public class TokenizerTest {
     @Test
     public void testStringTokenizer() {
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", "{ \"Hello World\", type: \"java/lang/HelloWorld\" }");
+        List<Token> tokens = tokenizer.tokenize("<stdin>", "{ \"Hello World\", type: \"java/lang/HelloWorld\" }").get();
         Assertions.assertNotNull(tokens);
         Assertions.assertEquals(7, tokens.size());
         Assertions.assertEquals("{", tokens.get(0).content());
@@ -30,7 +30,7 @@ public class TokenizerTest {
     @Test
     public void testStringEscaping() {
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", "\"Hello \\u0020World\\\"\\\\");
+        List<Token> tokens = tokenizer.tokenize("<stdin>", "\"Hello \\u0020World\\\"\\\\").get();
         Assertions.assertNotNull(tokens);
         Assertions.assertEquals(1, tokens.size());
         Assertions.assertEquals("Hello  World\"\\", tokens.get(0).content());
@@ -40,7 +40,7 @@ public class TokenizerTest {
     public void testNumbers() {
         Tokenizer tokenizer = new Tokenizer();
         List<Token> tokens = tokenizer
-                .tokenize("<stdin>", "0 -10 10f 10.16F 10.161616D 10L 0xDEADBEEF 0E10 0.3e10f 6.02214076e23");
+                .tokenize("<stdin>", "0 -10 10f 10.16F 10.161616D 10L 0xDEADBEEF 0E10 0.3e10f 6.02214076e23").get();
         Assertions.assertNotNull(tokens);
         Assertions.assertEquals(10, tokens.size());
         Assertions.assertEquals("0", tokens.get(0).content());
@@ -67,7 +67,7 @@ public class TokenizerTest {
     )
     public void testTokenizer(String input) {
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", input);
+        List<Token> tokens = tokenizer.tokenize("<stdin>", input).get();
         Assertions.assertNotNull(tokens);
         Assertions.assertFalse(tokens.isEmpty());
     }

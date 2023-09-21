@@ -35,9 +35,9 @@ public class JvmClassPrinter implements ClassPrinter {
         memberPrinter.printAttributes(ctx);
         var superClass = view.superClass();
         if (superClass != null)
-            ctx.begin().element(".super").print(superClass.internalName()).end();
+            ctx.begin().element(".super").literal(superClass.internalName()).end();
         for (InstanceType anInterface : view.interfaces()) {
-            ctx.begin().element(".implements").print(anInterface.internalName()).end();
+            ctx.begin().element(".implements").literal(anInterface.internalName()).end();
         }
         for (InnerClass innerClass : view.innerClasses()) {
             var obj = ctx.begin().element(".inner")
@@ -46,15 +46,17 @@ public class JvmClassPrinter implements ClassPrinter {
             if (name != null) {
                 obj.value("name").literal(name).next();
             }
-            obj.value("inner").print(innerClass.type().internalName()).next();
+            obj.value("inner").literal(innerClass.type().internalName()).next();
             InstanceType outer = innerClass.outerType();
             if (outer != null) {
-                obj.value("outer").print(outer.internalName()).next();
+                obj.value("outer").literal(outer.internalName()).next();
             }
             obj.end();
             ctx.end();
         }
-        var obj = memberPrinter.printDeclaration(ctx).element(view.type().internalName()).declObject().newline();
+        var obj = memberPrinter.printDeclaration(ctx)
+                .literal(view.type().internalName()).print(" ")
+                .declObject().newline();
         for (Field field : view.fields()) {
             JvmFieldPrinter printer = new JvmFieldPrinter(field);
             printer.print(obj);

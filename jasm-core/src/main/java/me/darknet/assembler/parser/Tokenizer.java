@@ -1,5 +1,7 @@
 package me.darknet.assembler.parser;
 
+import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.error.Result;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Range;
 
@@ -53,6 +55,13 @@ public class Tokenizer {
                 ctx.next();
                 ctx.processEscape();
             }
+            case '\n' -> {
+                ctx.collectToken();
+                ctx.throwError("Unterminated string");
+                ctx.leaveString();
+                ctx.nextLine();
+                ctx.next();
+            }
             default -> ctx.forward();
         }
     }
@@ -83,7 +92,7 @@ public class Tokenizer {
         }
     }
 
-    public List<Token> tokenize(String source, String input) {
+    public Result<List<Token>> tokenize(String source, String input) {
         TokenizerContext ctx = new TokenizerContext();
         ctx.input = input;
         ctx.buffer = new StringBuffer();
@@ -105,7 +114,7 @@ public class Tokenizer {
 
         ctx.collectToken();
 
-        return ctx.tokens;
+        return new Result<>(ctx.tokens, ctx.errors.getErrors());
     }
 
     private static class TokenizerContext {
@@ -116,6 +125,7 @@ public class Tokenizer {
         private boolean inString;
         private boolean inComment;
         private StringBuffer buffer;
+        private final ErrorCollector errors = new ErrorCollector();
         private final List<Token> tokens = new ArrayList<>();
 
         private String input, source;
@@ -161,6 +171,10 @@ public class Tokenizer {
 
         public char peek() {
             return input.charAt(index + 1);
+        }
+
+        public void throwError(String message) {
+            errors.addError(message, new Location(line, column, source));
         }
 
         static final Pattern NUMBER_PATTERN = Pattern.compile(

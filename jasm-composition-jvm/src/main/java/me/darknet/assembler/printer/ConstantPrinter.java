@@ -35,7 +35,7 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
     public void acceptType(OfType value) {
         Type type = value.value();
         if (type instanceof ObjectType ct) {
-            ctx.print("L").literal(ct.internalName()).literal(";");
+            ctx.print("L").literal(ct.internalName()).print(";");
         } else {
             ctx.literal(type.descriptor());
         }

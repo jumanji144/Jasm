@@ -40,7 +40,7 @@ public class DeclarationParserTest {
     public static void parseString(String input, Consumer<List<ASTElement>> consumer) {
         DeclarationParser parser = new DeclarationParser();
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", input);
+        List<Token> tokens = tokenizer.tokenize("<stdin>", input).get();
         Assertions.assertNotNull(tokens);
         Assertions.assertFalse(tokens.isEmpty());
         Result<List<ASTElement>> result = parser.parseAny(tokens);
@@ -239,7 +239,7 @@ public class DeclarationParserTest {
     public void testInvalidInput() {
         DeclarationParser parser = new DeclarationParser();
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", "{ test, 4.... { {");
+        List<Token> tokens = tokenizer.tokenize("<stdin>", "{ test, 4.... { {").get();
         Result<List<ASTElement>> result = parser.parseAny(tokens);
         assertTrue(result.hasErr());
         assertEquals(2, result.errors().size());

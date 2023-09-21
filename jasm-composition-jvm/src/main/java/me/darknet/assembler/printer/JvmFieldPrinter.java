@@ -16,7 +16,9 @@ public class JvmFieldPrinter implements FieldPrinter {
     @Override
     public void print(PrintContext<?> ctx) {
         memberPrinter.printAttributes(ctx);
-        memberPrinter.printDeclaration(ctx).element(field.name()).element(field.type().descriptor());
+        memberPrinter.printDeclaration(ctx)
+                .literal(field.name()).print(" ")
+                .literal(field.type().descriptor()).print(" ");
         Constant constant = field.defaultValue();
         if (constant != null) {
             ctx.print("{value: ");

@@ -17,10 +17,9 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
     public ASTAnnotationVisitor visitAnnotation(ASTIdentifier name) {
         // parse annotation path
         var path = options.annotationPath().split("\\.");
-        String className = path[0];
         int index = Integer.parseInt(path[path.length - 1]);
 
-        InstanceType type = Types.instanceTypeFromInternalName(className);
+        InstanceType type = builder.type;
 
         return new BlwAnnotationVisitor(switch (path.length) {
             case 2 -> builder.visibleRuntimeAnnotation(type, index);

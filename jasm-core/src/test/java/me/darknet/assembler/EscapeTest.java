@@ -20,7 +20,7 @@ public class EscapeTest {
     )
     public void testStringEscape(String input) {
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", "\"" + EscapeUtil.escapeString(input) + "\"");
+        List<Token> tokens = tokenizer.tokenize("<stdin>", "\"" + EscapeUtil.escapeString(input) + "\"").get();
         assertNotNull(tokens);
         assertEquals(1, tokens.size());
         assertEquals(input, tokens.get(0).content());
@@ -43,7 +43,7 @@ public class EscapeTest {
     )
     public void testLiteralEscape(String input) {
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", EscapeUtil.escapeLiteral(input));
+        List<Token> tokens = tokenizer.tokenize("<stdin>", EscapeUtil.escapeLiteral(input)).get();
         assertNotNull(tokens);
         assertEquals(1, tokens.size());
         System.out.println(tokens.get(0).content());

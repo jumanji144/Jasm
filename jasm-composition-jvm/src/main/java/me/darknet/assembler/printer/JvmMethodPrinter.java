@@ -5,7 +5,9 @@ import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.type.ClassType;
 import me.darknet.assembler.helper.Names;
+import me.darknet.assembler.util.EscapeUtil;
 import me.darknet.assembler.util.IndexedStraightforwardSimulation;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,45 +24,62 @@ public class JvmMethodPrinter implements MethodPrinter {
         this.memberPrinter = new MemberPrinter(method, MemberPrinter.Type.METHOD);
     }
 
+    static String escapeName(String name, int index, boolean isStatic) {
+        if(name.equals("this") && !(index == 0 && !isStatic))
+            return "p" + index;
+        else
+            return EscapeUtil.escapeLiteral(name);
+    }
+
     public Names localNames() {
         List<Names.Local> locals = new ArrayList<>();
+        boolean isStatic = (method.accessFlags() & AccessFlag.ACC_STATIC) != 0;
         if (method.code() != null) {
             for (Local localVariable : method.code().localVariables()) {
+                // transform local name
+                String name = escapeName(localVariable.name(), localVariable.index(), isStatic);
                 locals.add(
                         new Names.Local(
                                 localVariable.index(), localVariable.start().index(), localVariable.end().index(),
-                                localVariable.name(), localVariable.type().descriptor()
+                                name, localVariable.type().descriptor()
                         )
                 );
             }
         }
         Map<Integer, String> parameterNames = new HashMap<>();
-        boolean isStatic = (method.accessFlags() & AccessFlag.ACC_STATIC) != 0;
         int offset = isStatic ? 0 : 1;
         if (!isStatic) {
             parameterNames.put(0, "this");
         }
         List<ClassType> types = method.type().parameterTypes();
         for (int i = 0; i < types.size(); i++) {
-            String name = null;
-            // search for parameter name in local variables, first reference of the index which matches the type
-            for (Names.Local local : locals) {
-                if (local.index() == i + offset) {
-                    name = local.name();
-                    break;
-                }
-            }
-            if (name == null)
-                name = "p" + (i + offset);
+            String name = getName(locals, i, offset);
             parameterNames.put(i + offset, name);
         }
         return new Names(parameterNames, locals);
     }
 
+    @NotNull
+    private static String getName(List<Names.Local> locals, int i, int offset) {
+        String name = null;
+        // search for parameter name in local variables, first reference of the index which matches the type
+        for (Names.Local local : locals) {
+            if (local.index() == i + offset) {
+                name = local.name();
+                break;
+            }
+        }
+        if (name == null)
+            name = "p" + (i + offset);
+        return name;
+    }
+
     @Override
     public void print(PrintContext<?> ctx) {
         memberPrinter.printAttributes(ctx);
-        var obj = memberPrinter.printDeclaration(ctx).element(method.name()).element(method.type().descriptor())
+        var obj = memberPrinter.printDeclaration(ctx)
+                .literal(method.name()).print(" ")
+                .literal(method.type().descriptor()).print(" ")
                 .object();
         Names names = localNames();
         if (!names.parameters().isEmpty()) {

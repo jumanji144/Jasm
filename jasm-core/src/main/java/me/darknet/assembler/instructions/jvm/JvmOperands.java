@@ -4,6 +4,7 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.helper.Handle;
 import me.darknet.assembler.instructions.Operand;
@@ -28,16 +29,25 @@ public enum JvmOperands implements Operands {
         if (context.validateCorrect(object.value("max"), ElementType.NUMBER, "number", object))
             return;
 
+        ASTNumber min = object.value("min");
+        ASTNumber max = object.value("max");
+
+        if(min.isFloatingPoint())
+            context.throwUnexpectedElementError("integer literal", min);
+        if(max.isFloatingPoint())
+            context.throwUnexpectedElementError("integer literal", max);
+
         // default should be identifier
         if (context.validateCorrect(object.value("default"), ElementType.IDENTIFIER, "identifier",
                 object))
             return;
 
         // cases should be array
-        if (context.validateCorrect(object.value("cases"), ElementType.ARRAY, "array", object))
+        ASTArray array = context.validateEmptyableElement(object.value("cases"), ElementType.ARRAY, "cases", object);
+        if (array == null)
             return;
-        context.validateArray(object.value("cases"), ElementType.IDENTIFIER, "label", element);
 
+        context.validateArray(array, ElementType.IDENTIFIER, "label", element);
     }),
     LOOKUP_SWITCH((context, element) -> {
         // lookup switch can be: default label, pairs

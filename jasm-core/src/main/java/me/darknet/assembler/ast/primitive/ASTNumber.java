@@ -57,6 +57,6 @@ public class ASTNumber extends ASTValue {
 
     public boolean isFloatingPoint() {
         String value = content();
-        return value.contains(".");
+        return value.contains(".") || value.endsWith("f") || value.endsWith("F");
     }
 }

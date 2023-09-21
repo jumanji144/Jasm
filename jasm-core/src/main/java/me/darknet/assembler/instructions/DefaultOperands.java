@@ -1,8 +1,6 @@
 package me.darknet.assembler.instructions;
 
 import me.darknet.assembler.ast.ElementType;
-import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.ast.primitive.ASTLiteral;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 
 public enum DefaultOperands implements Operands {
@@ -19,15 +17,11 @@ public enum DefaultOperands implements Operands {
     }),
     IDENTIFIER((context, element) -> context.isNotType(element, ElementType.IDENTIFIER, "identifier")),
     LITERAL((context, element) -> {
-        if (!(element instanceof ASTLiteral)) {
+        // literals can be: number or identifier
+        if(element.type() != ElementType.NUMBER && element.type() != ElementType.IDENTIFIER)
             context.throwUnexpectedElementError("literal", element);
-        }
     }),
-    LABEL((context, element) -> {
-        if (!(element instanceof ASTIdentifier)) {
-            context.throwUnexpectedElementError("label", element);
-        }
-    });
+    LABEL((context, element) -> context.isNotType(element, ElementType.IDENTIFIER, "label"));
 
     private final Operand operand;
 
