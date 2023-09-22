@@ -43,7 +43,7 @@ public class CompilerTest {
 
                 // check if bytes are valid
                 try {
-                    JvmCompiler.library.read(new ByteArrayInputStream(bytes), ClassBuilder.builder());
+                    compiler.library().read(new ByteArrayInputStream(bytes), ClassBuilder.builder());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

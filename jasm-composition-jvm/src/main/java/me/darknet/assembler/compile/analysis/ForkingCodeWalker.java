@@ -1,7 +1,7 @@
 package me.darknet.assembler.compile.analysis;
 
 import dev.xdark.blw.code.*;
-import dev.xdark.blw.code.instruction.ConditionalJumpInstruction;
+import dev.xdark.blw.code.instruction.BranchInstruction;
 import dev.xdark.blw.code.instruction.ImmediateJumpInstruction;
 import dev.xdark.blw.code.instruction.SimpleInstruction;
 import dev.xdark.blw.type.ClassType;
@@ -15,8 +15,9 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
 
     private int index;
     Map<Integer, Frame> frames = new HashMap<>();
-    private final List<Integer> visited = new ArrayList<>();
+    private final BitSet visited = new BitSet();
     private final Deque<Integer> forkQueue = new ArrayDeque<>();
+    private final Deque<Frame> frameStack = new ArrayDeque<>();
 
     private final List<CodeElement> backing;
     private final List<TryCatchBlock> exceptionHandlers;
@@ -75,7 +76,7 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
         if (!forkQueue.isEmpty()) {
             // fork
             int forkIndex = forkQueue.pop();
-            Frame oldFrame = frames.get(forkIndex - 1).copy();
+            Frame oldFrame = frameStack.pop().copy();
 
             engine.frame(oldFrame);
             index = forkIndex;
@@ -87,7 +88,7 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
 
     @Override
     public void advance() {
-        while (visited.contains(index)) {
+        while (visited.get(index)) {
             // set the frame to the last frame
             engine.frame(frames.get(index));
             index++;
@@ -102,27 +103,28 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
             // no fork needed, instantly jump to the target
             index = backing.indexOf(imm.target());
             return;
-        } else if (element instanceof ConditionalJumpInstruction cond) {
+        } else if (element instanceof BranchInstruction cond) {
             // fork
             int pos1 = index + 1;
-            int pos2 = backing.indexOf(cond.target());
 
-            // fork to pos1
-            forkQueue.push(pos1);
+            Frame first = engine.frame();
+            cond.allTargets().forEach((target) -> {
+                int pos2 = backing.indexOf(target);
+                frameStack.push(first);
+            });
 
-            // jump to pos2
-            index = pos2;
+            index = pos1;
             return;
         } else if (element instanceof SimpleInstruction sim) {
             switch (sim.opcode()) {
                 case IRETURN, LRETURN, FRETURN, DRETURN, ARETURN, RETURN -> {
-                    visited.add(index);
+                    visited.set(index);
                     forkOrExit();
 
                     return;
                 }
                 case ATHROW -> {
-                    visited.add(index);
+                    visited.set(index);
                     TryCatchBlock exceptionHandler = getExceptionHandler();
                     if(exceptionHandler == null) {
                         forkOrExit();
@@ -139,7 +141,7 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
             }
         }
 
-        visited.add(index++);
+        visited.set(index++);
     }
 
     @Override

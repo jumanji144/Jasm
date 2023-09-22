@@ -79,9 +79,7 @@ public enum JvmOperands implements Operands {
             JvmOperands.verifyConstant(context, value);
         }
     }),
-    TYPE(((context, element) -> {
-        context.isNotType(element, ElementType.IDENTIFIER, "type");
-    })),
+    TYPE(((context, element) -> context.isNotType(element, ElementType.IDENTIFIER, "type"))),
     NEW_ARRAY_TYPE(((context, element) -> {
         if (context.isNotType(element, ElementType.IDENTIFIER, "new array type"))
             return;
@@ -105,8 +103,10 @@ public enum JvmOperands implements Operands {
             case NUMBER, STRING -> {
             }
             case IDENTIFIER -> {
-                if (!element.content().startsWith("L") && !element.content().startsWith("(")) {
-                    context.throwUnexpectedElementError("class or method type", element);
+                char first = element.content().charAt(0);
+                switch (first) {
+                    case 'L', '(', '[' -> {}
+                    default -> context.throwUnexpectedElementError("class, method or array descriptor", element);
                 }
             }
             case ARRAY -> verifyHandle(context, element);

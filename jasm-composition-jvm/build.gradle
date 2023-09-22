@@ -6,7 +6,7 @@ repositories {
 }
 
 dependencies {
-    api 'com.github.Nowilltolife:blw:b347ed28e2'
+    api 'com.github.Nowilltolife:blw:b38148e86f'
     implementation 'org.ow2.asm:asm:9.5'
 
     api project(path: ':jasm-core')

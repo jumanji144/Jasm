@@ -187,14 +187,18 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitTypeInsn(ASTIdentifier type) {
-        ObjectType objectType = Types.instanceTypeFromInternalName(type.literal());
-        add(switch (opcode) {
-            case CHECKCAST -> new CheckCastInstruction(objectType);
-            case INSTANCEOF -> new InstanceofInstruction(objectType);
-            case NEW -> new AllocateInstruction(objectType);
-            case ANEWARRAY -> new AllocateInstruction(Types.arrayType(objectType));
-            default -> throw new IllegalStateException("Unexpected value: " + opcode);
-        });
+        if(opcode == NEW) {
+            add(new AllocateInstruction(Types.instanceTypeFromInternalName(type.literal())));
+        } else {
+            TypeReader reader = new TypeReader(type.literal());
+            ObjectType objectType = (ObjectType) reader.read();
+            add(switch (opcode) {
+                case CHECKCAST -> new CheckCastInstruction(objectType);
+                case INSTANCEOF -> new InstanceofInstruction(objectType);
+                case ANEWARRAY -> new AllocateInstruction(Types.arrayType(objectType));
+                default -> throw new IllegalStateException("Unexpected value: " + opcode);
+            });
+        }
     }
 
     @Override

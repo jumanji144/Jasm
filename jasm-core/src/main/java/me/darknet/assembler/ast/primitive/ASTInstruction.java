@@ -28,6 +28,14 @@ public class ASTInstruction extends ASTElement {
 
     @SuppressWarnings("unchecked")
     public <T extends ASTElement> T argument(int index, Class<T> type) {
+        ASTElement element = arguments.get(index);
+        if(element instanceof ASTEmpty) {
+            if(type == ASTArray.class) return (T) ASTEmpty.EMPTY_ARRAY;
+            if(type == ASTObject.class) return (T) ASTEmpty.EMPTY_OBJECT;
+        }
+        if(element instanceof ASTNumber number && type == ASTIdentifier.class) {
+            return (T) new ASTIdentifier(number.value());
+        }
         return (T) arguments.get(index);
     }
 

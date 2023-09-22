@@ -51,12 +51,13 @@ public class ConstantMapper {
             case STRING -> new OfString(element.value().content());
             case IDENTIFIER -> {
                 ASTIdentifier identifier = (ASTIdentifier) element;
-                if (identifier.content().startsWith("L")) { // is class
-                    yield new OfType(Types.instanceTypeFromDescriptor(identifier.literal()));
-                } else {
-                    // must be method `(` or method type `L`
-                    yield new OfType(Types.methodType(identifier.literal()));
-                }
+                char first = identifier.content().charAt(0);
+                yield switch (first) {
+                    case 'L' -> new OfType(Types.instanceTypeFromDescriptor(identifier.literal()));
+                    case '(' -> new OfType(Types.methodType(identifier.literal()));
+                    case '[' -> new OfType(Types.arrayTypeFromDescriptor(identifier.literal()));
+                    default -> throw new IllegalStateException("Unexpected value: " + first);
+                };
             }
             case ARRAY -> {
                 ASTArray array = (ASTArray) element;

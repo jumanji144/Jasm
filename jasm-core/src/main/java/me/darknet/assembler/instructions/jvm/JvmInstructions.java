@@ -34,7 +34,10 @@ public class JvmInstructions extends Instructions<ASTJvmInstructionVisitor> {
 
         registerIntProcessors("bipush", "sipush");
 
-        registerTypeProcessors("new", "anewarray", "checkcast", "instanceof");
+        registerTypeProcessors("anewarray", "checkcast", "instanceof");
+
+        register("new", ops(DefaultOperands.LITERAL), (inst, visitor) ->
+                visitor.visitTypeInsn(inst.argument(0, ASTIdentifier.class)));
 
         register("newarray", ops(JvmOperands.NEW_ARRAY_TYPE), (inst, visitor) ->
                 visitor.visitNewArrayInsn(inst.argument(0, ASTIdentifier.class)));

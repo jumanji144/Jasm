@@ -55,6 +55,10 @@ public class ASTMethod extends ASTMember {
         for (int i = 0; i < parameters.size(); i++) {
             visitor.visitParameter(i, parameters.get(i));
         }
+        if(this.code == null) {
+            visitor.visitEnd();
+            return;
+        }
         ASTInstructionVisitor instructionVisitor = switch (format) {
             case JVM -> visitor.visitJvmCode();
             case DALVIK -> null;

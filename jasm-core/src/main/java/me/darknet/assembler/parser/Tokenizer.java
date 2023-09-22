@@ -205,8 +205,13 @@ public class Tokenizer {
         }
 
         public void collectToken() {
-            if (buffer.isEmpty())
+            if (buffer.isEmpty()) {
+                if(inString) {
+                    tokens.add(new Token(new Range(index, index), new Location(line, column, source),
+                            TokenType.STRING, ""));
+                }
                 return;
+            }
             String content = buffer.toString();
             Range range = new Range(index - content.length(), index);
             Location location = new Location(line, column, source);
