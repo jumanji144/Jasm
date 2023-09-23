@@ -11,6 +11,7 @@ import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Pair;
 import me.darknet.assembler.visitor.ASTAnnotationArrayVisitor;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
+import org.jetbrains.annotations.Nullable;
 
 public class ASTAnnotation extends ASTElement {
 
@@ -35,7 +36,11 @@ public class ASTAnnotation extends ASTElement {
         return values.get(name);
     }
 
-    void accept(ErrorCollector collector, ASTAnnotationArrayVisitor visitor, ASTArray array) {
+    void accept(ErrorCollector collector, @Nullable ASTAnnotationArrayVisitor visitor, ASTArray array) {
+        // TODO: Do we want to keep visiting, but just not call the visitor?
+        //  - This does not feed into the collector
+        if (visitor == null) return;
+
         // TODO: due to huge annotations, i would advice for a process queue.
         // But this is not a problem for now until xxDark notices this code, which i hope
         // he does not.
@@ -65,7 +70,11 @@ public class ASTAnnotation extends ASTElement {
         visitor.visitEnd();
     }
 
-    public void accept(ErrorCollector collector, ASTAnnotationVisitor visitor) {
+    public void accept(ErrorCollector collector, @Nullable ASTAnnotationVisitor visitor) {
+        // TODO: Do we want to keep visiting, but just not call the visitor?
+        //  - This does not feed into the collector
+        if (visitor == null) return;
+
         for (Pair<ASTIdentifier, ASTElement> pair : values.pairs()) {
             ASTElement value = pair.second();
             if (value instanceof ASTValue val) {
