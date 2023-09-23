@@ -9,12 +9,13 @@ public class JvmClassWriter extends ClassWriter {
     private final InheritanceChecker checker;
 
     public JvmClassWriter(int flags, InheritanceChecker checker) {
-        super(flags);
-        this.checker = checker;
+        this(null, flags, checker);
     }
 
     public JvmClassWriter(ClassReader reader, int flags, InheritanceChecker checker) {
         super(reader, flags);
+        if (checker == null)
+            throw new IllegalArgumentException("Class writer requires an inheritance checker implementation");
         this.checker = checker;
     }
 
