@@ -8,26 +8,29 @@ import me.darknet.assembler.helper.Processor;
 import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
+import java.util.function.BiPredicate;
+import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class CompilerTest {
-
     @ParameterizedTest
     @MethodSource("me.darknet.assembler.CompilerTest#getClasses")
-    public void roundTrip(File source) throws IOException {
+    public void roundTrip(TestSource source) throws Throwable {
         // print a class, compile it and print it again. Then compare the two
 
-        JvmClassPrinter printer = new JvmClassPrinter(Files.newInputStream(source.toPath()));
+        JvmClassPrinter printer = new JvmClassPrinter(source.streamSupplier().get());
         JvmCompilerOptions options = new JvmCompilerOptions();
 
         PrintContext<?> ctx = new PrintContext<>("    ");
@@ -51,20 +54,33 @@ public class CompilerTest {
                 for (Error error : errors) {
                     System.err.println(error);
                 }
-                Assertions.fail("Failed to compile class");
+                fail("Failed to compile class");
             });
         }, (errors) -> {
             for (Error error : errors) {
                 System.err.println(error);
             }
-            Assertions.fail("Failed to parse class");
+            fail("Failed to parse class");
         }, BytecodeFormat.JVM);
     }
 
-    public static List<File> getClasses() {
-        return Arrays.asList(
-                Paths.get("out/production/classes/me/darknet/assembler/compile/BlwCompiler.class").toFile()
-        );
+    public static List<TestSource> getClasses() {
+        try {
+            BiPredicate<Path, BasicFileAttributes> filter =
+                    (path, attrib) -> attrib.isRegularFile() && path.toString().endsWith(".class");
+            List<TestSource> collect = Files.find(Paths.get(System.getProperty("user.dir")), 25, filter)
+                    .map(p -> new TestSource(p.getFileName().toString(), () -> Files.newInputStream(p)))
+                    .collect(Collectors.toList());
+            return collect;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
+    private record TestSource(String name, UncheckedSupplier<InputStream> streamSupplier) {
+    }
+
+    private interface UncheckedSupplier<T> {
+        T get() throws Throwable;
+    }
 }

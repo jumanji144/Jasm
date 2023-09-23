@@ -99,6 +99,8 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
             engine.frame(frames.get(index));
             index++;
         }
+        visited.set(index);
+
         // unvisited index found
         // see if we need to fork
 
@@ -121,13 +123,11 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
         } else if (element instanceof SimpleInstruction sim) {
             switch (sim.opcode()) {
                 case IRETURN, LRETURN, FRETURN, DRETURN, ARETURN, RETURN -> {
-                    visited.set(index);
                     forkOrExit();
 
                     return;
                 }
                 case ATHROW -> {
-                    visited.set(index);
                     TryCatchBlock exceptionHandler = getExceptionHandler();
                     if(exceptionHandler == null) {
                         forkOrExit();
@@ -150,7 +150,7 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
             }
         }
 
-        visited.set(index++);
+        index++;
     }
 
     private record Fork(int index, Frame frame) {}

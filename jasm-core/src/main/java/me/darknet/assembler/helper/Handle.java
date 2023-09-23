@@ -34,6 +34,10 @@ public record Handle(Kind kind, String name, String descriptor) {
         NEW_INVOKE_SPECIAL,
         INVOKE_INTERFACE;
 
+        public boolean isField() {
+            return ordinal() <= PUT_STATIC.ordinal();
+        }
+
         public static Kind from(String name) {
             return KINDS.get(name);
         }

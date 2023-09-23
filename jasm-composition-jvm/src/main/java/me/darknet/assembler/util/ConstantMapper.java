@@ -1,10 +1,7 @@
 package me.darknet.assembler.util;
 
 import dev.xdark.blw.constant.*;
-import dev.xdark.blw.type.MethodHandle;
-import dev.xdark.blw.type.ObjectType;
-import dev.xdark.blw.type.Type;
-import dev.xdark.blw.type.Types;
+import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
@@ -14,7 +11,7 @@ import me.darknet.assembler.helper.Handle;
 public class ConstantMapper {
 
     public static MethodHandle fromArray(ASTArray array) {
-        int kind = Handle.Kind.from(array.values().get(0).content()).ordinal();
+        Handle.Kind kind = Handle.Kind.from(array.values().get(0).content());
         String name = array.values().get(1).content();
         String descriptor = array.values().get(2).content();
 
@@ -24,10 +21,16 @@ public class ConstantMapper {
 
         ObjectType owner = Types.instanceTypeFromInternalName(className);
 
-        Type methodType = Types.methodType(descriptor);
+        // Despite the naming conventions, you can have a method handle to a field.
+        // Field types can be arrays, classes, or primitives.
+        // To keep things simple in this case we'll use type-reader directly rather than chaining
+        //  conditional type util calls.
+        Type methodType = kind.isField() ?
+                new TypeReader(descriptor).read() :
+                Types.methodType(descriptor);
 
         // TODO: ITF
-        return new MethodHandle(kind, owner, methodName, methodType, false);
+        return new MethodHandle(kind.ordinal(), owner, methodName, methodType, false);
     }
 
     public static Constant fromConstant(ASTElement element) {

@@ -120,19 +120,23 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
                 };
             }
             case "i2l", "i2f", "i2d", "l2i", "l2f", "l2d", "f2i", "f2l", "f2d", "d2i", "d2l", "d2f", "i2b", "i2c", "i2s" -> {
-                PrimitiveType from = switch (content.charAt(0)) {
+                char fromChar = content.charAt(0);
+                PrimitiveType from = switch (fromChar) {
                     case 'i' -> Types.INT;
                     case 'l' -> Types.LONG;
                     case 'f' -> Types.FLOAT;
                     case 'd' -> Types.DOUBLE;
-                    default -> throw new IllegalStateException();
+                    default -> throw new IllegalStateException("Unknown from type for primitive conversion: " + fromChar);
                 };
-                PrimitiveType to = switch (content.charAt(2)) {
+                char toChar = content.charAt(2);
+                PrimitiveType to = switch (toChar) {
                     case 'i' -> Types.INT;
                     case 'l' -> Types.LONG;
                     case 'f' -> Types.FLOAT;
                     case 'd' -> Types.DOUBLE;
-                    default -> throw new IllegalStateException();
+                    case 'c' -> Types.CHAR;
+                    case 's' -> Types.SHORT;
+                    default -> throw new IllegalStateException("Unknown to type for primitive conversion: " + toChar);
                 };
                 yield new PrimitiveConversionInstruction(from, to);
             }

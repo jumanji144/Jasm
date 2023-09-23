@@ -516,6 +516,10 @@ public class ASTProcessor {
         }
 
         ASTIdentifier validateMaybeIdentifier(ASTElement e, String description, ASTElement parent) {
+            // Keep nulls as-is since this is an optional identifier
+            if (e == null)
+                return null;
+
             // can be NUMBER or IDENTIFIER
             if (!(e instanceof ASTLiteral)) {
                 throwUnexpectedElementError(description, e);

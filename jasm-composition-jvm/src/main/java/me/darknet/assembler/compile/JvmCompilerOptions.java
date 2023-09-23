@@ -4,6 +4,7 @@ import dev.xdark.blw.version.JavaVersion;
 import me.darknet.assembler.compiler.ClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
+import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import org.objectweb.asm.ClassWriter;
 
 public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
@@ -12,7 +13,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     JavaVersion version;
     JavaClassRepresentation overlay;
     String annotationPath;
-    InheritanceChecker inheritanceChecker;
+    InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
 
     public JvmCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
