@@ -8,6 +8,7 @@ import java.util.*;
 public class Frame {
 
     public static final ClassType NULL = Types.instanceTypeFromDescriptor("null");
+    private static final ClassType OBJECT = Types.instanceType(Object.class);
     private final Deque<ClassType> stack;
     private final Map<Integer, ClassType> locals;
     private ClassType lastPopped, lastPushed;
@@ -31,7 +32,7 @@ public class Frame {
 
     public void local(int index, ClassType type) {
         if(type == NULL)
-            type = Types.instanceType(Object.class);
+            type = OBJECT;
         locals.put(index, type);
     }
 
