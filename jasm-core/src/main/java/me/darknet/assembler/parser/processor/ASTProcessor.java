@@ -275,7 +275,7 @@ public class ASTProcessor {
 
     public static ASTInner parseInner(ParserContext ctx, ASTDeclaration declaration) {
         List<@Nullable ASTElement> elements = declaration.elements();
-        if (elements.size() < 2) {
+        if (elements.isEmpty()) {
             ctx.throwError("Expected inner class modifiers and body", declaration.location());
             return null;
         }
