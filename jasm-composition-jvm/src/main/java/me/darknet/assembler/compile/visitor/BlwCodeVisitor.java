@@ -107,7 +107,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitInsn() {
         String content = last.identifier().content();
-        add(switch (content) {
+        Instruction instruction = switch (content) {
             case "iconst_m1" -> new ConstantInstruction.Int(new OfInt(-1));
             case "iconst_0", "iconst_1", "iconst_2", "iconst_3", "iconst_4", "iconst_5", "lconst_0", "lconst_1", "fconst_0", "fconst_1", "fconst_2", "dconst_0", "dconst_1" -> {
                 int value = content.charAt(content.length() - 1) - '0';
@@ -137,7 +137,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
                 yield new PrimitiveConversionInstruction(from, to);
             }
             default -> new SimpleInstruction(opcode);
-        });
+        };
+        add(instruction);
     }
 
     @Override
@@ -147,7 +148,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitNewArrayInsn(ASTIdentifier type) {
-        add(new AllocateInstruction(Types.arrayType(switch (type.content().charAt(0)) {
+        ClassType component = switch (type.content().charAt(0)) {
             case 'v' -> Types.VOID;
             case 'l' -> Types.LONG;
             case 'd' -> Types.DOUBLE;
@@ -157,7 +158,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             case 's' -> Types.SHORT;
             case 'b' -> type.content().charAt(1) == 'o' ? Types.BOOLEAN : Types.BYTE;
             default -> throw new IllegalStateException("Unexpected value: " + type.content());
-        })));
+        };
+        add(new AllocateInstruction(Types.arrayType(component)));
     }
 
     @Override
@@ -179,10 +181,11 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     public void visitJumpInsn(ASTIdentifier label) {
         // we can assume that labels will not contain characters needing escaping
         Label l = getOrCreateLabel(label.content());
-        add(switch (opcode) {
+        Instruction instruction = switch (opcode) {
             case GOTO, GOTO_W, JSR, JSR_W -> new ImmediateJumpInstruction(opcode, l);
             default -> new ConditionalJumpInstruction(opcode, l);
-        });
+        };
+        add(instruction);
     }
 
     @Override
@@ -192,12 +195,13 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         } else {
             TypeReader reader = new TypeReader(type.literal());
             ObjectType objectType = (ObjectType) reader.read();
-            add(switch (opcode) {
+            Instruction instruction = switch (opcode) {
                 case CHECKCAST -> new CheckCastInstruction(objectType);
                 case INSTANCEOF -> new InstanceofInstruction(objectType);
                 case ANEWARRAY -> new AllocateInstruction(Types.arrayType(objectType));
                 default -> throw new IllegalStateException("Unexpected value: " + opcode);
-            });
+            };
+            add(instruction);
         }
     }
 
