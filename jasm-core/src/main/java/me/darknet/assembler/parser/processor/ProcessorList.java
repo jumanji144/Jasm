@@ -2,6 +2,7 @@ package me.darknet.assembler.parser.processor;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTInner;
 
@@ -42,7 +43,7 @@ public class ProcessorList {
         addAttribute(annotation);
     }
 
-    public void setSignature(ASTIdentifier signature) {
+    public void setSignature(ASTString signature) {
         this.attributes.signature = signature;
         addAttribute(signature);
     }

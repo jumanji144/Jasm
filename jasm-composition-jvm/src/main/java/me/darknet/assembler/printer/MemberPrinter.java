@@ -30,7 +30,7 @@ public record MemberPrinter(
             }
         }
         if (signed != null && signed.signature() != null) {
-            ctx.begin().element(".signature").print(signed.signature()).next();
+            ctx.begin().element(".signature").string(signed.signature()).next();
         }
     }
 

@@ -2,6 +2,7 @@ package me.darknet.assembler.ast.specific;
 
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.visitor.ASTFieldVisitor;
 import me.darknet.assembler.visitor.Modifiers;
@@ -15,7 +16,7 @@ public class ASTField extends ASTMember {
     private final @Nullable ASTValue value;
 
     public ASTField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor,
-            @Nullable List<ASTAnnotation> annotations, @Nullable ASTIdentifier signature, @Nullable ASTValue value) {
+                    @Nullable List<ASTAnnotation> annotations, @Nullable ASTString signature, @Nullable ASTValue value) {
         super(ElementType.FIELD, modifiers, name, signature, annotations);
         this.descriptor = descriptor;
         this.value = value;

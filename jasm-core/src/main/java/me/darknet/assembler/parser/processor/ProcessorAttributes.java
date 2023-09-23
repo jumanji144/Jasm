@@ -2,6 +2,7 @@ package me.darknet.assembler.parser.processor;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTInner;
 
@@ -12,7 +13,7 @@ public class ProcessorAttributes {
 
     // generic attributes
     public final List<ASTAnnotation> annotations = new ArrayList<>();
-    public ASTIdentifier signature;
+    public ASTString signature;
 
     // class attributes
     public final List<ASTIdentifier> interfaces = new ArrayList<>();

@@ -38,8 +38,8 @@ public class ASTProcessor {
             return new ASTEnum(type, name);
         });
         ParserRegistry.register("signature", (ctx, decl) -> {
-            ASTIdentifier signature = ctx
-                    .validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "signature", decl);
+            ASTString signature = ctx
+                    .validateElement(decl.elements().get(0), ElementType.STRING, "signature", decl);
             ctx.result.setSignature(signature);
             return signature;
         });

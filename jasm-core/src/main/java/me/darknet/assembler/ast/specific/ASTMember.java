@@ -3,6 +3,7 @@ package me.darknet.assembler.ast.specific;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CollectionUtil;
 import me.darknet.assembler.visitor.ASTDeclarationVisitor;
@@ -15,11 +16,11 @@ public class ASTMember extends ASTElement {
 
     private final Modifiers modifiers;
     private final ASTIdentifier name;
-    private final @Nullable ASTIdentifier signature;
+    private final @Nullable ASTString signature;
     private final List<ASTAnnotation> annotations;
 
-    public ASTMember(ElementType type, Modifiers modifiers, ASTIdentifier name, @Nullable ASTIdentifier signature,
-            List<ASTAnnotation> annotations) {
+    public ASTMember(ElementType type, Modifiers modifiers, ASTIdentifier name, @Nullable ASTString signature,
+                     List<ASTAnnotation> annotations) {
         super(type, CollectionUtil.merge(CollectionUtil.merge(modifiers.modifiers(), annotations), name));
         if (!modifiers.modifiers().isEmpty()) {
             this.value = modifiers.modifiers().get(0).value();
@@ -40,7 +41,7 @@ public class ASTMember extends ASTElement {
         return name;
     }
 
-    public @Nullable ASTIdentifier signature() {
+    public @Nullable ASTString signature() {
         return signature;
     }
 

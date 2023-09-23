@@ -1,10 +1,7 @@
 package me.darknet.assembler.ast.specific;
 
 import me.darknet.assembler.ast.ElementType;
-import me.darknet.assembler.ast.primitive.ASTCode;
-import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.ast.primitive.ASTInstruction;
-import me.darknet.assembler.ast.primitive.ASTLabel;
+import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.instructions.Instruction;
 import me.darknet.assembler.parser.BytecodeFormat;
@@ -24,8 +21,8 @@ public class ASTMethod extends ASTMember {
     private final BytecodeFormat format;
 
     public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor,
-            @Nullable ASTIdentifier signature, @Nullable List<ASTAnnotation> annotations,
-            List<ASTIdentifier> parameters, ASTCode code, List<Instruction<?>> instructions, BytecodeFormat format) {
+                     @Nullable ASTString signature, @Nullable List<ASTAnnotation> annotations,
+                     List<ASTIdentifier> parameters, ASTCode code, List<Instruction<?>> instructions, BytecodeFormat format) {
         super(ElementType.METHOD, modifiers, name, signature, annotations);
         this.descriptor = descriptor;
         this.parameters = parameters;

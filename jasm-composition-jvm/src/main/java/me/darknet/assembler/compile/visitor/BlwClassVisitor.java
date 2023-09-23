@@ -79,7 +79,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
     }
 
     @Override
-    public void visitSignature(ASTIdentifier signature) {
+    public void visitSignature(@Nullable ASTString signature) {
         // TODO: 01.09.23
     }
 

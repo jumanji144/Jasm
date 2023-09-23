@@ -3,6 +3,7 @@ package me.darknet.assembler.ast.specific;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.visitor.ASTClassVisitor;
 import me.darknet.assembler.visitor.Modifiers;
@@ -16,9 +17,9 @@ public class ASTClass extends ASTMember {
     private final List<ASTIdentifier> interfaces;
     private final List<ASTElement> contents;
 
-    public ASTClass(Modifiers modifiers, ASTIdentifier name, @Nullable ASTIdentifier signature,
-            List<ASTAnnotation> annotations, @Nullable ASTIdentifier superName, List<ASTIdentifier> interfaces,
-            List<ASTElement> contents) {
+    public ASTClass(Modifiers modifiers, ASTIdentifier name, @Nullable ASTString signature,
+                    List<ASTAnnotation> annotations, @Nullable ASTIdentifier superName, List<ASTIdentifier> interfaces,
+                    List<ASTElement> contents) {
         super(ElementType.CLASS, modifiers, name, signature, annotations);
         this.children.addAll(contents);
         this.superName = superName;
