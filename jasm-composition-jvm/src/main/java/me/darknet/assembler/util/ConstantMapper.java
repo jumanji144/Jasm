@@ -30,7 +30,7 @@ public class ConstantMapper {
                 Types.methodType(descriptor);
 
         // TODO: ITF
-        return new MethodHandle(kind.ordinal(), owner, methodName, methodType, false);
+        return new MethodHandle(kind.ordinal() + 1, owner, methodName, methodType, false);
     }
 
     public static Constant fromConstant(ASTElement element) {
