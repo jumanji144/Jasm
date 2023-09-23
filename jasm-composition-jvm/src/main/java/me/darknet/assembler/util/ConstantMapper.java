@@ -14,7 +14,7 @@ import me.darknet.assembler.helper.Handle;
 public class ConstantMapper {
 
     public static MethodHandle fromArray(ASTArray array) {
-        int kind = Handle.Kind.from(array.values().get(0).content()).ordinal();
+        Handle.Kind kind = Handle.Kind.from(array.values().get(0).content());
         String name = array.values().get(1).content();
         String descriptor = array.values().get(2).content();
 
@@ -24,10 +24,10 @@ public class ConstantMapper {
 
         ObjectType owner = Types.instanceTypeFromInternalName(className);
 
-        Type methodType = Types.methodType(descriptor);
+        Type methodType = kind.isField() ? Types.instanceTypeFromDescriptor(descriptor) : Types.methodType(descriptor);
 
         // TODO: ITF
-        return new MethodHandle(kind, owner, methodName, methodType, false);
+        return new MethodHandle(kind.ordinal(), owner, methodName, methodType, false);
     }
 
     public static Constant fromConstant(ASTElement element) {
