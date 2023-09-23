@@ -16,8 +16,7 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
     private int index;
     Map<Integer, Frame> frames = new HashMap<>();
     private final BitSet visited = new BitSet();
-    private final Deque<Integer> forkQueue = new ArrayDeque<>();
-    private final Deque<Frame> frameStack = new ArrayDeque<>();
+    private final Deque<Fork> forkQueue = new ArrayDeque<>();
 
     private final List<CodeElement> backing;
     private final List<TryCatchBlock> exceptionHandlers;
@@ -75,11 +74,10 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
     void forkOrExit() {
         if (!forkQueue.isEmpty()) {
             // fork
-            int forkIndex = forkQueue.pop();
-            Frame oldFrame = frameStack.pop().copy();
+            Fork fork = forkQueue.pop();
 
-            engine.frame(oldFrame);
-            index = forkIndex;
+            engine.frame(fork.frame().copy());
+            index = fork.index();
         } else {
             // terminate the simulation
             index = backing.size();
@@ -88,6 +86,9 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
 
     @Override
     public void advance() {
+        // TODO: visit all try catch blocks before, then just make athrow exit
+
+        // TODO: merge local types
         while (visited.get(index)) {
             // set the frame to the last frame
             engine.frame(frames.get(index));
@@ -108,10 +109,7 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
             int pos1 = index + 1;
 
             Frame first = engine.frame();
-            cond.allTargets().forEach((target) -> {
-                int pos2 = backing.indexOf(target);
-                frameStack.push(first);
-            });
+            cond.allTargets().forEach((target) -> forkQueue.push(new Fork(backing.indexOf(target), first)));
 
             index = pos1;
             return;
@@ -143,6 +141,8 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
 
         visited.set(index++);
     }
+
+    private record Fork(int index, Frame frame) {}
 
     @Override
     public void set(Label label) {
