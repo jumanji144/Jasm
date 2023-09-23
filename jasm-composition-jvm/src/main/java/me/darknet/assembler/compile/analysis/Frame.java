@@ -40,6 +40,8 @@ public class Frame {
     }
 
     public void push(ClassType type) {
+        if (type == null)
+            throw new IllegalStateException("Cannot push null as typed value to stack");
         stack.push(type);
         lastPushed = type;
     }
