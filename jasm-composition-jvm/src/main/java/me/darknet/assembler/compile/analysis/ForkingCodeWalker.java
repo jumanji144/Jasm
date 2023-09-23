@@ -86,9 +86,14 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
 
     @Override
     public void advance() {
-        // TODO: visit all try catch blocks before, then just make athrow exit
+        if (index >= backing.size()) {
+            return;
+        }
 
-        // TODO: merge local types
+        advance0();
+    }
+
+    void advance0() {
         while (visited.get(index)) {
             // set the frame to the last frame
             engine.frame(frames.get(index));
@@ -126,7 +131,13 @@ public class ForkingCodeWalker implements CodeWalker, JavaOpcodes {
                     TryCatchBlock exceptionHandler = getExceptionHandler();
                     if(exceptionHandler == null) {
                         forkOrExit();
+                        return;
                     } else {
+                        // check if a handler label is actually real
+                        if(!backing.contains(exceptionHandler.handler())) {
+                            forkOrExit();
+                            return;
+                        }
                         // load frame from beginning of exception handler
                         ClassType exType = engine.frame().peek();
                         Frame beginFrame = frames.get(backing.indexOf(exceptionHandler.start()));
