@@ -195,8 +195,6 @@ public class Tokenizer {
                 if (isOperator(content.charAt(0)))
                     return TokenType.OPERATOR;
             }
-            if (inString)
-                return TokenType.STRING;
             TokenType type = TokenType.IDENTIFIER;
             // check if all the characters in the token are digits (and the '-' sign)
             if (checkIfNumber(content))
@@ -205,22 +203,20 @@ public class Tokenizer {
         }
 
         public void collectToken() {
-            if (buffer.isEmpty()) {
-                if(inString) {
-                    tokens.add(new Token(new Range(index, index), new Location(line, column, source),
-                            TokenType.STRING, ""));
-                }
-                return;
-            }
+
             String content = buffer.toString();
             Range range = new Range(index - content.length(), index);
             Location location = new Location(line, column, source);
 
-            TokenType type = getType(content);
+            if (inString) {
+                tokens.add(new Token(range, location, TokenType.STRING, content));
+            } else if (!buffer.isEmpty()) {
+                TokenType type = getType(content);
+                tokens.add(new Token(range, location, type, content));
+            }
 
-            tokens.add(new Token(range, location, type, content));
-
-            buffer = new StringBuffer();
+            // clear buffer
+            buffer.setLength(0); // reset buffer
         }
 
         public void processEscape() {
