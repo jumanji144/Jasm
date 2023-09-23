@@ -1,5 +1,6 @@
 package me.darknet.assembler.compile.visitor;
 
+import dev.xdark.blw.annotation.AnnotationBuilder;
 import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.MethodType;
@@ -21,7 +22,7 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
 
         InstanceType type = builder.type;
 
-        return new BlwAnnotationVisitor(switch (path.length) {
+        AnnotationBuilder.Nested<?> nested = switch (path.length) {
             case 2 -> builder.visibleRuntimeAnnotation(type, index);
             case 5 -> {
                 String member = path[3];
@@ -33,7 +34,8 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
                 };
             }
             default -> throw new IllegalStateException("Unexpected value: " + path.length);
-        });
+        };
+        return new BlwAnnotationVisitor(nested);
     }
 
     @Override

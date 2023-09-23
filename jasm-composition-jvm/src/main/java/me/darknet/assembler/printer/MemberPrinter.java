@@ -36,15 +36,17 @@ public record MemberPrinter(
 
     public PrintContext<?> printDeclaration(PrintContext<?> ctx) {
         if (accessible != null) {
-            return ctx.begin().element(switch (type) {
+            String elementName = switch (type) {
                 case CLASS -> ".class";
                 case FIELD -> ".field";
                 case METHOD -> ".method";
-            }).print(BlwModifiers.modifiers(accessible.accessFlags(), switch (type) {
+            };
+            int modifierType = switch (type) {
                 case CLASS -> BlwModifiers.CLASS;
                 case FIELD -> BlwModifiers.FIELD;
                 case METHOD -> BlwModifiers.METHOD;
-            }));
+            };
+            return ctx.begin().element(elementName).print(BlwModifiers.modifiers(accessible.accessFlags(), modifierType));
         }
         return ctx;
     }
