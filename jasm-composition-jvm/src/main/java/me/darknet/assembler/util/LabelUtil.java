@@ -3,22 +3,14 @@ package me.darknet.assembler.util;
 public class LabelUtil {
 
     public static String getLabelName(int index) {
-        // 0-25: A-Z, 26-51: AA-ZZ, 52-77: AAA-ZZZ, etc.
-        int base = 26;
-        int offset = 65;
-        int count = 0;
-        int i = index;
-        while (i >= count) {
-            i -= count;
-            count = count * base + base;
+        StringBuilder label = new StringBuilder();
+
+        while (index >= 0) {
+            label.insert(0, (char) ('A' + index % 26));
+            index = (index / 26) - 1;
         }
-        StringBuilder builder = new StringBuilder();
-        while (i >= 0) {
-            builder.append((char) (i % base + offset));
-            i /= base;
-            i--;
-        }
-        return builder.reverse().toString();
+
+        return label.toString();
     }
 
 }
