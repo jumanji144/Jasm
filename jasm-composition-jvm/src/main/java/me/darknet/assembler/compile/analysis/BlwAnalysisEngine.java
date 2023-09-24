@@ -193,15 +193,13 @@ public class BlwAnalysisEngine implements AnalysisEngine, JavaOpcodes {
 
     @Override
     public void execute(InvokeDynamicInstruction instruction) {
-        switch (instruction.bootstrapHandle().kind()) {
-            case 0, 2, 4, 6, 7, 8, 9 -> frame.pop(); // pop `this`
+        MethodType type = (MethodType) instruction.type();
+        List<ClassType> types = type.parameterTypes();
+        for (ClassType classType : types) {
+            frame.pop(classType);
         }
-        if(instruction.type() instanceof MethodType mt) {
-            frame.pop(mt.parameterTypes().size());
-            frame.pushType(mt.returnType());
-        } else {
-            frame.pushType((ClassType) instruction.type());
-        }
+        if (type.returnType() != Types.VOID)
+            frame.pushType(type.returnType());
     }
 
     @Override
