@@ -1,11 +1,13 @@
 package me.darknet.assembler.printer;
 
-import dev.xdark.blw.code.*;
+import dev.xdark.blw.code.Code;
+import dev.xdark.blw.code.Instruction;
+import dev.xdark.blw.code.JavaOpcodes;
+import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.helper.Names;
 import me.darknet.assembler.util.IndexedExecutionEngine;
-import me.darknet.assembler.util.LabelUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,18 +32,11 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     protected Names names;
     private int currentIndex = 0;
 
-    public InstructionPrinter(PrintContext.CodePrint ctx, Code code, Names names) {
+    public InstructionPrinter(PrintContext.CodePrint ctx, Code code, Names names, Map<Integer, String> labelNames) {
         this.ctx = ctx;
         this.code = code;
         this.names = names;
-
-        // map labels
-        int index = 0;
-        for (CodeElement codeElement : code.elements()) {
-            if (codeElement instanceof Label label) {
-                labelNames.put(label.index(), LabelUtil.getLabelName(index++));
-            }
-        }
+        this.labelNames = labelNames;
     }
 
     @Override

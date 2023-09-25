@@ -146,6 +146,14 @@ public class ASTProcessor {
         return new ASTField(modifiers, name, desc, attributes.annotations, attributes.signature, value);
     }
 
+    private static ASTException parseException(ParserContext ctx, ASTArray object) {
+        ASTIdentifier start = ctx.validateIdentifier(object.values().get(0), "exception start", object);
+        ASTIdentifier end = ctx.validateIdentifier(object.values().get(1), "exception end", object);
+        ASTIdentifier handler = ctx.validateIdentifier(object.values().get(2), "exception handler", object);
+        ASTIdentifier type = ctx.validateIdentifier(object.values().get(3), "exception type", object);
+        return new ASTException(start, end, handler, type);
+    }
+
     private static ASTMethod parseMethod(ParserContext ctx, ASTDeclaration declaration) {
         List<@Nullable ASTElement> elements = declaration.elements();
         if (elements.size() < 3) {
@@ -164,6 +172,21 @@ public class ASTProcessor {
             );
             if (array != null)
                 parameters = ctx.validateArray(array, ElementType.IDENTIFIER, "method parameter", declaration);
+        }
+        List<ASTException> exceptions = new ArrayList<>();
+        if(body.values().containsKey("exceptions")) {
+            ASTArray array = ctx.validateEmptyableElement(
+                    body.values().get("exceptions"), ElementType.ARRAY, "method exceptions", declaration
+            );
+            if(array != null) {
+                for (ASTElement element : array.values()) {
+                    ASTArray arr = ctx.validateEmptyableElement(element, ElementType.ARRAY,
+                            "method exception", declaration);
+                    if(arr == null)
+                        continue;
+                    exceptions.add(parseException(ctx, arr));
+                }
+            }
         }
         ASTCode code = null;
         List<Instruction<?>> instructions = new ArrayList<>();
@@ -196,8 +219,8 @@ public class ASTProcessor {
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
         ProcessorAttributes attributes = ctx.result.collectAttributes();
         return new ASTMethod(
-                modifiers, name, desc, attributes.signature, attributes.annotations, parameters, code, instructions,
-                ctx.format
+                modifiers, name, desc, attributes.signature, attributes.annotations, parameters, exceptions, code,
+                instructions, ctx.format
         );
     }
 

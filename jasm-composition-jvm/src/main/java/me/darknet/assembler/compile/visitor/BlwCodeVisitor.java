@@ -1,9 +1,6 @@
 package me.darknet.assembler.compile.visitor;
 
-import dev.xdark.blw.code.Code;
-import dev.xdark.blw.code.Instruction;
-import dev.xdark.blw.code.JavaOpcodes;
-import dev.xdark.blw.code.Label;
+import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.attribute.generic.GenericLocal;
 import dev.xdark.blw.code.generic.GenericCodeBuilder;
 import dev.xdark.blw.code.generic.GenericCodeListBuilder;
@@ -105,11 +102,23 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     @Override
+    public void visitException(ASTIdentifier start, ASTIdentifier end, ASTIdentifier handler, ASTIdentifier type) {
+        GenericLabel startLabel = labels.get(start.content()); // assume that labels don't have escapable characters
+        GenericLabel endLabel = labels.get(end.content());
+        GenericLabel handlerLabel = labels.get(handler.content());
+
+        String typeName = type.literal();
+        InstanceType exceptionType = typeName.equals("*") ? null : Types.instanceTypeFromDescriptor(typeName);
+        meta.tryCatchBlock(new TryCatchBlock(startLabel, endLabel, handlerLabel, exceptionType));
+    }
+
+    @Override
     public void visitInsn() {
         String content = last.identifier().content();
         Instruction instruction = switch (content) {
             case "iconst_m1" -> new ConstantInstruction.Int(new OfInt(-1));
-            case "iconst_0", "iconst_1", "iconst_2", "iconst_3", "iconst_4", "iconst_5", "lconst_0", "lconst_1", "fconst_0", "fconst_1", "fconst_2", "dconst_0", "dconst_1" -> {
+            case "iconst_0", "iconst_1", "iconst_2", "iconst_3", "iconst_4", "iconst_5", "lconst_0", "lconst_1",
+                    "fconst_0", "fconst_1", "fconst_2", "dconst_0", "dconst_1" -> {
                 int value = content.charAt(content.length() - 1) - '0';
                 yield switch (content.charAt(0)) {
                     case 'i' -> new ConstantInstruction.Int(new OfInt(value));

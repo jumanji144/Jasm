@@ -21,6 +21,8 @@ public interface ASTInstructionVisitor {
      */
     void visitLabel(ASTIdentifier label);
 
+    void visitException(ASTIdentifier start, ASTIdentifier end, ASTIdentifier handler, ASTIdentifier type);
+
     void visitEnd();
 
 }

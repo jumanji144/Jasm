@@ -2,11 +2,15 @@ package me.darknet.assembler.printer;
 
 import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.classfile.Method;
+import dev.xdark.blw.code.CodeElement;
+import dev.xdark.blw.code.Label;
+import dev.xdark.blw.code.TryCatchBlock;
 import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.type.ClassType;
 import me.darknet.assembler.helper.Names;
 import me.darknet.assembler.util.EscapeUtil;
 import me.darknet.assembler.util.IndexedStraightforwardSimulation;
+import me.darknet.assembler.util.LabelUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -74,6 +78,17 @@ public class JvmMethodPrinter implements MethodPrinter {
         return name;
     }
 
+    public static Map<Integer, String> getLabelNames(List<CodeElement> elements) {
+        Map<Integer, String> labelNames = new HashMap<>();
+        int labelIndex = 0;
+        for (CodeElement element : elements) {
+            if (element instanceof Label label) {
+                labelNames.put(label.index(), LabelUtil.getLabelName(labelIndex++));
+            }
+        }
+        return labelNames;
+    }
+
     @Override
     public void print(PrintContext<?> ctx) {
         memberPrinter.printAttributes(ctx);
@@ -94,8 +109,33 @@ public class JvmMethodPrinter implements MethodPrinter {
         }
         var methodCode = method.code();
         if (methodCode != null) {
+            Map<Integer, String> labelNames = getLabelNames(methodCode.elements());
+            if(!methodCode.tryCatchBlocks().isEmpty()) {
+                var arr = obj.value("exceptions").array();
+
+                for (TryCatchBlock tryCatchBlock : methodCode.tryCatchBlocks()) {
+                    var exception = arr.array();
+
+                    String start = labelNames.get(tryCatchBlock.start().index());
+                    String end = labelNames.get(tryCatchBlock.end().index());
+                    String handler = labelNames.get(tryCatchBlock.handler().index());
+
+                    String type = tryCatchBlock.type() == null ? "*" : tryCatchBlock.type().descriptor();
+
+                    exception.print(start).arg()
+                            .print(end).arg()
+                            .print(handler).arg()
+                            .print(type);
+
+                    exception.end();
+                    arr.arg();
+                }
+
+                arr.end();
+                obj.next();
+            }
             var code = obj.value("code").code();
-            InstructionPrinter printer = new InstructionPrinter(code, methodCode, names);
+            InstructionPrinter printer = new InstructionPrinter(code, methodCode, names, labelNames);
             IndexedStraightforwardSimulation simulation = new IndexedStraightforwardSimulation();
             simulation.execute(printer, method);
             code.end();

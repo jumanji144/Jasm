@@ -23,6 +23,7 @@ public enum ElementType {
     INNER_CLASS,
     SIGNATURE,
     CLASS_TYPE,
-    METHOD_TYPE
+    METHOD_TYPE,
+    EXCEPTION
 
 }

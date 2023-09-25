@@ -16,16 +16,19 @@ public class ASTMethod extends ASTMember {
 
     private final ASTIdentifier descriptor;
     private final List<ASTIdentifier> parameters;
+    private final List<ASTException> exceptions;
     private final ASTCode code;
     private final List<Instruction<?>> instructions;
     private final BytecodeFormat format;
 
     public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor,
                      @Nullable ASTString signature, @Nullable List<ASTAnnotation> annotations,
-                     List<ASTIdentifier> parameters, ASTCode code, List<Instruction<?>> instructions, BytecodeFormat format) {
+                     List<ASTIdentifier> parameters, List<ASTException> exceptions, ASTCode code,
+                     List<Instruction<?>> instructions, BytecodeFormat format) {
         super(ElementType.METHOD, modifiers, name, signature, annotations);
         this.descriptor = descriptor;
         this.parameters = parameters;
+        this.exceptions = exceptions;
         this.code = code;
         this.instructions = instructions;
         this.format = format;
@@ -37,6 +40,10 @@ public class ASTMethod extends ASTMember {
 
     public List<ASTIdentifier> parameters() {
         return parameters;
+    }
+
+    public List<ASTException> exceptions() {
+        return exceptions;
     }
 
     public ASTCode code() {
@@ -70,6 +77,11 @@ public class ASTMethod extends ASTMember {
                     instructionVisitor.visitInstruction(instruction);
                     instructions.get(instructionIndex++).transform(instruction, instructionVisitor);
                 }
+            }
+
+            for (ASTException exception : exceptions) {
+                instructionVisitor.visitException(exception.start(), exception.end(), exception.handler(),
+                        exception.exceptionType());
             }
 
             instructionVisitor.visitEnd();
