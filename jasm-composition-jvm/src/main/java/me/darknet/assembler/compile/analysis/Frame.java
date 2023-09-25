@@ -123,7 +123,9 @@ public class Frame {
     }
 
     public void pushNull() {
-        stack.push(NULL);
+        // TODO: track null state
+        //stack.push(NULL);
+        push(OBJECT);
     }
 
     public void push(ClassType... types) {
