@@ -32,8 +32,6 @@ public class AnalysisSimulation implements Simulation<AnalysisEngine, AnalysisSi
         for (TryCatchBlock handler : method.exceptionHandlers) {
             Label h = handler.handler();
             int idx = elements.indexOf(h);
-            if (visited.get(idx)) continue;
-            visited.set(idx);
             Frame copy = initialFrame.copy();
             InstanceType type = handler.type();
             if (type == null) {
@@ -42,7 +40,6 @@ public class AnalysisSimulation implements Simulation<AnalysisEngine, AnalysisSi
             copy.push(type);
             forkQueue.push(new ForkKey(idx, copy));
         }
-        visited.clear();
         Map<Integer, Frame> frameMap = new HashMap<>();
         ForkKey key;
         loop:
@@ -63,20 +60,23 @@ public class AnalysisSimulation implements Simulation<AnalysisEngine, AnalysisSi
             }
             while (true) {
                 if (checkVisited && visited.get(index)) continue loop;
-                Frame current = frame;
-                engine.frame(index, current);
                 CodeElement element = elements.get(index);
-                visited.set(index++);
-                if (element instanceof BranchInstruction bi) {
-                    bi.allTargets().forEach(target -> forkQueue.push(new ForkKey(elements.indexOf(target), frame.copy())));
+                if (element instanceof Label lbl) {
+                    forkQueue.push(new ForkKey(lbl.index() + 1, frame));
+                    continue loop;
                 }
+                engine.frame(index, frame);
+                visited.set(index++);
+                boolean exit = false;
                 if (element instanceof Instruction insn) {
                     ExecutionEngines.execute(engine, insn);
                     int opcode = insn.opcode();
-                    if ((opcode >= JavaOpcodes.TABLESWITCH && opcode <= JavaOpcodes.RETURN) || opcode == JavaOpcodes.ATHROW || insn instanceof ImmediateJumpInstruction) {
-                        continue loop;
-                    }
+                    exit = (opcode >= JavaOpcodes.TABLESWITCH && opcode <= JavaOpcodes.RETURN) || opcode == JavaOpcodes.ATHROW || insn instanceof ImmediateJumpInstruction;
                 }
+                if (element instanceof BranchInstruction bi) {
+                    bi.allTargets().forEach(target -> forkQueue.push(new ForkKey(elements.indexOf(target), frame.copy())));
+                }
+                if (exit) break;
             }
         }
     }
