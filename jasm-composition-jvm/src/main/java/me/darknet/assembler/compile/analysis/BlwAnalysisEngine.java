@@ -9,23 +9,26 @@ import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.Types;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class BlwAnalysisEngine implements AnalysisEngine, JavaOpcodes {
 
+    private final Map<Integer, Frame> frames = new HashMap<>();
     private Frame frame;
 
-    public BlwAnalysisEngine(List<ClassType> parameters) {
-        this.frame = new Frame();
-        this.frame.locals(parameters, 0);
-    }
-
-    public void frame(Frame frame) {
+    public void frame(int index, Frame frame) {
+        frames.put(index, frame);
         this.frame = frame;
     }
 
     public Frame frame() {
         return frame;
+    }
+
+    public Map<Integer, Frame> getFrames() {
+        return frames;
     }
 
     @Override
@@ -132,7 +135,17 @@ public class BlwAnalysisEngine implements AnalysisEngine, JavaOpcodes {
     public void execute(VarInstruction instruction) {
         switch (instruction.opcode()) {
             case ILOAD, LLOAD, FLOAD, DLOAD, ALOAD -> {
-                frame.push(frame.local(instruction.variableIndex()));
+                if(frame.hasLocal(instruction.variableIndex())) {
+                    frame.push(frame.local(instruction.variableIndex()));
+                } else {
+                    switch (instruction.opcode()) {
+                        case ILOAD -> frame.push(Types.INT);
+                        case LLOAD -> frame.push(Types.LONG);
+                        case FLOAD -> frame.push(Types.FLOAT);
+                        case DLOAD -> frame.push(Types.DOUBLE);
+                        case ALOAD -> frame.push(Frame.OBJECT);
+                    }
+                }
                 if (instruction.opcode() == LLOAD || instruction.opcode() == DLOAD)
                     frame.push(Types.VOID);
             }

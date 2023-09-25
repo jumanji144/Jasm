@@ -6,6 +6,6 @@ public interface AnalysisEngine extends ExecutionEngine {
 
     Frame frame();
 
-    void frame(Frame frame);
+    void frame(int index, Frame frame);
 
 }

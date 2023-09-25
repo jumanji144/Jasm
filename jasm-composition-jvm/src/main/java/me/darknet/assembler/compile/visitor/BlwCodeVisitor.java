@@ -136,6 +136,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
                     case 'd' -> Types.DOUBLE;
                     case 'c' -> Types.CHAR;
                     case 's' -> Types.SHORT;
+                    case 'b' -> Types.BYTE;
                     default -> throw new IllegalStateException("Unknown to type for primitive conversion: " + toChar);
                 };
                 yield new PrimitiveConversionInstruction(from, to);
@@ -303,11 +304,11 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         }
 
         // analyze stack
-        BlwAnalysisEngine engine = new BlwAnalysisEngine(paramTypes);
+        BlwAnalysisEngine engine = new BlwAnalysisEngine();
 
-        AnalysisSimulation simulation = new AnalysisSimulation(checker);
+        AnalysisSimulation simulation = new AnalysisSimulation();
         Code code = meta.build();
-        simulation.execute(engine, new AnalysisSimulation.Info(code.elements(), code.tryCatchBlocks()));
+        simulation.execute(engine, new AnalysisSimulation.Info(checker, paramTypes, code.elements(), code.tryCatchBlocks()));
 
         Frame frame = engine.frame();
 
