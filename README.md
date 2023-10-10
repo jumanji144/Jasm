@@ -22,7 +22,7 @@ Java assembly like language for bytecode. Aimed at intergration use.
 The syntax is quite similar to that of other assemblers.   
 It has resilience against maliciously inputs
 It also supports names for locals, labels
-but most importantly it supports the entire structure of class declaration, field declaration and method declartaion
+but most importantly it supports the entire structure of class declaration, field declaration and method declaration
 here is a sample
 ```jasmin
 class public Test extends java/lang/Object
