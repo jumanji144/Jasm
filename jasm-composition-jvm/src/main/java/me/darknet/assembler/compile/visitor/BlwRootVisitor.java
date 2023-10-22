@@ -20,7 +20,7 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
         var path = options.annotationPath().split("\\.");
         int index = Integer.parseInt(path[path.length - 1]);
 
-        InstanceType type = builder.type;
+        InstanceType type = builder.getType();
 
         AnnotationBuilder.Nested<?> nested = switch (path.length) {
             case 2 -> builder.visibleRuntimeAnnotation(type, index);
@@ -28,8 +28,8 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
                 String member = path[3];
                 String descriptor = path[4];
                 yield switch (path[2]) {
-                    case "field" -> builder.fields.get(member + descriptor).visibleRuntimeAnnotation(type, index);
-                    case "method" -> builder.methods.get(member + descriptor).visibleRuntimeAnnotation(type, index);
+                    case "field" -> builder.getFields().get(member + descriptor).visibleRuntimeAnnotation(type, index);
+                    case "method" -> builder.getMethods().get(member + descriptor).visibleRuntimeAnnotation(type, index);
                     default -> throw new IllegalStateException("Unexpected value: " + path[2]);
                 };
             }

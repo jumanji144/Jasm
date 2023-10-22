@@ -11,12 +11,13 @@ import dev.xdark.blw.util.Reflectable;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 public abstract class BlwReplaceMemberBuilder implements MemberBuilder {
-    private final Map<String, Reflectable<Annotation>> visibleRuntimeAnnotations = new HashMap<>();
-    private final Map<String, Reflectable<Annotation>> invisibleRuntimeAnnotations = new HashMap<>();
+    private final Map<String, Reflectable<Annotation>> visibleRuntimeAnnotations = new LinkedHashMap<>();
+    private final Map<String, Reflectable<Annotation>> invisibleRuntimeAnnotations = new LinkedHashMap<>();
     protected String signature;
 
     @Override

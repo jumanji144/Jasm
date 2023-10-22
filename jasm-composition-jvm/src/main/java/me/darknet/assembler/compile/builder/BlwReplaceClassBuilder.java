@@ -18,20 +18,32 @@ import java.util.*;
 
 public class BlwReplaceClassBuilder implements ClassBuilder {
 
-    private final Map<Integer, BuilderShadow<Annotation>> visibleRuntimeAnnotations = new HashMap<>();
-    private final Map<Integer, BuilderShadow<Annotation>> invisibleRuntimeAnnotations = new HashMap<>();
-    public final Map<String, BlwReplaceMethodBuilder> methods = new HashMap<>();
-    public final Map<String, BlwReplaceFieldBuilder> fields = new HashMap<>();
+    private final Map<Integer, BuilderShadow<Annotation>> visibleRuntimeAnnotations = new LinkedHashMap<>();
+    private final Map<Integer, BuilderShadow<Annotation>> invisibleRuntimeAnnotations = new LinkedHashMap<>();
+    private final Map<String, BlwReplaceMethodBuilder> methods = new LinkedHashMap<>();
+    private final Map<String, BlwReplaceFieldBuilder> fields = new LinkedHashMap<>();
     private List<InnerClass> innerClasses = List.of();
     private InstanceType nestHost;
     private String sourceFile, sourceDebug;
     private int accessFlags;
     private String signature;
     private ConstantPool pool;
-    public InstanceType type;
+    private InstanceType type;
     private InstanceType superClass;
     private List<InstanceType> interfaces = List.of();
     private JavaVersion version;
+
+    public InstanceType getType() {
+        return type;
+    }
+
+    public Map<String, BlwReplaceFieldBuilder> getFields() {
+        return fields;
+    }
+
+    public Map<String, BlwReplaceMethodBuilder> getMethods() {
+        return methods;
+    }
 
     @Override
     public ClassBuilder accessFlags(int accessFlags) {

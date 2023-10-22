@@ -66,7 +66,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
                 .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD)).reduce(0, (a, b) -> a | b);
         MethodType type = Types.methodType(descriptor.literal());
         return new BlwMethodVisitor(
-                options.inheritanceChecker(), builder.type, type,
+                options.inheritanceChecker(), builder.getType(), type,
                 (accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
                 builder.method(accessFlags, name.literal(), type)
         );
