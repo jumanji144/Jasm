@@ -54,10 +54,12 @@ public class ASTMethod extends ASTMember {
         return instructions;
     }
 
+    @SuppressWarnings("UnnecessaryLocalVariable")
     public void accept(ErrorCollector collector, ASTMethodVisitor visitor) {
         super.accept(collector, visitor);
-        for (int i = 0; i < parameters.size(); i++) {
-            visitor.visitParameter(i, parameters.get(i));
+        List<ASTIdentifier> localParams = parameters;
+        for (int i = 0; i < localParams.size(); i++) {
+            visitor.visitParameter(i, localParams.get(i));
         }
         if(this.code == null) {
             visitor.visitEnd();
@@ -69,13 +71,14 @@ public class ASTMethod extends ASTMember {
         };
         if (instructionVisitor != null) {
             int instructionIndex = 0;
-            for (int i = 0; i < code.instructions().size(); i++) {
-                ASTInstruction instruction = code.instructions().get(i);
-                if(instruction instanceof ASTLabel lab) {
+            List<ASTInstruction> localAstInstructions = code.instructions();
+            List<Instruction<?>> localIrInstructions = instructions;
+            for (ASTInstruction instruction : localAstInstructions) {
+                if (instruction instanceof ASTLabel lab) {
                     instructionVisitor.visitLabel(lab.identifier());
                 } else {
                     instructionVisitor.visitInstruction(instruction);
-                    instructions.get(instructionIndex++).transform(instruction, instructionVisitor);
+                    localIrInstructions.get(instructionIndex++).transform(instruction, instructionVisitor);
                 }
             }
 

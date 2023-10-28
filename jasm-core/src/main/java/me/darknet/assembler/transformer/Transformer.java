@@ -29,13 +29,14 @@ public class Transformer {
      */
     public Result<Void> transform(List<ASTElement> declarations) {
         ErrorCollector collector = new ErrorCollector();
+        ASTRootVisitor localVisitor = visitor;
         for (ASTElement declaration : declarations) {
             if (declaration instanceof ASTField field) {
-                field.accept(collector, visitor.visitField(field.modifiers(), field.name(), field.descriptor()));
+                field.accept(collector, localVisitor.visitField(field.modifiers(), field.name(), field.descriptor()));
             } else if (declaration instanceof ASTMethod method) {
-                method.accept(collector, visitor.visitMethod(method.modifiers(), method.name(), method.descriptor()));
+                method.accept(collector, localVisitor.visitMethod(method.modifiers(), method.name(), method.descriptor()));
             } else if (declaration instanceof ASTClass clazz) {
-                clazz.accept(collector, visitor.visitClass(clazz.modifiers(), clazz.name()));
+                clazz.accept(collector, localVisitor.visitClass(clazz.modifiers(), clazz.name()));
             } else {
                 collector.addError("Don't know how to process: " + declaration.type(), declaration.location());
             }
