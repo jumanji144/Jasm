@@ -3,6 +3,7 @@ package me.darknet.assembler;
 import dev.xdark.blw.classfile.ClassBuilder;
 import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compile.JvmCompilerOptions;
+import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.helper.Processor;
 import me.darknet.assembler.parser.BytecodeFormat;
@@ -19,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
@@ -42,7 +44,7 @@ public class CompilerTest {
         Processor.processSource(first, "<test>", (ast) -> {
             JvmCompiler compiler = new JvmCompiler();
             compiler.compile(ast, options).ifOk((representation) -> {
-                byte[] bytes = representation.data();
+                byte[] bytes = representation.classFile();
 
                 // check if bytes are valid
                 try {

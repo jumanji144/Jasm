@@ -9,7 +9,7 @@ import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.type.ClassType;
 import me.darknet.assembler.helper.Names;
 import me.darknet.assembler.util.EscapeUtil;
-import me.darknet.assembler.util.IndexedStraightforwardSimulation;
+import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
 import me.darknet.assembler.util.LabelUtil;
 import org.jetbrains.annotations.NotNull;
 

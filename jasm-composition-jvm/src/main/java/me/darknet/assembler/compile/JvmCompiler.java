@@ -25,7 +25,7 @@ import java.util.List;
 
 public class JvmCompiler implements Compiler {
 
-    public BytecodeLibrary library;
+    private BytecodeLibrary library;
 
     private void applyOverlay(ErrorCollector collector, ClassBuilder builder, byte[] overlay) {
         if (overlay != null) {
@@ -75,7 +75,7 @@ public class JvmCompiler implements Compiler {
         builder.version(blwOptions.version);
 
         if(blwOptions.overlay != null)
-            applyOverlay(collector, builder, blwOptions.overlay.data());
+            applyOverlay(collector, builder, blwOptions.overlay.classFile());
         if (collector.hasErr()) {
             return new Result<>(null, collector.getErrors());
         }
@@ -92,7 +92,7 @@ public class JvmCompiler implements Compiler {
                 // we cannot continue, the result might be very corrupted
                 return new Result<>(null, collector.getErrors());
             }
-            return new Result<>(new JavaClassRepresentation(out.toByteArray()), collector.getErrors());
+            return new Result<>(new JavaClassRepresentation(out.toByteArray(), builder), collector.getErrors());
         }
 
         return new Result<>(null, collector.getErrors());

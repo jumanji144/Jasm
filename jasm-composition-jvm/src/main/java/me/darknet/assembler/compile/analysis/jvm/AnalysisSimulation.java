@@ -1,4 +1,4 @@
-package me.darknet.assembler.compile.analysis;
+package me.darknet.assembler.compile.analysis.jvm;
 
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.instruction.BranchInstruction;
@@ -8,6 +8,7 @@ import dev.xdark.blw.simulation.Simulation;
 import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.Types;
+import me.darknet.assembler.compile.analysis.Frame;
 import me.darknet.assembler.compiler.InheritanceChecker;
 
 import java.util.*;
@@ -26,6 +27,7 @@ public class AnalysisSimulation implements Simulation<AnalysisEngine, AnalysisSi
             }
             forkQueue.push(new ForkKey(0, frame));
             initialFrame = frame;
+            engine.putFrame(0, frame);
         }
         List<CodeElement> elements = method.method;
         BitSet visited = new BitSet(elements.size());
@@ -40,13 +42,12 @@ public class AnalysisSimulation implements Simulation<AnalysisEngine, AnalysisSi
             copy.push(type);
             forkQueue.push(new ForkKey(idx, copy));
         }
-        Map<Integer, Frame> frameMap = new HashMap<>();
         ForkKey key;
         loop:
         while ((key = forkQueue.poll()) != null) {
             int index = key.index;
             Frame frame = key.frame.copy();
-            Frame oldFrame = frameMap.putIfAbsent(index, frame.copy());
+            Frame oldFrame = engine.putFrameIfAbsent(index, frame::copy);
             boolean checkVisited;
             if (oldFrame != null) {
                 boolean noMerge = !frame.merge(method.checker, oldFrame);
@@ -54,7 +55,7 @@ public class AnalysisSimulation implements Simulation<AnalysisEngine, AnalysisSi
                     continue;
                 }
                 checkVisited = false;
-                frameMap.put(index, frame.copy());
+                engine.putFrame(index, frame.copy());
             } else {
                 checkVisited = true;
             }
@@ -65,7 +66,7 @@ public class AnalysisSimulation implements Simulation<AnalysisEngine, AnalysisSi
                     forkQueue.push(new ForkKey(lbl.index() + 1, frame));
                     continue loop;
                 }
-                engine.frame(index, frame);
+                engine.putFrame(index, frame);
                 visited.set(index++);
                 boolean exit = false;
                 if (element instanceof Instruction insn) {

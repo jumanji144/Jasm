@@ -64,7 +64,8 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
         return new BlwMethodVisitor(
                 options.inheritanceChecker(), Types.instanceType(Object.class), type,
                 (accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
-                builder.method(accessFlags, name.literal(), type)
+                builder.method(accessFlags, name.literal(), type),
+                analysisResults -> builder.setMethodAnalysis(name.literal(), type, analysisResults)
         );
     }
 }

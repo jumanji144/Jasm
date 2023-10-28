@@ -13,10 +13,9 @@ import dev.xdark.blw.constant.OfLong;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
-import me.darknet.assembler.compile.analysis.AnalysisSimulation;
-import me.darknet.assembler.compile.analysis.BlwAnalysisEngine;
-import me.darknet.assembler.compile.analysis.Frame;
-import me.darknet.assembler.compile.analysis.LocalInfo;
+import me.darknet.assembler.compile.analysis.*;
+import me.darknet.assembler.compile.analysis.jvm.BlwAnalysisEngine;
+import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.ConstantMapper;
@@ -32,6 +31,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final GenericCodeListBuilder.Nested<?> list;
     private final InheritanceChecker checker;
     private final Map<String, GenericLabel> labels = new HashMap<>();
+    private final BlwAnalysisEngine analysisEngine = new BlwAnalysisEngine();
     private final List<LocalInfo> parameters;
     private final List<String> locals = new ArrayList<>();
     private ASTInstruction last;
@@ -46,6 +46,10 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         this.begin = new GenericLabel();
         this.end = new GenericLabel();
         list.element(begin);
+    }
+
+    public AnalysisResults getAnalysisResults() {
+        return analysisEngine;
     }
 
     public int getParameterIndex(String name) {
@@ -310,22 +314,18 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         List<ClassType> paramTypes = new ArrayList<>();
         for (LocalInfo parameter : parameters) {
             paramTypes.add(parameter.type());
-        }
-
-        // analyze stack
-        BlwAnalysisEngine engine = new BlwAnalysisEngine();
-
-        AnalysisSimulation simulation = new AnalysisSimulation();
-        Code code = meta.build();
-        simulation.execute(engine, new AnalysisSimulation.Info(checker, paramTypes, code.elements(), code.tryCatchBlocks()));
-
-        Frame frame = engine.frame();
-
-        for (LocalInfo parameter : parameters) {
             meta.localVariable(
                     new GenericLocal(begin, end, parameter.index(), parameter.name(), parameter.type(), null)
             );
         }
+
+        // Analyze stack for local variable information.
+        AnalysisSimulation simulation = new AnalysisSimulation();
+        Code code = meta.build();
+        simulation.execute(analysisEngine, new AnalysisSimulation.Info(checker, paramTypes, code.elements(), code.tryCatchBlocks()));
+
+        // The final frame will hold all local variables defined witghin the method
+        Frame frame = analysisEngine.getLastFrame();
 
         int paramOffset = parameters.size();
         for (var entry : frame.locals().entrySet()) {
@@ -338,7 +338,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         }
     }
 
-    void add(Instruction instruction) {
+    private void add(Instruction instruction) {
         list.element(instruction);
     }
 }

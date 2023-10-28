@@ -4,6 +4,8 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compile.JvmCompilerOptions;
+import me.darknet.assembler.compile.analysis.EmptyMethodAnalysisLookup;
+import me.darknet.assembler.compile.analysis.MethodAnalysisLookup;
 import me.darknet.assembler.compiler.Compiler;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.helper.Processor;
@@ -63,7 +65,7 @@ public class CompileCommand implements Runnable {
                         System.exit(1);
                         return null;
                     }
-                }).orElse(null)))
+                }).orElse(null), EmptyMethodAnalysisLookup.instance()))
                 .annotationPath(annotationTarget.orElse(null));
     }
 
@@ -122,7 +124,7 @@ public class CompileCommand implements Runnable {
                 switch (MainCommand.target) {
                     case JVM -> {
                         try {
-                            Files.write(output.toPath(), ((JavaClassRepresentation) representation).data());
+                            Files.write(output.toPath(), ((JavaClassRepresentation) representation).classFile());
                         } catch (IOException e) {
                             System.err.println("Failed to write output file: " + e.getMessage());
                             System.exit(1);

@@ -68,7 +68,8 @@ public class BlwClassVisitor implements ASTClassVisitor {
         return new BlwMethodVisitor(
                 options.inheritanceChecker(), builder.getType(), type,
                 (accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
-                builder.method(accessFlags, name.literal(), type)
+                builder.method(accessFlags, name.literal(), type),
+                analysisResults -> builder.setMethodAnalysis(name.literal(), type, analysisResults)
         );
     }
 

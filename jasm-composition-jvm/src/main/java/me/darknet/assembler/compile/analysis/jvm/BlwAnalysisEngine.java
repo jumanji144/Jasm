@@ -1,4 +1,4 @@
-package me.darknet.assembler.compile.analysis;
+package me.darknet.assembler.compile.analysis.jvm;
 
 import dev.xdark.blw.code.Instruction;
 import dev.xdark.blw.code.JavaOpcodes;
@@ -8,26 +8,38 @@ import dev.xdark.blw.constant.*;
 import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.Types;
+import me.darknet.assembler.compile.analysis.AnalysisResults;
+import me.darknet.assembler.compile.analysis.Frame;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-public class BlwAnalysisEngine implements AnalysisEngine, JavaOpcodes {
+public class BlwAnalysisEngine implements AnalysisEngine, AnalysisResults, JavaOpcodes {
 
-    private final Map<Integer, Frame> frames = new HashMap<>();
+    private final NavigableMap<Integer, Frame> frames = new TreeMap<>();
     private Frame frame;
 
-    public void frame(int index, Frame frame) {
+    public ClassType local(int index) {
+        return frame.local(index);
+    }
+
+    @Override
+    public Frame getLastFrame() {
+        return frame;
+    }
+
+    @Override
+    public Frame getFrame(int index) {
+        return frames.get(index);
+    }
+
+    @Override
+    public void putFrame(int index, Frame frame) {
         frames.put(index, frame);
         this.frame = frame;
     }
 
-    public Frame frame() {
-        return frame;
-    }
-
-    public Map<Integer, Frame> getFrames() {
+    @Override
+    public NavigableMap<Integer, Frame> frames() {
         return frames;
     }
 
@@ -239,9 +251,5 @@ public class BlwAnalysisEngine implements AnalysisEngine, JavaOpcodes {
 
     @Override
     public void execute(Instruction instruction) {
-    }
-
-    public ClassType local(int index) {
-        return frame.local(index);
     }
 }

@@ -12,16 +12,20 @@ import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.version.JavaVersion;
+import me.darknet.assembler.compile.analysis.AnalysisResults;
+import me.darknet.assembler.compile.analysis.MethodAnalysisLookup;
+import me.darknet.assembler.info.MethodInfo;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class BlwReplaceClassBuilder implements ClassBuilder {
+public class BlwReplaceClassBuilder implements ClassBuilder, MethodAnalysisLookup {
 
     private final Map<Integer, BuilderShadow<Annotation>> visibleRuntimeAnnotations = new LinkedHashMap<>();
     private final Map<Integer, BuilderShadow<Annotation>> invisibleRuntimeAnnotations = new LinkedHashMap<>();
     private final Map<String, BlwReplaceMethodBuilder> methods = new LinkedHashMap<>();
     private final Map<String, BlwReplaceFieldBuilder> fields = new LinkedHashMap<>();
+    private final Map<String, AnalysisResults> methodAnalysisResults = new HashMap<>();
     private List<InnerClass> innerClasses = List.of();
     private InstanceType nestHost;
     private String sourceFile, sourceDebug;
@@ -43,6 +47,24 @@ public class BlwReplaceClassBuilder implements ClassBuilder {
 
     public Map<String, BlwReplaceMethodBuilder> getMethods() {
         return methods;
+    }
+
+    public Map<String, AnalysisResults> getMethodAnalysisResults() {
+        return methodAnalysisResults;
+    }
+
+    public void setMethodAnalysis(String name, MethodType type, AnalysisResults results) {
+        methodAnalysisResults.put(name + type.descriptor(), results);
+    }
+
+    @Override
+    public Map<String, AnalysisResults> allResults() {
+        return methodAnalysisResults;
+    }
+
+    @Override
+    public AnalysisResults results(String name, String descriptor) {
+        return methodAnalysisResults.get(name + descriptor);
     }
 
     @Override

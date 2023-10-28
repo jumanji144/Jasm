@@ -1,4 +1,4 @@
-package me.darknet.assembler.util;
+package me.darknet.assembler.compile.analysis.jvm;
 
 import dev.xdark.blw.simulation.ExecutionEngine;
 
