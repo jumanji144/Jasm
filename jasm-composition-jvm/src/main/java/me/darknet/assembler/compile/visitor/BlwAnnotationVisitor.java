@@ -7,10 +7,9 @@ import me.darknet.assembler.visitor.ASTAnnotationArrayVisitor;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 
 public class BlwAnnotationVisitor implements ASTAnnotationVisitor {
+    private final AnnotationBuilder<?> builder;
 
-    private final AnnotationBuilder.Nested<?> builder;
-
-    public BlwAnnotationVisitor(AnnotationBuilder.Nested<?> builder) {
+    public BlwAnnotationVisitor(AnnotationBuilder<?> builder) {
         this.builder = builder;
     }
 

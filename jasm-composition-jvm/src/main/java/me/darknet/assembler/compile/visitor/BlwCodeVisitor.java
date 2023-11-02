@@ -2,8 +2,6 @@ package me.darknet.assembler.compile.visitor;
 
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.attribute.generic.GenericLocal;
-import dev.xdark.blw.code.generic.GenericCodeBuilder;
-import dev.xdark.blw.code.generic.GenericCodeListBuilder;
 import dev.xdark.blw.code.generic.GenericLabel;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.constant.OfDouble;
@@ -14,87 +12,105 @@ import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.compile.analysis.*;
-import me.darknet.assembler.compile.analysis.jvm.BlwAnalysisEngine;
+import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.ConstantMapper;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
 public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
-
     private final Label begin;
     private final Label end;
-    private final GenericCodeBuilder.Nested<?> meta;
-    private final GenericCodeListBuilder.Nested<?> list;
+    private final CodeBuilder<?> codeBuilder;
+    private final CodeListBuilder codeBuilderList;
     private final InheritanceChecker checker;
-    private final Map<String, GenericLabel> labels = new HashMap<>();
-    private final BlwAnalysisEngine analysisEngine = new BlwAnalysisEngine();
+    private final Map<String, GenericLabel> nameToLabel = new HashMap<>();
     private final List<LocalInfo> parameters;
-    private final List<String> locals = new ArrayList<>();
+    /** We only track local names since the stack analysis will provide us more detail later. See {@link #visitEnd()} */
+    private final List<String> localNames = new ArrayList<>();
+    private final JvmAnalysisEngine analysisEngine = new JvmAnalysisEngine(this::getLocalName);
     private ASTInstruction last;
     private int opcode = 0;
 
-    public BlwCodeVisitor(InheritanceChecker checker, GenericCodeBuilder.Nested<?> builder,
-            List<LocalInfo> parameters) {
-        this.meta = builder;
-        this.list = (GenericCodeListBuilder.Nested<?>) builder.codeList();
+    /**
+     * @param checker Inheritance checker used for stack analysis.
+     * @param builder Builder to insert code into.
+     * @param parameters Parameter variables.
+     */
+    public BlwCodeVisitor(InheritanceChecker checker, CodeBuilder<?> builder, List<LocalInfo> parameters) {
+        this.codeBuilder = builder;
+        this.codeBuilderList = builder.codeList().child();
         this.checker = checker;
         this.parameters = parameters;
         this.begin = new GenericLabel();
         this.end = new GenericLabel();
-        list.element(begin);
+
+        // Insert initial label.
+        codeBuilderList.element(begin);
+
+        // Populate variables from params.
+        parameters.stream()
+                .filter(Objects::nonNull)
+                .forEach(param -> getOrCreateLocal(param.name(), param.size() > 1));
     }
 
+    /**
+     * @return Analysis of the method code.
+     */
+    @NotNull
     public AnalysisResults getAnalysisResults() {
         return analysisEngine;
     }
 
-    public int getParameterIndex(String name) {
-        for (LocalInfo parameter : parameters) {
-            if (parameter.name().equals(name)) {
-                return parameter.index();
-            }
-        }
-        return -1;
+    /**
+     * @param index Index of variable.
+     * @return Name of variable, or dummy value for unknown index.
+     */
+    @NotNull
+    private String getLocalName(int index) {
+        if (index < 0 || index >= localNames.size())
+            return "<?>";
+        return localNames.get(index);
     }
 
-    public int getOrCreateLocal(String name) {
-        int index = getParameterIndex(name);
+    /**
+     * @param name Name of variable.
+     * @param wide {@code true} for {@code long}/{@code double} types.
+     * @return Index of variable.
+     */
+    private int getOrCreateLocal(String name, boolean wide) {
+       int index = localNames.indexOf(name);
         if (index > -1)
             return index;
-        index = locals.indexOf(name);
-        if (index > -1)
-            return index + parameters.size();
-        locals.add(name);
-        return locals.size() + parameters.size() - 1;
-    }
-
-    public int getOrCreateLocalVar(String name, int opcode) {
-        int index = getParameterIndex(name);
-        if (index > -1)
-            return index;
-        index = locals.indexOf(name);
-        if (index > -1)
-            return index + parameters.size();
-        locals.add(name);
-        index = locals.size() + parameters.size() - 1;
-        if (opcode == LSTORE || opcode == DSTORE || opcode == LLOAD || opcode == DLOAD) {
-            locals.add(null);
-        }
+        index = localNames.size();
+        localNames.add(name);
+        if (wide)
+            localNames.add(null);
         return index;
     }
 
-    public Label getOrCreateLabel(String name) {
-        if (labels.containsKey(name)) {
-            return labels.get(name);
-        } else {
-            GenericLabel label = new GenericLabel();
-            labels.put(name, label);
-            return label;
+    /**
+     * @param name Name of variable.
+     * @param opcode Instruction responsible for accessing the variable.
+     * @return Index of variable.
+     */
+    private int getOrCreateLocalVar(String name, int opcode) {
+        if (opcode == LSTORE || opcode == DSTORE || opcode == LLOAD || opcode == DLOAD) {
+            return getOrCreateLocal(name, true);
         }
+        return getOrCreateLocal(name, false);
+    }
+
+    /**
+     * @param name Name of label.
+     * @return Label reference.
+     */
+    private Label getOrCreateLabel(String name) {
+        return nameToLabel.computeIfAbsent(name, n -> new GenericLabel());
     }
 
     @Override
@@ -107,13 +123,13 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitException(ASTIdentifier start, ASTIdentifier end, ASTIdentifier handler, ASTIdentifier type) {
-        GenericLabel startLabel = labels.get(start.content()); // assume that labels don't have escapable characters
-        GenericLabel endLabel = labels.get(end.content());
-        GenericLabel handlerLabel = labels.get(handler.content());
+        GenericLabel startLabel = nameToLabel.get(start.content()); // assume that labels don't have escapable characters
+        GenericLabel endLabel = nameToLabel.get(end.content());
+        GenericLabel handlerLabel = nameToLabel.get(handler.content());
 
         String typeName = type.literal();
         InstanceType exceptionType = typeName.equals("*") ? null : Types.instanceTypeFromDescriptor(typeName);
-        meta.tryCatchBlock(new TryCatchBlock(startLabel, endLabel, handlerLabel, exceptionType));
+        codeBuilder.tryCatchBlock(new TryCatchBlock(startLabel, endLabel, handlerLabel, exceptionType));
     }
 
     @Override
@@ -192,7 +208,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitIincInsn(ASTIdentifier var, ASTNumber increment) {
-        add(new VariableIncrementInstruction(getOrCreateLocal(var.literal()), increment.asInt()));
+        add(new VariableIncrementInstruction(getOrCreateLocal(var.literal(), false), increment.asInt()));
     }
 
     @Override
@@ -208,15 +224,18 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitTypeInsn(ASTIdentifier type) {
-        if(opcode == NEW) {
+        if (opcode == NEW) {
             add(new AllocateInstruction(Types.instanceTypeFromInternalName(type.literal())));
+        } else if (opcode == ANEWARRAY) {
+            InstanceType elementType = Types.instanceTypeFromDescriptor(type.literal());
+            ArrayType arrayType = Types.arrayType(elementType);
+            add(new AllocateInstruction(arrayType));
         } else {
             TypeReader reader = new TypeReader(type.literal());
             ObjectType objectType = (ObjectType) reader.read();
             Instruction instruction = switch (opcode) {
                 case CHECKCAST -> new CheckCastInstruction(objectType);
                 case INSTANCEOF -> new InstanceofInstruction(objectType);
-                case ANEWARRAY -> new AllocateInstruction(Types.arrayType(objectType));
                 default -> throw new IllegalStateException("Unexpected value: " + opcode);
             };
             add(instruction);
@@ -300,7 +319,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitLabel(ASTIdentifier label) {
-        list.element(getOrCreateLabel(label.content()));
+        codeBuilderList.element(getOrCreateLabel(label.content()));
     }
 
     @Override
@@ -310,35 +329,33 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitEnd() {
-        list.element(end);
-        List<ClassType> paramTypes = new ArrayList<>();
+        codeBuilderList.element(end);
         for (LocalInfo parameter : parameters) {
-            paramTypes.add(parameter.type());
-            meta.localVariable(
+            codeBuilder.localVariable(
                     new GenericLocal(begin, end, parameter.index(), parameter.name(), parameter.type(), null)
             );
         }
 
         // Analyze stack for local variable information.
         AnalysisSimulation simulation = new AnalysisSimulation();
-        Code code = meta.build();
-        simulation.execute(analysisEngine, new AnalysisSimulation.Info(checker, paramTypes, code.elements(), code.tryCatchBlocks()));
+        Code code = codeBuilder.build();
+        simulation.execute(analysisEngine, new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks()));
 
         // The final frame will hold all local variables defined witghin the method
         Frame frame = analysisEngine.getLastFrame();
 
         int paramOffset = parameters.size();
-        for (var entry : frame.locals().entrySet()) {
+        for (var entry : frame.getLocals().entrySet()) {
             int index = entry.getKey();
             if (index < paramOffset)
                 continue;
-            ClassType type = entry.getValue();
-            String name = this.locals.get(index - paramOffset);
-            meta.localVariable(new GenericLocal(begin, end, index, name, type, null));
+            ClassType type = entry.getValue().type();
+            String name = getLocalName(index - paramOffset);
+            codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
         }
     }
 
     private void add(Instruction instruction) {
-        list.element(instruction);
+        codeBuilderList.element(instruction);
     }
 }

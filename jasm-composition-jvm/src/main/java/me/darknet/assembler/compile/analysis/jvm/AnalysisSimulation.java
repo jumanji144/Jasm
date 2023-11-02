@@ -5,25 +5,24 @@ import dev.xdark.blw.code.instruction.BranchInstruction;
 import dev.xdark.blw.code.instruction.ImmediateJumpInstruction;
 import dev.xdark.blw.simulation.ExecutionEngines;
 import dev.xdark.blw.simulation.Simulation;
-import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.Frame;
+import me.darknet.assembler.compile.analysis.LocalInfo;
 import me.darknet.assembler.compiler.InheritanceChecker;
 
 import java.util.*;
 
-public class AnalysisSimulation implements Simulation<AnalysisEngine, AnalysisSimulation.Info> {
-
+public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, AnalysisSimulation.Info> {
     @Override
-    public void execute(AnalysisEngine engine, Info method) {
+    public void execute(JvmAnalysisEngine engine, Info method) {
         Deque<ForkKey> forkQueue = new ArrayDeque<>();
         Frame initialFrame;
         {
             Frame frame = new Frame();
             int index = 0;
-            for (ClassType param : method.params) {
-                frame.local(index++, param);
+            for (LocalInfo param : method.params) {
+                frame.setLocal(index++, param);
             }
             forkQueue.push(new ForkKey(0, frame));
             initialFrame = frame;
@@ -85,8 +84,7 @@ public class AnalysisSimulation implements Simulation<AnalysisEngine, AnalysisSi
     public record ForkKey(int index, Frame frame) {
     }
 
-    public record Info(InheritanceChecker checker, List<ClassType> params, List<CodeElement> method,
+    public record Info(InheritanceChecker checker, List<LocalInfo> params, List<CodeElement> method,
                        List<TryCatchBlock> exceptionHandlers) {
     }
-
 }

@@ -154,15 +154,16 @@ public class InstructionPrinter implements IndexedExecutionEngine {
         if (type instanceof InstanceType instance) {
             ctx.instruction("new").literal(instance.internalName()).next();
         } else {
+            String descriptor = type.descriptor();
             ArrayType arrayType = (ArrayType) type;
-            String descriptor = arrayType.descriptor();
             int dimensions = arrayType.dimensions();
             if (dimensions == 1) {
                 ClassType component = arrayType.componentType();
-                if (!(component instanceof PrimitiveType primitiveType)) {
-                    ctx.instruction("anewarray").literal(component.descriptor()).next();
-                } else {
-                    ctx.instruction("newarray").print(primitiveType.name()).next();
+                if (component instanceof ObjectType objectComponent) {
+                    String componentDesc = objectComponent.descriptor();
+                    ctx.instruction("anewarray").literal(componentDesc).next();
+                } else if (component instanceof PrimitiveType primitiveComponent) {
+                    ctx.instruction("newarray").print(primitiveComponent.name()).next();
                 }
             } else {
                 ctx.instruction("multianewarray").literal(descriptor).arg().print(Integer.toString(dimensions)).next();

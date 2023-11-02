@@ -1,0 +1,12 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            anewarray Ljava/lang/Object;
+            return
+        B:
+        }
+    }
+}

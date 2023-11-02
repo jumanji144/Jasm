@@ -1,5 +1,8 @@
 package me.darknet.assembler.compile.analysis;
 
+import dev.xdark.blw.classfile.MemberIdentifier;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Collections;
 import java.util.Map;
 
@@ -12,6 +15,7 @@ public class EmptyMethodAnalysisLookup implements MethodAnalysisLookup {
 	/**
 	 * @return Singleton instance.
 	 */
+	@NotNull
 	public static EmptyMethodAnalysisLookup instance() {
 		return instance;
 	}
@@ -20,7 +24,7 @@ public class EmptyMethodAnalysisLookup implements MethodAnalysisLookup {
 	}
 
 	@Override
-	public Map<String, AnalysisResults> allResults() {
+	public @NotNull Map<MemberIdentifier, AnalysisResults> allResults() {
 		return Collections.emptyMap();
 	}
 

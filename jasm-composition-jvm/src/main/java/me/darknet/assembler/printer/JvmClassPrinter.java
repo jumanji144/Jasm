@@ -8,10 +8,12 @@ import dev.xdark.blw.classfile.ClassFileView;
 import dev.xdark.blw.classfile.Field;
 import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.classfile.attribute.InnerClass;
+import dev.xdark.blw.classfile.generic.GenericClassBuilder;
 import dev.xdark.blw.type.InstanceType;
 import me.darknet.assembler.util.BlwModifiers;
 import org.objectweb.asm.ClassWriter;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -23,8 +25,12 @@ public class JvmClassPrinter implements ClassPrinter {
             ClassWriterProvider.flags(ClassWriter.COMPUTE_FRAMES)
     );
 
+    public JvmClassPrinter(byte[] bytes) throws IOException {
+        this(new ByteArrayInputStream(bytes));
+    }
+
     public JvmClassPrinter(InputStream stream) throws IOException {
-        ClassBuilder builder = ClassBuilder.builder();
+        var builder = new GenericClassBuilder();
         library.read(stream, builder);
         view = builder.build();
         this.memberPrinter = new MemberPrinter(view, view, view, MemberPrinter.Type.CLASS);

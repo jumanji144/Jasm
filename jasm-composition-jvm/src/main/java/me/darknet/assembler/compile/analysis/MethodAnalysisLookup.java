@@ -1,5 +1,9 @@
 package me.darknet.assembler.compile.analysis;
 
+import dev.xdark.blw.classfile.MemberIdentifier;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Map;
 
 /**
@@ -10,12 +14,17 @@ public interface MethodAnalysisLookup {
 	/**
 	 * @return Map of method keys to their stack analysis results.
 	 */
-	Map<String, AnalysisResults> allResults();
+	@NotNull
+	Map<MemberIdentifier, AnalysisResults> allResults();
 
 	/**
-	 * @param name Method name.
-	 * @param descriptor Method descriptor.
+	 * @param name
+	 * 		Method name.
+	 * @param descriptor
+	 * 		Method descriptor.
+	 *
 	 * @return Stack analysis results of a given method.
 	 */
+	@Nullable
 	AnalysisResults results(String name, String descriptor);
 }

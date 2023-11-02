@@ -1,13 +1,28 @@
 apply plugin: 'java-library'
+apply plugin: 'jacoco'
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven { url = 'https://jitpack.io' }
 }
 
 dependencies {
-    api 'com.github.Nowilltolife:blw:b38148e86f'
+    api 'com.github.Col-E:blw:1ade3adf83'
     implementation 'org.ow2.asm:asm:9.5'
 
     api project(path: ':jasm-core')
 }
+
+test {
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = false
+        csv.required = false
+        html.required = true
+    }
+}
+

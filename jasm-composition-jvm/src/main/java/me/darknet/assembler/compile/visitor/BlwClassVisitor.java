@@ -10,6 +10,7 @@ import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.util.BlwModifiers;
+import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.*;
 import org.jetbrains.annotations.Nullable;
 
@@ -17,75 +18,72 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BlwClassVisitor implements ASTClassVisitor {
+	private final BlwReplaceClassBuilder builder;
+	private final JvmCompilerOptions options;
 
-    private final BlwReplaceClassBuilder builder;
-    private final JvmCompilerOptions options;
-    private final List<InstanceType> interfaces = new ArrayList<>();
+	public BlwClassVisitor(JvmCompilerOptions options, BlwReplaceClassBuilder builder) {
+		this.options = options;
+		this.builder = builder;
+	}
 
-    public BlwClassVisitor(JvmCompilerOptions options, BlwReplaceClassBuilder builder) {
-        this.options = options;
-        this.builder = builder;
-    }
+	@Override
+	public void visitSuperClass(ASTIdentifier superClass) {
+		if (superClass == null) {
+			return;
+		}
+		builder.setSuperClass(Types.instanceTypeFromInternalName(superClass.literal()));
+	}
 
-    @Override
-    public void visitSuperClass(ASTIdentifier superClass) {
-        if (superClass == null) {
-            return;
-        }
-        builder.superClass(Types.instanceTypeFromInternalName(superClass.literal()));
-    }
+	@Override
+	public void visitInterface(ASTIdentifier interfaceName) {
+		builder.addInterface(Types.instanceTypeFromInternalName(interfaceName.literal()));
+	}
 
-    @Override
-    public void visitInterface(ASTIdentifier interfaceName) {
-        interfaces.add(Types.instanceTypeFromInternalName(interfaceName.literal()));
-    }
+	@Override
+	public void visitSourceFile(ASTString sourceFile) {
+		builder.setSourceFile(sourceFile.content());
+	}
 
-    @Override
-    public void visitSourceFile(ASTString sourceFile) {
-        builder.sourceFile(sourceFile.content());
-    }
+	@Override
+	public void visitInnerClass(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
+								ASTIdentifier innerClass) {
+		// TODO: 01.09.23
+	}
 
-    @Override
-    public void visitInnerClass(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
-            ASTIdentifier innerClass) {
-        // TODO: 01.09.23
-    }
+	@Override
+	public ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
+		int accessFlags = modifiers.modifiers().stream()
+				.map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.FIELD)).reduce(0, (a, b) -> a | b);
+		return new BlwFieldVisitor(
+				builder.putField(accessFlags, name.literal(), new TypeReader(descriptor.literal()).requireClassType()).child()
+		);
+	}
 
-    @Override
-    public ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
-        int accessFlags = modifiers.modifiers().stream()
-                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.FIELD)).reduce(0, (a, b) -> a | b);
-        return new BlwFieldVisitor(
-                builder.field(accessFlags, name.literal(), new TypeReader(descriptor.literal()).requireClassType())
-        );
-    }
+	@Override
+	public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
+		int accessFlags = modifiers.modifiers().stream()
+				.map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD)).reduce(0, (a, b) -> a | b);
+		MethodType type = Types.methodType(descriptor.literal());
+		return new BlwMethodVisitor(
+				options.inheritanceChecker(), builder.type(), type,
+				(accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
+				CastUtil.cast(builder.putMethod(accessFlags, name.literal(), type).child()),
+				analysisResults -> builder.setMethodAnalysis(name.literal(), type, analysisResults)
+		);
+	}
 
-    @Override
-    public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
-        int accessFlags = modifiers.modifiers().stream()
-                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD)).reduce(0, (a, b) -> a | b);
-        MethodType type = Types.methodType(descriptor.literal());
-        return new BlwMethodVisitor(
-                options.inheritanceChecker(), builder.getType(), type,
-                (accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
-                builder.method(accessFlags, name.literal(), type),
-                analysisResults -> builder.setMethodAnalysis(name.literal(), type, analysisResults)
-        );
-    }
+	@Override
+	public ASTAnnotationVisitor visitAnnotation(ASTIdentifier classType) {
+		// TODO: 01.09.23
+		return null;
+	}
 
-    @Override
-    public ASTAnnotationVisitor visitAnnotation(ASTIdentifier classType) {
-        // TODO: 01.09.23
-        return null;
-    }
+	@Override
+	public void visitSignature(@Nullable ASTString signature) {
+		// TODO: 01.09.23
+	}
 
-    @Override
-    public void visitSignature(@Nullable ASTString signature) {
-        // TODO: 01.09.23
-    }
-
-    @Override
-    public void visitEnd() {
-        builder.interfaces(interfaces);
-    }
+	@Override
+	public void visitEnd() {
+	}
 }

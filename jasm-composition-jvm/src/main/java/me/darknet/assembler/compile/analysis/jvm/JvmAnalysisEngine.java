@@ -5,21 +5,27 @@ import dev.xdark.blw.code.JavaOpcodes;
 import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.constant.*;
+import dev.xdark.blw.simulation.ExecutionEngine;
 import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.Types;
+import me.darknet.assembler.compile.analysis.AnalysisEngine;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Frame;
+import me.darknet.assembler.compile.analysis.LocalInfo;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.function.IntFunction;
 
-public class BlwAnalysisEngine implements AnalysisEngine, AnalysisResults, JavaOpcodes {
+public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, AnalysisResults, JavaOpcodes {
 
     private final NavigableMap<Integer, Frame> frames = new TreeMap<>();
+    private final IntFunction<String> variableNameLookup;
     private Frame frame;
 
-    public ClassType local(int index) {
-        return frame.local(index);
+    public JvmAnalysisEngine(@NotNull IntFunction<String> variableNameLookup) {
+        this.variableNameLookup = variableNameLookup;
     }
 
     @Override
@@ -145,10 +151,11 @@ public class BlwAnalysisEngine implements AnalysisEngine, AnalysisResults, JavaO
 
     @Override
     public void execute(VarInstruction instruction) {
+        final int index = instruction.variableIndex();
         switch (instruction.opcode()) {
             case ILOAD, LLOAD, FLOAD, DLOAD, ALOAD -> {
-                if(frame.hasLocal(instruction.variableIndex())) {
-                    frame.push(frame.local(instruction.variableIndex()));
+                if(frame.hasLocal(index)) {
+                    frame.push(frame.getLocalType(index));
                 } else {
                     switch (instruction.opcode()) {
                         case ILOAD -> frame.push(Types.INT);
@@ -164,7 +171,7 @@ public class BlwAnalysisEngine implements AnalysisEngine, AnalysisResults, JavaO
             case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> {
                 if (instruction.opcode() == LSTORE || instruction.opcode() == DSTORE)
                     frame.pop();
-                frame.local(instruction.variableIndex(), frame.pop());
+                frame.setLocal(index, new LocalInfo(index, variableNameLookup.apply(index), frame.pop()));
             }
         }
     }

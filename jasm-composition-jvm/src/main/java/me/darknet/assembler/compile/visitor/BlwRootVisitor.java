@@ -1,7 +1,7 @@
 package me.darknet.assembler.compile.visitor;
 
 import dev.xdark.blw.annotation.AnnotationBuilder;
-import dev.xdark.blw.classfile.AccessFlag;
+import dev.xdark.blw.classfile.*;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.TypeReader;
@@ -10,62 +10,74 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.util.BlwModifiers;
+import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.*;
 
 public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions options) implements ASTRootVisitor {
 
-    @Override
-    public ASTAnnotationVisitor visitAnnotation(ASTIdentifier name) {
-        // parse annotation path
-        var path = options.annotationPath().split("\\.");
-        int index = Integer.parseInt(path[path.length - 1]);
+	@Override
+	public ASTAnnotationVisitor visitAnnotation(ASTIdentifier name) {
+		// parse annotation path
+		var path = options.annotationPath().split("\\.");
 
-        InstanceType type = builder.getType();
+		// TODO: blw rewrite removed usage of this index
+		//  make some test cases to validate behavior does not change
+		int index = Integer.parseInt(path[path.length - 1]);
 
-        AnnotationBuilder.Nested<?> nested = switch (path.length) {
-            case 2 -> builder.visibleRuntimeAnnotation(type, index);
-            case 5 -> {
-                String member = path[3];
-                String descriptor = path[4];
-                yield switch (path[2]) {
-                    case "field" -> builder.getFields().get(member + descriptor).visibleRuntimeAnnotation(type, index);
-                    case "method" -> builder.getMethods().get(member + descriptor).visibleRuntimeAnnotation(type, index);
-                    default -> throw new IllegalStateException("Unexpected value: " + path[2]);
-                };
-            }
-            default -> throw new IllegalStateException("Unexpected value: " + path.length);
-        };
-        return new BlwAnnotationVisitor(nested);
-    }
+		InstanceType type = builder.type();
 
-    @Override
-    public ASTClassVisitor visitClass(Modifiers modifiers, ASTIdentifier name) {
-        int accessFlags = modifiers.modifiers().stream()
-                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.CLASS)).reduce(0, (a, b) -> a | b);
-        builder.accessFlags(accessFlags);
-        builder.type(Types.instanceTypeFromInternalName(name.literal()));
-        return new BlwClassVisitor(options, builder);
-    }
+		AnnotationBuilder<?> nested = switch (path.length) {
+			case 2 -> builder.putVisibleRuntimeAnnotation(type).child();
+			case 5 -> {
+				String member = path[3];
+				String descriptor = path[4];
+				yield switch (path[2]) {
+					case "field" -> {
+						FieldBuilder<Field, ?> fieldBuilder = builder.getFieldBuilder(member, descriptor);
+						if (fieldBuilder != null) yield fieldBuilder.putVisibleRuntimeAnnotation(type).child();
+						throw new IllegalStateException("Unexpected missing field data: " + member);
+					}
+					case "method" -> {
+						MethodBuilder<Method, ?> methodBuilder = builder.getMethodBuilder(member, descriptor);
+						if (methodBuilder != null) yield methodBuilder.putVisibleRuntimeAnnotation(type).child();
+						throw new IllegalStateException("Unexpected missing method data: " + member);
+					}
+					default -> throw new IllegalStateException("Unexpected value: " + path[2]);
+				};
+			}
+			default -> throw new IllegalStateException("Unexpected value: " + path.length);
+		};
+		return new BlwAnnotationVisitor(nested);
+	}
 
-    @Override
-    public ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
-        int accessFlags = modifiers.modifiers().stream()
-                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.FIELD)).reduce(0, (a, b) -> a | b);
-        return new BlwFieldVisitor(
-                builder.field(accessFlags, name.literal(), new TypeReader(descriptor.literal()).requireClassType())
-        );
-    }
+	@Override
+	public ASTClassVisitor visitClass(Modifiers modifiers, ASTIdentifier name) {
+		int accessFlags = modifiers.modifiers().stream()
+				.map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.CLASS)).reduce(0, (a, b) -> a | b);
+		builder.accessFlags(accessFlags);
+		builder.type(Types.instanceTypeFromInternalName(name.literal()));
+		return new BlwClassVisitor(options, builder);
+	}
 
-    @Override
-    public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
-        int accessFlags = modifiers.modifiers().stream()
-                .map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD)).reduce(0, (a, b) -> a | b);
-        MethodType type = Types.methodType(descriptor.literal());
-        return new BlwMethodVisitor(
-                options.inheritanceChecker(), Types.instanceType(Object.class), type,
-                (accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
-                builder.method(accessFlags, name.literal(), type),
-                analysisResults -> builder.setMethodAnalysis(name.literal(), type, analysisResults)
-        );
-    }
+	@Override
+	public ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
+		int accessFlags = modifiers.modifiers().stream()
+				.map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.FIELD)).reduce(0, (a, b) -> a | b);
+		return new BlwFieldVisitor(
+				builder.putField(accessFlags, name.literal(), new TypeReader(descriptor.literal()).requireClassType()).child()
+		);
+	}
+
+	@Override
+	public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
+		int accessFlags = modifiers.modifiers().stream()
+				.map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD)).reduce(0, (a, b) -> a | b);
+		MethodType type = Types.methodType(descriptor.literal());
+		return new BlwMethodVisitor(
+				options.inheritanceChecker(), Types.instanceType(Object.class), type,
+				(accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
+				CastUtil.cast(builder.putMethod(accessFlags, name.literal(), type).child()),
+				analysisResults -> builder.setMethodAnalysis(name.literal(), type, analysisResults)
+		);
+	}
 }

@@ -1,0 +1,12 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod (LExample;)LExample; {
+        parameters: { this, other },
+        code: {
+        A:
+            aload this
+            areturn
+        B:
+        }
+    }
+}

@@ -1,10 +1,9 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.type.ClassType;
-import dev.xdark.blw.type.ObjectType;
-import dev.xdark.blw.type.PrimitiveType;
-import dev.xdark.blw.type.Types;
+import dev.xdark.blw.type.*;
 import me.darknet.assembler.compiler.InheritanceChecker;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
@@ -12,64 +11,59 @@ public class Frame {
 
     public static final ClassType NULL = Types.instanceTypeFromDescriptor("null");
     public static final ClassType OBJECT = Types.instanceType(Object.class);
+
     private final Deque<ClassType> stack;
-    private final Map<Integer, ClassType> locals;
+    private final Map<Integer, LocalInfo> locals;
     private ClassType lastPopped, lastPushed;
 
-    public Frame(Deque<ClassType> stack, Map<Integer, ClassType> locals) {
+    /**
+     * New frame with a given stack/variable table.
+     * @param stack Stack state.
+     * @param locals Variable table.
+     */
+    public Frame(@NotNull Deque<ClassType> stack, @NotNull Map<Integer, LocalInfo> locals) {
         this.stack = stack;
         this.locals = locals;
     }
 
-    public Frame(Map<Integer, ClassType> locals) {
-        this(new ArrayDeque<>(), locals);
+    /**
+     * New frame with an empty stack.
+     * @param locals Variable map to copy.
+     */
+    public Frame(@NotNull Map<Integer, LocalInfo> locals) {
+        this(new ArrayDeque<>(), new TreeMap<>(locals));
     }
 
+    /**
+     * New frame with an empty stack and no variables.
+     */
     public Frame() {
-        this(new ArrayDeque<>(), new HashMap<>());
+        this(new ArrayDeque<>(), new TreeMap<>());
     }
 
-    public static ClassType merge(InheritanceChecker checker, ClassType a, ClassType b) {
-        if(a instanceof PrimitiveType || b instanceof PrimitiveType) {
-            if(isInteger(a) && isInteger(b)) {
-                return Types.INT;
-            }
-            if (a == b) {
-                return a;
-            } else {
-                return Types.VOID;
-            }
-        } else {
-            ObjectType aObj = (ObjectType) a;
-            ObjectType bObj = (ObjectType) b;
-            String commonType = checker.getCommonSuperclass(aObj.internalName(), bObj.internalName());
-
-            if(commonType == null) return OBJECT;
-            else return Types.objectTypeFromInternalName(commonType);
-        }
-    }
-
-    public static boolean isInteger(ClassType p) {
-        return p == Types.BYTE || p == Types.SHORT || p == Types.INT || p == Types.CHAR || p == Types.BOOLEAN;
-    }
-
-    public boolean merge(InheritanceChecker checker, Frame other) {
+    /**
+     * @param checker Inheritance checker to use for determining common super-types.
+     * @param other Frame to merge into this one.
+     * @return Merges types of variables and stack items, taking place in this frame.
+     */
+    public boolean merge(@NotNull InheritanceChecker checker, @NotNull Frame other) {
         boolean changed = false;
-        for (Map.Entry<Integer, ClassType> entry : other.locals.entrySet()) {
+        for (Map.Entry<Integer, LocalInfo> entry : other.locals.entrySet()) {
             int index = entry.getKey();
-            ClassType type = entry.getValue();
-            ClassType local = locals.get(index);
-            if (type == Types.VOID || local == Types.VOID) {
+            LocalInfo otherLocal = entry.getValue();
+            ClassType otherType = otherLocal.type();
+            ClassType ourType = getLocalType(index);
+            if (otherType == Types.VOID || ourType == Types.VOID) {
                 continue;
             }
-            if (local == null) {
+            if (ourType == null) {
                 changed = true;
-                locals.put(index, type);
+                setLocal(index, otherLocal);
             } else {
-                ClassType merged = merge(checker, local, type);
-                if (!Objects.equals(merged, local)) {
+                ClassType merged = commonType(checker, ourType, otherType);
+                if (!Objects.equals(merged, ourType)) {
                     changed = true;
-                    locals.put(index, merged);
+                    locals.put(index, otherLocal.adaptType(merged));
                 }
             }
         }
@@ -83,7 +77,7 @@ public class Frame {
                 newStack.add(Types.VOID);
                 continue;
             }
-            ClassType merged = merge(checker, type1, type2);
+            ClassType merged = commonType(checker, type1, type2);
             if (!Objects.equals(merged, type1)) {
                 changed = true;
                 it1.remove();
@@ -97,24 +91,64 @@ public class Frame {
         return changed;
     }
 
-    public Deque<ClassType> stack() {
+    /**
+     * @return Stack.
+     */
+    @NotNull
+    public Deque<ClassType> getStack() {
         return stack;
     }
 
-    public Map<Integer, ClassType> locals() {
+    /**
+     * @return Map of variables.
+     */
+    @NotNull
+    public Map<Integer, LocalInfo> getLocals() {
         return locals;
     }
 
-    public void local(int index, ClassType type) {
-        if(type == NULL)
-            type = OBJECT;
-        locals.put(index, type);
+    /**
+     * @param index Index of variable to assign.
+     * @param local Variable info to assign.
+     */
+    public void setLocal(int index, LocalInfo local) {
+        if (local.type() == NULL)
+            local = local.adaptType(OBJECT);
+        locals.put(index, local);
     }
 
-    public ClassType local(int index) {
+    /**
+     * @param index Index of variable to get.
+     * @return Variable info.
+     */
+    @Nullable
+    public LocalInfo getLocal(int index) {
         return locals.get(index);
     }
 
+    /**
+     * @param index Index of variable to check.
+     * @return Type of the variable, or {@code null} if not a known variable.
+     */
+    @Nullable
+    public ClassType getLocalType(int index) {
+        LocalInfo local = getLocal(index);
+        if (local == null)
+            return null;
+        return local.type();
+    }
+
+    /**
+     * @param index Index of variable to check.
+     * @return {@code true} when that index is a known variable.
+     */
+    public boolean hasLocal(int index) {
+        return locals.containsKey(index);
+    }
+
+    /**
+     * @param type Type to push onto the stack.
+     */
     public void push(ClassType type) {
         if (type == null)
             throw new IllegalStateException("Cannot push null as typed value to stack");
@@ -122,18 +156,48 @@ public class Frame {
         lastPushed = type;
     }
 
+    /**
+     * Push null value onto the stack.
+     */
     public void pushNull() {
         // TODO: track null state
         //stack.push(NULL);
         push(OBJECT);
     }
 
+    /**
+     * @param types Types to push onto the stack.
+     */
     public void push(ClassType... types) {
         for (ClassType type : types) {
             push(type);
         }
     }
 
+    /**
+     * @param type Type to push onto the stack.
+     */
+    public void pushType(ClassType type) {
+        push(type);
+        if (type == Types.LONG || type == Types.DOUBLE) {
+            push(Types.VOID);
+        }
+    }
+
+    /**
+     * @return Top type on the stack.
+     */
+    @Nullable
+    public ClassType peek() {
+        return stack.peek();
+    }
+
+    /**
+     * Removes the top item from the stack, returning that value.
+     *
+     * @return Top type on the stack.
+     */
+    @NotNull
     public ClassType pop() {
         lastPopped = stack.peek();
         try {
@@ -143,65 +207,99 @@ public class Frame {
         }
     }
 
+    /**
+     * @param n Number of items to pop off the stack.
+     */
     public void pop(int n) {
         for (int i = 0; i < n; i++) {
             pop();
         }
     }
 
-    public void pop2() {
+    /**
+     * @return Top type <i>(offset by one)</i> on the stack.
+     */
+    @NotNull
+    public ClassType pop2() {
         pop();
-        pop();
+        return pop();
     }
 
-    public void pop(ClassType type) {
+    /**
+     * @param type Type to pop off the stack.
+     */
+    @NotNull
+    public ClassType pop(ClassType type) {
         if (type == Types.LONG || type == Types.DOUBLE) {
-            pop2();
+            return pop2();
         } else {
-            pop();
+            return pop();
         }
     }
 
-    public void pushType(ClassType type) {
-        push(type);
-        if (type == Types.LONG || type == Types.DOUBLE) {
-            push(Types.VOID);
-        }
+    /**
+     * @param frame Frame to copy stack/locals from.
+     * @return Self.
+     */
+    public Frame copyFrom(@NotNull Frame frame) {
+         locals.putAll(frame.locals);
+         stack.addAll(frame.stack);
+         return this;
     }
 
-    public ClassType peek() {
-        return stack.peek();
-    }
-
-    public void locals(Collection<ClassType> locals, int offset) {
-        int index = 0;
-        for (ClassType type : locals) {
-            local(index + offset, type);
-            index++;
-        }
-    }
-
-    public boolean hasLocal(int index) {
-        return locals.containsKey(index);
-    }
-
-    public void copyInto(Frame frame) {
-        frame.locals.putAll(locals);
-        frame.stack.addAll(stack);
-    }
-
+    /**
+     * @return Copy of the current frame.
+     */
+    @NotNull
     public Frame copy() {
-        var frame = new Frame();
-        copyInto(frame);
-        return frame;
+        return new Frame().copyFrom(this);
     }
 
+    /**
+     * @return Last popped type from the stack.
+     */
     public ClassType lastPopped() {
         return lastPopped;
     }
 
+    /**
+     * @return Last pushed type on the stack.
+     */
     public ClassType lastPushed() {
         return lastPushed;
     }
 
+    /**
+     * @param checker Inheritance checker to use for determining common super-types.
+     * @param a Some type.
+     * @param b Some type.
+     * @return Common type between the two.
+     */
+    public static ClassType commonType(@NotNull InheritanceChecker checker, @NotNull ClassType a, @NotNull ClassType b) {
+        if (a instanceof PrimitiveType || b instanceof PrimitiveType) {
+            if (isInteger(a) && isInteger(b)) {
+                return Types.INT;
+            }
+            if (a == b) {
+                return a;
+            } else {
+                return Types.VOID;
+            }
+        } else {
+            ObjectType aObj = (ObjectType) a;
+            ObjectType bObj = (ObjectType) b;
+            String commonType = checker.getCommonSuperclass(aObj.internalName(), bObj.internalName());
+
+            if (commonType == null) return OBJECT;
+            else return Types.objectTypeFromInternalName(commonType);
+        }
+    }
+
+    /**
+     * @param type Some type to check.
+     * @return {@code true} when the type is within the scope of an {@code int}.
+     */
+    public static boolean isInteger(ClassType type) {
+        return type == Types.BYTE || type == Types.SHORT || type == Types.INT || type == Types.CHAR || type == Types.BOOLEAN;
+    }
 }
