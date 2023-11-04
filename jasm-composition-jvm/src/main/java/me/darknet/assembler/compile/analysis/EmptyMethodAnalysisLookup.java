@@ -2,6 +2,7 @@ package me.darknet.assembler.compile.analysis;
 
 import dev.xdark.blw.classfile.MemberIdentifier;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.Map;
@@ -29,7 +30,12 @@ public class EmptyMethodAnalysisLookup implements MethodAnalysisLookup {
 	}
 
 	@Override
-	public AnalysisResults results(String name, String descriptor) {
+	public @Nullable AnalysisResults results(String name, String descriptor) {
+		return null;
+	}
+
+	@Override
+	public @Nullable AnalysisResults results(MemberIdentifier identifier) {
 		return null;
 	}
 }

@@ -45,7 +45,7 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
     }
 
     @Override
-    public NavigableMap<Integer, Frame> frames() {
+    public @NotNull NavigableMap<Integer, Frame> frames() {
         return frames;
     }
 

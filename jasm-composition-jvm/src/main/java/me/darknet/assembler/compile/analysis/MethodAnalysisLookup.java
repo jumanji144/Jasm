@@ -27,4 +27,11 @@ public interface MethodAnalysisLookup {
 	 */
 	@Nullable
 	AnalysisResults results(String name, String descriptor);
+
+	/**
+	 * @param identifier Method identifier.
+	 * @return  Stack analysis results of a given method.
+	 */
+	@Nullable
+	AnalysisResults results(MemberIdentifier identifier);
 }

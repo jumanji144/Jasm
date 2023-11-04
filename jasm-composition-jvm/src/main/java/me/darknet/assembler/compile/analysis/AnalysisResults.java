@@ -1,6 +1,7 @@
 package me.darknet.assembler.compile.analysis;
 
 import me.darknet.assembler.ast.primitive.ASTCode;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.NavigableMap;
 
@@ -14,5 +15,6 @@ public interface AnalysisResults {
 	 *
 	 * @return Navigable map of instruction offsets to frame information.
 	 */
+	@NotNull
 	NavigableMap<Integer, Frame> frames();
 }
