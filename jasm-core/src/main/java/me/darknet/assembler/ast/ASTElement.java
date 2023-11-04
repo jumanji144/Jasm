@@ -1,5 +1,6 @@
 package me.darknet.assembler.ast;
 
+import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.Contract;
@@ -34,6 +35,11 @@ public class ASTElement {
         this.children = (List<ASTElement>) children;
     }
 
+    /**
+     * @return Raw text of this element. Escape sequences are not escaped.
+     *
+     * @see ASTIdentifier#literal() For escaped content.
+     */
     @Contract(pure = true)
     public String content() {
         return value == null ? null : value.content();
