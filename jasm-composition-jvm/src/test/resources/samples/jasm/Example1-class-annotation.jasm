@@ -1,0 +1,11 @@
+.annotation TestAnnotation {
+    number: 15,
+    subAnnotation: .annotation org/jetbrains/annotations/NotNull {
+        value: "Hello, world!"
+    },
+    stringArray: { "one", "two", "three" }
+}
+.super java/lang/Object
+.class public super Example {
+
+}
