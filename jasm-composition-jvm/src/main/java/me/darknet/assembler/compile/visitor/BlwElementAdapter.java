@@ -28,6 +28,7 @@ public interface BlwElementAdapter {
 					}
 				}
 			}
+			case CHARACTER -> new ElementChar(value.content().charAt(0));
 			case BOOL -> new ElementBoolean(Boolean.parseBoolean(value.content()));
 			default -> throw new UnsupportedOperationException("Enum value of type not supported yet: " + valueType);
 		};

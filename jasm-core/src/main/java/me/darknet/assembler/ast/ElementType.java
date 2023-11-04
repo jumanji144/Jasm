@@ -8,6 +8,7 @@ public enum ElementType {
     DECLARATION,
     IDENTIFIER,
     STRING,
+    CHARACTER,
     NUMBER,
     BOOL,
     CODE,

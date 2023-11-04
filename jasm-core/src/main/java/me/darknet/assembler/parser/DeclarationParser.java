@@ -144,6 +144,9 @@ public class DeclarationParser {
             case STRING -> {
                 return new ASTString(ctx.takeAny());
             }
+            case CHARACTER -> {
+                return new ASTCharacter(ctx.takeAny());
+            }
             case OPERATOR -> {
                 return parseOperator(token);
             }
