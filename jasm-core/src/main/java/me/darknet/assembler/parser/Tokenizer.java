@@ -83,12 +83,37 @@ public class Tokenizer {
         } else if (currentChar == '"') {
             ctx.next();
             ctx.enterString();
+        } else if (currentChar == '\'') {
+            ctx.next();
+            ctx.enterCharacter();
         } else if (isOperator(currentChar)) {
             ctx.collectToken();
             ctx.forward();
             ctx.collectToken();
         } else {
             ctx.forward();
+        }
+    }
+
+    private void handleCharacter(TokenizerContext ctx, char currentChar) {
+        switch (currentChar) {
+            case '\'' -> {
+                ctx.collectToken();
+                ctx.leaveCharacter();
+                ctx.next();
+            }
+            case '\\' -> {
+                ctx.next();
+                ctx.processEscape();
+            }
+            case '\n' -> {
+                ctx.collectToken();
+                ctx.throwError("Unterminated character");
+                ctx.leaveCharacter();
+                ctx.nextLine();
+                ctx.next();
+            }
+            default -> ctx.forward();
         }
     }
 
@@ -105,6 +130,8 @@ public class Tokenizer {
             }
             if (ctx.isString()) {
                 handleString(ctx, c);
+            } else if(ctx.isCharacter()) {
+                handleCharacter(ctx, c);
             } else if (Character.isWhitespace(c)) {
                 handleWhitespace(ctx, c);
             } else {
@@ -123,6 +150,7 @@ public class Tokenizer {
         private int column = 1;
         private int index;
         private boolean inString;
+        private boolean inCharacter;
         private boolean inComment;
         private StringBuffer buffer;
         private final ErrorCollector errors = new ErrorCollector();
@@ -161,8 +189,20 @@ public class Tokenizer {
             inString = false;
         }
 
+        public void enterCharacter() {
+            inCharacter = true;
+        }
+
+        public void leaveCharacter() {
+            inCharacter = false;
+        }
+
         public boolean isString() {
             return inString;
+        }
+
+        public boolean isCharacter() {
+            return inCharacter;
         }
 
         public boolean isComment() {
@@ -187,6 +227,7 @@ public class Tokenizer {
                     return true;
                 }
             }
+            // note: in this case, a regex is easier to implement than a state machine
             return NUMBER_PATTERN.matcher(content).matches();
         }
 
@@ -210,6 +251,8 @@ public class Tokenizer {
 
             if (inString) {
                 tokens.add(new Token(range, location, TokenType.STRING, content));
+            } else if(inCharacter) {
+                tokens.add(new Token(range, location, TokenType.CHARACTER, content));
             } else if (!buffer.isEmpty()) {
                 TokenType type = getType(content);
                 tokens.add(new Token(range, location, type, content));

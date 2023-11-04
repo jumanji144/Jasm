@@ -4,6 +4,7 @@ public enum TokenType {
 
     NUMBER,
     STRING,
+    CHARACTER,
     IDENTIFIER,
     OPERATOR,
     COMMENT
