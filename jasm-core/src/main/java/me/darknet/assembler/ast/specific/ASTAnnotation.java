@@ -47,6 +47,8 @@ public class ASTAnnotation extends ASTElement {
         for (ASTElement arrayValue : array.values()) {
             if (arrayValue instanceof ASTValue val) {
                 visitor.visitValue(val);
+            } else if(arrayValue instanceof ASTIdentifier identifier) {
+                visitor.visitTypeValue(identifier);
             } else if (arrayValue instanceof ASTEnum astEnum) {
                 visitor.visitEnumValue(astEnum.enumType(), astEnum.enumValue());
             } else if (arrayValue instanceof ASTAnnotation annotation) {
@@ -79,6 +81,8 @@ public class ASTAnnotation extends ASTElement {
             ASTElement value = pair.second();
             if (value instanceof ASTValue val) {
                 visitor.visitValue(pair.first(), val);
+            } else if(value instanceof ASTIdentifier identifier) {
+                visitor.visitTypeValue(pair.first(), identifier);
             } else if (value instanceof ASTEnum astEnum) {
                 visitor.visitEnumValue(pair.first(), astEnum.enumType(), astEnum.enumValue());
             } else if (value instanceof ASTArray array) {
