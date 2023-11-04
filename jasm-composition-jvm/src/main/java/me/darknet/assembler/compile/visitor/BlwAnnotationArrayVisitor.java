@@ -2,7 +2,9 @@ package me.darknet.assembler.compile.visitor;
 
 import dev.xdark.blw.annotation.ElementArrayBuilder;
 import dev.xdark.blw.annotation.ElementEnum;
+import dev.xdark.blw.annotation.ElementType;
 import dev.xdark.blw.type.InstanceType;
+import dev.xdark.blw.type.ObjectType;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.specific.ASTValue;
@@ -19,6 +21,12 @@ public class BlwAnnotationArrayVisitor implements ASTAnnotationArrayVisitor, Blw
 	@Override
 	public void visitValue(ASTValue value) {
 		builder.element(elementFromValue(value));
+	}
+
+	@Override
+	public void visitTypeValue(ASTIdentifier className) {
+		ObjectType type = Types.objectTypeFromInternalName(className.literal());
+		builder.element(new ElementType(type));
 	}
 
 	@Override

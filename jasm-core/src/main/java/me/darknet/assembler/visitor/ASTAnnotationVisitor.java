@@ -7,6 +7,8 @@ public interface ASTAnnotationVisitor {
 
     void visitValue(ASTIdentifier name, ASTValue value);
 
+    void visitTypeValue(ASTIdentifier name, ASTIdentifier className);
+
     void visitEnumValue(ASTIdentifier name, ASTIdentifier className, ASTIdentifier enumName);
 
     ASTAnnotationVisitor visitAnnotationValue(ASTIdentifier name, ASTIdentifier className);
