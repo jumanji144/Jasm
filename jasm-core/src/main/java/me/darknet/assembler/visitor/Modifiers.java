@@ -4,6 +4,7 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Modifiers {
 
@@ -26,4 +27,10 @@ public class Modifiers {
         return modifiers;
     }
 
+    @Override
+    public String toString() {
+        return modifiers.stream()
+                .map(ASTIdentifier::literal)
+                .collect(Collectors.joining(", "));
+    }
 }
