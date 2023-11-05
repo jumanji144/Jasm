@@ -36,12 +36,14 @@ public class Tokenizer {
     }
 
     private void handleComment(TokenizerContext ctx, char currentChar) {
-        if (currentChar == '\n') {
-            ctx.collectToken();
-            ctx.enterComment();
-            ctx.nextLine();
-            ctx.next();
+        while (currentChar != '\n') {
+           ctx.forward();
+           currentChar = ctx.peek();
         }
+        ctx.collectToken();
+        ctx.leaveComment();
+        ctx.nextLine();
+        ctx.next();
     }
 
     private void handleString(TokenizerContext ctx, char currentChar) {
@@ -127,10 +129,9 @@ public class Tokenizer {
             char c = input.charAt(ctx.index);
             if (ctx.isComment()) {
                 handleComment(ctx, c);
-            }
-            if (ctx.isString()) {
+            } else if (ctx.isString()) {
                 handleString(ctx, c);
-            } else if(ctx.isCharacter()) {
+            } else if (ctx.isCharacter()) {
                 handleCharacter(ctx, c);
             } else if (Character.isWhitespace(c)) {
                 handleWhitespace(ctx, c);
@@ -253,6 +254,8 @@ public class Tokenizer {
                 tokens.add(new Token(range, location, TokenType.STRING, content));
             } else if(inCharacter) {
                 tokens.add(new Token(range, location, TokenType.CHARACTER, content));
+            } else if(inComment){
+                tokens.add(new Token(range, location, TokenType.COMMENT, content));
             } else if (!buffer.isEmpty()) {
                 TokenType type = getType(content);
                 tokens.add(new Token(range, location, type, content));
