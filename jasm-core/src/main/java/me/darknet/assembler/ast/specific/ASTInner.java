@@ -5,9 +5,10 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.util.CollectionUtil;
 import me.darknet.assembler.visitor.Modifiers;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class ASTInner extends ASTElement {
+public class ASTInner extends ASTElement implements ASTAccessed {
 
     private final @Nullable ASTIdentifier name;
     private final @Nullable ASTIdentifier outerClass;
@@ -23,7 +24,8 @@ public class ASTInner extends ASTElement {
         this.innerClass = innerClass;
     }
 
-    public Modifiers modifiers() {
+    @Override
+    public @NotNull Modifiers getModifiers() {
         return modifiers;
     }
 

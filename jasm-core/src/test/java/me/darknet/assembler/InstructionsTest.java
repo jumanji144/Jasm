@@ -26,8 +26,8 @@ public class InstructionsTest {
         assertOne(
                 ".method stub ()V {\n" + "code: {" + String.join("\n", instructions) + "\n}}\n", format,
                 ASTMethod.class, (method) -> {
-                    assertEquals("stub", method.name().content());
-                    assertEquals("()V", method.descriptor().content());
+                    assertEquals("stub", method.getName().content());
+                    assertEquals("()V", method.getDescriptor().content());
                     assertNotNull(method.code());
                     consumer.accept(method.code());
                 }

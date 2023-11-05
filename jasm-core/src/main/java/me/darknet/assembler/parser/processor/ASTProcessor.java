@@ -43,6 +43,12 @@ public class ASTProcessor {
             ctx.result.setSignature(signature);
             return signature;
         });
+        ParserRegistry.register("sourcefile", (ctx, decl) -> {
+            ASTString sourceFile = ctx
+                    .validateElement(decl.elements().get(0), ElementType.STRING, "source file", decl);
+            ctx.result.setSourceFile(sourceFile);
+            return sourceFile;
+        });
         ParserRegistry.register("super", (ctx, decl) -> {
             ASTIdentifier superName = ctx
                     .validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "super name", decl);
@@ -101,6 +107,7 @@ public class ASTProcessor {
         if (body == null)
             return null;
         int nameIndex = bodyIndex - 1;
+
         // name is a explicit identifier
         ASTIdentifier name = ctx.validateIdentifier(elements.get(nameIndex), "class name", declaration);
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
@@ -108,11 +115,10 @@ public class ASTProcessor {
                 body.elements(), "class member or member attribute", body.location(), "field", "method", "annotation",
                 "signature"
         );
+
+        // take the 'pending' attributes like signatures, annotations, inner classes, etc and pass them along to the class.
         ProcessorAttributes attributes = ctx.result.collectAttributes();
-        return new ASTClass(
-                modifiers, name, attributes.signature, attributes.annotations, attributes.superName,
-                attributes.interfaces, classBody
-        );
+        return new ASTClass(   modifiers, name,   classBody).accept(attributes);
     }
 
     private static ASTField parseField(ParserContext ctx, ASTDeclaration declaration) {
@@ -143,7 +149,7 @@ public class ASTProcessor {
         ASTIdentifier name = ctx.validateIdentifier(elements.get(nameIndex), "field name", declaration);
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
         ProcessorAttributes attributes = ctx.result.collectAttributes();
-        return new ASTField(modifiers, name, desc, attributes.annotations, attributes.signature, value);
+        return new ASTField(modifiers, name, desc, value).accept(attributes);
     }
 
     private static ASTException parseException(ParserContext ctx, ASTArray object) {
@@ -219,9 +225,9 @@ public class ASTProcessor {
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
         ProcessorAttributes attributes = ctx.result.collectAttributes();
         return new ASTMethod(
-                modifiers, name, desc, attributes.signature, attributes.annotations, parameters, exceptions, code,
+                modifiers, name, desc, parameters, exceptions, code,
                 instructions, ctx.format
-        );
+        ).accept(attributes);
     }
 
     static ASTElement validateElementValue(ParserContext ctx, ASTElement value) {
@@ -302,13 +308,12 @@ public class ASTProcessor {
             ctx.throwError("Expected inner class modifiers and body", declaration.location());
             return null;
         }
-        int modifiersIndex = 0;
         int bodyIndex = elements.size() - 1;
 
         ASTObject body = ctx
                 .validateElement(elements.get(bodyIndex), ElementType.OBJECT, "inner class body", declaration);
 
-        Modifiers modifiers = parseModifiers(ctx, modifiersIndex, declaration);
+        Modifiers modifiers = parseModifiers(ctx, bodyIndex, declaration);
 
         ElementMap<ASTIdentifier, ASTElement> values = body.values();
         ASTIdentifier name = ctx.validateMaybeIdentifier(values.get("name"), "inner class name", declaration);

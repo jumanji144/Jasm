@@ -14,7 +14,6 @@ import java.util.List;
 
 public class ASTMethod extends ASTMember {
 
-    private final ASTIdentifier descriptor;
     private final List<ASTIdentifier> parameters;
     private final List<ASTException> exceptions;
     private final ASTCode code;
@@ -22,20 +21,14 @@ public class ASTMethod extends ASTMember {
     private final BytecodeFormat format;
 
     public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor,
-                     @Nullable ASTString signature, @Nullable List<ASTAnnotation> annotations,
                      List<ASTIdentifier> parameters, List<ASTException> exceptions, ASTCode code,
                      List<Instruction<?>> instructions, BytecodeFormat format) {
-        super(ElementType.METHOD, modifiers, name, signature, annotations);
-        this.descriptor = descriptor;
+        super(ElementType.METHOD, modifiers, name, descriptor);
         this.parameters = parameters;
         this.exceptions = exceptions;
         this.code = code;
         this.instructions = instructions;
         this.format = format;
-    }
-
-    public ASTIdentifier descriptor() {
-        return descriptor;
     }
 
     public List<ASTIdentifier> parameters() {

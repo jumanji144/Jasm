@@ -86,12 +86,12 @@ public class ASTProcessorTest {
     @Test
     public void testSimpleClass() {
         assertOne(".class public HelloWorld { .field public static final a I }", ASTClass.class, (clazz) -> {
-            assertEquals("HelloWorld", clazz.name().content());
+            assertEquals("HelloWorld", clazz.getName().content());
             ASTField field = assertIs(ASTField.class, clazz.content(0));
             assertNotNull(field);
-            assertEquals("a", field.name().content());
-            assertEquals("I", field.descriptor().content());
-            List<ASTIdentifier> modifiers = field.modifiers().modifiers();
+            assertEquals("a", field.getName().content());
+            assertEquals("I", field.getDescriptor().content());
+            List<ASTIdentifier> modifiers = field.getModifiers().modifiers();
             assertEquals(3, modifiers.size());
             assertEquals("public", modifiers.get(0).content());
             assertEquals("static", modifiers.get(1).content());
@@ -110,38 +110,38 @@ public class ASTProcessorTest {
     @Test
     public void testField() {
         assertOne(".field public static final a I", ASTField.class, (field) -> {
-            assertEquals("a", field.name().content());
-            assertEquals("I", field.descriptor().content());
-            List<ASTIdentifier> modifiers = field.modifiers().modifiers();
+            assertEquals("a", field.getName().content());
+            assertEquals("I", field.getDescriptor().content());
+            List<ASTIdentifier> modifiers = field.getModifiers().modifiers();
             assertEquals(3, modifiers.size());
             assertEquals("public", modifiers.get(0).content());
             assertEquals("static", modifiers.get(1).content());
             assertEquals("final", modifiers.get(2).content());
         });
         assertOne(".field public static final a I {value: 10}", ASTField.class, (field) -> {
-            assertEquals("a", field.name().content());
-            assertEquals("I", field.descriptor().content());
-            List<ASTIdentifier> modifiers = field.modifiers().modifiers();
+            assertEquals("a", field.getName().content());
+            assertEquals("I", field.getDescriptor().content());
+            List<ASTIdentifier> modifiers = field.getModifiers().modifiers();
             assertEquals(3, modifiers.size());
             assertEquals("public", modifiers.get(0).content());
             assertEquals("static", modifiers.get(1).content());
             assertEquals("final", modifiers.get(2).content());
-            assertNotNull(field.fieldValue());
-            assertEquals("10", field.fieldValue().content());
+            assertNotNull(field.getFieldValue());
+            assertEquals("10", field.getFieldValue().content());
         });
     }
 
     @Test
     public void testMethod() {
         assertOne(".method public static main ([Ljava/lang/String;)V {}", ASTMethod.class, (method) -> {
-            assertEquals("main", method.name().content());
-            assertEquals("([Ljava/lang/String;)V", method.descriptor().content());
+            assertEquals("main", method.getName().content());
+            assertEquals("([Ljava/lang/String;)V", method.getDescriptor().content());
         });
         assertOne(
                 ".method public static main ([Ljava/lang/String;)V { parameters: {args} }", ASTMethod.class,
                 (method) -> {
-                    assertEquals("main", method.name().content());
-                    assertEquals("([Ljava/lang/String;)V", method.descriptor().content());
+                    assertEquals("main", method.getName().content());
+                    assertEquals("([Ljava/lang/String;)V", method.getDescriptor().content());
                     assertNotNull(method.parameters());
                     assertEquals(1, method.parameters().size());
                     assertEquals("args", method.parameters().get(0).content());

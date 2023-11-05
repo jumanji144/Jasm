@@ -1,6 +1,7 @@
 package me.darknet.assembler.compile.visitor;
 
 import dev.xdark.blw.classfile.AccessFlag;
+import dev.xdark.blw.classfile.attribute.generic.GenericInnerClass;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.TypeReader;
@@ -12,6 +13,7 @@ import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.util.BlwModifiers;
 import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.*;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -27,27 +29,30 @@ public class BlwClassVisitor implements ASTClassVisitor {
 	}
 
 	@Override
-	public void visitSuperClass(ASTIdentifier superClass) {
-		if (superClass == null) {
+	public void visitSuperClass(@Nullable ASTIdentifier superClass) {
+		if (superClass == null)
 			return;
-		}
 		builder.setSuperClass(Types.instanceTypeFromInternalName(superClass.literal()));
 	}
 
 	@Override
-	public void visitInterface(ASTIdentifier interfaceName) {
+	public void visitInterface(@NotNull ASTIdentifier interfaceName) {
 		builder.addInterface(Types.instanceTypeFromInternalName(interfaceName.literal()));
 	}
 
 	@Override
-	public void visitSourceFile(ASTString sourceFile) {
-		builder.setSourceFile(sourceFile.content());
+	public void visitSourceFile(@Nullable ASTString sourceFile) {
+		builder.setSourceFile(sourceFile == null ? null : sourceFile.content());
 	}
 
 	@Override
 	public void visitInnerClass(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
 								ASTIdentifier innerClass) {
-		// TODO: 01.09.23
+		int accessFlags = BlwModifiers.getClassModifiers(modifiers);
+		InstanceType type = innerClass == null ? null : Types.instanceTypeFromInternalName(innerClass.literal());
+		InstanceType outerType = outerClass == null ? null : Types.instanceTypeFromInternalName(outerClass.literal());
+		String innerName = name == null ? null : name.literal();
+		builder.addInnerClass(new GenericInnerClass(accessFlags, type, outerType, innerName));
 	}
 
 	@Override
@@ -78,7 +83,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
 
 	@Override
 	public void visitSignature(@Nullable ASTString signature) {
-		// TODO: 01.09.23
+		if (signature != null) builder.signature(signature.content());
 	}
 
 	@Override

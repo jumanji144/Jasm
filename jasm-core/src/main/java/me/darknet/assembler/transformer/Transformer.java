@@ -32,11 +32,11 @@ public class Transformer {
         ASTRootVisitor localVisitor = visitor;
         for (ASTElement declaration : declarations) {
             if (declaration instanceof ASTField field) {
-                field.accept(collector, localVisitor.visitField(field.modifiers(), field.name(), field.descriptor()));
+                field.accept(collector, localVisitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor()));
             } else if (declaration instanceof ASTMethod method) {
-                method.accept(collector, localVisitor.visitMethod(method.modifiers(), method.name(), method.descriptor()));
+                method.accept(collector, localVisitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor()));
             } else if (declaration instanceof ASTClass clazz) {
-                clazz.accept(collector, localVisitor.visitClass(clazz.modifiers(), clazz.name()));
+                clazz.accept(collector, localVisitor.visitClass(clazz.getModifiers(), clazz.getName()));
             } else {
                 collector.addError("Don't know how to process: " + declaration.type(), declaration.location());
             }

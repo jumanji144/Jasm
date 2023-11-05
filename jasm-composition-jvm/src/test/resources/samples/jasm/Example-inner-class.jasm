@@ -1,0 +1,16 @@
+// Standard inner class
+.inner private static {
+    name: InnerClass,
+    inner: Example$InnerClass,
+    outer: Example
+}
+// Common case where an inner class is a reference to some external separate class
+.inner public static final {
+    name: Lookup,
+    inner: java/lang/invoke/MethodHandles$Lookup,
+    outer: java/lang/invoke/MethodHandles
+}
+.super java/lang/Object
+.class public super Example {
+
+}

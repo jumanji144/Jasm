@@ -7,62 +7,97 @@ import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.visitor.ASTClassVisitor;
 import me.darknet.assembler.visitor.Modifiers;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
 public class ASTClass extends ASTMember {
+	private final @NotNull List<ASTElement> contents;
+	private @NotNull List<ASTIdentifier> interfaces = Collections.emptyList();
+	private @NotNull List<ASTInner> inners = Collections.emptyList();
+	private @Nullable ASTIdentifier superName;
+	private @Nullable ASTString sourceFile;
 
-    private final @Nullable ASTIdentifier superName;
-    private final List<ASTIdentifier> interfaces;
-    private final List<ASTElement> contents;
+	public ASTClass(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull List<ASTElement> contents) {
+		super(ElementType.CLASS, modifiers, name, name);
+		this.children.addAll(contents);
+		this.contents = contents;
+	}
 
-    public ASTClass(Modifiers modifiers, ASTIdentifier name, @Nullable ASTString signature,
-                    List<ASTAnnotation> annotations, @Nullable ASTIdentifier superName, List<ASTIdentifier> interfaces,
-                    List<ASTElement> contents) {
-        super(ElementType.CLASS, modifiers, name, signature, annotations);
-        this.children.addAll(contents);
-        this.superName = superName;
-        this.interfaces = interfaces;
-        this.contents = contents;
-    }
+	@Nullable
+	public ASTString getSourceFile() {
+		return sourceFile;
+	}
 
-    public @Nullable ASTIdentifier superName() {
-        return superName;
-    }
+	public void setSourceFile(@Nullable ASTString sourceFile) {
+		this.sourceFile = sourceFile;
+	}
 
-    public List<ASTIdentifier> interfaces() {
-        return interfaces;
-    }
+	public @Nullable ASTIdentifier getSuperName() {
+		return superName;
+	}
 
-    public List<ASTElement> contents() {
-        return contents;
-    }
+	public void setSuperName(@Nullable ASTIdentifier superName) {
+		this.superName = superName;
+	}
 
-    public @Nullable ASTElement content(int index) {
-        return contents.get(index);
-    }
+	@NotNull
+	public List<ASTIdentifier> getInterfaces() {
+		return interfaces;
+	}
 
-    public void accept(ErrorCollector collector, ASTClassVisitor visitor) {
-        super.accept(collector, visitor);
-        if (visitor == null)
-            return;
+	public void setInterfaces(@NotNull List<ASTIdentifier> interfaces) {
+		this.interfaces = interfaces;
+	}
 
-        visitor.visitSuperClass(superName);
-        for (ASTIdentifier anInterface : interfaces) {
-            visitor.visitInterface(anInterface);
-        }
+	@NotNull
+	public List<ASTInner> getInners() {
+		return inners;
+	}
 
-        for (ASTElement declaration : contents) {
-            if (declaration instanceof ASTField field) {
-                field.accept(collector, visitor.visitField(field.modifiers(), field.name(), field.descriptor()));
-            } else if (declaration instanceof ASTMethod method) {
-                method.accept(collector, visitor.visitMethod(method.modifiers(), method.name(), method.descriptor()));
-            } else {
-                collector.addError("Don't know how to process: " + declaration.type(), declaration.location());
-            }
-        }
+	public void setInnerClasses(@NotNull List<ASTInner> inners) {
+		List<ASTInner> oldInners = this.inners;
+		removeChildren(oldInners);
+		addChildren(inners);
+		this.inners = inners;
+	}
 
-        visitor.visitEnd();
-    }
+	@NotNull
+	public List<ASTElement> contents() {
+		return contents;
+	}
+
+	public @Nullable ASTElement content(int index) {
+		return contents.get(index);
+	}
+
+	public void accept(ErrorCollector collector, ASTClassVisitor visitor) {
+		super.accept(collector, visitor);
+		if (visitor == null)
+			return;
+
+		visitor.visitSourceFile(sourceFile);
+		visitor.visitSuperClass(superName);
+		for (ASTIdentifier anInterface : interfaces) {
+			visitor.visitInterface(anInterface);
+		}
+
+		for (ASTInner inner : inners) {
+			visitor.visitInnerClass(inner.getModifiers(), inner.name(), inner.outerClass(), inner.innerClass());
+		}
+
+		for (ASTElement declaration : contents) {
+			if (declaration instanceof ASTField field) {
+				field.accept(collector, visitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor()));
+			} else if (declaration instanceof ASTMethod method) {
+				method.accept(collector, visitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor()));
+			} else {
+				collector.addError("Don't know how to process: " + declaration.type(), declaration.location());
+			}
+		}
+
+		visitor.visitEnd();
+	}
 }

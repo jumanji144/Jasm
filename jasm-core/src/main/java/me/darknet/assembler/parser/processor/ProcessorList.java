@@ -63,7 +63,7 @@ public class ProcessorList {
         addAttribute(inner);
     }
 
-    public void setSourceFile(ASTIdentifier sourceFile) {
+    public void setSourceFile(ASTString sourceFile) {
         this.attributes.sourceFile = sourceFile;
         addAttribute(sourceFile);
     }

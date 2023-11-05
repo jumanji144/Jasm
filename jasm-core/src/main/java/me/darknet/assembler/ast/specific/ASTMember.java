@@ -8,56 +8,83 @@ import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CollectionUtil;
 import me.darknet.assembler.visitor.ASTDeclarationVisitor;
 import me.darknet.assembler.visitor.Modifiers;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
-public class ASTMember extends ASTElement {
+public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, ASTAnnotated {
+	private final @NotNull ASTIdentifier name;
+	private final @NotNull ASTIdentifier descriptor;
+	private final @NotNull Modifiers modifiers;
+	private @Nullable ASTString signature;
+	private List<ASTAnnotation> annotations = Collections.emptyList();
 
-    private final Modifiers modifiers;
-    private final ASTIdentifier name;
-    private final @Nullable ASTString signature;
-    private final List<ASTAnnotation> annotations;
+	public ASTMember(@NotNull ElementType type, @NotNull Modifiers modifiers,
+					 @NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor) {
+		super(type, CollectionUtil.merge(modifiers.modifiers(), name));
+		if (!modifiers.modifiers().isEmpty()) {
+			this.value = modifiers.modifiers().get(0).value();
+		} else {
+			this.value = name.value();
+		}
+		this.modifiers = modifiers;
+		this.name = name;
+		this.descriptor = descriptor;
+	}
 
-    public ASTMember(ElementType type, Modifiers modifiers, ASTIdentifier name, @Nullable ASTString signature,
-                     List<ASTAnnotation> annotations) {
-        super(type, CollectionUtil.merge(CollectionUtil.merge(modifiers.modifiers(), annotations), name));
-        if (!modifiers.modifiers().isEmpty()) {
-            this.value = modifiers.modifiers().get(0).value();
-        } else {
-            this.value = name.value();
-        }
-        this.modifiers = modifiers;
-        this.name = name;
-        this.signature = signature;
-        this.annotations = annotations;
-    }
+	@NotNull
+	public ASTIdentifier getName() {
+		return name;
+	}
 
-    public Modifiers modifiers() {
-        return modifiers;
-    }
+	@NotNull
+	public ASTIdentifier getDescriptor() {
+		return descriptor;
+	}
 
-    public ASTIdentifier name() {
-        return name;
-    }
+	@Override
+	public @NotNull Modifiers getModifiers() {
+		return modifiers;
+	}
 
-    public @Nullable ASTString signature() {
-        return signature;
-    }
+	@Override
+	public @Nullable ASTString getSignature() {
+		return signature;
+	}
 
-    public @Nullable List<ASTAnnotation> annotations() {
-        return annotations;
-    }
+	@Override
+	public void setSignature(@Nullable ASTString signature) {
+		this.signature = signature;
+	}
 
-    protected void accept(ErrorCollector collector, ASTDeclarationVisitor visitor) {
-        if (visitor == null) {
-            collector.addError("Unable to process member", null);
-            return;
-        }
-        for (ASTAnnotation annotation : annotations) {
-            annotation.accept(collector, visitor.visitAnnotation(annotation.classType()));
-        }
-        if(signature != null) visitor.visitSignature(signature);
-    }
+	@Override
+	public @NotNull List<ASTAnnotation> getAnnotations() {
+		return annotations;
+	}
 
+	@Override
+	public void setAnnotations(@Nullable List<ASTAnnotation> annotations) {
+		List<ASTAnnotation> oldAnnotations = this.annotations;
+		removeChildren(oldAnnotations);
+		if (annotations != null) addChildren(annotations);
+		this.annotations = annotations;
+	}
+
+	@Override
+	public void addAnnotation(@NotNull ASTAnnotation annotation) {
+		setAnnotations(CollectionUtil.merge(annotations, annotation));
+	}
+
+	protected void accept(ErrorCollector collector, ASTDeclarationVisitor visitor) {
+		if (visitor == null) {
+			collector.addError("Unable to process member", null);
+			return;
+		}
+		for (ASTAnnotation annotation : annotations) {
+			annotation.accept(collector, visitor.visitAnnotation(annotation.classType()));
+		}
+		if (signature != null) visitor.visitSignature(signature);
+	}
 }

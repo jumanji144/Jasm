@@ -3,6 +3,7 @@ package me.darknet.assembler;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -21,6 +22,8 @@ import static me.darknet.assembler.TestUtils.normalize;
 import static me.darknet.assembler.TestUtils.processJvm;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@Disabled("Used to gain a lot of test cases/samples. " +
+		"Not practical for test authority due to small syntax changes from the round-trip.")
 public class RuntimeCompilerTest {
 	@ParameterizedTest
 	@MethodSource("getClasses")

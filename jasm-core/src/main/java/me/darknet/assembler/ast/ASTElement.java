@@ -1,11 +1,16 @@
 package me.darknet.assembler.ast;
 
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.parser.Token;
+import me.darknet.assembler.parser.processor.ProcessorAttributes;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -33,6 +38,22 @@ public class ASTElement {
         }
         this.type = type;
         this.children = (List<ASTElement>) children;
+    }
+
+    protected void addChild(@NotNull ASTElement element) {
+        children.add(element);
+    }
+
+    protected void addChildren(@NotNull Collection<? extends ASTElement> elements) {
+        children.addAll(elements);
+    }
+
+    protected void removeChild(@NotNull ASTElement element) {
+        children.remove(element);
+    }
+
+    protected void removeChildren(@NotNull Collection<? extends ASTElement> elements) {
+        children.removeAll(elements);
     }
 
     /**
@@ -79,4 +100,9 @@ public class ASTElement {
         return null;
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends ASTElement> T accept(ProcessorAttributes attributes) {
+        attributes.fill(this);
+        return (T) this;
+    }
 }
