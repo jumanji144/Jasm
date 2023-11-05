@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class TestUtils {
 	private static final Pattern DUPLICATE_NEWLINES = Pattern.compile("\\n\\s*\\n");
 	private static final Pattern END_LINE_PADDING = Pattern.compile("[ \\t]+\\n");
+	private static final Pattern COMMENTS = Pattern.compile("(?:^|\\n)\\s*//.+");
 
 
 	public static void processJvm(@NotNull String source, @NotNull CompilerOptions<?> options,
@@ -61,9 +62,9 @@ public class TestUtils {
 		while (input.contains("  "))
 			input = input.replace("  ", " ");
 
-
-		input = DUPLICATE_NEWLINES.matcher(input).replaceAll("\n");
+		input = COMMENTS.matcher(input).replaceAll("");
 		input = END_LINE_PADDING.matcher(input).replaceAll("\n");
-		return input;
+		input = DUPLICATE_NEWLINES.matcher(input).replaceAll("\n");
+		return input.trim();
 	}
 }
