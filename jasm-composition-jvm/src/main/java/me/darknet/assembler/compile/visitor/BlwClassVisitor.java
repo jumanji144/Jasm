@@ -52,8 +52,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
 
 	@Override
 	public ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
-		int accessFlags = modifiers.modifiers().stream()
-				.map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.FIELD)).reduce(0, (a, b) -> a | b);
+		int accessFlags = BlwModifiers.getFieldModifiers(modifiers);
 		return new BlwFieldVisitor(
 				builder.putField(accessFlags, name.literal(), new TypeReader(descriptor.literal()).requireClassType()).child()
 		);
@@ -61,8 +60,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
 
 	@Override
 	public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
-		int accessFlags = modifiers.modifiers().stream()
-				.map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD)).reduce(0, (a, b) -> a | b);
+		int accessFlags = BlwModifiers.getMethodModifiers(modifiers);
 		MethodType type = Types.methodType(descriptor.literal());
 		return new BlwMethodVisitor(
 				options.inheritanceChecker(), builder.type(), type,

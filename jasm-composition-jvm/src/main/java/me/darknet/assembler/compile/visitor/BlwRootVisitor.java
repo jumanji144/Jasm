@@ -52,8 +52,7 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
 
 	@Override
 	public ASTClassVisitor visitClass(Modifiers modifiers, ASTIdentifier name) {
-		int accessFlags = modifiers.modifiers().stream()
-				.map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.CLASS)).reduce(0, (a, b) -> a | b);
+		int accessFlags = BlwModifiers.getClassModifiers(modifiers);
 		builder.accessFlags(accessFlags);
 		builder.type(Types.instanceTypeFromInternalName(name.literal()));
 		return new BlwClassVisitor(options, builder);
@@ -61,8 +60,7 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
 
 	@Override
 	public ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
-		int accessFlags = modifiers.modifiers().stream()
-				.map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.FIELD)).reduce(0, (a, b) -> a | b);
+		int accessFlags = BlwModifiers.getFieldModifiers(modifiers);
 		return new BlwFieldVisitor(
 				builder.putField(accessFlags, name.literal(), new TypeReader(descriptor.literal()).requireClassType()).child()
 		);
@@ -70,8 +68,7 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
 
 	@Override
 	public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
-		int accessFlags = modifiers.modifiers().stream()
-				.map(it -> BlwModifiers.modifier(it.content(), BlwModifiers.METHOD)).reduce(0, (a, b) -> a | b);
+		int accessFlags = BlwModifiers.getMethodModifiers(modifiers);
 		MethodType type = Types.methodType(descriptor.literal());
 		return new BlwMethodVisitor(
 				options.inheritanceChecker(), Types.instanceType(Object.class), type,

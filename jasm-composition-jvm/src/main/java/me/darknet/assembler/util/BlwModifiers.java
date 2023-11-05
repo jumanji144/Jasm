@@ -1,5 +1,7 @@
 package me.darknet.assembler.util;
 
+import me.darknet.assembler.visitor.Modifiers;
+
 import java.util.Map;
 
 import static dev.xdark.blw.classfile.AccessFlag.*;
@@ -186,4 +188,21 @@ public class BlwModifiers {
         return result;
     }
 
+    public static int getClassModifiers(Modifiers modifiers) {
+        return getModifiers(modifiers, CLASS);
+    }
+
+    public static int getFieldModifiers(Modifiers modifiers) {
+        return getModifiers(modifiers, FIELD);
+    }
+
+    public static int getMethodModifiers(Modifiers modifiers) {
+        return getModifiers(modifiers, METHOD);
+    }
+
+    public static int getModifiers(Modifiers modifiers, int type) {
+        return modifiers.modifiers().stream()
+                .map(it -> modifier(it.content(), type))
+                .reduce(0, (a, b) -> a | b);
+    }
 }
