@@ -39,12 +39,6 @@ public class JvmClassPrinter implements ClassPrinter {
     @Override
     public void print(PrintContext<?> ctx) {
         memberPrinter.printAttributes(ctx);
-        var superClass = view.superClass();
-        if (superClass != null)
-            ctx.begin().element(".super").literal(superClass.internalName()).end();
-        for (InstanceType anInterface : view.interfaces()) {
-            ctx.begin().element(".implements").literal(anInterface.internalName()).end();
-        }
         for (InnerClass innerClass : view.innerClasses()) {
             var obj = ctx.begin().element(".inner")
                     .print(BlwModifiers.modifiers(innerClass.accessFlags(), BlwModifiers.CLASS)).object();
@@ -59,6 +53,12 @@ public class JvmClassPrinter implements ClassPrinter {
             }
             obj.end();
             ctx.end();
+        }
+        var superClass = view.superClass();
+        if (superClass != null)
+            ctx.begin().element(".super").literal(superClass.internalName()).end();
+        for (InstanceType anInterface : view.interfaces()) {
+            ctx.begin().element(".implements").literal(anInterface.internalName()).end();
         }
         var obj = memberPrinter.printDeclaration(ctx)
                 .literal(view.type().internalName()).print(" ")
