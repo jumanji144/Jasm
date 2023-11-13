@@ -1,0 +1,18 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod (LExample;)LExample; {
+        parameters: { this, other },
+        code: {
+        A:
+            ldc 100.f
+            fstore hundred
+
+            ldc 50l
+            lstore fifty
+
+            aload this
+            areturn
+        B:
+        }
+    }
+}

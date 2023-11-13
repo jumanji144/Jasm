@@ -152,26 +152,34 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
     @Override
     public void execute(VarInstruction instruction) {
         final int index = instruction.variableIndex();
-        switch (instruction.opcode()) {
+        final int opcode = instruction.opcode();
+        switch (opcode) {
             case ILOAD, LLOAD, FLOAD, DLOAD, ALOAD -> {
-                if(frame.hasLocal(index)) {
-                    frame.push(frame.getLocalType(index));
+                boolean has = frame.hasLocal(index);
+                ClassType type;
+                if (has) {
+                    type = frame.getLocalType(index);
                 } else {
-                    switch (instruction.opcode()) {
-                        case ILOAD -> frame.push(Types.INT);
-                        case LLOAD -> frame.push(Types.LONG);
-                        case FLOAD -> frame.push(Types.FLOAT);
-                        case DLOAD -> frame.push(Types.DOUBLE);
-                        case ALOAD -> frame.push(Frame.OBJECT);
-                    }
+                    type = switch (opcode) {
+                        case ILOAD -> Types.INT;
+                        case LLOAD -> Types.LONG;
+                        case FLOAD -> Types.FLOAT;
+                        case DLOAD -> Types.DOUBLE;
+                        case ALOAD -> Frame.OBJECT;
+                        default -> throw new IllegalStateException("Unexpected opcode: " + opcode);
+                    };
                 }
-                if (instruction.opcode() == LLOAD || instruction.opcode() == DLOAD)
+
+                frame.push(type);
+                if (opcode == LLOAD || opcode == DLOAD)
                     frame.push(Types.VOID);
             }
             case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> {
-                if (instruction.opcode() == LSTORE || instruction.opcode() == DSTORE)
+                if (opcode == LSTORE || opcode == DSTORE)
                     frame.pop();
-                frame.setLocal(index, new LocalInfo(index, variableNameLookup.apply(index), frame.pop()));
+
+                String name = variableNameLookup.apply(index);
+                frame.setLocal(index, new LocalInfo(index, name, frame.pop()));
             }
         }
     }

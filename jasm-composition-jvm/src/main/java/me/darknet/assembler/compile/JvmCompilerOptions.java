@@ -9,11 +9,11 @@ import org.objectweb.asm.ClassWriter;
 
 public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
 
-    int asmArgs = 0;
-    JavaVersion version;
-    JavaClassRepresentation overlay;
-    String annotationPath;
-    InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
+    protected int asmArgs = 0;
+    protected JavaVersion version;
+    protected JavaClassRepresentation overlay;
+    protected String annotationPath;
+    protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
 
     public JvmCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
