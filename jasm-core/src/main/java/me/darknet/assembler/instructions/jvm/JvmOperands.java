@@ -109,25 +109,65 @@ public enum JvmOperands implements Operands {
                     default -> context.throwUnexpectedElementError("class, method or array descriptor", element);
                 }
             }
-            case ARRAY -> verifyHandle(context, element);
+            case ARRAY -> {
+                ASTArray array = (ASTArray) element;
+                ASTElement last = array.values().get(array.values().size() - 1);
+                if(last == null) {
+                    context.throwUnexpectedElementError("constant", element);
+                    return;
+                }
+                switch (last.type()) {
+                    case ARRAY -> verifyConstantDynamic(context, array);
+                    case IDENTIFIER -> verifyHandle(context, array);
+                }
+            }
             default -> context.throwUnexpectedElementError("constant", element);
         }
     }
 
-    public static void verifyHandle(ASTProcessor.ParserContext context, ASTElement element) {
-        if (context.isNotType(element, ElementType.ARRAY, "handle"))
+    public static void verifyConstantDynamic(ASTProcessor.ParserContext context, ASTArray array) {
+        // constant dynamic structure: { name, type, { <handle > }, { <args> } }
+        if(array.values().size() != 4) {
+            context.throwUnexpectedElementError("name, type, handle and args", array);
             return;
+        }
+
+        if (context.validateCorrect(array.value(0), ElementType.IDENTIFIER, "name", array))
+            return;
+
+        if (context.validateCorrect(array.value(1), ElementType.IDENTIFIER, "type", array))
+            return;
+
+        if(verifyHandle(context, array.value(2)))
+            return;
+
+        ASTElement argsElement = array.value(3);
+        ASTArray args = context.validateEmptyableElement(argsElement, ElementType.ARRAY, "args", argsElement);
+        for (ASTElement value : args.values()) {
+            if (context.isNull(value, "args element", args.location()))
+                return;
+            assert value != null;
+            verifyConstant(context, value);
+        }
+    }
+
+    public static boolean verifyHandle(ASTProcessor.ParserContext context, ASTElement element) {
+        if (context.isNotType(element, ElementType.ARRAY, "handle"))
+            return true;
 
         ASTArray array = (ASTArray) element;
         List<ASTIdentifier> values = context.validateArray(array, ElementType.IDENTIFIER, "handle element", element);
         if (values.size() != 3) {
             context.throwUnexpectedElementError("kind, name and descriptor", element);
-            return;
+            return true;
         }
         // first should be kind
         if (!Handle.KINDS.containsKey(values.get(0).content())) {
             context.throwUnexpectedElementError("kind", values.get(0));
+            return true;
         }
+
+        return false;
     }
 
     @Override
