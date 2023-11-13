@@ -31,11 +31,11 @@ public class ASTNumber extends ASTValue {
     }
 
     public boolean isWide() {
-        String value = content();
+        String value = content().toLowerCase();
         if (value.contains(".")) {
-            return !value.endsWith("f") && !value.endsWith("F");
+            return !value.endsWith("f");
         } else {
-            return value.endsWith("L");
+            return value.endsWith("l") || value.endsWith("d");
         }
     }
 
