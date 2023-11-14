@@ -83,7 +83,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
      * @return Index of variable.
      */
     private int getOrCreateLocal(String name, boolean wide) {
-       int index = localNames.indexOf(name);
+        int index = localNames.indexOf(name);
         if (index > -1)
             return index;
         index = localNames.size();
@@ -254,12 +254,10 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             keys.add(Integer.parseInt(pair.first().content()));
             labels.add(getOrCreateLabel(pair.second().content()));
         }
-        add(
-                new LookupSwitchInstruction(
-                        keys.stream().mapToInt(Integer::intValue).toArray(), getOrCreateLabel(defaultLabel.content()),
-                        labels
-                )
-        );
+        add(new LookupSwitchInstruction(
+                keys.stream().mapToInt(Integer::intValue).toArray(), getOrCreateLabel(defaultLabel.content()),
+                labels
+        ));
     }
 
     @Override
@@ -304,12 +302,10 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTArray bsm, ASTArray bsmArgs) {
-        add(
-                new InvokeDynamicInstruction(
-                        name.literal(), new TypeReader(descriptor.literal()).read(), ConstantMapper.fromArray(bsm),
-                        bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
-                )
-        );
+        add(new InvokeDynamicInstruction(
+                name.literal(), new TypeReader(descriptor.literal()).read(), ConstantMapper.fromArray(bsm),
+                bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
+        ));
     }
 
     @Override
@@ -350,7 +346,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             if (index < paramOffset)
                 continue;
             ClassType type = entry.getValue().type();
-            String name = getLocalName(index - paramOffset);
+            String name = getLocalName(index);
             codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
         }
     }
