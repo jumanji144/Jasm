@@ -14,7 +14,6 @@ public class Frame {
 
     private final Deque<ClassType> stack;
     private final Map<Integer, LocalInfo> locals;
-    private ClassType lastPopped, lastPushed;
 
     /**
      * New frame with a given stack/variable table.
@@ -42,9 +41,13 @@ public class Frame {
     }
 
     /**
+     * Merges types of variables and stack items, taking place in this frame.
+     *
      * @param checker Inheritance checker to use for determining common super-types.
      * @param other Frame to merge into this one.
-     * @return Merges types of variables and stack items, taking place in this frame.
+     *
+     * @return {@code true} when changes were made during the merge process.
+     * {@code false} if no changes were made, indicating equal frames.
      */
     public boolean merge(@NotNull InheritanceChecker checker, @NotNull Frame other) {
         boolean changed = false;
@@ -153,7 +156,6 @@ public class Frame {
         if (type == null)
             throw new IllegalStateException("Cannot push null as typed value to stack");
         stack.push(type);
-        lastPushed = type;
     }
 
     /**
@@ -199,7 +201,6 @@ public class Frame {
      */
     @NotNull
     public ClassType pop() {
-        lastPopped = stack.peek();
         try {
             return stack.pop();
         } catch (NoSuchElementException e) {
@@ -255,18 +256,22 @@ public class Frame {
         return new Frame().copyFrom(this);
     }
 
-    /**
-     * @return Last popped type from the stack.
-     */
-    public ClassType lastPopped() {
-        return lastPopped;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Frame frame = (Frame) o;
+
+        if (!stack.equals(frame.stack)) return false;
+        return locals.equals(frame.locals);
     }
 
-    /**
-     * @return Last pushed type on the stack.
-     */
-    public ClassType lastPushed() {
-        return lastPushed;
+    @Override
+    public int hashCode() {
+        int result = stack.hashCode();
+        result = 31 * result + locals.hashCode();
+        return result;
     }
 
     /**

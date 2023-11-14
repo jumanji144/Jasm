@@ -48,13 +48,11 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
             Frame frame = key.frame.copy();
             Frame oldFrame = engine.putFrameIfAbsent(index, frame::copy);
             boolean checkVisited;
-            if (oldFrame != null) {
-                boolean noMerge = !frame.merge(method.checker, oldFrame);
-                if (noMerge) {
-                    continue;
-                }
+            if (!oldFrame.equals(frame)) {
+                boolean changes = frame.merge(method.checker, oldFrame);
+                if (changes)
+                    engine.putFrame(index, frame.copy());
                 checkVisited = false;
-                engine.putFrame(index, frame.copy());
             } else {
                 checkVisited = true;
             }
