@@ -4,12 +4,10 @@
         parameters: { this, other },
         code: {
         A:
-            ldc 100.f
+            ldc 100.0F
             fstore hundred
-
-            ldc 50l
+            ldc 50L
             lstore fifty
-
             aload this
             areturn
         B:
