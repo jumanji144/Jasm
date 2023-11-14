@@ -78,7 +78,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
                 ctx.instruction("lconst_" + val).next();
                 return;
             } else {
-                opcode = "ldc2_w";
+                opcode = "ldc"; // ldc2_w
             }
         } else if (instruction instanceof ConstantInstruction.Float i) {
             float val = i.constant().value();
@@ -94,7 +94,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
                 ctx.instruction("dconst_" + (int) val).next();
                 return;
             } else {
-                opcode = "ldc2_w";
+                opcode = "ldc"; // ldc2_w
             }
         } else {
             opcode = "ldc";
