@@ -1,5 +1,7 @@
 package me.darknet.assembler.helper;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +31,7 @@ import java.util.Map;
  * @param locals
  *                   A full list of all locals in the method
  */
-public record Names(Map<Integer, String> parameters, List<Local> locals) {
+public record Names(@NotNull Map<Integer, String> parameters, @NotNull List<Local> locals) {
 
     public String getParameterName(int index) {
         // there is no parameter name
