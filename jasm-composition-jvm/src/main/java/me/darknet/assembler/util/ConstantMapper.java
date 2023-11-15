@@ -8,12 +8,14 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.helper.Handle;
 
+import java.util.List;
+
 public class ConstantMapper {
 
-    public static MethodHandle fromArray(ASTArray array) {
+    public static MethodHandle methodHandleFromArray(ASTArray array) {
         Handle.Kind kind = Handle.Kind.from(array.values().get(0).content());
-        String name = array.values().get(1).content();
-        String descriptor = array.values().get(2).content();
+        String name = array.<ASTIdentifier>value(1).literal();
+        String descriptor = array.<ASTIdentifier>value(2).literal();
 
         var split = name.split("\\.");
         String className = split[0];
@@ -31,6 +33,23 @@ public class ConstantMapper {
 
         // TODO: ITF
         return new MethodHandle(kind.ordinal() + 1, owner, methodName, methodType, false);
+    }
+
+    public static ConstantDynamic constantDynamicFromArray(ASTArray array) {
+        String name = array.<ASTIdentifier>value(0).literal();
+        String descriptor = array.<ASTIdentifier>value(1).literal();
+
+        MethodHandle bootstrapMethod = methodHandleFromArray(array.value(2));
+
+        ASTArray args = array.value(3);
+
+        List<Constant> constantArgs = args.values().stream()
+                .map(ConstantMapper::fromConstant)
+                .toList();
+
+        ClassType type = new TypeReader(descriptor).requireClassType();
+
+        return new ConstantDynamic(name, type, bootstrapMethod, constantArgs);
     }
 
     public static Constant fromConstant(ASTElement element) {
@@ -64,7 +83,12 @@ public class ConstantMapper {
             }
             case ARRAY -> {
                 ASTArray array = (ASTArray) element;
-                yield new OfMethodHandle(fromArray(array));
+                ASTElement last = array.values().get(array.values().size() - 1);
+                yield switch (last.type()) {
+                    case ARRAY -> new OfDynamic(constantDynamicFromArray(array));
+                    case IDENTIFIER -> new OfMethodHandle(methodHandleFromArray(array));
+                    default -> throw new IllegalStateException("Unexpected value: " + last.type());
+                };
             }
             default -> throw new IllegalStateException("Unexpected value: " + element.type());
         };

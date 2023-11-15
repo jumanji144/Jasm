@@ -21,8 +21,8 @@ public class ASTArray extends ASTElement {
         return values;
     }
 
-    public @Nullable ASTElement value(int index) {
-        return values.get(index);
+    public <T extends ASTElement> @Nullable T value(int index) {
+        return (T) values.get(index);
     }
 
 }
