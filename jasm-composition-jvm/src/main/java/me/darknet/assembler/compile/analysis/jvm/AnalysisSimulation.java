@@ -11,7 +11,10 @@ import me.darknet.assembler.compile.analysis.Frame;
 import me.darknet.assembler.compile.analysis.LocalInfo;
 import me.darknet.assembler.compiler.InheritanceChecker;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.BitSet;
+import java.util.Deque;
+import java.util.List;
 
 public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, AnalysisSimulation.Info> {
     @Override
@@ -25,7 +28,10 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
             Frame frame = new Frame();
             int index = 0;
             for (LocalInfo param : method.params) {
-                frame.setLocal(index++, param);
+                int idx = index++;
+                if (param.type() == null)// top type
+                    continue;
+                frame.setLocal(idx, param);
             }
             forkQueue.push(new ForkKey(0, frame));
             initialFrame = frame;
