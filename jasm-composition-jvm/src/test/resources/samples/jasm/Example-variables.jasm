@@ -1,30 +1,29 @@
 .super java/lang/Object
 .class public super Example {
     .method public exampleMethod (LExample;)LExample; {
-    exceptions: { { A, C, D, * } },
         parameters: { this, other },
+        exceptions: { { A, B, C, * } },
         code: {
         A:
             ldc 100.0F
             fstore hundred
             ldc 50L
             lstore fifty
-        B:
             fload hundred
             lload fifty
             l2f
             fdiv
             fstore result
-        C:
+        B:
             aload this
             iconst_1
             putfield Example.someBool Z
-        D:
-            ldc2_w 0.03333333333333333D
+        C:
+            ldc 0.03333333333333333D
             dstore msPerTick
-        E:
             aload this
             areturn
+        D:
         }
     }
 }

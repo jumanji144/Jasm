@@ -77,7 +77,9 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
                 // Labels are fork-points, queue it and continue to the next point.
                 CodeElement element = elements.get(index);
                 if (element instanceof Label lbl) {
-                    forkQueue.push(new ForkKey(lbl.index() + 1, frame));
+                    // Do not queue if it is the last element.
+                    if (index <= elements.size() - 1)
+                        forkQueue.push(new ForkKey(lbl.index() + 1, frame));
                     continue loop;
                 }
 
