@@ -71,7 +71,7 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
 		int accessFlags = BlwModifiers.getMethodModifiers(modifiers);
 		MethodType type = Types.methodType(descriptor.literal());
 		return new BlwMethodVisitor(
-				options.inheritanceChecker(), Types.instanceType(Object.class), type,
+				options.inheritanceChecker(), builder.type(), type,
 				(accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
 				CastUtil.cast(builder.putMethod(accessFlags, name.literal(), type).child()),
 				analysisResults -> builder.setMethodAnalysis(name.literal(), type, analysisResults)
