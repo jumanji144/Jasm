@@ -51,7 +51,8 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
         //
         // Because control flow will allow us to revisit things we already analyzed
         // with a potentially new state, we'll only revisit if the state has changed.
-        BitSet visited = new BitSet(elements.size());
+        int numElements = elements.size();
+        BitSet visited = new BitSet(numElements);
         ForkKey key;
         loop:
         while ((key = forkQueue.poll()) != null) {
@@ -78,7 +79,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
                 CodeElement element = elements.get(index);
                 if (element instanceof Label lbl) {
                     // Do not queue if it is the last element.
-                    if (index <= elements.size() - 1)
+                    if (index <= numElements - 1)
                         forkQueue.push(new ForkKey(lbl.index() + 1, frame));
                     continue loop;
                 }
