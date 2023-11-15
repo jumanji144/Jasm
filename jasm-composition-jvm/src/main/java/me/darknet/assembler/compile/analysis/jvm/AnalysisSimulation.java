@@ -29,7 +29,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
             int index = 0;
             for (LocalInfo param : method.params) {
                 int idx = index++;
-                if (param.type() == null)// top type
+                if (param == null) // top
                     continue;
                 frame.setLocal(idx, param);
             }
