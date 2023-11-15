@@ -333,6 +333,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     public void visitEnd() {
         codeBuilderList.element(end);
         for (LocalInfo parameter : parameters) {
+            if(parameter == null)
+                continue; // wide parameter
             codeBuilder.localVariable(
                     new GenericLocal(begin, end, parameter.index(), parameter.name(), parameter.type(), null)
             );
