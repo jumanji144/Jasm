@@ -352,7 +352,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             if (index < paramOffset)
                 continue;
             ClassType type = entry.getValue().type();
-            String name = getLocalName(index - paramOffset);
+            String name = getLocalName(index);
             codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
         }
     }
