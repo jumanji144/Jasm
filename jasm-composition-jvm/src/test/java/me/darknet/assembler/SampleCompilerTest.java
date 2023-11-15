@@ -44,6 +44,8 @@ public class SampleCompilerTest {
 				assertTrue(varNames.contains("other"));
 				assertTrue(varNames.contains("hundred"));
 				assertTrue(varNames.contains("fifty"));
+				assertTrue(varNames.contains("result"));
+				assertTrue(varNames.contains("msPerTick"));
 			});
 		}
 	}

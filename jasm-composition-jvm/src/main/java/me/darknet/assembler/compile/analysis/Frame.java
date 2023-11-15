@@ -274,6 +274,11 @@ public class Frame {
         return result;
     }
 
+    @Override
+    public String toString() {
+        return "Stack:" + stack.size() + ", Locals:" + locals.size();
+    }
+
     /**
      * @param checker Inheritance checker to use for determining common super-types.
      * @param a Some type.

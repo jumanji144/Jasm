@@ -185,14 +185,6 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
     }
 
     @Override
-    public void execute(LookupSwitchInstruction instruction) {
-    }
-
-    @Override
-    public void execute(TableSwitchInstruction instruction) {
-    }
-
-    @Override
     public void execute(InstanceofInstruction instruction) {
         frame.pop();
         frame.push(Types.INT);
@@ -243,10 +235,6 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
     }
 
     @Override
-    public void execute(ImmediateJumpInstruction instruction) {
-    }
-
-    @Override
     public void execute(ConditionalJumpInstruction instruction) {
         switch (instruction.opcode()) {
             case IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE, IFNULL, IFNONNULL -> frame.pop();
@@ -255,13 +243,32 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
     }
 
     @Override
-    public void execute(VariableIncrementInstruction instruction) {
-    }
-
-    @Override
     public void execute(PrimitiveConversionInstruction instruction) {
         frame.pop();
         frame.pushType(instruction.to());
+    }
+
+    @Override
+    public void execute(LookupSwitchInstruction instruction) {
+        // We do not handle the stack here, the simulation processor
+        // is designed to not need it.
+    }
+
+    @Override
+    public void execute(TableSwitchInstruction instruction) {
+        // We do not handle the stack here, the simulation processor
+        // is designed to not need it.
+    }
+
+    @Override
+    public void execute(ImmediateJumpInstruction instruction) {
+        // We do not handle the stack here, the simulation processor
+        // is designed to not need it.
+    }
+
+    @Override
+    public void execute(VariableIncrementInstruction instruction) {
+        // We do not track variable state
     }
 
     @Override
