@@ -8,7 +8,7 @@ import java.util.NavigableMap;
 /**
  * Stack analysis results for a single method.
  */
-public interface AnalysisResults {
+public interface AnalysisResults extends FrameState {
 	/**
 	 * Map of instruction offsets to method stack frames.
 	 * Keys are equal to the indices of items within the {@link ASTCode#instructions()}.
