@@ -5,6 +5,7 @@ import dev.xdark.blw.code.instruction.BranchInstruction;
 import dev.xdark.blw.code.instruction.ConditionalJumpInstruction;
 import dev.xdark.blw.simulation.ExecutionEngines;
 import dev.xdark.blw.simulation.Simulation;
+import dev.xdark.blw.simulation.SimulationException;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.Frame;
@@ -19,7 +20,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 	private static final int MAX_QUEUE = 2048;
 
 	@Override
-	public void execute(JvmAnalysisEngine engine, AnalysisSimulation.Info method) {
+	public void execute(JvmAnalysisEngine engine, AnalysisSimulation.Info method) throws SimulationException {
 		final InheritanceChecker checker = method.checker();
 		final ForkQueue forkQueue = new ForkQueue(checker);
 
@@ -66,7 +67,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 		while ((fork = forkQueue.next()) != null) {
 			// Exit if we're getting out of control.
 			if (forkQueue.size() > MAX_QUEUE)
-				throw new IllegalStateException("Exceeded max queue size in stack simulation: " + MAX_QUEUE);
+				throw new SimulationException("Exceeded max queue size in stack simulation: " + MAX_QUEUE);
 
 			// Get the initial state at this fork-point.
 			int index = fork.index;
@@ -84,17 +85,13 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 					//
 					// We also check for the existing frame merging with ours to see if we need
 					// to overwrite the existing frame with a more up-to-date state.
-					try {
-						boolean changed = frame.merge(checker, existingFrame)
-								|| existingFrame.copy().merge(checker, frame);
+					boolean changed = frame.merge(checker, existingFrame)
+							|| existingFrame.copy().merge(checker, frame);
 
-						// We can continue the sequential execution if the code has already been visited
-						// and there were no changes in the merge process.
-						if (!changed && visited.get(index))
-							break;
-					} catch (Throwable t) {
-						throw new RuntimeException(t);
-					}
+					// We can continue the sequential execution if the code has already been visited
+					// and there were no changes in the merge process.
+					if (!changed && visited.get(index))
+						break;
 				}
 
 				// Mark this index as visited, then increment the index.
@@ -108,13 +105,14 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 					ExecutionEngines.execute(engine, bi);
 
 					// Create fork-points for all target labels.
-					Frame postExecutedFrame = frame;
-					bi.allTargets().forEach(target -> {
+					for (Label target : bi.targetsStream().toList()) {
 						int targetIndex = elements.indexOf(target);
-						forkQueue.add(new ForkKey(targetIndex, postExecutedFrame));
-						boolean changed = engine.mergeInto(targetIndex, postExecutedFrame, checker);
+						if (targetIndex < 0 || targetIndex > elementCount)
+							throw new SimulationException("Target for branch instruction " + element + " does not exist");
+						forkQueue.add(new ForkKey(targetIndex, frame));
+						boolean changed = engine.mergeInto(targetIndex, frame, checker);
 						if (changed) visited.clear(targetIndex);
-					});
+					}
 
 					// Break if control flow does not have fall-through case.
 					if (!(bi instanceof ConditionalJumpInstruction))
@@ -139,13 +137,15 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 			this.checker = checker;
 		}
 
-		public void add(@NotNull ForkKey key) {
-			forkQueue.merge(key.index, key, (a, b) -> {
-				Frame frameA = a.frame().copy();
-				Frame frameB = b.frame();
+		public void add(@NotNull ForkKey key) throws SimulationException {
+			ForkKey oldForkKey = forkQueue.get(key.index);
+			if (oldForkKey != null) {
+				Frame frameA = key.frame().copy();
+				Frame frameB = oldForkKey.frame();
 				frameA.merge(checker, frameB);
-				return new ForkKey(a.index, frameA);
-			});
+				key = new ForkKey(key.index, frameA);
+			}
+			forkQueue.put(key.index, key);
 		}
 
 		public int size() {

@@ -1,5 +1,6 @@
 package me.darknet.assembler.compile.analysis;
 
+import dev.xdark.blw.simulation.SimulationException;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
@@ -48,8 +49,10 @@ public class Frame {
      *
      * @return {@code true} when changes were made during the merge process.
      * {@code false} if no changes were made, indicating equal frames.
+     *
+     * @throws SimulationException When the stack sizes do not match.
      */
-    public boolean merge(@NotNull InheritanceChecker checker, @NotNull Frame other) {
+    public boolean merge(@NotNull InheritanceChecker checker, @NotNull Frame other) throws SimulationException {
         boolean changed = false;
         for (Map.Entry<Integer, LocalInfo> entry : other.locals.entrySet()) {
             int index = entry.getKey();
@@ -70,6 +73,10 @@ public class Frame {
                 }
             }
         }
+
+        if (stack.size() != other.stack.size())
+            throw new SimulationException("Stack size mismatch, " + stack.size() + " != " + other.stack.size());
+
         Deque<ClassType> newStack = new ArrayDeque<>();
         Iterator<ClassType> it1 = stack.iterator();
         Iterator<ClassType> it2 = other.stack.iterator();

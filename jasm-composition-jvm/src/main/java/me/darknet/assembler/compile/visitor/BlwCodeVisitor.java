@@ -8,6 +8,7 @@ import dev.xdark.blw.constant.OfDouble;
 import dev.xdark.blw.constant.OfFloat;
 import dev.xdark.blw.constant.OfInt;
 import dev.xdark.blw.constant.OfLong;
+import dev.xdark.blw.simulation.SimulationException;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
@@ -23,6 +24,8 @@ import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final CodeBuilder<?> codeBuilder;
@@ -345,17 +348,23 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         // Analyze stack for local variable information.
         AnalysisSimulation simulation = new AnalysisSimulation();
         Code code = codeBuilder.build();
-        simulation.execute(analysisEngine, new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks()));
+        try {
+            simulation.execute(analysisEngine, new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks()));
+        } catch (SimulationException ex) {
+            // TODO: Forward to user that simulation encountered an error and did not complete
+        }
 
-        // The final frame will hold all local variables defined witghin the method
-        Frame frame = analysisEngine.getLastFrame();
-
+        // Populate variables
+        List<LocalInfo> localInfoMap = analysisEngine.frames().values().stream()
+                .flatMap(f -> f.getLocals().values().stream())
+                .distinct()
+                .toList();
         int paramOffset = parameters.size();
-        for (var entry : frame.getLocals().entrySet()) {
-            int index = entry.getKey();
+        for (var local : localInfoMap) {
+            int index = local.index();
             if (index < paramOffset)
                 continue;
-            ClassType type = entry.getValue().type();
+            ClassType type = local.type();
             String name = getLocalName(index);
             codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
         }

@@ -1,5 +1,6 @@
 package me.darknet.assembler.compile.analysis;
 
+import dev.xdark.blw.simulation.SimulationException;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 
@@ -35,8 +36,10 @@ public interface FrameState {
 	 *
 	 * @return The frame at the index. Will be {@code frame} if no prior frame existed at the index.
 	 * Will be the existing frame, after merging with {@code frame} if it existed previously at the index.
+	 *
+	 * @throws SimulationException When frame merging fails. See {@link Frame#merge(InheritanceChecker, Frame)}.
 	 */
-	default boolean mergeInto(int index, @NotNull Frame frame, @NotNull InheritanceChecker checker) {
+	default boolean mergeInto(int index, @NotNull Frame frame, @NotNull InheritanceChecker checker) throws SimulationException {
 		// If there is no existing frame, there is no merge to be done.
 		Frame existing = getFrame(index);
 		if (existing == null) {
