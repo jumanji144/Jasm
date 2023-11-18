@@ -36,9 +36,9 @@ public class SampleCompilerTest {
 			String source = arg.source.get();
 			processJvm(source, new TestJvmCompilerOptions(), classRepresentation -> {
 				AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
-				Frame lastFrame = results.frames().lastEntry().getValue();
-				Set<String> varNames = lastFrame.getLocals().values().stream()
-						.map(LocalInfo::name)
+				Set<String> varNames =  results.frames().values().stream()
+						.flatMap(f -> f.getLocals().values().stream())
+						.map(l -> l.name())
 						.collect(Collectors.toSet());
 				assertTrue(varNames.contains("this"));
 				assertTrue(varNames.contains("other"));

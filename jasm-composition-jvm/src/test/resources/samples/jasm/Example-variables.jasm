@@ -2,7 +2,7 @@
 .class public super Example {
     .method public exampleMethod (LExample;)LExample; {
         parameters: { this, other },
-        exceptions: { { A, C, H, * } },
+        exceptions: { { A, B, C, * } },
         code: {
         A:
             ldc 100.0F
@@ -14,19 +14,19 @@
             l2f
             fdiv
             fstore result
-        B:
             aload this
             iconst_1
             putfield Example.someBool Z
-        C:
+        B:
             ldc 0.03333333333333333D
             dstore msPerTick
-            goto E
-        H:
+            goto D
+        C:
             astore ex
-        E:
+        D:
             aload this
             areturn
+        E:
         }
     }
 }
