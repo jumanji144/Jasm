@@ -44,7 +44,7 @@ public class JvmMethodPrinter implements MethodPrinter {
                 String name = escapeName(localVariable.name(), localVariable.index(), isStatic);
                 locals.add(
                         new Names.Local(
-                                localVariable.index(), localVariable.start().index(), localVariable.end().index(),
+                                localVariable.index(), localVariable.start().getIndex(), localVariable.end().getIndex(),
                                 name, localVariable.type().descriptor()
                         )
                 );
@@ -83,7 +83,7 @@ public class JvmMethodPrinter implements MethodPrinter {
         int labelIndex = 0;
         for (CodeElement element : elements) {
             if (element instanceof Label label) {
-                labelNames.put(label.index(), LabelUtil.getLabelName(labelIndex++));
+                labelNames.put(label.getIndex(), LabelUtil.getLabelName(labelIndex++));
             }
         }
         return labelNames;
@@ -116,9 +116,9 @@ public class JvmMethodPrinter implements MethodPrinter {
                 for (TryCatchBlock tryCatchBlock : methodCode.tryCatchBlocks()) {
                     var exception = arr.array();
 
-                    String start = labelNames.get(tryCatchBlock.start().index());
-                    String end = labelNames.get(tryCatchBlock.end().index());
-                    String handler = labelNames.get(tryCatchBlock.handler().index());
+                    String start = labelNames.get(tryCatchBlock.start().getIndex());
+                    String end = labelNames.get(tryCatchBlock.end().getIndex());
+                    String handler = labelNames.get(tryCatchBlock.handler().getIndex());
 
                     String type = tryCatchBlock.type() == null ? "*" : tryCatchBlock.type().descriptor();
 

@@ -25,8 +25,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 
 public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
-    private final Label begin;
-    private final Label end;
     private final CodeBuilder<?> codeBuilder;
     private final CodeListBuilder codeBuilderList;
     private final InheritanceChecker checker;
@@ -48,11 +46,6 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         this.codeBuilderList = builder.codeList().child();
         this.checker = checker;
         this.parameters = parameters;
-        this.begin = new GenericLabel();
-        this.end = new GenericLabel();
-
-        // Insert initial label.
-        codeBuilderList.element(begin);
 
         // Populate variables from params.
         parameters.stream()
@@ -256,12 +249,10 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             keys.add(Integer.parseInt(pair.first().content()));
             labels.add(getOrCreateLabel(pair.second().content()));
         }
-        add(
-                new LookupSwitchInstruction(
-                        keys.stream().mapToInt(Integer::intValue).toArray(), getOrCreateLabel(defaultLabel.content()),
-                        labels
-                )
-        );
+        add(new LookupSwitchInstruction(
+                keys.stream().mapToInt(Integer::intValue).toArray(), getOrCreateLabel(defaultLabel.content()),
+                labels
+        ));
     }
 
     @Override
@@ -306,12 +297,10 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTArray bsm, ASTArray bsmArgs) {
-        add(
-                new InvokeDynamicInstruction(
-                        name.literal(), new TypeReader(descriptor.literal()).read(), ConstantMapper.methodHandleFromArray(bsm),
-                        bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
-                )
-        );
+        add(new InvokeDynamicInstruction(
+                name.literal(), new TypeReader(descriptor.literal()).read(), ConstantMapper.methodHandleFromArray(bsm),
+                bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
+        ));
     }
 
     @Override
@@ -321,17 +310,30 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitLabel(ASTIdentifier label) {
-        codeBuilderList.element(getOrCreateLabel(label.content()));
+        codeBuilderList.addLabel(getOrCreateLabel(label.content()));
     }
 
     @Override
     public void visitLineNumber(ASTIdentifier label, ASTNumber line) {
-        getOrCreateLabel(label.content()).lineNumber(line.asInt());
+        getOrCreateLabel(label.content()).setLineNumber(line.asInt());
     }
 
     @Override
     public void visitEnd() {
-        codeBuilderList.element(end);
+        Label begin, end;
+        if (codeBuilderList.getFirstElement() instanceof Label startLabel) {
+            begin = startLabel;
+        } else {
+            // TODO: Warn user that they're missing a start label and this will fuck analysis up
+            codeBuilderList.addLabel(0, begin = new GenericLabel());
+        }
+
+        if (codeBuilderList.getLastElement() instanceof Label lastLabel) {
+            end = lastLabel;
+        } else {
+            codeBuilderList.addLabel(end = new GenericLabel());
+        }
+
         for (LocalInfo parameter : parameters) {
             if(parameter == null)
                 continue; // wide parameter
@@ -360,6 +362,6 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     private void add(Instruction instruction) {
-        codeBuilderList.element(instruction);
+        codeBuilderList.addInstruction(instruction);
     }
 }

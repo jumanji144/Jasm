@@ -46,7 +46,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
     @Override
     public void label(Label label) {
-        ctx.label(labelNames.get(label.index())).next();
+        ctx.label(labelNames.get(label.getIndex())).next();
     }
 
     @Override
@@ -113,11 +113,11 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     @Override
     public void execute(LookupSwitchInstruction instruction) {
         var obj = ctx.instruction("lookupswitch").object();
-        obj.value("default").print(labelNames.get(instruction.defaultTarget().index())).next();
+        obj.value("default").print(labelNames.get(instruction.defaultTarget().getIndex())).next();
         for (int i = 0; i < instruction.keys().length; i++) {
             Label target = instruction.targets().get(i);
             int key = instruction.keys()[i];
-            obj.value(String.valueOf(key)).print(labelNames.get(target.index())).next();
+            obj.value(String.valueOf(key)).print(labelNames.get(target.getIndex())).next();
         }
         obj.end();
         ctx.next();
@@ -130,11 +130,11 @@ public class InstructionPrinter implements IndexedExecutionEngine {
         obj.value("max").print(String.valueOf(instruction.min() + instruction.targets().size())).next();
         var arr = obj.value("cases").array();
         for (Label target : instruction.targets()) {
-            arr.print(labelNames.get(target.index())).arg();
+            arr.print(labelNames.get(target.getIndex())).arg();
         }
         arr.end();
         obj.next();
-        obj.value("default").print(labelNames.get(instruction.defaultTarget().index())).end();
+        obj.value("default").print(labelNames.get(instruction.defaultTarget().getIndex())).end();
         ctx.next();
     }
 
@@ -204,12 +204,12 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
     @Override
     public void execute(ImmediateJumpInstruction instruction) {
-        ctx.instruction(OPCODES[instruction.opcode()]).print(labelNames.get(instruction.target().index())).next();
+        ctx.instruction(OPCODES[instruction.opcode()]).print(labelNames.get(instruction.target().getIndex())).next();
     }
 
     @Override
     public void execute(ConditionalJumpInstruction instruction) {
-        ctx.instruction(OPCODES[instruction.opcode()]).print(labelNames.get(instruction.target().index())).next();
+        ctx.instruction(OPCODES[instruction.opcode()]).print(labelNames.get(instruction.target().getIndex())).next();
     }
 
     @Override
