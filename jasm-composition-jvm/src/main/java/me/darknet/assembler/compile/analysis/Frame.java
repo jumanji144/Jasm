@@ -298,6 +298,9 @@ public class Frame {
         } else {
             ObjectType aObj = (ObjectType) a;
             ObjectType bObj = (ObjectType) b;
+
+            if (aObj.equals(bObj)) return aObj;
+
             String commonType = checker.getCommonSuperclass(aObj.internalName(), bObj.internalName());
 
             if (commonType == null) return OBJECT;
