@@ -1,0 +1,19 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()LExample; {
+        parameters: { this },
+        exceptions: { { A, A, B, * } },
+        code: {
+        A:
+            iconst_1
+            istore value
+            goto C
+        B:
+            astore ex
+        C:
+            aload this
+            areturn
+        D:
+        }
+    }
+}
