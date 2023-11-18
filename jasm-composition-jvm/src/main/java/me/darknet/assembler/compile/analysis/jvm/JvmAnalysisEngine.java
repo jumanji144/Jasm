@@ -51,6 +51,7 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
 
     @Override
     public void label(Label label) {
+        //no-op
     }
 
     @Override
@@ -217,10 +218,21 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
 
     @Override
     public void execute(FieldInstruction instruction) {
-        if (instruction.opcode() != GETSTATIC)
-            frame.pop();
-
-        frame.pushType(instruction.type());
+        int opcode = instruction.opcode();
+        switch (opcode)
+        {
+            case GETFIELD -> {
+                frame.pop();
+                frame.pushType(instruction.type());
+            }
+            case GETSTATIC -> frame.pushType(instruction.type());
+            case PUTFIELD -> {
+                frame.pop(instruction.type());
+                frame.pop();
+            }
+            case PUTSTATIC -> frame.pop(instruction.type());
+            default -> throw new IllegalStateException("Unknown field insn: " + opcode);
+        }
     }
 
     @Override
@@ -244,34 +256,32 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
 
     @Override
     public void execute(PrimitiveConversionInstruction instruction) {
-        frame.pop();
+        frame.pop(instruction.from());
         frame.pushType(instruction.to());
     }
 
     @Override
     public void execute(LookupSwitchInstruction instruction) {
-        // We do not handle the stack here, the simulation processor
-        // is designed to not need it.
+        frame.pop();
     }
 
     @Override
     public void execute(TableSwitchInstruction instruction) {
-        // We do not handle the stack here, the simulation processor
-        // is designed to not need it.
+        frame.pop();
     }
 
     @Override
     public void execute(ImmediateJumpInstruction instruction) {
-        // We do not handle the stack here, the simulation processor
-        // is designed to not need it.
+        // no-op
     }
 
     @Override
     public void execute(VariableIncrementInstruction instruction) {
-        // We do not track variable state
+        // no-op
     }
 
     @Override
     public void execute(Instruction instruction) {
+        // no-op, nothing should hit here
     }
 }
