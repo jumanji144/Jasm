@@ -9,11 +9,9 @@ import dev.xdark.blw.simulation.ExecutionEngine;
 import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.Types;
-import me.darknet.assembler.compile.analysis.AnalysisEngine;
-import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.Frame;
-import me.darknet.assembler.compile.analysis.LocalInfo;
+import me.darknet.assembler.compile.analysis.*;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.NavigableMap;
@@ -26,6 +24,7 @@ import java.util.function.IntFunction;
 public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, AnalysisResults, JavaOpcodes {
     private final NavigableMap<Integer, Frame> frames = new TreeMap<>();
     private final IntFunction<String> variableNameLookup;
+    private AnalysisException analysisFailure;
     private Frame frame;
 
     public JvmAnalysisEngine(@NotNull IntFunction<String> variableNameLookup) {
@@ -46,6 +45,16 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
     @Override
     public @NotNull NavigableMap<Integer, Frame> frames() {
         return frames;
+    }
+
+    @Override
+    public @Nullable AnalysisException getAnalysisFailure() {
+        return analysisFailure;
+    }
+
+    @Override
+    public void setAnalysisFailure(@Nullable AnalysisException analysisFailure) {
+        this.analysisFailure = analysisFailure;
     }
 
     @Override

@@ -12,6 +12,7 @@ import dev.xdark.blw.simulation.SimulationException;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
+import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Frame;
 import me.darknet.assembler.compile.analysis.LocalInfo;
@@ -350,8 +351,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         Code code = codeBuilder.build();
         try {
             simulation.execute(analysisEngine, new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks()));
-        } catch (SimulationException ex) {
-            // TODO: Forward to user that simulation encountered an error and did not complete
+        } catch (AnalysisException ex) {
+            analysisEngine.setAnalysisFailure(ex);
         }
 
         // Populate variables
