@@ -1,20 +1,12 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.simulation.SimulationException;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.function.Supplier;
 
 /**
  * Trackable frame state for analysis purposes.
  */
 public interface FrameState {
-	/**
-	 * @return Last frame.
-	 */
-	Frame getLastFrame();
-
 	/**
 	 * @param index
 	 * 		Key.
@@ -34,17 +26,18 @@ public interface FrameState {
 	 * @param checker
 	 * 		Inheritance checker for frame merging.
 	 *
-	 * @return The frame at the index. Will be {@code frame} if no prior frame existed at the index.
-	 * Will be the existing frame, after merging with {@code frame} if it existed previously at the index.
+	 * @return {@code true} when the merge operation at the given index resulted in a change,
+	 * or there was no frame at the given index.
 	 *
-	 * @throws SimulationException When frame merging fails. See {@link Frame#merge(InheritanceChecker, Frame)}.
+	 * @throws FrameMergeException
+	 * 		When frame merging fails. See {@link Frame#merge(InheritanceChecker, Frame)}.
 	 */
-	default boolean mergeInto(int index, @NotNull Frame frame, @NotNull InheritanceChecker checker) throws SimulationException {
+	default boolean mergeInto(int index, @NotNull Frame frame, @NotNull InheritanceChecker checker) throws FrameMergeException {
 		// If there is no existing frame, there is no merge to be done.
 		Frame existing = getFrame(index);
 		if (existing == null) {
 			putFrame(index, frame);
-			return false;
+			return true;
 		}
 
 		Frame mergeTarget = existing.copy();

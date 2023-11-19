@@ -11,6 +11,10 @@ import dev.xdark.blw.simulation.Simulation;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * A simulation which visits each {@link CodeElement} of a method in a linear fashion.
+ * The simulation is not for proper stack/local analysis.
+ */
 public class IndexedStraightforwardSimulation implements Simulation<IndexedExecutionEngine, Method> {
     @Override
     public void execute(IndexedExecutionEngine engine, Method method) {
@@ -19,10 +23,10 @@ public class IndexedStraightforwardSimulation implements Simulation<IndexedExecu
         for (int i = 0; i < elements.size(); i++) {
             engine.index(i);
             CodeElement element = elements.get(i);
-            if (element instanceof Label) {
-                engine.label((Label) element);
-            } else {
-                ExecutionEngines.execute(engine, (Instruction) element);
+            if (element instanceof Label label) {
+                engine.label(label);
+            } else if (element instanceof Instruction instruction){
+                ExecutionEngines.execute(engine, instruction);
             }
         }
     }

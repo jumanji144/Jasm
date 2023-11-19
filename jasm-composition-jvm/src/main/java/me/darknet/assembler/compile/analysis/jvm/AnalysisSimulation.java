@@ -5,10 +5,11 @@ import dev.xdark.blw.code.instruction.BranchInstruction;
 import dev.xdark.blw.code.instruction.ConditionalJumpInstruction;
 import dev.xdark.blw.simulation.ExecutionEngines;
 import dev.xdark.blw.simulation.Simulation;
-import dev.xdark.blw.simulation.SimulationException;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.Types;
+import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.Frame;
+import me.darknet.assembler.compile.analysis.FrameMergeException;
 import me.darknet.assembler.compile.analysis.LocalInfo;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
@@ -20,7 +21,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 	private static final int MAX_QUEUE = 2048;
 
 	@Override
-	public void execute(JvmAnalysisEngine engine, AnalysisSimulation.Info method) throws SimulationException {
+	public void execute(JvmAnalysisEngine engine, AnalysisSimulation.Info method) throws AnalysisException {
 		final InheritanceChecker checker = method.checker();
 		final ForkQueue forkQueue = new ForkQueue(checker);
 
@@ -35,7 +36,11 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 				if (param == null) continue; // top
 				initialFrame.setLocal(idx, param);
 			}
-			forkQueue.add(new ForkKey(0, initialFrame));
+			try {
+				forkQueue.add(new ForkKey(0, initialFrame));
+			} catch (FrameMergeException e) {
+				throw new AnalysisException(e, "Failed allocating initial frame");
+			}
 		}
 
 		// Next we'll queue the catch blocks as fork-points.
@@ -51,7 +56,11 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 
 			Frame frame = initialFrame.copy();
 			frame.push(type);
-			forkQueue.add(new ForkKey(handlerIndex, frame));
+			try {
+				forkQueue.add(new ForkKey(handlerIndex, frame));
+			} catch (FrameMergeException ex) {
+				throw new AnalysisException(ex, "Failed allocating handler frame");
+			}
 		}
 
 		// Populate initial frame states for existing fork-keys.
@@ -67,7 +76,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 		while ((fork = forkQueue.next()) != null) {
 			// Exit if we're getting out of control.
 			if (forkQueue.size() > MAX_QUEUE)
-				throw new SimulationException("Exceeded max queue size in stack simulation: " + MAX_QUEUE);
+				throw new AnalysisException("Exceeded max queue size in stack simulation: " + MAX_QUEUE);
 
 			// Get the initial state at this fork-point.
 			int index = fork.index;
@@ -80,18 +89,22 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 
 				Frame existingFrame = engine.getFrame(index);
 				if (existingFrame != null) {
-					// We need to merge our frame with the existing one to ensure types in the
-					// local variable table and stack are common to all execution paths.
-					//
-					// We also check for the existing frame merging with ours to see if we need
-					// to overwrite the existing frame with a more up-to-date state.
-					boolean changed = frame.merge(checker, existingFrame)
-							|| existingFrame.copy().merge(checker, frame);
+					try {
+						// We need to merge our frame with the existing one to ensure types in the
+						// local variable table and stack are common to all execution paths.
+						//
+						// We also check for the existing frame merging with ours to see if we need
+						// to overwrite the existing frame with a more up-to-date state.
+						boolean changed = frame.merge(checker, existingFrame)
+								|| existingFrame.copy().merge(checker, frame);
 
-					// We can continue the sequential execution if the code has already been visited
-					// and there were no changes in the merge process.
-					if (!changed && visited.get(index))
-						break;
+						// We can continue the sequential execution if the code has already been visited
+						// and there were no changes in the merge process.
+						if (!changed && visited.get(index))
+							break;
+					} catch (FrameMergeException ex) {
+						throw new AnalysisException(element, ex);
+					}
 				}
 
 				// Mark this index as visited, then increment the index.
@@ -101,29 +114,41 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 				visited.set(index++);
 				engine.putFrame(index, frame);
 
-				if (element instanceof BranchInstruction bi) {
-					ExecutionEngines.execute(engine, bi);
-
-					// Create fork-points for all target labels.
-					for (Label target : bi.targetsStream().toList()) {
-						int targetIndex = elements.indexOf(target);
-						if (targetIndex < 0 || targetIndex > elementCount)
-							throw new SimulationException("Target for branch instruction " + element + " does not exist");
-						forkQueue.add(new ForkKey(targetIndex, frame));
-						boolean changed = engine.mergeInto(targetIndex, frame, checker);
-						if (changed) visited.clear(targetIndex);
+				// Handle execution of the instruction.
+				if (element instanceof Instruction insn) {
+					try {
+						ExecutionEngines.execute(engine, insn);
+					} catch (Throwable t) {
+						// Will cover cases like popping off empty stack and implementation bugs in the engine.
+						throw new AnalysisException(insn, t);
 					}
-
-					// Break if control flow does not have fall-through case.
-					if (!(bi instanceof ConditionalJumpInstruction))
-						break;
-				} else if (element instanceof Instruction insn) {
-					ExecutionEngines.execute(engine, insn);
 
 					// Abort if control flow is terminal.
 					int opcode = insn.opcode();
 					if (opcode == ATHROW || (opcode >= IRETURN && opcode <= RETURN))
 						break;
+
+					// Create fork-points for all target labels of branching instructions.
+					if (element instanceof BranchInstruction bi) {
+						for (Label target : bi.targetsStream().toList()) {
+							int targetIndex = elements.indexOf(target);
+							if (targetIndex < 0 || targetIndex > elementCount)
+								throw new AnalysisException(bi, "Target for branch instruction " + bi + " does not exist");
+							try {
+								boolean changed = engine.mergeInto(targetIndex, frame, checker);
+								if (changed) {
+									forkQueue.add(new ForkKey(targetIndex, frame));
+									visited.clear(targetIndex);
+								}
+							} catch (FrameMergeException ex) {
+								throw new AnalysisException(bi, ex);
+							}
+						}
+
+						// Break if control flow does not have fall-through case.
+						if (!(bi instanceof ConditionalJumpInstruction))
+							break;
+					}
 				}
 			}
 		}
@@ -137,7 +162,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 			this.checker = checker;
 		}
 
-		public void add(@NotNull ForkKey key) throws SimulationException {
+		public void add(@NotNull ForkKey key) throws FrameMergeException {
 			ForkKey oldForkKey = forkQueue.get(key.index);
 			if (oldForkKey != null) {
 				Frame frameA = key.frame().copy();

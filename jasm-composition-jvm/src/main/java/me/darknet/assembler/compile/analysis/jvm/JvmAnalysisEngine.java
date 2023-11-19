@@ -15,22 +15,21 @@ import me.darknet.assembler.compile.analysis.Frame;
 import me.darknet.assembler.compile.analysis.LocalInfo;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.List;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import java.util.function.IntFunction;
 
+/**
+ * An engine which is intended for use in proper stack/local analysis.
+ */
 public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, AnalysisResults, JavaOpcodes {
-
     private final NavigableMap<Integer, Frame> frames = new TreeMap<>();
     private final IntFunction<String> variableNameLookup;
     private Frame frame;
 
     public JvmAnalysisEngine(@NotNull IntFunction<String> variableNameLookup) {
         this.variableNameLookup = variableNameLookup;
-    }
-
-    @Override
-    public Frame getLastFrame() {
-        return frame;
     }
 
     @Override
