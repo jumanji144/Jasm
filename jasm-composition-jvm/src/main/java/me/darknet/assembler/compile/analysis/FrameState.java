@@ -6,14 +6,14 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Trackable frame state for analysis purposes.
  */
-public interface FrameState {
+public interface FrameState<L extends Local, S extends StackEntry, F extends AbstractFrame<L,S>> {
 	/**
 	 * @param index
 	 * 		Key.
 	 *
 	 * @return Frame at index.
 	 */
-	Frame getFrame(int index);
+	F getFrame(int index);
 
 	/**
 	 * Put and merge a given frame into the given index.
@@ -30,17 +30,18 @@ public interface FrameState {
 	 * or there was no frame at the given index.
 	 *
 	 * @throws FrameMergeException
-	 * 		When frame merging fails. See {@link Frame#merge(InheritanceChecker, Frame)}.
+	 * 		When frame merging fails. See {@link AbstractFrame#merge(InheritanceChecker, AbstractFrame)}.
 	 */
-	default boolean mergeInto(int index, @NotNull Frame frame, @NotNull InheritanceChecker checker) throws FrameMergeException {
+	@SuppressWarnings("unchecked")
+	default boolean mergeInto(int index, @NotNull F frame, @NotNull InheritanceChecker checker) throws FrameMergeException {
 		// If there is no existing frame, there is no merge to be done.
-		Frame existing = getFrame(index);
+		F existing = getFrame(index);
 		if (existing == null) {
 			putFrame(index, frame);
 			return true;
 		}
 
-		Frame mergeTarget = existing.copy();
+		F mergeTarget = (F) existing.copy();
 		boolean changed = mergeTarget.merge(checker, frame);
 		if (changed) putFrame(index, mergeTarget);
 		return changed;
@@ -52,5 +53,5 @@ public interface FrameState {
 	 * @param frame
 	 * 		Frame to put.
 	 */
-	void putFrame(int index, Frame frame);
+	void putFrame(int index, F frame);
 }

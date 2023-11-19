@@ -1,8 +1,6 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.Frame;
-import me.darknet.assembler.compile.analysis.LocalInfo;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 import org.junit.jupiter.api.Nested;

@@ -21,29 +21,30 @@ import java.util.function.IntFunction;
 /**
  * An engine which is intended for use in proper stack/local analysis.
  */
-public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, AnalysisResults, JavaOpcodes {
-    private final NavigableMap<Integer, Frame> frames = new TreeMap<>();
+public class JvmAnalysisEngine<L extends Local, S extends StackEntry, F extends AbstractFrame<L, S>>
+        implements AnalysisEngine<L, S, F>, ExecutionEngine, AnalysisResults<L, S, F>, JavaOpcodes {
+    private final NavigableMap<Integer, F> frames = new TreeMap<>();
     private final IntFunction<String> variableNameLookup;
     private AnalysisException analysisFailure;
-    private Frame frame;
+    private F frame;
 
     public JvmAnalysisEngine(@NotNull IntFunction<String> variableNameLookup) {
         this.variableNameLookup = variableNameLookup;
     }
 
     @Override
-    public Frame getFrame(int index) {
+    public F getFrame(int index) {
         return frames.get(index);
     }
 
     @Override
-    public void putFrame(int index, Frame frame) {
+    public void putFrame(int index, F frame) {
         frames.put(index, frame);
         this.frame = frame;
     }
 
     @Override
-    public @NotNull NavigableMap<Integer, Frame> frames() {
+    public @NotNull NavigableMap<Integer, F> frames() {
         return frames;
     }
 
@@ -124,7 +125,7 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
             }
             case ATHROW -> {
                 ClassType type = frame.pop();
-                if(type == Frame.NULL) {
+                if (type == Commons.NULL) {
                     frame.push(Types.type(NullPointerException.class));
                 } else {
                     frame.push(type);
@@ -174,7 +175,7 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
                         case LLOAD -> Types.LONG;
                         case FLOAD -> Types.FLOAT;
                         case DLOAD -> Types.DOUBLE;
-                        case ALOAD -> Frame.OBJECT;
+                        case ALOAD -> Commons.OBJECT;
                         default -> throw new IllegalStateException("Unexpected opcode: " + opcode);
                     };
                 }
@@ -188,7 +189,7 @@ public class JvmAnalysisEngine implements AnalysisEngine, ExecutionEngine, Analy
                     frame.pop();
 
                 String name = variableNameLookup.apply(index);
-                frame.setLocal(index, new LocalInfo(index, name, frame.pop()));
+                frame.setLocal(index, new SimpleLocal(index, name, frame.pop()));
             }
         }
     }

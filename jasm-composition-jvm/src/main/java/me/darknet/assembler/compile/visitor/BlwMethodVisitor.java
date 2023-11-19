@@ -9,7 +9,8 @@ import dev.xdark.blw.type.ObjectType;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.LocalInfo;
+import me.darknet.assembler.compile.analysis.Local;
+import me.darknet.assembler.compile.analysis.SimpleLocal;
 import me.darknet.assembler.compile.builder.BlwReplaceMethodBuilder;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.util.CastUtil;
@@ -50,11 +51,11 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
 
     @Override
     public ASTJvmInstructionVisitor visitJvmCode() {
-        List<LocalInfo> parameters = new ArrayList<>();
+        List<Local> parameters = new ArrayList<>();
 
         int localIndex = 0;
         if (!isStatic) {
-            parameters.add(new LocalInfo(localIndex++, "this", owner));
+            parameters.add(new SimpleLocal(localIndex++, "this", owner));
         }
 
         for (int i = 0; i < type.parameterTypes().size(); i++) {
@@ -65,7 +66,7 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
                 name = "p" + i;
             }
             ClassType type = this.type.parameterTypes().get(i);
-            parameters.add(new LocalInfo(localIndex++, name, type));
+            parameters.add(new SimpleLocal(localIndex++, name, type));
             if (type == Types.LONG || type == Types.DOUBLE) {
                 parameters.add(null);
                 localIndex++;

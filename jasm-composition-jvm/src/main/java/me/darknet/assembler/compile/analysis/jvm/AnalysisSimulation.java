@@ -7,37 +7,44 @@ import dev.xdark.blw.simulation.ExecutionEngines;
 import dev.xdark.blw.simulation.Simulation;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.Types;
-import me.darknet.assembler.compile.analysis.AnalysisException;
-import me.darknet.assembler.compile.analysis.Frame;
-import me.darknet.assembler.compile.analysis.FrameMergeException;
-import me.darknet.assembler.compile.analysis.LocalInfo;
+import me.darknet.assembler.compile.analysis.*;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
-public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, AnalysisSimulation.Info>, JavaOpcodes {
+public class AnalysisSimulation<L extends Local, S extends StackEntry> implements Simulation<JvmAnalysisEngine, AnalysisParams>, JavaOpcodes {
 	private static final int MAX_QUEUE = 2048;
 
+	private final Supplier<AbstractFrame<L,S>> frameSupplier;
+	private final Function<Local,L> localGenerifier;
+
+	public AnalysisSimulation(Supplier<AbstractFrame<L, S>> frameSupplier, Function<Local, L> localGenerifier) {
+		this.frameSupplier = frameSupplier;
+		this.localGenerifier = localGenerifier;
+	}
+
 	@Override
-	public void execute(JvmAnalysisEngine engine, AnalysisSimulation.Info method) throws AnalysisException {
+	public void execute(JvmAnalysisEngine engine, AnalysisParams method) throws AnalysisException {
 		final InheritanceChecker checker = method.checker();
 		final ForkQueue forkQueue = new ForkQueue(checker);
 
 		// Initial frame state holds local variables from parameters.
 		// We'll queue up the first instruction as a fork-point.
-		final Frame initialFrame;
+		final AbstractFrame<L,S> initialFrame;
 		{
-			initialFrame = new Frame();
+			initialFrame = frameSupplier.get();
 			int index = 0;
-			for (LocalInfo param : method.params()) {
+			for (Local param : method.params()) {
 				int idx = index++;
 				if (param == null) continue; // top
-				initialFrame.setLocal(idx, param);
+				initialFrame.setLocal(idx, localGenerifier.apply(param));
 			}
 			try {
-				forkQueue.add(new ForkKey(0, initialFrame));
+				forkQueue.add(new ForkKey<>(0, initialFrame));
 			} catch (FrameMergeException e) {
 				throw new AnalysisException(e, "Failed allocating initial frame");
 			}
@@ -54,24 +61,24 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 			if (type == null)
 				type = Types.instanceType(Throwable.class);
 
-			Frame frame = initialFrame.copy();
+			AbstractFrame<L,S> frame = initialFrame.copy();
 			frame.push(type);
 			try {
-				forkQueue.add(new ForkKey(handlerIndex, frame));
+				forkQueue.add(new ForkKey<>(handlerIndex, frame));
 			} catch (FrameMergeException ex) {
 				throw new AnalysisException(ex, "Failed allocating handler frame");
 			}
 		}
 
 		// Populate initial frame states for existing fork-keys.
-		for (ForkKey fork : forkQueue) {
+		for (ForkKey<L,S> fork : forkQueue) {
 			engine.putFrame(fork.index(), fork.frame());
 		}
 
 		// Visit all queued fork-points. As we execute the code we may discover new points which to visit.
 		// We will continue to poll the next item and execute sequentially until we see the frame merging
 		// at fork-points results in no-changes.
-		ForkKey fork;
+		ForkKey<L,S> fork;
 		final BitSet visited = new BitSet(elementCount);
 		while ((fork = forkQueue.next()) != null) {
 			// Exit if we're getting out of control.
@@ -79,15 +86,15 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 				throw new AnalysisException("Exceeded max queue size in stack simulation: " + MAX_QUEUE);
 
 			// Get the initial state at this fork-point.
-			int index = fork.index;
-			Frame frame = engine.getFrame(index);
+			int index = fork.index();
+			SimpleFrame frame = engine.getFrame(index);
 
 			// Execute sequentially until hitting a fork-point with forcefully directed (or terminating) flow.
 			while (index < elementCount) {
 				frame = frame.copy();
 				CodeElement element = elements.get(index);
 
-				Frame existingFrame = engine.getFrame(index);
+				SimpleFrame existingFrame = engine.getFrame(index);
 				if (existingFrame != null) {
 					try {
 						// We need to merge our frame with the existing one to ensure types in the
@@ -154,23 +161,23 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 		}
 	}
 
-	private static class ForkQueue implements Iterable<ForkKey> {
-		private final NavigableMap<Integer, ForkKey> forkQueue = new TreeMap<>();
+	private class ForkQueue implements Iterable<ForkKey<L,S>> {
+		private final NavigableMap<Integer, ForkKey<L,S>> forkQueue = new TreeMap<>();
 		private final InheritanceChecker checker;
 
 		public ForkQueue(@NotNull InheritanceChecker checker) {
 			this.checker = checker;
 		}
 
-		public void add(@NotNull ForkKey key) throws FrameMergeException {
-			ForkKey oldForkKey = forkQueue.get(key.index);
+		public void add(@NotNull ForkKey<L,S> key) throws FrameMergeException {
+			ForkKey<L,S> oldForkKey = forkQueue.get(key.index());
 			if (oldForkKey != null) {
-				Frame frameA = key.frame().copy();
-				Frame frameB = oldForkKey.frame();
+				AbstractFrame<L,S> frameA = key.frame().copy();
+				AbstractFrame<L,S> frameB = oldForkKey.frame();
 				frameA.merge(checker, frameB);
-				key = new ForkKey(key.index, frameA);
+				key = new ForkKey<>(key.index(), frameA);
 			}
-			forkQueue.put(key.index, key);
+			forkQueue.put(key.index(), key);
 		}
 
 		public int size() {
@@ -178,7 +185,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 		}
 
 		@Nullable
-		public ForkKey next() {
+		public ForkKey<L,S> next() {
 			var entry = forkQueue.pollLastEntry();
 			if (entry == null) return null;
 			return entry.getValue();
@@ -186,19 +193,9 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 
 		@NotNull
 		@Override
-		public Iterator<ForkKey> iterator() {
+		public Iterator<ForkKey<L,S>> iterator() {
 			return forkQueue.values().iterator();
 		}
 	}
 
-	private record ForkKey(int index, @NotNull Frame frame) implements Comparable<ForkKey> {
-		@Override
-		public int compareTo(@NotNull AnalysisSimulation.ForkKey other) {
-			return Integer.compare(index, other.index);
-		}
-	}
-
-	public record Info(InheritanceChecker checker, List<LocalInfo> params, List<CodeElement> method,
-					   List<TryCatchBlock> exceptionHandlers) {
-	}
 }

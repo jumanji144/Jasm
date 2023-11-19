@@ -6,8 +6,8 @@ import org.jetbrains.annotations.NotNull;
  * Exception for when a frame merge fails.
  */
 public class FrameMergeException extends Exception {
-	private final Frame primary;
-	private final Frame secondary;
+	private final AbstractFrame<?, ?> primary;
+	private final AbstractFrame<?, ?> secondary;
 
 	/**
 	 * @param primary
@@ -17,7 +17,7 @@ public class FrameMergeException extends Exception {
 	 * @param message
 	 * 		Explanation of error.
 	 */
-	public FrameMergeException(@NotNull Frame primary, @NotNull Frame secondary, @NotNull String message) {
+	public FrameMergeException(@NotNull AbstractFrame<?, ?> primary, @NotNull AbstractFrame<?, ?> secondary, @NotNull String message) {
 		super(message);
 
 		this.primary = primary;
@@ -28,7 +28,7 @@ public class FrameMergeException extends Exception {
 	 * @return The frame targeted for merging.
 	 */
 	@NotNull
-	public Frame getPrimary() {
+	public AbstractFrame<?, ?> getPrimary() {
 		return primary;
 	}
 
@@ -36,7 +36,7 @@ public class FrameMergeException extends Exception {
 	 * @return The frame being merged into the primary.
 	 */
 	@NotNull
-	public Frame getSecondary() {
+	public AbstractFrame<?, ?> getSecondary() {
 		return secondary;
 	}
 }

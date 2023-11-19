@@ -5,10 +5,10 @@ import dev.xdark.blw.type.PrimitiveKind;
 import dev.xdark.blw.type.PrimitiveType;
 import org.jetbrains.annotations.NotNull;
 
-public record LocalInfo(int index, String name, ClassType type) {
+public record SimpleLocal(int index, String name, ClassType type) implements Local {
 	@NotNull
-	public LocalInfo adaptType(@NotNull ClassType newType) {
-		return new LocalInfo(index, name, type);
+	public SimpleLocal adaptType(@NotNull ClassType newType) {
+		return new SimpleLocal(index, name, type);
 	}
 
 	/**

@@ -8,15 +8,14 @@ import dev.xdark.blw.constant.OfDouble;
 import dev.xdark.blw.constant.OfFloat;
 import dev.xdark.blw.constant.OfInt;
 import dev.xdark.blw.constant.OfLong;
-import dev.xdark.blw.simulation.SimulationException;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.Frame;
-import me.darknet.assembler.compile.analysis.LocalInfo;
+import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
+import me.darknet.assembler.compile.analysis.jvm.AnalysisParams;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.util.BlwOpcodes;
@@ -25,15 +24,13 @@ import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final CodeBuilder<?> codeBuilder;
     private final CodeListBuilder codeBuilderList;
     private final InheritanceChecker checker;
     private final Map<String, GenericLabel> nameToLabel = new HashMap<>();
-    private final List<LocalInfo> parameters;
+    private final List<Local> parameters;
     /** We only track local names since the stack analysis will provide us more detail later. See {@link #visitEnd()} */
     private final List<String> localNames = new ArrayList<>();
     private final JvmAnalysisEngine analysisEngine = new JvmAnalysisEngine(this::getLocalName);
@@ -45,7 +42,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
      * @param builder Builder to insert code into.
      * @param parameters Parameter variables.
      */
-    public BlwCodeVisitor(InheritanceChecker checker, CodeBuilder<?> builder, List<LocalInfo> parameters) {
+    public BlwCodeVisitor(InheritanceChecker checker, CodeBuilder<?> builder, List<Local> parameters) {
         this.codeBuilder = builder;
         this.codeBuilderList = builder.codeList().child();
         this.checker = checker;
@@ -338,7 +335,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             codeBuilderList.addLabel(end = new GenericLabel());
         }
 
-        for (LocalInfo parameter : parameters) {
+        for (Local parameter : parameters) {
             if(parameter == null)
                 continue; // wide parameter
             codeBuilder.localVariable(
@@ -347,21 +344,21 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         }
 
         // Analyze stack for local variable information.
-        AnalysisSimulation simulation = new AnalysisSimulation();
+        AnalysisSimulation simulation = new AnalysisSimulation(frameSupplier, localGenerifier);
         Code code = codeBuilder.build();
         try {
-            simulation.execute(analysisEngine, new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks()));
+            simulation.execute(analysisEngine, new AnalysisParams(checker, parameters, code.elements(), code.tryCatchBlocks()));
         } catch (AnalysisException ex) {
             analysisEngine.setAnalysisFailure(ex);
         }
 
         // Populate variables
-        List<LocalInfo> localInfoMap = analysisEngine.frames().values().stream()
+        List<Local> localMap = analysisEngine.frames().values().stream()
                 .flatMap(f -> f.getLocals().values().stream())
                 .distinct()
                 .toList();
         int paramOffset = parameters.size();
-        for (var local : localInfoMap) {
+        for (var local : localMap) {
             int index = local.index();
             if (index < paramOffset)
                 continue;

@@ -9,7 +9,8 @@ import java.util.NavigableMap;
 /**
  * Stack analysis results for a single method.
  */
-public interface AnalysisResults extends FrameState {
+public interface AnalysisResults<L extends Local, S extends StackEntry, F extends AbstractFrame<L, S>>
+		extends FrameState<L, S, F> {
 	/**
 	 * Map of instruction offsets to method stack frames.
 	 * Keys are equal to the indices of items within the {@link ASTCode#instructions()}.
@@ -17,7 +18,7 @@ public interface AnalysisResults extends FrameState {
 	 * @return Navigable map of instruction offsets to frame information.
 	 */
 	@NotNull
-	NavigableMap<Integer, Frame> frames();
+	NavigableMap<Integer, F> frames();
 
 	/**
 	 * @return The exception thrown when handling method flow analysis.
