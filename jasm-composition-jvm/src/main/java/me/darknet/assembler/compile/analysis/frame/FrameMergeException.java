@@ -1,4 +1,4 @@
-package me.darknet.assembler.compile.analysis;
+package me.darknet.assembler.compile.analysis.frame;
 
 import org.jetbrains.annotations.NotNull;
 

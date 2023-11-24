@@ -8,20 +8,28 @@ import dev.xdark.blw.simulation.Simulation;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.AnalysisException;
-import me.darknet.assembler.compile.analysis.Frame;
-import me.darknet.assembler.compile.analysis.FrameMergeException;
-import me.darknet.assembler.compile.analysis.LocalInfo;
+import me.darknet.assembler.compile.analysis.Local;
+import me.darknet.assembler.compile.analysis.frame.Frame;
+import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
+import me.darknet.assembler.compile.analysis.frame.FrameOps;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, AnalysisSimulation.Info>, JavaOpcodes {
+public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, AnalysisSimulation.Info>, JavaOpcodes {
 	private static final int MAX_QUEUE = 2048;
 
+	private final FrameOps<Frame> frameOps;
+
+	@SuppressWarnings("unchecked")
+	public AnalysisSimulation(FrameOps<?> frameOps) {
+		this.frameOps = (FrameOps<Frame>) frameOps;
+	}
+
 	@Override
-	public void execute(JvmAnalysisEngine engine, AnalysisSimulation.Info method) throws AnalysisException {
+	public void execute(JvmAnalysisEngine<Frame> engine, AnalysisSimulation.Info method) throws AnalysisException {
 		final InheritanceChecker checker = method.checker();
 		final ForkQueue forkQueue = new ForkQueue(checker);
 
@@ -29,12 +37,12 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 		// We'll queue up the first instruction as a fork-point.
 		final Frame initialFrame;
 		{
-			initialFrame = new Frame();
+			initialFrame = frameOps.newEmptyFrame();
 			int index = 0;
-			for (LocalInfo param : method.params()) {
+			for (Local param : method.params()) {
 				int idx = index++;
 				if (param == null) continue; // top
-				initialFrame.setLocal(idx, param);
+				frameOps.setFrameLocal(initialFrame, idx, param);
 			}
 			try {
 				forkQueue.add(new ForkKey(0, initialFrame));
@@ -55,7 +63,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 				type = Types.instanceType(Throwable.class);
 
 			Frame frame = initialFrame.copy();
-			frame.push(type);
+			frame.pushType(type);
 			try {
 				forkQueue.add(new ForkKey(handlerIndex, frame));
 			} catch (FrameMergeException ex) {
@@ -81,9 +89,12 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 			// Get the initial state at this fork-point.
 			int index = fork.index;
 			Frame frame = engine.getFrame(index);
+			if (frame == null)
+				throw new AnalysisException("No frame at index " + index);
 
 			// Execute sequentially until hitting a fork-point with forcefully directed (or terminating) flow.
 			while (index < elementCount) {
+				Frame oldFrame = frame.copy();
 				frame = frame.copy();
 				CodeElement element = elements.get(index);
 
@@ -107,16 +118,17 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 					}
 				}
 
+
 				// Mark this index as visited, then increment the index.
-				// We will be putting the frame at the 'next' index since the frame after is what sees
-				// the results of the prior instruction's execution. The 'frame' instance is shared below
-				// in the instruction execution logic.
+				// We will record the frame at the incremented index further below.
+				// We do not do it immediately since there are some cases with control flow where we will skip putting
+				// it at the 'next' frame as denoted by 'index++'.
 				visited.set(index++);
-				engine.putFrame(index, frame);
 
 				// Handle execution of the instruction.
 				if (element instanceof Instruction insn) {
 					try {
+						engine.setActiveFrame(frame);
 						ExecutionEngines.execute(engine, insn);
 					} catch (Throwable t) {
 						// Will cover cases like popping off empty stack and implementation bugs in the engine.
@@ -125,8 +137,15 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 
 					// Abort if control flow is terminal.
 					int opcode = insn.opcode();
-					if (opcode == ATHROW || (opcode >= IRETURN && opcode <= RETURN))
+					if (opcode == ATHROW || (opcode >= IRETURN && opcode <= RETURN)) {
+						// Record the frame.
+						engine.putFrame(index, frame);
+
+						// We use the old frame so that it snapshots the state before
+						// the return instruction pops off the return value off the stack.
+						engine.markTerminal(index, oldFrame);
 						break;
+					}
 
 					// Create fork-points for all target labels of branching instructions.
 					if (element instanceof BranchInstruction bi) {
@@ -135,8 +154,23 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 							if (targetIndex < 0 || targetIndex > elementCount)
 								throw new AnalysisException(bi, "Target for branch instruction " + bi + " does not exist");
 							try {
-								boolean changed = engine.mergeInto(targetIndex, frame, checker);
-								if (changed) {
+								boolean shouldVisitTarget;
+								Frame existing = engine.getFrame(targetIndex);
+								if (existing == null) {
+									// Not seen before, should visit as fork-point.
+									engine.putFrame(targetIndex, frame);
+									shouldVisitTarget = true;
+								} else {
+									// We've already created a frame for that index previously.
+									// We only want to revisit it if merging the current frame into the target's
+									// will result in a change to the target frame's state.
+									Frame mergeTarget = existing.copy();
+									shouldVisitTarget = mergeTarget.merge(checker, frame);
+									if (shouldVisitTarget) engine.putFrame(index, mergeTarget);
+								}
+
+								// Queue the fork-point if needed.
+								if (shouldVisitTarget) {
 									forkQueue.add(new ForkKey(targetIndex, frame));
 									visited.clear(targetIndex);
 								}
@@ -146,8 +180,15 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 						}
 
 						// Break if control flow does not have fall-through case.
-						if (!(bi instanceof ConditionalJumpInstruction))
+						if (!(element instanceof ConditionalJumpInstruction))
 							break;
+
+						// Only record the frame if there is fall-through.
+						// Immediate jumps and switches do not.
+						engine.putFrame(index, frame);
+					} else {
+						// Not branching, record the frame.
+						engine.putFrame(index, frame);
 					}
 				}
 			}
@@ -198,7 +239,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine, Analysi
 		}
 	}
 
-	public record Info(InheritanceChecker checker, List<LocalInfo> params, List<CodeElement> method,
+	public record Info(InheritanceChecker checker, List<Local> params, List<CodeElement> method,
 					   List<TryCatchBlock> exceptionHandlers) {
 	}
 }

@@ -1,0 +1,47 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            iconst_1
+            iconst_3
+            iadd
+            goto E
+        B:
+            // 50, 2
+            imul
+            goto F
+        C:
+            // 50
+            iconst_m1
+            dup
+            iadd
+
+            // 50, 2
+            ineg
+            goto B
+        D:
+            // 8, 7
+            imul
+
+            // 56, 3 + 3
+            iconst_3
+            dup
+            iadd
+
+            // 56 - 6
+            isub
+            goto C
+        E:
+            // 4
+            dup
+            iadd
+            bipush 7
+            goto D
+        F:
+            ireturn
+        G:
+        }
+    }
+}

@@ -1,10 +1,15 @@
 package me.darknet.assembler.compile;
 
 import dev.xdark.blw.version.JavaVersion;
+import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngineFactory;
+import me.darknet.assembler.compile.analysis.VariableNameLookup;
+import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
+import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.ClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
+import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassWriter;
 
 public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
@@ -14,6 +19,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     protected JavaClassRepresentation overlay;
     protected String annotationPath;
     protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
+    protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
 
     public JvmCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
@@ -41,6 +47,15 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     public JvmCompilerOptions version(int version) {
         this.version = JavaVersion.jdkVersion(version);
         return this;
+    }
+
+    public JvmCompilerOptions engineProvider(@NotNull JvmAnalysisEngineFactory engineProvider) {
+        this.engineProvider = engineProvider;
+        return this;
+    }
+
+    public @NotNull JvmAnalysisEngine<?> createEngine(@NotNull VariableNameLookup lookup) {
+        return engineProvider.create(lookup);
     }
 
     @Override

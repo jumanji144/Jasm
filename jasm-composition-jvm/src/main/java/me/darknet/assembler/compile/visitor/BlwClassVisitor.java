@@ -68,7 +68,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
 		int accessFlags = BlwModifiers.getMethodModifiers(modifiers);
 		MethodType type = Types.methodType(descriptor.literal());
 		return new BlwMethodVisitor(
-				options.inheritanceChecker(), builder.type(), type,
+				options, builder.type(), type,
 				(accessFlags & AccessFlag.ACC_STATIC) == AccessFlag.ACC_STATIC,
 				CastUtil.cast(builder.putMethod(accessFlags, name.literal(), type).child()),
 				analysisResults -> builder.setMethodAnalysis(name.literal(), type, analysisResults)

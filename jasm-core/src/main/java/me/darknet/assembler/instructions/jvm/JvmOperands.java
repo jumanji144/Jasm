@@ -100,7 +100,7 @@ public enum JvmOperands implements Operands {
 
     public static void verifyConstant(ASTProcessor.ParserContext context, ASTElement element) {
         switch (element.type()) {
-            case NUMBER, STRING -> {
+            case NUMBER, STRING, CHARACTER -> {
             }
             case IDENTIFIER -> {
                 char first = element.content().charAt(0);
