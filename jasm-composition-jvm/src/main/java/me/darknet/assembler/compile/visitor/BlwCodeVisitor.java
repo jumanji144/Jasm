@@ -8,14 +8,15 @@ import dev.xdark.blw.constant.OfDouble;
 import dev.xdark.blw.constant.OfFloat;
 import dev.xdark.blw.constant.OfInt;
 import dev.xdark.blw.constant.OfLong;
-import dev.xdark.blw.simulation.SimulationException;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
+import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.Frame;
-import me.darknet.assembler.compile.analysis.LocalInfo;
+import me.darknet.assembler.compile.analysis.Local;
+import me.darknet.assembler.compile.analysis.frame.Frame;
+import me.darknet.assembler.compile.analysis.frame.TypedFrameOps;
 import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compiler.InheritanceChecker;
@@ -25,30 +26,30 @@ import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final CodeBuilder<?> codeBuilder;
     private final CodeListBuilder codeBuilderList;
     private final InheritanceChecker checker;
     private final Map<String, GenericLabel> nameToLabel = new HashMap<>();
-    private final List<LocalInfo> parameters;
+    private final List<Local> parameters;
     /** We only track local names since the stack analysis will provide us more detail later. See {@link #visitEnd()} */
     private final List<String> localNames = new ArrayList<>();
-    private final JvmAnalysisEngine analysisEngine = new JvmAnalysisEngine(this::getLocalName);
+    private final JvmAnalysisEngine<Frame> analysisEngine;
     private ASTInstruction last;
     private int opcode = 0;
 
     /**
-     * @param checker Inheritance checker used for stack analysis.
+     * @param options Compiler option to pull values from.
      * @param builder Builder to insert code into.
      * @param parameters Parameter variables.
      */
-    public BlwCodeVisitor(InheritanceChecker checker, CodeBuilder<?> builder, List<LocalInfo> parameters) {
+    @SuppressWarnings("unchecked")
+    public BlwCodeVisitor(JvmCompilerOptions options, CodeBuilder<?> builder, List<Local> parameters) {
         this.codeBuilder = builder;
         this.codeBuilderList = builder.codeList().child();
-        this.checker = checker;
+        this.checker = options.inheritanceChecker();
+        this.analysisEngine = (JvmAnalysisEngine<Frame>) options.createEngine(this::getLocalName);
         this.parameters = parameters;
 
         // Populate variables from params.
@@ -231,7 +232,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             add(new AllocateInstruction(arrayType));
         } else {
             TypeReader reader = new TypeReader(type.literal());
-            ObjectType objectType = (ObjectType) reader.read();
+            ObjectType objectType = Objects.requireNonNullElse((ObjectType) reader.read(), Types.OBJECT);
             Instruction instruction = switch (opcode) {
                 case CHECKCAST -> new CheckCastInstruction(objectType);
                 case INSTANCEOF -> new InstanceofInstruction(objectType);
@@ -302,7 +303,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTArray bsm, ASTArray bsmArgs) {
         add(new InvokeDynamicInstruction(
-                name.literal(), new TypeReader(descriptor.literal()).read(), ConstantMapper.methodHandleFromArray(bsm),
+                name.literal(), Objects.requireNonNullElse(new TypeReader(descriptor.literal()).read(), Types.OBJECT),
+                ConstantMapper.methodHandleFromArray(bsm),
                 bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
         ));
     }
@@ -329,6 +331,9 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             begin = startLabel;
         } else {
             // TODO: Warn user that they're missing a start label and this will fuck analysis up
+            //  - analysisEngine.addWarning(Warning.MISSING_START_LABEL);
+            //    - Should be language agnostic (IE, don't just use strings)
+            //    - Not sure what other kinds of warnings will be added later, if this is it, then a simple enum works ig
             codeBuilderList.addLabel(0, begin = new GenericLabel());
         }
 
@@ -338,7 +343,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             codeBuilderList.addLabel(end = new GenericLabel());
         }
 
-        for (LocalInfo parameter : parameters) {
+        for (Local parameter : parameters) {
             if(parameter == null)
                 continue; // wide parameter
             codeBuilder.localVariable(
@@ -347,7 +352,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         }
 
         // Analyze stack for local variable information.
-        AnalysisSimulation simulation = new AnalysisSimulation();
+        AnalysisSimulation simulation = new AnalysisSimulation(analysisEngine.newFrameOps());
         Code code = codeBuilder.build();
         try {
             simulation.execute(analysisEngine, new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks()));
@@ -356,19 +361,17 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         }
 
         // Populate variables
-        List<LocalInfo> localInfoMap = analysisEngine.frames().values().stream()
-                .flatMap(f -> f.getLocals().values().stream())
-                .distinct()
-                .toList();
         int paramOffset = parameters.size();
-        for (var local : localInfoMap) {
-            int index = local.index();
-            if (index < paramOffset)
-                continue;
-            ClassType type = local.type();
-            String name = getLocalName(index);
-            codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
-        }
+        analysisEngine.frames().values().stream()
+                .flatMap(Frame::locals)
+                .filter(local -> local.index() >= paramOffset)
+                .distinct()
+                .forEach(local -> {
+                    int index = local.index();
+                    ClassType type = local.type();
+                    String name = getLocalName(index);
+                    codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
+                });
     }
 
     private void add(Instruction instruction) {

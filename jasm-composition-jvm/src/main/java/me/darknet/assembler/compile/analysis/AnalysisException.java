@@ -2,6 +2,7 @@ package me.darknet.assembler.compile.analysis;
 
 import dev.xdark.blw.code.CodeElement;
 import dev.xdark.blw.simulation.SimulationException;
+import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -11,7 +12,7 @@ import org.jetbrains.annotations.Nullable;
  * Common cases:
  * <ul>
  *     <li>{@link #getCause()} {@code instanceof} {@link FrameMergeException}</li>
- *     <li>{@link #getCause()} is any exception raised when executing an instruction in the {@link AnalysisEngine}</li>
+ *     <li>{@link #getCause()} is any exception raised when executing an instruction in the analysis engine</li>
  *     <li>Analysis forking exceeded capacity, short circuited to prevent excessive computation</li>
  *     <li>Branch target is unknown, cannot correctly complete analysis</li>
  * </ul>

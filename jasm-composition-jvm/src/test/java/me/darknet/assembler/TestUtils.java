@@ -33,7 +33,8 @@ public class TestUtils {
 					if (outputConsumer != null) outputConsumer.accept(representation);
 				} catch (Throwable e) {
 					// Consumer should fail instead of us handling it generically here
-					throw new RuntimeException(e);
+					fail(e);
+					return;
 				}
 
 				// Check if bytes are valid

@@ -4,6 +4,7 @@ import dev.xdark.blw.constant.*;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTArray;
+import me.darknet.assembler.ast.primitive.ASTCharacter;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.helper.Handle;
@@ -54,6 +55,10 @@ public class ConstantMapper {
 
     public static Constant fromConstant(ASTElement element) {
         return switch (element.type()) {
+            case CHARACTER -> {
+                ASTCharacter character = (ASTCharacter) element;
+                yield new OfInt(character.content().charAt(0));
+            }
             case NUMBER -> {
                 ASTNumber number = (ASTNumber) element;
                 if (number.isFloatingPoint()) {

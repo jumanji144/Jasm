@@ -8,10 +8,10 @@ import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.ObjectType;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.LocalInfo;
+import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.builder.BlwReplaceMethodBuilder;
-import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 
 public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> implements ASTMethodVisitor {
     private final BlwReplaceMethodBuilder builder;
-    private final InheritanceChecker checker;
+    private final JvmCompilerOptions options;
     private final Consumer<AnalysisResults> analysisResultsConsumer;
     private final List<String> parameterNames = new ArrayList<>();
     private final List<Parameter> parameters = new ArrayList<>();
@@ -30,10 +30,10 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
     private final ObjectType owner;
     private final boolean isStatic;
 
-    public BlwMethodVisitor(InheritanceChecker checker, ObjectType owner, MethodType type, boolean isStatic,
+    public BlwMethodVisitor(JvmCompilerOptions options, ObjectType owner, MethodType type, boolean isStatic,
                             BlwReplaceMethodBuilder builder, Consumer<AnalysisResults> analysisResultsConsumer) {
         super(CastUtil.cast(builder));
-        this.checker = checker;
+        this.options = options;
         this.type = type;
         this.owner = owner;
         this.isStatic = isStatic;
@@ -50,11 +50,11 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
 
     @Override
     public ASTJvmInstructionVisitor visitJvmCode() {
-        List<LocalInfo> parameters = new ArrayList<>();
+        List<Local> parameters = new ArrayList<>();
 
         int localIndex = 0;
         if (!isStatic) {
-            parameters.add(new LocalInfo(localIndex++, "this", owner));
+            parameters.add(new Local(localIndex++, "this", owner));
         }
 
         for (int i = 0; i < type.parameterTypes().size(); i++) {
@@ -65,14 +65,14 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
                 name = "p" + i;
             }
             ClassType type = this.type.parameterTypes().get(i);
-            parameters.add(new LocalInfo(localIndex++, name, type));
+            parameters.add(new Local(localIndex++, name, type));
             if (type == Types.LONG || type == Types.DOUBLE) {
                 parameters.add(null);
                 localIndex++;
             }
         }
 
-        return new BlwCodeVisitor(checker, builder.code().child(), parameters) {
+        return new BlwCodeVisitor(options, builder.code().child(), parameters) {
             @Override
             public void visitEnd() {
                 super.visitEnd();

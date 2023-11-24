@@ -1,0 +1,37 @@
+// SKIP-ROUND-TRIP-EQUALITY
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            ldc "12345"
+            invokevirtual java/lang/String.length ()I
+
+            ldc "  a  "
+            invokevirtual java/lang/String.trim ()Ljava/lang/String;
+            invokevirtual java/lang/String.length ()I
+
+            ldc "abcdefg"
+            ldc 'e'
+            invokevirtual java/lang/String.indexOf (I)I
+            iadd
+
+            ldc "a"
+            bipush 10
+            invokevirtual java/lang/String.repeat (I)Ljava/lang/String;
+            invokevirtual java/lang/String.length ()I
+
+            ldc "a12345a"
+            ldc "a"
+            iconst_3
+            invokevirtual java/lang/String.indexOf (Ljava/lang/String;I)I
+            isub
+
+            imul
+            imul
+            ireturn
+        B:
+        }
+    }
+}
