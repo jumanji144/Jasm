@@ -18,8 +18,8 @@ public class ASTDeclaration extends ASTElement {
     private final ASTIdentifier keyword;
     private final List<@Nullable ASTElement> elements;
 
-    public ASTDeclaration(ASTIdentifier keyword, List<@Nullable ASTElement> elements) {
-        super(ElementType.DECLARATION, CollectionUtil.merge(elements, keyword));
+    public ASTDeclaration(@Nullable ASTIdentifier keyword, List<@Nullable ASTElement> elements) {
+        super(ElementType.DECLARATION, CollectionUtil.mergeNonNull(elements, keyword));
         if (keyword == null) {
             this.value = elements.isEmpty() ? null : elements.get(0).value();
         } else {

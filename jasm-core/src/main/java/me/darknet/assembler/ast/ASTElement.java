@@ -5,6 +5,7 @@ import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.processor.ProcessorAttributes;
 import me.darknet.assembler.util.Location;
+import me.darknet.assembler.util.Range;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -30,11 +31,11 @@ public class ASTElement {
     }
 
     @SuppressWarnings("unchecked")
-    public ASTElement(ElementType type, List<? extends ASTElement> children) {
+    public ASTElement(ElementType type, @NotNull List<? extends ASTElement> children) {
         for (ASTElement child : children) {
-            if (child != null) {
-                child.parent = this;
-            }
+            if (child == null)
+                throw new IllegalStateException("Cannot add null child to prent element");
+            child.parent = this;
         }
         this.type = type;
         this.children = (List<ASTElement>) children;
@@ -66,6 +67,23 @@ public class ASTElement {
         return value == null ? null : value.content();
     }
 
+    @Nullable
+    public Range range() {
+        if (value == null) {
+            for (ASTElement child : children) {
+                Token childValue = child.value();
+                if (childValue != null) {
+                    if (children.size() == 1) return childValue.range();
+                    else {
+                        int start = childValue.range().start();
+                        return new Range(start, start + content().length());
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     public Token value() {
         return value;
     }
@@ -78,21 +96,16 @@ public class ASTElement {
         return parent;
     }
 
-    public List<ASTElement> children() {
+    public @NotNull List<ASTElement> children() {
         return children;
     }
 
-    public Location location() {
+    public @Nullable Location location() {
         if (value == null) {
-            // go through children
             for (ASTElement child : children) {
-                if (child == null) {
-                    continue;
-                }
                 Location location = child.location();
-                if (location != null) {
+                if (location != null)
                     return location;
-                }
             }
         } else {
             return value.location();

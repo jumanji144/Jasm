@@ -19,7 +19,7 @@ public class ASTAnnotation extends ASTElement {
     private final ElementMap<ASTIdentifier, ASTElement> values;
 
     public ASTAnnotation(ASTIdentifier classType, ElementMap<ASTIdentifier, ASTElement> values) {
-        super(ElementType.ANNOTATION, CollectionUtil.merge(values.elements(), classType));
+        super(ElementType.ANNOTATION, CollectionUtil.mergeNonNull(values.elements(), classType));
         this.classType = classType;
         this.values = values;
     }

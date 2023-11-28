@@ -17,7 +17,7 @@ public class ASTInner extends ASTElement implements ASTAccessed {
 
     public ASTInner(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
             ASTIdentifier innerClass) {
-        super(ElementType.INNER_CLASS, CollectionUtil.merge(modifiers.modifiers(), name, innerClass, outerClass));
+        super(ElementType.INNER_CLASS, CollectionUtil.mergeNonNull(modifiers.modifiers(), name, innerClass, outerClass));
         this.modifiers = modifiers;
         this.name = name;
         this.outerClass = outerClass;

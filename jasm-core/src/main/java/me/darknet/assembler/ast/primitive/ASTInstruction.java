@@ -13,7 +13,7 @@ public class ASTInstruction extends ASTElement {
     private final List<@Nullable ASTElement> arguments;
 
     public ASTInstruction(ASTIdentifier identifier, List<@Nullable ASTElement> arguments) {
-        super(ElementType.CODE_INSTRUCTION, CollectionUtil.merge(arguments, identifier));
+        super(ElementType.CODE_INSTRUCTION, CollectionUtil.mergeNonNull(arguments, identifier));
         this.identifier = identifier;
         this.arguments = arguments;
     }
