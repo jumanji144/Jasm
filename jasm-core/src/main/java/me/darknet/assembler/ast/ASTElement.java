@@ -62,6 +62,7 @@ public class ASTElement {
      *
      * @see ASTIdentifier#literal() For escaped content.
      */
+    @Nullable
     @Contract(pure = true)
     public String content() {
         return value == null ? null : value.content();
@@ -70,18 +71,17 @@ public class ASTElement {
     @Nullable
     public Range range() {
         if (value == null) {
-            for (ASTElement child : children) {
-                Token childValue = child.value();
-                if (childValue != null) {
-                    if (children.size() == 1) return childValue.range();
-                    else {
-                        int start = childValue.range().start();
-                        return new Range(start, start + content().length());
-                    }
-                }
-            }
+            List<ASTElement> localChildren = children;
+            if (localChildren.size() == 1)
+                return localChildren.get(0).range();
+
+            Range first = localChildren.get(0).range();
+            Range last = localChildren.get(localChildren.size() - 1).range();
+            if (first == null || last == null) return null;
+
+            return new Range(first.start(), last.end());
         }
-        return null;
+        return value.range();
     }
 
     public Token value() {
