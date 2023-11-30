@@ -1,7 +1,6 @@
 package me.darknet.assembler.ast;
 
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.processor.ProcessorAttributes;
 import me.darknet.assembler.util.Location;
@@ -11,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ASTElement {
     private static final Comparator<ASTElement> SORT_POS = (o1, o2) -> {
@@ -31,7 +31,6 @@ public class ASTElement {
         this(type, Arrays.asList(children));
     }
 
-    @SuppressWarnings("unchecked")
     public ASTElement(ElementType type, @NotNull List<? extends ASTElement> children) {
         for (ASTElement child : children) {
             if (child == null)
@@ -39,7 +38,9 @@ public class ASTElement {
             child.parent = this;
         }
         this.type = type;
-        this.children = (List<ASTElement>) children.stream().sorted(SORT_POS).toList();
+        this.children = children.stream()
+                .sorted(SORT_POS)
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     protected void addChild(@NotNull ASTElement element) {

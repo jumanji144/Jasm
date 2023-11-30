@@ -118,7 +118,7 @@ public class ASTProcessor {
 
         // take the 'pending' attributes like signatures, annotations, inner classes, etc and pass them along to the class.
         ProcessorAttributes attributes = ctx.result.collectAttributes();
-        return new ASTClass(   modifiers, name,   classBody).accept(attributes);
+        return new ASTClass(modifiers, name,   classBody).accept(attributes);
     }
 
     private static ASTField parseField(ParserContext ctx, ASTDeclaration declaration) {
