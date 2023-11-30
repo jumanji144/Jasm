@@ -122,7 +122,7 @@ public class PrinterTest {
             for (Error error : result.errors()) {
                 Location location = error.getLocation();
                 System.err.printf(
-                        "%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
+                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(),
                         error.getMessage()
                 );
                 Throwable trace = new Throwable();
@@ -137,7 +137,7 @@ public class PrinterTest {
             for (Error error : result.errors()) {
                 Location location = error.getLocation();
                 System.err.printf(
-                        "%s:%d:%d: %s%n", location.getSource(), location.getLine(), location.getColumn(),
+                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(),
                         error.getMessage()
                 );
                 Throwable trace = new Throwable();

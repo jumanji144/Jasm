@@ -366,7 +366,7 @@ public class DeclarationParser {
         ASTIdentifier identifier = new ASTIdentifier(instruction);
         List<ASTElement> arguments = new ArrayList<>();
         // parse until peek is eof or on a different line
-        while (peek.location().getLine() == instruction.location().getLine()) {
+        while (peek.location().line() == instruction.location().line()) {
             arguments.add(parse());
             peek = ctx.peek();
             if (peek == null) {

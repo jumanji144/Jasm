@@ -1,30 +1,18 @@
 package me.darknet.assembler.util;
 
-public class Location {
+import org.jetbrains.annotations.NotNull;
 
-    private final int line, column;
-    private final String source;
+public record Location(int line, int column, String source) implements Comparable<Location> {
+	@Override
+	public String toString() {
+		if (source == null) return line + ":" + column;
+		return source + ":" + line + ":" + column;
+	}
 
-    public Location(int line, int column, String source) {
-        this.line = line;
-        this.column = column;
-        this.source = source;
-    }
-
-    public int getLine() {
-        return line;
-    }
-
-    public int getColumn() {
-        return column;
-    }
-
-    public String getSource() {
-        return source;
-    }
-
-    @Override
-    public String toString() {
-        return source + ":" + line + ":" + column;
-    }
+	@Override
+	public int compareTo(@NotNull Location o) {
+		int cmp = Integer.compare(line, o.line);
+		if (cmp == 0) cmp = Integer.compare(column, o.column);
+		return cmp;
+	}
 }
