@@ -10,13 +10,14 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class ASTElement {
-
+    private static final Comparator<ASTElement> SORT_POS = (o1, o2) -> {
+        Location l1 = o1.location();
+        Location l2 = o2.location();
+        return (l1 != null && l2 != null) ? l1.compareTo(l2) : 0;
+    };
     protected final List<ASTElement> children;
     protected ElementType type;
     protected ASTElement parent;
@@ -38,7 +39,7 @@ public class ASTElement {
             child.parent = this;
         }
         this.type = type;
-        this.children = (List<ASTElement>) children;
+        this.children = (List<ASTElement>) children.stream().sorted(SORT_POS).toList();
     }
 
     protected void addChild(@NotNull ASTElement element) {
