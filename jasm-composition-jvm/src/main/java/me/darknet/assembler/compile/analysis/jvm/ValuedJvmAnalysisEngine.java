@@ -269,6 +269,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			}
 			case ATHROW -> frame.getStack().clear();
 			case ACONST_NULL -> frame.pushNull();
+			case RETURN -> { /* no-op */ }
 			default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
 		}
 	}
