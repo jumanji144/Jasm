@@ -5,7 +5,6 @@ import dev.xdark.blw.constant.*;
 import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.Types;
-import me.darknet.assembler.compile.analysis.AnalysisUtils;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.VariableNameLookup;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
@@ -69,7 +68,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 				ClassType type2 = frame.pop();
 				frame.pushTypes(type1, type2);
 			}
-			case IADD, ISUB, IMUL, IDIV, IREM, ISHL, ISHR, IUSHR, IAND, IOR, IXOR -> {
+			case IADD, ISUB, IMUL, IDIV, IREM, ISHL, ISHR, IUSHR, IAND, IOR, IXOR, FCMPG, FCMPL -> {
 				frame.pop2();
 				frame.pushType(Types.INT);
 			}
@@ -85,9 +84,21 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 				frame.pop(4);
 				frame.pushType(Types.DOUBLE);
 			}
-			case INEG, LNEG, FNEG, DNEG -> {
+			case DCMPL, DCMPG, LCMP -> {
+				frame.pop(4);
+				frame.pushType(Types.INT);
+			}
+			case INEG, FNEG -> {
 				ClassType type = frame.pop();
 				frame.pushType(type);
+			}
+			case LNEG -> {
+				frame.pop2();
+				frame.pushType(Types.LONG);
+			}
+			case DNEG -> {
+				frame.pop2();
+				frame.pushType(Types.DOUBLE);
 			}
 			case ATHROW -> frame.getStack().clear();
 			case ACONST_NULL -> frame.pushNull();

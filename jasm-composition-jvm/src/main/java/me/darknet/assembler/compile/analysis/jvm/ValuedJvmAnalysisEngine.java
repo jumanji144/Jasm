@@ -98,8 +98,17 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 				Value value2 = frame.pop();
 				frame.push(value1, value2);
 			}
-			case INEG, LNEG, FNEG, DNEG -> {
+			case INEG, FNEG -> {
 				Value value = frame.pop();
+				if (value instanceof Value.PrimitiveValue primitiveValue)
+					frame.push(primitiveValue.negate());
+				else {
+					frame.pushType(value.type());
+					setAnalysisFailure(new AnalysisException(instruction, "Negate on non-primitive stack value"));
+				}
+			}
+			case LNEG, DNEG -> {
+				Value value = frame.pop2();
 				if (value instanceof Value.PrimitiveValue primitiveValue)
 					frame.push(primitiveValue.negate());
 				else {
@@ -191,7 +200,74 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 					frame.pushType(Types.DOUBLE);
 				}
 			}
-			case ATHROW ->  frame.getStack().clear();
+			case LCMP -> {
+				Value value1 = frame.pop2();
+				Value value2 = frame.pop2();
+				if (value1 instanceof Value.KnownLongValue long1 && value2 instanceof Value.KnownLongValue long2) {
+					long a = long1.value();
+					long b = long2.value();
+					frame.push(Values.valueOf(Long.compare(a, b)));
+				} else {
+					frame.pushType(Types.INT);
+				}
+			}
+			case FCMPL -> {
+				Value value1 = frame.pop2();
+				Value value2 = frame.pop2();
+				if (value1 instanceof Value.KnownFloatValue float1 && value2 instanceof Value.KnownFloatValue float2) {
+					float a = float1.value();
+					float b = float2.value();
+					if (Float.isNaN(a) || Float.isNaN(b))
+						frame.push(Values.valueOf(-1));
+					else
+						frame.push(Values.valueOf(Double.compare(a, b)));
+				} else {
+					frame.pushType(Types.INT);
+				}
+			}
+			case FCMPG -> {
+				Value value1 = frame.pop2();
+				Value value2 = frame.pop2();
+				if (value1 instanceof Value.KnownFloatValue float1 && value2 instanceof Value.KnownFloatValue float2) {
+					float a = float1.value();
+					float b = float2.value();
+					if (Float.isNaN(a) || Float.isNaN(b))
+						frame.push(Values.valueOf(1));
+					else
+						frame.push(Values.valueOf(Double.compare(a, b)));
+				} else {
+					frame.pushType(Types.INT);
+				}
+			}
+			case DCMPL -> {
+				Value value1 = frame.pop2();
+				Value value2 = frame.pop2();
+				if (value1 instanceof Value.KnownDoubleValue double1 && value2 instanceof Value.KnownDoubleValue double2) {
+					double a = double1.value();
+					double b = double2.value();
+					if (Double.isNaN(a) || Double.isNaN(b))
+						frame.push(Values.valueOf(-1));
+					else
+						frame.push(Values.valueOf(Double.compare(a, b)));
+				} else {
+					frame.pushType(Types.INT);
+				}
+			}
+			case DCMPG -> {
+				Value value1 = frame.pop2();
+				Value value2 = frame.pop2();
+				if (value1 instanceof Value.KnownDoubleValue double1 && value2 instanceof Value.KnownDoubleValue double2) {
+					double a = double1.value();
+					double b = double2.value();
+					if (Double.isNaN(a) || Double.isNaN(b))
+						frame.push(Values.valueOf(1));
+					else
+						frame.push(Values.valueOf(Double.compare(a, b)));
+				} else {
+					frame.pushType(Types.INT);
+				}
+			}
+			case ATHROW -> frame.getStack().clear();
 			case ACONST_NULL -> frame.pushNull();
 			default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
 		}
