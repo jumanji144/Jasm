@@ -29,6 +29,9 @@ public class ASTMethod extends ASTMember {
         this.code = code;
         this.instructions = instructions;
         this.format = format;
+        addChildren(parameters);
+        addChildren(exceptions);
+        addChild(code);
     }
 
     public List<ASTIdentifier> parameters() {
