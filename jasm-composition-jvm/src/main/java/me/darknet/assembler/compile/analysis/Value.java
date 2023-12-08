@@ -3,6 +3,7 @@ package me.darknet.assembler.compile.analysis;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Outline of possible value states.
@@ -13,6 +14,11 @@ public sealed interface Value {
 
 	@NotNull
 	Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other);
+
+	@Nullable
+	default String valueAsString() {
+		return null;
+	}
 
 	/** Value of primitive content */
 	sealed interface PrimitiveValue extends Value {
@@ -56,7 +62,7 @@ public sealed interface Value {
 	record KnownIntValue(int value) implements IntValue {
 		@Override
 		public @NotNull PrimitiveValue cast(PrimitiveType type) {
-			  return switch (type.kind()) {
+			return switch (type.kind()) {
 				case PrimitiveKind.T_BOOLEAN -> Values.valueOf(value == 1);
 				case PrimitiveKind.T_BYTE -> Values.valueOf((byte) value);
 				case PrimitiveKind.T_CHAR -> Values.valueOf((char) value);
@@ -73,6 +79,12 @@ public sealed interface Value {
 		@Override
 		public @NotNull PrimitiveValue negate() {
 			return Values.valueOf(-value);
+		}
+
+
+		@Override
+		public @NotNull String valueAsString() {
+			return String.valueOf(value);
 		}
 	}
 
@@ -120,6 +132,11 @@ public sealed interface Value {
 		public @NotNull PrimitiveValue negate() {
 			return Values.valueOf(-value);
 		}
+
+		@Override
+		public @NotNull String valueAsString() {
+			return String.valueOf(value);
+		}
 	}
 
 	/** Value of unknown float content. */
@@ -166,6 +183,11 @@ public sealed interface Value {
 		public @NotNull PrimitiveValue negate() {
 			return Values.valueOf(-value);
 		}
+
+		@Override
+		public @NotNull String valueAsString() {
+			return String.valueOf(value);
+		}
 	}
 
 	/** Value of unknown long content. */
@@ -211,6 +233,11 @@ public sealed interface Value {
 		@Override
 		public @NotNull PrimitiveValue negate() {
 			return Values.valueOf(-value);
+		}
+
+		@Override
+		public @NotNull String valueAsString() {
+			return String.valueOf(value);
 		}
 	}
 
@@ -267,6 +294,11 @@ public sealed interface Value {
 			if (equals(other)) return this;
 			return other;
 		}
+
+		@Override
+		public @NotNull String valueAsString() {
+			return "null";
+		}
 	}
 
 	/**
@@ -299,6 +331,11 @@ public sealed interface Value {
 		@Override
 		public @NotNull ObjectType type() {
 			return Types.STRING;
+		}
+
+		@Override
+		public @NotNull String valueAsString() {
+			return value;
 		}
 	}
 
