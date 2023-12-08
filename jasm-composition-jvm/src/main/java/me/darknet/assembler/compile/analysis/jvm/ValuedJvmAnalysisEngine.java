@@ -339,7 +339,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
 		// If the value is known, we can update it
 		if (local.value() instanceof Value.KnownIntValue intValue) {
-			frame.setLocal(0, new ValuedLocal(local, Values.valueOf(intValue.value() + instruction.incrementBy())));
+			frame.setLocal(local.index(), new ValuedLocal(local, Values.valueOf(intValue.value() + instruction.incrementBy())));
 		}
 	}
 

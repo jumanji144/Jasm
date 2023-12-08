@@ -65,6 +65,7 @@ public class SampleCompilerTest {
 				"Example-int-multi.jasm",
 				"Example-int-addition.jasm",
 				"Example-int-division.jasm",
+				"Example-int-iinc.jasm",
 				"Example-int-multiplication.jasm",
 				"Example-int-remainder.jasm",
 				"Example-int-subtraction.jasm",

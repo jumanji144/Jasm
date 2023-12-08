@@ -1,0 +1,18 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            iconst_0
+            istore i
+            iinc i 25
+            iinc i 25
+            iload i
+            iconst_2
+            imul
+            ireturn
+        B:
+        }
+    }
+}
