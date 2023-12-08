@@ -129,6 +129,7 @@ public class Values {
 		if (type instanceof InstanceType instanceType) {
 			return valueOfInstance(instanceType);
 		} else if (type instanceof PrimitiveType primitiveType) {
+			if (primitiveType.kind() == PrimitiveKind.T_VOID) return VOID_VALUE;
 			return valueOfPrimitive(primitiveType);
 		} else if (type instanceof ArrayType arrayType) {
 			return valueOfArray(arrayType);
