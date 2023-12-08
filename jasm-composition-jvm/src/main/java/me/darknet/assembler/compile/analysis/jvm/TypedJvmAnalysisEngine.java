@@ -30,7 +30,8 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
 	@Override
 	public void execute(SimpleInstruction instruction) {
-		switch (instruction.opcode()) {
+		int opcode = instruction.opcode();
+		switch (opcode) {
 			case DUP -> frame.pushType(frame.peek());
 			case DUP_X1 -> {
 				ClassType type1 = frame.pop();
@@ -97,6 +98,8 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 				}
 			}
 			case ACONST_NULL -> frame.pushNull();
+			case MONITORENTER, MONITOREXIT -> frame.pop();
+			default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
 		}
 	}
 
