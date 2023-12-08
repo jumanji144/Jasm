@@ -1,0 +1,16 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        exceptions: { { A, A, B, * } },
+        code: {
+        A:
+            goto C
+        B:
+            athrow
+        C:
+            return
+        D:
+        }
+    }
+}

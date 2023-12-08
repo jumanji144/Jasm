@@ -62,7 +62,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 				ClassType type4 = frame.pop();
 				frame.pushTypes(type2, type1, type4, type3, type2, type1);
 			}
-			case POP, IINC, IRETURN, LRETURN, FRETURN, DRETURN, ARETURN -> frame.pop();
+			case POP, IINC, IRETURN, LRETURN, FRETURN, DRETURN, ARETURN, MONITORENTER, MONITOREXIT -> frame.pop();
 			case POP2 -> frame.pop2();
 			case SWAP -> {
 				ClassType type1 = frame.pop();
@@ -89,16 +89,8 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 				ClassType type = frame.pop();
 				frame.pushType(type);
 			}
-			case ATHROW -> {
-				ClassType type = frame.pop();
-				if (type == AnalysisUtils.NULL) {
-					frame.pushType(Types.type(NullPointerException.class));
-				} else {
-					frame.pushType(type);
-				}
-			}
+			case ATHROW -> frame.getStack().clear();
 			case ACONST_NULL -> frame.pushNull();
-			case MONITORENTER, MONITOREXIT -> frame.pop();
 			default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
 		}
 	}

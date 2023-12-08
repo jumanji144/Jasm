@@ -59,7 +59,8 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
 	@Override
 	public void execute(SimpleInstruction instruction) {
-		switch (instruction.opcode()) {
+		int opcode = instruction.opcode();
+		switch (opcode) {
 			case DUP -> frame.push(frame.peek());
 			case DUP_X1 -> {
 				Value value1 = frame.pop();
@@ -90,7 +91,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 				Value value4 = frame.pop();
 				frame.push(value2, value1, value4, value3, value2, value1);
 			}
-			case POP, IRETURN, LRETURN, FRETURN, DRETURN, ARETURN -> frame.pop();
+			case POP, IRETURN, LRETURN, FRETURN, DRETURN, ARETURN, MONITORENTER, MONITOREXIT -> frame.pop();
 			case POP2 -> frame.pop2();
 			case SWAP -> {
 				Value value1 = frame.pop();
@@ -190,15 +191,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 					frame.pushType(Types.DOUBLE);
 				}
 			}
-			case ATHROW -> {
-				Value value = frame.pop();
-				if (value instanceof Value.NullValue) {
-					frame.pushType(Types.type(NullPointerException.class));
-				} else {
-					frame.push(value);
-				}
-			}
+			case ATHROW ->  frame.getStack().clear();
 			case ACONST_NULL -> frame.pushNull();
+			default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
 		}
 	}
 

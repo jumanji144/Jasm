@@ -89,11 +89,12 @@ public class ValuedFrameImpl implements ValuedFrame {
 		}
 
 		Deque<Value> otherStack = other.getStack();
-		if (stack.size() != otherStack.size())
-			throw new FrameMergeException(this, other, "Stack size mismatch, " + stack.size() + " != " + otherStack.size());
+		Deque<Value> thisStack = stack;
+		if (thisStack.size() != otherStack.size())
+			throw new FrameMergeException(this, other, "Stack size mismatch, " + thisStack.size() + " != " + otherStack.size());
 
 		Deque<Value> newStack = new ArrayDeque<>();
-		Iterator<Value> it1 = stack.iterator();
+		Iterator<Value> it1 = thisStack.iterator();
 		Iterator<Value> it2 = otherStack.iterator();
 		while (it1.hasNext() && it2.hasNext()) {
 			Value value1 = it1.next();
@@ -111,8 +112,8 @@ public class ValuedFrameImpl implements ValuedFrame {
 				newStack.add(value1);
 			}
 		}
-		stack.clear();
-		stack.addAll(newStack);
+		thisStack.clear();
+		thisStack.addAll(newStack);
 		return changed;
 	}
 
