@@ -253,7 +253,7 @@ public sealed interface Value {
 	record VoidValue() implements ObjectValue {
 		@Override
 		public @NotNull ObjectType type() {
-			return AnalysisUtils.NULL;
+			return Types.BOX_VOID;
 		}
 
 		@Override
