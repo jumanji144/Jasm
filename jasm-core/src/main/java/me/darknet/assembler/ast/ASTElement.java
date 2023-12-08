@@ -22,6 +22,7 @@ public class ASTElement {
     protected ElementType type;
     protected ASTElement parent;
     protected Token value;
+    protected Range cachedRange;
 
     public ASTElement(ElementType type) {
         this(type, Collections.emptyList());
@@ -72,7 +73,8 @@ public class ASTElement {
 
     @Nullable
     public Range range() {
-        if (value == null) {
+        if (cachedRange != null) return cachedRange;
+        if (value == null || children.size() > 1) {
             List<ASTElement> localChildren = children;
             if (localChildren.size() == 1)
                 return localChildren.get(0).range();
@@ -81,9 +83,9 @@ public class ASTElement {
             Range last = localChildren.get(localChildren.size() - 1).range();
             if (first == null || last == null) return null;
 
-            return new Range(first.start(), last.end());
+            return cachedRange = new Range(first.start(), last.end());
         }
-        return value.range();
+        return cachedRange = value.range();
     }
 
     public Token value() {
