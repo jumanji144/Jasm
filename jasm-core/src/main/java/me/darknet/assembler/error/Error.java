@@ -39,7 +39,7 @@ public class Error {
      * @return the stacktrace
      */
     public StackTraceElement[] getInCodeSource() {
-        if(!threadStacktrace)
+        if (!threadStacktrace)
             return inCodeSource;
         // remove the first 3 elements
         // (1st is <init>, 2nd should be the error collector add function, 3rd is the error collector caller)

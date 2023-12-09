@@ -1,14 +1,16 @@
 package me.darknet.assembler.ast.specific;
 
 import me.darknet.assembler.ast.ElementType;
-import me.darknet.assembler.ast.primitive.*;
+import me.darknet.assembler.ast.primitive.ASTCode;
+import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.instructions.Instruction;
 import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.visitor.ASTInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
 import me.darknet.assembler.visitor.Modifiers;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -20,9 +22,8 @@ public class ASTMethod extends ASTMember {
     private final List<Instruction<?>> instructions;
     private final BytecodeFormat format;
 
-    public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor,
-                     List<ASTIdentifier> parameters, List<ASTException> exceptions, ASTCode code,
-                     List<Instruction<?>> instructions, BytecodeFormat format) {
+    public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor, List<ASTIdentifier> parameters,
+            List<ASTException> exceptions, ASTCode code, List<Instruction<?>> instructions, BytecodeFormat format) {
         super(ElementType.METHOD, modifiers, name, descriptor);
         this.parameters = parameters;
         this.exceptions = exceptions;
@@ -57,7 +58,7 @@ public class ASTMethod extends ASTMember {
         for (int i = 0; i < localParams.size(); i++) {
             visitor.visitParameter(i, localParams.get(i));
         }
-        if(this.code == null) {
+        if (this.code == null) {
             visitor.visitEnd();
             return;
         }
@@ -79,8 +80,9 @@ public class ASTMethod extends ASTMember {
             }
 
             for (ASTException exception : exceptions) {
-                instructionVisitor.visitException(exception.start(), exception.end(), exception.handler(),
-                        exception.exceptionType());
+                instructionVisitor.visitException(
+                        exception.start(), exception.end(), exception.handler(), exception.exceptionType()
+                );
             }
 
             instructionVisitor.visitEnd();

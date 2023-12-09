@@ -74,7 +74,7 @@ public class JvmCompiler implements Compiler {
 
         builder.setVersion(blwOptions.version);
 
-        if(blwOptions.overlay != null)
+        if (blwOptions.overlay != null)
             applyOverlay(collector, builder, blwOptions.overlay.classFile());
         if (collector.hasErr()) {
             return new Result<>(null, collector.getErrors());

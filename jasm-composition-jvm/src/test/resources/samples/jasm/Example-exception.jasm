@@ -1,17 +1,14 @@
 .class public super Example {
     .method public exampleMethod ()LExample; {
         parameters: { this },
-        exceptions: { { A, A, B, * } },
         exceptions: { { A, B, C, * } },
         code: {
         A:
             iconst_1
             istore value
-            goto C
             iload value
             ifeq D
         B:
-            astore ex
             new java/lang/Throwable
             dup
             invokespecial java/lang/Throwable.<init> ()V
@@ -21,7 +18,6 @@
         D:
             aload this
             areturn
-        D:
         E:
         }
     }

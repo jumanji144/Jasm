@@ -120,7 +120,8 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
      * Visit a field instruction
      *
      * @param path
-     *                  the path to the field, this is in the format of [owner].[name]
+     *                   the path to the field, this is in the format of
+     *                   [owner].[name]
      * @param descriptor
      *                   the descriptor of the field
      */
@@ -130,7 +131,8 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
      * Visit a method instruction
      *
      * @param path
-     *                  the path to the field, this is in the format of [owner].[name]
+     *                   the path to the field, this is in the format of
+     *                   [owner].[name]
      * @param descriptor
      *                   the descriptor of the method
      *

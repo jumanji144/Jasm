@@ -22,42 +22,47 @@ import static me.darknet.assembler.TestUtils.normalize;
 import static me.darknet.assembler.TestUtils.processJvm;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled("Used to gain a lot of test cases/samples. " +
-		"Not practical for test authority due to small syntax changes from the round-trip.")
+@Disabled(
+    "Used to gain a lot of test cases/samples. "
+            + "Not practical for test authority due to small syntax changes from the round-trip."
+)
 public class RuntimeCompilerTest {
-	@ParameterizedTest
-	@MethodSource("getClasses")
-	public void roundTrip(TestArgument argument) throws Throwable {
-		// print a class, compile it and print it again. Then compare the two
-		JvmClassPrinter printer = new JvmClassPrinter(argument.streamSupplier().get());
-		PrintContext<?> ctx = new PrintContext<>("    ");
-		printer.print(ctx);
-		String printed = ctx.toString();
+    @ParameterizedTest
+    @MethodSource("getClasses")
+    public void roundTrip(TestArgument argument) throws Throwable {
+        // print a class, compile it and print it again. Then compare the two
+        JvmClassPrinter printer = new JvmClassPrinter(argument.streamSupplier().get());
+        PrintContext<?> ctx = new PrintContext<>("    ");
+        printer.print(ctx);
+        String printed = ctx.toString();
 
-		JvmCompilerOptions options = new JvmCompilerOptions();
-		processJvm(printed, options, classRepresentation -> {
-			JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
-			PrintContext<?> newCtx = new PrintContext<>("    ");
-			newPrinter.print(newCtx);
-			String newPrinted = newCtx.toString();
+        JvmCompilerOptions options = new JvmCompilerOptions();
+        processJvm(printed, options, classRepresentation -> {
+            JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
+            PrintContext<?> newCtx = new PrintContext<>("    ");
+            newPrinter.print(newCtx);
+            String newPrinted = newCtx.toString();
 
-			assertEquals(normalize(printed), normalize(newPrinted), "There was an unexpected difference in unmodified class: " + argument.name);
-		});
-	}
+            assertEquals(
+                    normalize(printed), normalize(newPrinted),
+                    "There was an unexpected difference in unmodified class: " + argument.name
+            );
+        });
+    }
 
-	public static List<TestArgument> getClasses() {
-		try {
-			BiPredicate<Path, BasicFileAttributes> filter =
-					(path, attrib) -> attrib.isRegularFile() && path.toString().endsWith(".class");
-			List<TestArgument> collect = Files.find(Paths.get(System.getProperty("user.dir")), 25, filter)
-					.map(p -> new TestArgument(p.getFileName().toString(), () -> Files.newInputStream(p)))
-					.collect(Collectors.toList());
-			return collect;
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    public static List<TestArgument> getClasses() {
+        try {
+            BiPredicate<Path, BasicFileAttributes> filter = (path, attrib) -> attrib.isRegularFile()
+                    && path.toString().endsWith(".class");
+            List<TestArgument> collect = Files.find(Paths.get(System.getProperty("user.dir")), 25, filter)
+                    .map(p -> new TestArgument(p.getFileName().toString(), () -> Files.newInputStream(p)))
+                    .collect(Collectors.toList());
+            return collect;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	private record TestArgument(String name, ThrowingSupplier<InputStream> streamSupplier) {
-	}
+    private record TestArgument(String name, ThrowingSupplier<InputStream> streamSupplier) {
+    }
 }

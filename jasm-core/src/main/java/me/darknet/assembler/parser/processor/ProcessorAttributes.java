@@ -34,11 +34,15 @@ public class ProcessorAttributes {
             signed.setSignature(signature);
         }
 
-        if (  element instanceof ASTClass clazz) {
-            if (sourceFile != null)clazz.setSourceFile(sourceFile);
-            if (superName != null)clazz.setSuperName(superName);
-            if (!interfaces.isEmpty())clazz.setInterfaces(interfaces);
-            if (!inners.isEmpty()) clazz.setInnerClasses(inners);
+        if (element instanceof ASTClass clazz) {
+            if (sourceFile != null)
+                clazz.setSourceFile(sourceFile);
+            if (superName != null)
+                clazz.setSuperName(superName);
+            if (!interfaces.isEmpty())
+                clazz.setInterfaces(interfaces);
+            if (!inners.isEmpty())
+                clazz.setInnerClasses(inners);
         }
     }
 }

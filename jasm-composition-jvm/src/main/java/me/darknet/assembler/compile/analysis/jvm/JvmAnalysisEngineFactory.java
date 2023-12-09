@@ -7,11 +7,12 @@ import org.jetbrains.annotations.NotNull;
  * Factory/provider of {@link JvmAnalysisEngine} instances.
  */
 public interface JvmAnalysisEngineFactory {
-	/**
-	 * @param lookup
-	 * 		Variable name lookup to use in the engine.
-	 *
-	 * @return New analysis engine instance.
-	 */
-	@NotNull JvmAnalysisEngine<?> create(@NotNull VariableNameLookup lookup);
+    /**
+     * @param lookup
+     *               Variable name lookup to use in the engine.
+     *
+     * @return New analysis engine instance.
+     */
+    @NotNull
+    JvmAnalysisEngine<?> create(@NotNull VariableNameLookup lookup);
 }

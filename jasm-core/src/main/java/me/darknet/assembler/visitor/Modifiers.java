@@ -29,8 +29,6 @@ public class Modifiers {
 
     @Override
     public String toString() {
-        return modifiers.stream()
-                .map(ASTIdentifier::literal)
-                .collect(Collectors.joining(", "));
+        return modifiers.stream().map(ASTIdentifier::literal).collect(Collectors.joining(", "));
     }
 }

@@ -7,9 +7,9 @@ import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.TryCatchBlock;
 import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.type.ClassType;
+import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
 import me.darknet.assembler.helper.Names;
 import me.darknet.assembler.util.EscapeUtil;
-import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
 import me.darknet.assembler.util.LabelUtil;
 import org.jetbrains.annotations.NotNull;
 
@@ -29,7 +29,7 @@ public class JvmMethodPrinter implements MethodPrinter {
     }
 
     static String escapeName(String name, int index, boolean isStatic) {
-        if(name.equals("this") && !(index == 0 && !isStatic))
+        if (name.equals("this") && !(index == 0 && !isStatic))
             return "p" + index;
         else
             return EscapeUtil.escapeLiteral(name);
@@ -92,10 +92,8 @@ public class JvmMethodPrinter implements MethodPrinter {
     @Override
     public void print(PrintContext<?> ctx) {
         memberPrinter.printAttributes(ctx);
-        var obj = memberPrinter.printDeclaration(ctx)
-                .literal(method.name()).print(" ")
-                .literal(method.type().descriptor()).print(" ")
-                .object();
+        var obj = memberPrinter.printDeclaration(ctx).literal(method.name()).print(" ")
+                .literal(method.type().descriptor()).print(" ").object();
         Names names = localNames();
         if (!names.parameters().isEmpty()) {
             var arr = obj.value("parameters").array();
@@ -110,7 +108,7 @@ public class JvmMethodPrinter implements MethodPrinter {
         var methodCode = method.code();
         if (methodCode != null) {
             Map<Integer, String> labelNames = getLabelNames(methodCode.elements());
-            if(!methodCode.tryCatchBlocks().isEmpty()) {
+            if (!methodCode.tryCatchBlocks().isEmpty()) {
                 var arr = obj.value("exceptions").array();
 
                 for (TryCatchBlock tryCatchBlock : methodCode.tryCatchBlocks()) {
@@ -122,10 +120,7 @@ public class JvmMethodPrinter implements MethodPrinter {
 
                     String type = tryCatchBlock.type() == null ? "*" : tryCatchBlock.type().descriptor();
 
-                    exception.print(start).arg()
-                            .print(end).arg()
-                            .print(handler).arg()
-                            .print(type);
+                    exception.print(start).arg().print(end).arg().print(handler).arg().print(type);
 
                     exception.end();
                     arr.arg();

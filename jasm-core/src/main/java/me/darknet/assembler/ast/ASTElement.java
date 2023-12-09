@@ -39,9 +39,7 @@ public class ASTElement {
             child.parent = this;
         }
         this.type = type;
-        this.children = children.stream()
-                .sorted(SORT_POS)
-                .collect(Collectors.toCollection(ArrayList::new));
+        this.children = children.stream().sorted(SORT_POS).collect(Collectors.toCollection(ArrayList::new));
     }
 
     protected void addChild(@NotNull ASTElement element) {
@@ -73,7 +71,8 @@ public class ASTElement {
 
     @Nullable
     public Range range() {
-        if (cachedRange != null) return cachedRange;
+        if (cachedRange != null)
+            return cachedRange;
         if (value == null || children.size() > 1) {
             List<ASTElement> localChildren = children;
             if (localChildren.size() == 1)
@@ -81,7 +80,8 @@ public class ASTElement {
 
             Range first = localChildren.get(0).range();
             Range last = localChildren.get(localChildren.size() - 1).range();
-            if (first == null || last == null) return null;
+            if (first == null || last == null)
+                return null;
 
             return cachedRange = new Range(first.start(), last.end());
         }

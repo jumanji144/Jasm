@@ -37,8 +37,8 @@ public class Tokenizer {
 
     private void handleComment(TokenizerContext ctx, char currentChar) {
         while (currentChar != '\n') {
-           ctx.forward();
-           currentChar = ctx.peek();
+            ctx.forward();
+            currentChar = ctx.peek();
         }
         ctx.collectToken();
         ctx.leaveComment();
@@ -252,9 +252,9 @@ public class Tokenizer {
 
             if (inString) {
                 tokens.add(new Token(range, location, TokenType.STRING, content));
-            } else if(inCharacter) {
+            } else if (inCharacter) {
                 tokens.add(new Token(range, location, TokenType.CHARACTER, content));
-            } else if(inComment){
+            } else if (inComment) {
                 tokens.add(new Token(range, location, TokenType.COMMENT, content));
             } else if (!buffer.isEmpty()) {
                 TokenType type = getType(content);

@@ -6,10 +6,10 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 public interface ASTAnnotated {
-	@NotNull
-	List<ASTAnnotation> getAnnotations();
+    @NotNull
+    List<ASTAnnotation> getAnnotations();
 
-	void setAnnotations(@Nullable List<ASTAnnotation> annotations);
+    void setAnnotations(@Nullable List<ASTAnnotation> annotations);
 
-	void addAnnotation(@NotNull ASTAnnotation annotation);
+    void addAnnotation(@NotNull ASTAnnotation annotation);
 }

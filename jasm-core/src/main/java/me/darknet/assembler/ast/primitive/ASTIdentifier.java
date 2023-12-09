@@ -10,7 +10,8 @@ public class ASTIdentifier extends ASTLiteral {
     }
 
     /**
-     * @return The literal value of this identifier, aka escape sequences are unescaped
+     * @return The literal value of this identifier, aka escape sequences are
+     *         unescaped
      *
      * @see #content() Content without escape handling.
      */

@@ -11,25 +11,25 @@ public class ASTNumber extends ASTValue {
     }
 
     public Number number() {
-		String value = content().toLowerCase();
-		int radix = 10;
-		if (value.startsWith("0x")) {
-			radix = 16;
-			value = value.substring(2);
-		}
-		if (value.endsWith("f")) {
-			return Float.parseFloat(value.substring(0, value.length() - 1));
-		} else if (value.endsWith("d")) {
-			return Double.parseDouble(value.substring(0, value.length() - 1));
-		} else if (value.contains(".")) {
-			return Double.parseDouble(value);
-		} else {
-			if (value.endsWith("l")) {
-				return Long.parseLong(value.substring(0, value.length() - 1), radix);
-			}
-			return Integer.parseInt(value, radix);
-		}
-	}
+        String value = content().toLowerCase();
+        int radix = 10;
+        if (value.startsWith("0x")) {
+            radix = 16;
+            value = value.substring(2);
+        }
+        if (value.endsWith("f")) {
+            return Float.parseFloat(value.substring(0, value.length() - 1));
+        } else if (value.endsWith("d")) {
+            return Double.parseDouble(value.substring(0, value.length() - 1));
+        } else if (value.contains(".")) {
+            return Double.parseDouble(value);
+        } else {
+            if (value.endsWith("l")) {
+                return Long.parseLong(value.substring(0, value.length() - 1), radix);
+            }
+            return Integer.parseInt(value, radix);
+        }
+    }
 
     public boolean isWide() {
         String value = content().toLowerCase();

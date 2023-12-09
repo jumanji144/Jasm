@@ -18,7 +18,7 @@ public enum DefaultOperands implements Operands {
     IDENTIFIER((context, element) -> context.isNotType(element, ElementType.IDENTIFIER, "identifier")),
     LITERAL((context, element) -> {
         // literals can be: number or identifier
-        if(element.type() != ElementType.NUMBER && element.type() != ElementType.IDENTIFIER)
+        if (element.type() != ElementType.NUMBER && element.type() != ElementType.IDENTIFIER)
             context.throwUnexpectedElementError("literal", element);
     }),
     LABEL((context, element) -> context.isNotType(element, ElementType.IDENTIFIER, "label"));

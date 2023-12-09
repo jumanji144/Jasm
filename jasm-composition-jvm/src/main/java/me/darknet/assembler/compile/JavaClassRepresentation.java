@@ -5,9 +5,11 @@ import me.darknet.assembler.compiler.ClassRepresentation;
 
 /**
  * @param classFile
- * 		Raw class file.
+ *                       Raw class file.
  * @param analysisLookup
- * 		Lookup to get method stack analysis information for declared methods.
+ *                       Lookup to get method stack analysis information for
+ *                       declared methods.
  */
-public record JavaClassRepresentation(byte[] classFile, MethodAnalysisLookup analysisLookup) implements ClassRepresentation {
+public record JavaClassRepresentation(byte[] classFile, MethodAnalysisLookup analysisLookup)
+        implements ClassRepresentation {
 }

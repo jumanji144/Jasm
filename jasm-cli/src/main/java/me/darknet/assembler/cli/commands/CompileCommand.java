@@ -5,7 +5,6 @@ import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.EmptyMethodAnalysisLookup;
-import me.darknet.assembler.compile.analysis.MethodAnalysisLookup;
 import me.darknet.assembler.compiler.Compiler;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.helper.Processor;
@@ -31,10 +30,15 @@ public class CompileCommand implements Runnable {
     @CommandLine.Option(names = { "-s", "--source" }, description = "Source code", paramLabel = "code")
     private Optional<String> sourceCode;
 
-    @CommandLine.Option(names = { "-ov", "--overlay" }, description = "Overlay class file\nRequired for non-class code", paramLabel = "file")
+    @CommandLine.Option(
+            names = { "-ov",
+                    "--overlay" }, description = "Overlay class file\nRequired for non-class code", paramLabel = "file"
+    )
     private Optional<File> overlay;
 
-    @CommandLine.Option(names = { "-at", "--annotation-target" }, description = "Annotation target", paramLabel = "target")
+    @CommandLine.Option(
+            names = { "-at", "--annotation-target" }, description = "Annotation target", paramLabel = "target"
+    )
     private Optional<String> annotationTarget;
 
     @CommandLine.Option(
@@ -56,17 +60,15 @@ public class CompileCommand implements Runnable {
             default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
         }
 
-        options.version(bytecodeVersion)
-                .overlay(new JavaClassRepresentation(overlay.map(file -> {
-                    try {
-                        return Files.readAllBytes(file.toPath());
-                    } catch (IOException e) {
-                        System.err.println("Failed to read overlay file: " + e.getMessage());
-                        System.exit(1);
-                        return null;
-                    }
-                }).orElse(null), EmptyMethodAnalysisLookup.instance()))
-                .annotationPath(annotationTarget.orElse(null));
+        options.version(bytecodeVersion).overlay(new JavaClassRepresentation(overlay.map(file -> {
+            try {
+                return Files.readAllBytes(file.toPath());
+            } catch (IOException e) {
+                System.err.println("Failed to read overlay file: " + e.getMessage());
+                System.exit(1);
+                return null;
+            }
+        }).orElse(null), EmptyMethodAnalysisLookup.instance())).annotationPath(annotationTarget.orElse(null));
     }
 
     private void validateAst(List<ASTElement> ast) {
@@ -76,15 +78,16 @@ public class CompileCommand implements Runnable {
         }
 
         switch (ast.get(0).type()) {
-            case CLASS -> {}
+            case CLASS -> {
+            }
             case METHOD, FIELD -> {
-                if(overlay.isEmpty()) {
+                if (overlay.isEmpty()) {
                     System.err.println("Overlay is required for non-class code");
                     System.exit(1);
                 }
             }
             case ANNOTATION -> {
-                if(overlay.isEmpty() || annotationTarget.isEmpty()) {
+                if (overlay.isEmpty() || annotationTarget.isEmpty()) {
                     System.err.println("Overlay and annotation target are required for annotation code");
                     System.exit(1);
                 }

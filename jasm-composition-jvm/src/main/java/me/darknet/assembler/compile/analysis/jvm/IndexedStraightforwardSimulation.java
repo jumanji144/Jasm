@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * A simulation which visits each {@link CodeElement} of a method in a linear fashion.
- * The simulation is not for proper stack/local analysis.
+ * A simulation which visits each {@link CodeElement} of a method in a linear
+ * fashion. The simulation is not for proper stack/local analysis.
  */
 public class IndexedStraightforwardSimulation implements Simulation<IndexedExecutionEngine, Method> {
     @Override
@@ -25,7 +25,7 @@ public class IndexedStraightforwardSimulation implements Simulation<IndexedExecu
             CodeElement element = elements.get(i);
             if (element instanceof Label label) {
                 engine.label(label);
-            } else if (element instanceof Instruction instruction){
+            } else if (element instanceof Instruction instruction) {
                 ExecutionEngines.execute(engine, instruction);
             }
         }

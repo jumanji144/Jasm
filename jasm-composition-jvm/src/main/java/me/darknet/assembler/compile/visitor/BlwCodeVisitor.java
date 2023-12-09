@@ -16,7 +16,6 @@ import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.frame.Frame;
-import me.darknet.assembler.compile.analysis.frame.TypedFrameOps;
 import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compiler.InheritanceChecker;
@@ -33,16 +32,22 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final InheritanceChecker checker;
     private final Map<String, GenericLabel> nameToLabel = new HashMap<>();
     private final List<Local> parameters;
-    /** We only track local names since the stack analysis will provide us more detail later. See {@link #visitEnd()} */
+    /**
+     * We only track local names since the stack analysis will provide us more
+     * detail later. See {@link #visitEnd()}
+     */
     private final List<String> localNames = new ArrayList<>();
     private final JvmAnalysisEngine<Frame> analysisEngine;
     private ASTInstruction last;
     private int opcode = 0;
 
     /**
-     * @param options Compiler option to pull values from.
-     * @param builder Builder to insert code into.
-     * @param parameters Parameter variables.
+     * @param options
+     *                   Compiler option to pull values from.
+     * @param builder
+     *                   Builder to insert code into.
+     * @param parameters
+     *                   Parameter variables.
      */
     @SuppressWarnings("unchecked")
     public BlwCodeVisitor(JvmCompilerOptions options, CodeBuilder<?> builder, List<Local> parameters) {
@@ -53,9 +58,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         this.parameters = parameters;
 
         // Populate variables from params.
-        parameters.stream()
-                .filter(Objects::nonNull)
-                .forEach(param -> getOrCreateLocal(param.name(), param.size() > 1));
+        parameters.stream().filter(Objects::nonNull).forEach(param -> getOrCreateLocal(param.name(), param.size() > 1));
     }
 
     /**
@@ -67,7 +70,9 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     /**
-     * @param index Index of variable.
+     * @param index
+     *              Index of variable.
+     *
      * @return Name of variable, or dummy value for unknown index.
      */
     @NotNull
@@ -78,12 +83,15 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     /**
-     * @param name Name of variable.
-     * @param wide {@code true} for {@code long}/{@code double} types.
+     * @param name
+     *             Name of variable.
+     * @param wide
+     *             {@code true} for {@code long}/{@code double} types.
+     *
      * @return Index of variable.
      */
     private int getOrCreateLocal(String name, boolean wide) {
-       int index = localNames.indexOf(name);
+        int index = localNames.indexOf(name);
         if (index > -1)
             return index;
         index = localNames.size();
@@ -94,8 +102,11 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     /**
-     * @param name Name of variable.
-     * @param opcode Instruction responsible for accessing the variable.
+     * @param name
+     *               Name of variable.
+     * @param opcode
+     *               Instruction responsible for accessing the variable.
+     *
      * @return Index of variable.
      */
     private int getOrCreateLocalVar(String name, int opcode) {
@@ -106,7 +117,9 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     /**
-     * @param name Name of label.
+     * @param name
+     *             Name of label.
+     *
      * @return Label reference.
      */
     private Label getOrCreateLabel(String name) {
@@ -137,8 +150,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         String content = last.identifier().content();
         Instruction instruction = switch (content) {
             case "iconst_m1" -> new ConstantInstruction.Int(new OfInt(-1));
-            case "iconst_0", "iconst_1", "iconst_2", "iconst_3", "iconst_4", "iconst_5", "lconst_0", "lconst_1",
-                    "fconst_0", "fconst_1", "fconst_2", "dconst_0", "dconst_1" -> {
+            case "iconst_0", "iconst_1", "iconst_2", "iconst_3", "iconst_4", "iconst_5", "lconst_0", "lconst_1", "fconst_0", "fconst_1", "fconst_2", "dconst_0", "dconst_1" -> {
                 int value = content.charAt(content.length() - 1) - '0';
                 yield switch (content.charAt(0)) {
                     case 'i' -> new ConstantInstruction.Int(new OfInt(value));
@@ -155,7 +167,9 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
                     case 'l' -> Types.LONG;
                     case 'f' -> Types.FLOAT;
                     case 'd' -> Types.DOUBLE;
-                    default -> throw new IllegalStateException("Unknown from type for primitive conversion: " + fromChar);
+                    default -> throw new IllegalStateException(
+                            "Unknown from type for primitive conversion: " + fromChar
+                    );
                 };
                 char toChar = content.charAt(2);
                 PrimitiveType to = switch (toChar) {
@@ -254,10 +268,12 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             keys.add(Integer.parseInt(pair.first().content()));
             labels.add(getOrCreateLabel(pair.second().content()));
         }
-        add(new LookupSwitchInstruction(
-                keys.stream().mapToInt(Integer::intValue).toArray(), getOrCreateLabel(defaultLabel.content()),
-                labels
-        ));
+        add(
+                new LookupSwitchInstruction(
+                        keys.stream().mapToInt(Integer::intValue).toArray(), getOrCreateLabel(defaultLabel.content()),
+                        labels
+                )
+        );
     }
 
     @Override
@@ -302,11 +318,14 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTArray bsm, ASTArray bsmArgs) {
-        add(new InvokeDynamicInstruction(
-                name.literal(), Objects.requireNonNullElse(new TypeReader(descriptor.literal()).read(), Types.OBJECT),
-                ConstantMapper.methodHandleFromArray(bsm),
-                bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
-        ));
+        add(
+                new InvokeDynamicInstruction(
+                        name.literal(),
+                        Objects.requireNonNullElse(new TypeReader(descriptor.literal()).read(), Types.OBJECT),
+                        ConstantMapper.methodHandleFromArray(bsm),
+                        bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
+                )
+        );
     }
 
     @Override
@@ -327,7 +346,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitEnd() {
         Label begin, end;
-        if (codeBuilderList.getFirstElement() instanceof Label startLabel) {
+        if (codeBuilderList.getFirstElement()instanceof Label startLabel) {
             begin = startLabel;
         } else {
             // TODO: Warn user that they're missing a start label and this will fuck analysis up
@@ -337,14 +356,14 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             codeBuilderList.addLabel(0, begin = new GenericLabel());
         }
 
-        if (codeBuilderList.getLastElement() instanceof Label lastLabel) {
+        if (codeBuilderList.getLastElement()instanceof Label lastLabel) {
             end = lastLabel;
         } else {
             codeBuilderList.addLabel(end = new GenericLabel());
         }
 
         for (Local parameter : parameters) {
-            if(parameter == null)
+            if (parameter == null)
                 continue; // wide parameter
             codeBuilder.localVariable(
                     new GenericLocal(begin, end, parameter.index(), parameter.name(), parameter.type(), null)
@@ -355,18 +374,18 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         AnalysisSimulation simulation = new AnalysisSimulation(analysisEngine.newFrameOps());
         Code code = codeBuilder.build();
         try {
-            simulation.execute(analysisEngine, new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks()));
+            simulation.execute(
+                    analysisEngine,
+                    new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks())
+            );
         } catch (AnalysisException ex) {
             analysisEngine.setAnalysisFailure(ex);
         }
 
         // Populate variables
         int paramOffset = parameters.size();
-        analysisEngine.frames().values().stream()
-                .flatMap(Frame::locals)
-                .filter(local -> local.index() >= paramOffset)
-                .distinct()
-                .forEach(local -> {
+        analysisEngine.frames().values().stream().flatMap(Frame::locals).filter(local -> local.index() >= paramOffset)
+                .distinct().forEach(local -> {
                     int index = local.index();
                     ClassType type = local.type();
                     String name = getLocalName(index);

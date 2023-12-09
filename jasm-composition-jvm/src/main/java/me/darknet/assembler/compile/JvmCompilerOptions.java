@@ -1,9 +1,9 @@
 package me.darknet.assembler.compile;
 
 import dev.xdark.blw.version.JavaVersion;
-import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngineFactory;
 import me.darknet.assembler.compile.analysis.VariableNameLookup;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
+import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngineFactory;
 import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.ClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
@@ -76,7 +76,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
 
     @Override
     public JvmCompilerOptions overlay(ClassRepresentation representation) {
-        if(!(representation instanceof JavaClassRepresentation))
+        if (!(representation instanceof JavaClassRepresentation))
             throw new IllegalArgumentException("ClassRepresentation must be a JavaClassRepresentation");
         this.overlay = (JavaClassRepresentation) representation;
         return this;

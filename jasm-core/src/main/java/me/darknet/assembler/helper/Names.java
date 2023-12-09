@@ -106,6 +106,7 @@ public record Names(@NotNull Map<Integer, String> parameters, @NotNull List<Loca
         return -1;
     }
 
-    public record Local(int index, int start, int end, String name, String descriptor) {}
+    public record Local(int index, int start, int end, String name, String descriptor) {
+    }
 
 }

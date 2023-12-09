@@ -38,14 +38,12 @@ public class ASTProcessor {
             return new ASTEnum(type, name);
         });
         ParserRegistry.register("signature", (ctx, decl) -> {
-            ASTString signature = ctx
-                    .validateElement(decl.elements().get(0), ElementType.STRING, "signature", decl);
+            ASTString signature = ctx.validateElement(decl.elements().get(0), ElementType.STRING, "signature", decl);
             ctx.result.setSignature(signature);
             return signature;
         });
         ParserRegistry.register("sourcefile", (ctx, decl) -> {
-            ASTString sourceFile = ctx
-                    .validateElement(decl.elements().get(0), ElementType.STRING, "source file", decl);
+            ASTString sourceFile = ctx.validateElement(decl.elements().get(0), ElementType.STRING, "source file", decl);
             ctx.result.setSourceFile(sourceFile);
             return sourceFile;
         });
@@ -118,7 +116,7 @@ public class ASTProcessor {
 
         // take the 'pending' attributes like signatures, annotations, inner classes, etc and pass them along to the class.
         ProcessorAttributes attributes = ctx.result.collectAttributes();
-        return new ASTClass(modifiers, name,   classBody).accept(attributes);
+        return new ASTClass(modifiers, name, classBody).accept(attributes);
     }
 
     private static ASTField parseField(ParserContext ctx, ASTDeclaration declaration) {
@@ -180,15 +178,15 @@ public class ASTProcessor {
                 parameters = ctx.validateArray(array, ElementType.IDENTIFIER, "method parameter", declaration);
         }
         List<ASTException> exceptions = new ArrayList<>();
-        if(body.values().containsKey("exceptions")) {
+        if (body.values().containsKey("exceptions")) {
             ASTArray array = ctx.validateEmptyableElement(
                     body.values().get("exceptions"), ElementType.ARRAY, "method exceptions", declaration
             );
-            if(array != null) {
+            if (array != null) {
                 for (ASTElement element : array.values()) {
-                    ASTArray arr = ctx.validateEmptyableElement(element, ElementType.ARRAY,
-                            "method exception", declaration);
-                    if(arr == null)
+                    ASTArray arr = ctx
+                            .validateEmptyableElement(element, ElementType.ARRAY, "method exception", declaration);
+                    if (arr == null)
                         continue;
                     exceptions.add(parseException(ctx, arr));
                 }
@@ -224,10 +222,8 @@ public class ASTProcessor {
         ASTIdentifier desc = ctx.validateIdentifier(elements.get(descIndex), "method descriptor", declaration);
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
         ProcessorAttributes attributes = ctx.result.collectAttributes();
-        return new ASTMethod(
-                modifiers, name, desc, parameters, exceptions, code,
-                instructions, ctx.format
-        ).accept(attributes);
+        return new ASTMethod(modifiers, name, desc, parameters, exceptions, code, instructions, ctx.format)
+                .accept(attributes);
     }
 
     static ASTElement validateElementValue(ParserContext ctx, ASTElement value) {
@@ -397,7 +393,7 @@ public class ASTProcessor {
         }
 
         public boolean validateCorrect(ASTElement e, ElementType expectedElementType, String description,
-                                       ASTElement parent) {
+                ASTElement parent) {
             if (isNull(e, description, parent.location()))
                 return true;
             return isNotType(e, expectedElementType, description);
@@ -594,8 +590,11 @@ public class ASTProcessor {
         }
 
         public void throwUnexpectedElementError(String expected, ASTElement actual) {
-            throwError("Expected " + expected + " but got "
-                    + actual.type().name().toLowerCase() + " '" + actual.content() + "'", actual.location());
+            throwError(
+                    "Expected " + expected + " but got " + actual.type().name().toLowerCase() + " '" + actual.content()
+                            + "'",
+                    actual.location()
+            );
         }
 
         public Instructions<?> getInstructions() {
@@ -611,8 +610,7 @@ public class ASTProcessor {
 
         private static final DeclarationParser<? extends ASTElement> DEFAULT_PARSER = (ctx, declaration) -> {
             ctx.throwError(
-                    "Unknown declaration: " + declaration.keyword().content(),
-                    declaration.keyword().value().location()
+                    "Unknown declaration: " + declaration.keyword().content(), declaration.keyword().value().location()
             );
             return null;
         };

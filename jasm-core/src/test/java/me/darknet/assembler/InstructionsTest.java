@@ -41,8 +41,7 @@ public class InstructionsTest {
                 for (Error error : result.errors()) {
                     Location location = error.getLocation();
                     System.err.printf(
-                            "%s:%d:%d: %s%n", location.source(), location.line(), location.column(),
-                            error.getMessage()
+                            "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
                     );
                 }
                 Assertions.fail();
@@ -67,8 +66,7 @@ public class InstructionsTest {
             for (Error error : result.errors()) {
                 Location location = error.getLocation();
                 System.err.printf(
-                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(),
-                        error.getMessage()
+                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
                 );
                 Throwable trace = new Throwable();
                 trace.setStackTrace(error.getInCodeSource());

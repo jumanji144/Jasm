@@ -4,11 +4,11 @@ public interface CompilerOptions<B extends CompilerOptions<?>> {
 
     /**
      * Set to overlay a class representation as a sort of "template" for the class,
-     * If you just have a method/field/annotation in the ast, it will insert
-     * it into the overlayed class.
+     * If you just have a method/field/annotation in the ast, it will insert it into
+     * the overlayed class.
      *
      * @param representation
-     *              The representation to overlay
+     *                       The representation to overlay
      */
     B overlay(ClassRepresentation representation);
 
@@ -19,7 +19,10 @@ public interface CompilerOptions<B extends CompilerOptions<?>> {
 
     /**
      * Set the version of the class to compile
-     * @param version The version to compile to
+     *
+     * @param version
+     *                The version to compile to
+     *
      * @return The options
      */
     B version(int version);
@@ -30,15 +33,18 @@ public interface CompilerOptions<B extends CompilerOptions<?>> {
     int version();
 
     /**
-     * Set the annotation path determines where to place annotations when edited alone,
-     * The path format is as follows:
+     * Set the annotation path determines where to place annotations when edited
+     * alone, The path format is as follows:
      *
      * <pre>
      *     Class target: this.[index]
      *     Method target: this.method.[method name].[method descriptor].[index]
      *     Field target: this.field.[field name].[field descriptor].[index]
      * </pre>
-     * @param path The path to set
+     *
+     * @param path
+     *             The path to set
+     *
      * @return The options
      */
     B annotationPath(String path);
@@ -49,8 +55,12 @@ public interface CompilerOptions<B extends CompilerOptions<?>> {
     String annotationPath();
 
     /**
-     * Inheritance checker used when analyzing the compiled result to fill in the local type information
-     * @param checker The checker to use
+     * Inheritance checker used when analyzing the compiled result to fill in the
+     * local type information
+     *
+     * @param checker
+     *                The checker to use
+     *
      * @return The options
      */
     B inheritanceChecker(InheritanceChecker checker);

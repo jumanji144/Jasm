@@ -6,24 +6,17 @@ import java.util.Map;
 
 public class EscapeUtil {
 
-    private static final Map<Character, String> BASE_ESCAPE_MAP = new HashMap<>(Map.ofEntries(
-            Map.entry('\b', "\\b"), Map.entry('\t', "\\t"), Map.entry('\n', "\\n"), Map.entry('\f', "\\f"),
-            Map.entry('\r', "\\r"), Map.entry('\"', "\\\""), Map.entry('\\', "\\\\"), Map.entry('\'', "\\'")
-    ));
+    private static final Map<Character, String> BASE_ESCAPE_MAP = new HashMap<>(
+            Map.ofEntries(
+                    Map.entry('\b', "\\b"), Map.entry('\t', "\\t"), Map.entry('\n', "\\n"), Map.entry('\f', "\\f"),
+                    Map.entry('\r', "\\r"), Map.entry('\"', "\\\""), Map.entry('\\', "\\\\"), Map.entry('\'', "\\'")
+            )
+    );
     private static final Map<Character, String> LITERAL_ESCAPE_MAP = new HashMap<>();
     private static final List<Range> LITERAL_UNICODE_ESCAPE_RANGES = List.of(
-            new Range(0x0000, 0x001F),
-            new Range(0x007F, 0x009F),
-            new Range(0x06E5, 0x06E5),
-            new Range(0x17B4, 0x17B4),
-            new Range(0x180B, 0x180E),
-            new Range(0x200C, 0x200E),
-            new Range(0x2028, 0x202E),
-            new Range(0x205F, 0x206E),
-            new Range(0x2400, 0x243E),
-            new Range(0xE000, 0xF8FF),
-            new Range(0xFE00, 0xFE0F),
-            new Range(0xFE1A, 0xFE20),
+            new Range(0x0000, 0x001F), new Range(0x007F, 0x009F), new Range(0x06E5, 0x06E5), new Range(0x17B4, 0x17B4),
+            new Range(0x180B, 0x180E), new Range(0x200C, 0x200E), new Range(0x2028, 0x202E), new Range(0x205F, 0x206E),
+            new Range(0x2400, 0x243E), new Range(0xE000, 0xF8FF), new Range(0xFE00, 0xFE0F), new Range(0xFE1A, 0xFE20),
             new Range(0xFFF0, 0xFFFF)
     );
 

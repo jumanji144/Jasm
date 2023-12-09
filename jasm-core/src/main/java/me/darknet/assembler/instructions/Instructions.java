@@ -39,7 +39,8 @@ public abstract class Instructions<V extends ASTInstructionVisitor> {
     }
 
     public void register(String name) {
-        register(name, new Operand[0], (instruction, visitor) -> {});
+        register(name, new Operand[0], (instruction, visitor) -> {
+        });
     }
 
     public void register(String... names) {

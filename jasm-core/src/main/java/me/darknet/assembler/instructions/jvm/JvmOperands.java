@@ -32,14 +32,13 @@ public enum JvmOperands implements Operands {
         ASTNumber min = object.value("min");
         ASTNumber max = object.value("max");
 
-        if(min.isFloatingPoint())
+        if (min.isFloatingPoint())
             context.throwUnexpectedElementError("integer literal", min);
-        if(max.isFloatingPoint())
+        if (max.isFloatingPoint())
             context.throwUnexpectedElementError("integer literal", max);
 
         // default should be identifier
-        if (context.validateCorrect(object.value("default"), ElementType.IDENTIFIER, "identifier",
-                object))
+        if (context.validateCorrect(object.value("default"), ElementType.IDENTIFIER, "identifier", object))
             return;
 
         // cases should be array
@@ -61,8 +60,7 @@ public enum JvmOperands implements Operands {
         }
 
         // default should be identifier
-        if (context.validateCorrect(object.value("default"), ElementType.IDENTIFIER, "identifier",
-                object))
+        if (context.validateCorrect(object.value("default"), ElementType.IDENTIFIER, "identifier", object))
             return;
         for (ASTElement elem : object.values().elements()) {
             if (context.isNotType(elem, ElementType.IDENTIFIER, "identifier"))
@@ -105,14 +103,15 @@ public enum JvmOperands implements Operands {
             case IDENTIFIER -> {
                 char first = element.content().charAt(0);
                 switch (first) {
-                    case 'L', '(', '[' -> {}
+                    case 'L', '(', '[' -> {
+                    }
                     default -> context.throwUnexpectedElementError("class, method or array descriptor", element);
                 }
             }
             case ARRAY -> {
                 ASTArray array = (ASTArray) element;
                 ASTElement last = array.values().get(array.values().size() - 1);
-                if(last == null) {
+                if (last == null) {
                     context.throwUnexpectedElementError("constant", element);
                     return;
                 }
@@ -127,7 +126,7 @@ public enum JvmOperands implements Operands {
 
     public static void verifyConstantDynamic(ASTProcessor.ParserContext context, ASTArray array) {
         // constant dynamic structure: { name, type, { <handle > }, { <args> } }
-        if(array.values().size() != 4) {
+        if (array.values().size() != 4) {
             context.throwUnexpectedElementError("name, type, handle and args", array);
             return;
         }
@@ -138,7 +137,7 @@ public enum JvmOperands implements Operands {
         if (context.validateCorrect(array.value(1), ElementType.IDENTIFIER, "type", array))
             return;
 
-        if(verifyHandle(context, array.value(2)))
+        if (verifyHandle(context, array.value(2)))
             return;
 
         ASTElement argsElement = array.value(3);

@@ -4,8 +4,8 @@ import me.darknet.assembler.ast.primitive.ASTString;
 import org.jetbrains.annotations.Nullable;
 
 public interface ASTSigned {
-	@Nullable
-	ASTString getSignature();
+    @Nullable
+    ASTString getSignature();
 
-	void setSignature(@Nullable ASTString signature);
+    void setSignature(@Nullable ASTString signature);
 }

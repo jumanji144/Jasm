@@ -16,10 +16,7 @@ public class Processor {
     public static void processSource(String code, String source, Consumer<List<ASTElement>> consumer,
             BiConsumer<List<ASTElement>, List<Error>> error, BytecodeFormat format) {
         new DeclarationParser().parseDeclarations(new Tokenizer().tokenize(source, code).get())
-                .ifOk(lAst -> new ASTProcessor(format).processAST(lAst)
-                    .ifOk(consumer)
-                    .ifErr(error))
-                .ifErr(error);
+                .ifOk(lAst -> new ASTProcessor(format).processAST(lAst).ifOk(consumer).ifErr(error)).ifErr(error);
     }
 
     public static void processSource(String code, String source, Consumer<List<ASTElement>> consumer,

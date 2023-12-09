@@ -46,7 +46,8 @@ public record MemberPrinter(
                 case FIELD -> BlwModifiers.FIELD;
                 case METHOD -> BlwModifiers.METHOD;
             };
-            return ctx.begin().element(elementName).print(BlwModifiers.modifiers(accessible.accessFlags(), modifierType));
+            return ctx.begin().element(elementName)
+                    .print(BlwModifiers.modifiers(accessible.accessFlags(), modifierType));
         }
         return ctx;
     }

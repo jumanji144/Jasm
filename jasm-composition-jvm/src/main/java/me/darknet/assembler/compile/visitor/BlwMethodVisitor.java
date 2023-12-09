@@ -31,7 +31,7 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
     private final boolean isStatic;
 
     public BlwMethodVisitor(JvmCompilerOptions options, ObjectType owner, MethodType type, boolean isStatic,
-                            BlwReplaceMethodBuilder builder, Consumer<AnalysisResults> analysisResultsConsumer) {
+            BlwReplaceMethodBuilder builder, Consumer<AnalysisResults> analysisResultsConsumer) {
         super(CastUtil.cast(builder));
         this.options = options;
         this.type = type;

@@ -28,9 +28,7 @@ public class ConstantMapper {
         // Field types can be arrays, classes, or primitives.
         // To keep things simple in this case we'll use type-reader directly rather than chaining
         //  conditional type util calls.
-        Type methodType = kind.isField() ?
-                new TypeReader(descriptor).read() :
-                Types.methodType(descriptor);
+        Type methodType = kind.isField() ? new TypeReader(descriptor).read() : Types.methodType(descriptor);
 
         // TODO: ITF
         return new MethodHandle(kind.ordinal() + 1, owner, methodName, methodType, false);
@@ -44,9 +42,7 @@ public class ConstantMapper {
 
         ASTArray args = array.value(3);
 
-        List<Constant> constantArgs = args.values().stream()
-                .map(ConstantMapper::fromConstant)
-                .toList();
+        List<Constant> constantArgs = args.values().stream().map(ConstantMapper::fromConstant).toList();
 
         ClassType type = new TypeReader(descriptor).requireClassType();
 

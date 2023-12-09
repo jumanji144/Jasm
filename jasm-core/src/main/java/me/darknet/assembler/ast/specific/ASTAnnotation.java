@@ -39,7 +39,8 @@ public class ASTAnnotation extends ASTElement {
     void accept(ErrorCollector collector, @Nullable ASTAnnotationArrayVisitor visitor, ASTArray array) {
         // TODO: Do we want to keep visiting, but just not call the visitor?
         //  - This does not feed into the collector
-        if (visitor == null) return;
+        if (visitor == null)
+            return;
 
         // TODO: due to huge annotations, i would advice for a process queue.
         // But this is not a problem for now until xxDark notices this code, which i hope
@@ -47,7 +48,7 @@ public class ASTAnnotation extends ASTElement {
         for (ASTElement arrayValue : array.values()) {
             if (arrayValue instanceof ASTValue val) {
                 visitor.visitValue(val);
-            } else if(arrayValue instanceof ASTIdentifier identifier) {
+            } else if (arrayValue instanceof ASTIdentifier identifier) {
                 visitor.visitTypeValue(identifier);
             } else if (arrayValue instanceof ASTEnum astEnum) {
                 visitor.visitEnumValue(astEnum.enumType(), astEnum.enumValue());
@@ -75,13 +76,14 @@ public class ASTAnnotation extends ASTElement {
     public void accept(ErrorCollector collector, @Nullable ASTAnnotationVisitor visitor) {
         // TODO: Do we want to keep visiting, but just not call the visitor?
         //  - This does not feed into the collector
-        if (visitor == null) return;
+        if (visitor == null)
+            return;
 
         for (Pair<ASTIdentifier, ASTElement> pair : values.pairs()) {
             ASTElement value = pair.second();
             if (value instanceof ASTValue val) {
                 visitor.visitValue(pair.first(), val);
-            } else if(value instanceof ASTIdentifier identifier) {
+            } else if (value instanceof ASTIdentifier identifier) {
                 visitor.visitTypeValue(pair.first(), identifier);
             } else if (value instanceof ASTEnum astEnum) {
                 visitor.visitEnumValue(pair.first(), astEnum.enumType(), astEnum.enumValue());

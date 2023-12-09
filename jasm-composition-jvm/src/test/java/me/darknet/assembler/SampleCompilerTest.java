@@ -32,170 +32,165 @@ import static me.darknet.assembler.TestUtils.processJvm;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SampleCompilerTest {
-	private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";
+    private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";
 
-	@Nested
-	class Variables {
-		@Test
-		void basic() throws Throwable {
-			TestArgument arg = TestArgument.fromName("Example-variables.jasm");
-			String source = arg.source.get();
-			processJvm(source, new TestJvmCompilerOptions(), classRepresentation -> {
-				AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
-				assertNull(results.getAnalysisFailure());
-				Set<String> varNames = results.frames().values().stream()
-						.flatMap(Frame::locals)
-						.map(Local::name)
-						.collect(Collectors.toSet());
-				assertTrue(varNames.contains("this"));
-				assertTrue(varNames.contains("other"));
-				assertTrue(varNames.contains("hundred"));
-				assertTrue(varNames.contains("fifty"));
-				assertTrue(varNames.contains("result"));
-				assertTrue(varNames.contains("msPerTick"));
-				assertTrue(varNames.contains("ex"));
-			});
-		}
-	}
+    @Nested
+    class Variables {
+        @Test
+        void basic() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-variables.jasm");
+            String source = arg.source.get();
+            processJvm(source, new TestJvmCompilerOptions(), classRepresentation -> {
+                AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                Set<String> varNames = results.frames().values().stream().flatMap(Frame::locals).map(Local::name)
+                        .collect(Collectors.toSet());
+                assertTrue(varNames.contains("this"));
+                assertTrue(varNames.contains("other"));
+                assertTrue(varNames.contains("hundred"));
+                assertTrue(varNames.contains("fifty"));
+                assertTrue(varNames.contains("result"));
+                assertTrue(varNames.contains("msPerTick"));
+                assertTrue(varNames.contains("ex"));
+            });
+        }
+    }
 
-	@Nested
-	class Analysis {
-		@ParameterizedTest
-		@ValueSource(strings = {
-				"Example-int-multi.jasm",
-				"Example-int-addition.jasm",
-				"Example-int-division.jasm",
-				"Example-int-iinc.jasm",
-				"Example-int-multiplication.jasm",
-				"Example-int-remainder.jasm",
-				"Example-int-subtraction.jasm",
-		})
-		void intMath(String name) throws Throwable {
-			TestArgument arg = TestArgument.fromName(name);
-			String source = arg.source.get();
-			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-			options.engineProvider(ValuedJvmAnalysisEngine::new);
-			processJvm(source, options, classRepresentation -> {
-				AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
-				assertNull(results.getAnalysisFailure());
-				assertFalse(results.terminalFrames().isEmpty());
-				results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
-					Value returnValue = frame.peek();
-					if (returnValue instanceof Value.KnownIntValue known)
-						assertEquals(100, known.value());
-					else
-						fail("Unexpected ret-val: " + returnValue);
-				});
-			});
-		}
+    @Nested
+    class Analysis {
+        @ParameterizedTest
+        @ValueSource(
+                strings = { "Example-int-multi.jasm", "Example-int-addition.jasm", "Example-int-division.jasm",
+                        "Example-int-iinc.jasm", "Example-int-multiplication.jasm", "Example-int-remainder.jasm",
+                        "Example-int-subtraction.jasm", }
+        )
+        void intMath(String name) throws Throwable {
+            TestArgument arg = TestArgument.fromName(name);
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, classRepresentation -> {
+                AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+                results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
+                    Value returnValue = frame.peek();
+                    if (returnValue instanceof Value.KnownIntValue known)
+                        assertEquals(100, known.value());
+                    else
+                        fail("Unexpected ret-val: " + returnValue);
+                });
+            });
+        }
 
-		@Test
-		void methodLookup() throws Throwable {
-			TestArgument arg = TestArgument.fromName("Example-string-ops.jasm");
-			String source = arg.source.get();
-			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-			options.engineProvider(lookup -> {
-				ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
-				engine.setMethodValueLookup(new BasicMethodValueLookup());
-				return engine;
-			});
-			processJvm(source, options, classRepresentation -> {
-				AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
-				assertNull(results.getAnalysisFailure());
-				assertFalse(results.terminalFrames().isEmpty());
-				results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
-					Value returnValue = frame.peek();
-					if (returnValue instanceof Value.KnownIntValue known)
-						assertEquals(100, known.value());
-					else
-						fail("Unexpected ret-val: " + returnValue);
-				});
-			});
-		}
+        @Test
+        void methodLookup() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-string-ops.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(lookup -> {
+                ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
+                engine.setMethodValueLookup(new BasicMethodValueLookup());
+                return engine;
+            });
+            processJvm(source, options, classRepresentation -> {
+                AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+                results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
+                    Value returnValue = frame.peek();
+                    if (returnValue instanceof Value.KnownIntValue known)
+                        assertEquals(100, known.value());
+                    else
+                        fail("Unexpected ret-val: " + returnValue);
+                });
+            });
+        }
 
-		@Test
-		void fieldLookup() throws Throwable {
-			TestArgument arg = TestArgument.fromName("Example-getstatic.jasm");
-			String source = arg.source.get();
-			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-			options.engineProvider(lookup -> {
-				ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
-				engine.setFieldValueLookup((instruction, context) -> Values.valueOf(100));
-				return engine;
-			});
-			processJvm(source, options, classRepresentation -> {
-				AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
-				assertNull(results.getAnalysisFailure());
-				assertFalse(results.terminalFrames().isEmpty());
-				results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
-					Value returnValue = frame.peek();
-					if (returnValue instanceof Value.KnownIntValue known)
-						assertEquals(100, known.value());
-					else
-						fail("Unexpected ret-val: " + returnValue);
-				});
-			});
-		}
-	}
+        @Test
+        void fieldLookup() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-getstatic.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(lookup -> {
+                ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
+                engine.setFieldValueLookup((instruction, context) -> Values.valueOf(100));
+                return engine;
+            });
+            processJvm(source, options, classRepresentation -> {
+                AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+                results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
+                    Value returnValue = frame.peek();
+                    if (returnValue instanceof Value.KnownIntValue known)
+                        assertEquals(100, known.value());
+                    else
+                        fail("Unexpected ret-val: " + returnValue);
+                });
+            });
+        }
+    }
 
-	@Nested
-	class Regresssion {
-		@Test
-		void athrowDoesNotAllowFlowThroughToNextFrameAndClearsStack() throws Throwable {
-			TestArgument arg = TestArgument.fromName("Example-exit-exception.jasm");
-			String source = arg.source.get();
-			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-			options.engineProvider(ValuedJvmAnalysisEngine::new);
-			processJvm(source, options, classRepresentation -> {
-				AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
-				assertNull(results.getAnalysisFailure());
-				assertFalse(results.terminalFrames().isEmpty());
-			});
-		}
-	}
+    @Nested
+    class Regresssion {
+        @Test
+        void athrowDoesNotAllowFlowThroughToNextFrameAndClearsStack() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-exit-exception.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, classRepresentation -> {
+                AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            });
+        }
+    }
 
-	@ParameterizedTest
-	@MethodSource("getSources")
-	void roundTrip(TestArgument arg) throws Throwable {
-		String source = arg.source.get();
-		processJvm(source, new TestJvmCompilerOptions(), classRepresentation -> {
-			if (source.contains("SKIP-ROUND-TRIP-EQUALITY")) return;
+    @ParameterizedTest
+    @MethodSource("getSources")
+    void roundTrip(TestArgument arg) throws Throwable {
+        String source = arg.source.get();
+        processJvm(source, new TestJvmCompilerOptions(), classRepresentation -> {
+            if (source.contains("SKIP-ROUND-TRIP-EQUALITY"))
+                return;
 
-			JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
-			PrintContext<?> newCtx = new PrintContext<>("    ");
-			newPrinter.print(newCtx);
-			String newPrinted = newCtx.toString();
+            JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
+            PrintContext<?> newCtx = new PrintContext<>("    ");
+            newPrinter.print(newCtx);
+            String newPrinted = newCtx.toString();
 
-			assertEquals(normalize(source), normalize(newPrinted), "There was an unexpected difference in unmodified class: " + arg.name);
-		});
-	}
+            assertEquals(
+                    normalize(source), normalize(newPrinted),
+                    "There was an unexpected difference in unmodified class: " + arg.name
+            );
+        });
+    }
 
-	public static List<TestArgument> getSources() {
-		try {
-			BiPredicate<Path, BasicFileAttributes> filter =
-					(path, attrib) -> attrib.isRegularFile() && path.toString().endsWith(".jasm");
-			return Files.find(Paths.get(System.getProperty("user.dir")).resolve("src"), 25, filter)
-					.map(TestArgument::from)
-					.collect(Collectors.toList());
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    public static List<TestArgument> getSources() {
+        try {
+            BiPredicate<Path, BasicFileAttributes> filter = (path, attrib) -> attrib.isRegularFile()
+                    && path.toString().endsWith(".jasm");
+            return Files.find(Paths.get(System.getProperty("user.dir")).resolve("src"), 25, filter)
+                    .map(TestArgument::from).collect(Collectors.toList());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	private record TestArgument(String name, ThrowingSupplier<String> source) {
-		public static TestArgument fromName(String name) {
-			return from(Paths.get(System.getProperty("user.dir"))
-					.resolve(PATH_PREFIX)
-					.resolve(name));
-		}
+    private record TestArgument(String name, ThrowingSupplier<String> source) {
+        public static TestArgument fromName(String name) {
+            return from(Paths.get(System.getProperty("user.dir")).resolve(PATH_PREFIX).resolve(name));
+        }
 
-		public static TestArgument from(Path path) {
-			return new TestArgument(path.getFileName().toString(), () -> Files.readString(path));
-		}
+        public static TestArgument from(Path path) {
+            return new TestArgument(path.getFileName().toString(), () -> Files.readString(path));
+        }
 
-		@Override
-		public String toString() {
-			return name;
-		}
-	}
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
 }

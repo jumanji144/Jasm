@@ -150,9 +150,7 @@ public class DeclarationParser {
             case OPERATOR -> {
                 return parseOperator(token);
             }
-            default -> ctx.errorCollector.addError(
-                    new Error("Unexpected token " + token.content(), token.location())
-            );
+            default -> ctx.errorCollector.addError(new Error("Unexpected token " + token.content(), token.location()));
         }
         return null;
     }

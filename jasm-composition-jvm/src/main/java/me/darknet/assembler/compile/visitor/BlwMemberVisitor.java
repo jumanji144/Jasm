@@ -11,25 +11,25 @@ import me.darknet.assembler.visitor.ASTDeclarationVisitor;
 import org.jetbrains.annotations.Nullable;
 
 public class BlwMemberVisitor<T extends Type, M extends Member<T>> implements ASTDeclarationVisitor {
-	private final MemberBuilder<T, M, ?> builder;
+    private final MemberBuilder<T, M, ?> builder;
 
-	public BlwMemberVisitor(MemberBuilder<T, M, ?> builder) {
-		this.builder = builder;
-	}
+    public BlwMemberVisitor(MemberBuilder<T, M, ?> builder) {
+        this.builder = builder;
+    }
 
-	@Override
-	public ASTAnnotationVisitor visitAnnotation(ASTIdentifier classType) {
-		return new BlwAnnotationVisitor(
-				builder.putVisibleRuntimeAnnotation(Types.instanceTypeFromInternalName(classType.literal())).child()
-		);
-	}
+    @Override
+    public ASTAnnotationVisitor visitAnnotation(ASTIdentifier classType) {
+        return new BlwAnnotationVisitor(
+                builder.putVisibleRuntimeAnnotation(Types.instanceTypeFromInternalName(classType.literal())).child()
+        );
+    }
 
-	@Override
-	public void visitSignature(@Nullable ASTString signature) {
-		builder.signature(signature.content());
-	}
+    @Override
+    public void visitSignature(@Nullable ASTString signature) {
+        builder.signature(signature.content());
+    }
 
-	@Override
-	public void visitEnd() {
-	}
+    @Override
+    public void visitEnd() {
+    }
 }

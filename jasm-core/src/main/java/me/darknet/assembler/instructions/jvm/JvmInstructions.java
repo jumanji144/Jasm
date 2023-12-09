@@ -36,30 +36,43 @@ public class JvmInstructions extends Instructions<ASTJvmInstructionVisitor> {
 
         registerTypeProcessors("anewarray", "checkcast", "instanceof");
 
-        register("new", ops(DefaultOperands.LITERAL), (inst, visitor) ->
-                visitor.visitTypeInsn(inst.argument(0, ASTIdentifier.class)));
+        register(
+                "new", ops(DefaultOperands.LITERAL),
+                (inst, visitor) -> visitor.visitTypeInsn(inst.argument(0, ASTIdentifier.class))
+        );
 
-        register("newarray", ops(JvmOperands.NEW_ARRAY_TYPE), (inst, visitor) ->
-                visitor.visitNewArrayInsn(inst.argument(0, ASTIdentifier.class)));
+        register(
+                "newarray", ops(JvmOperands.NEW_ARRAY_TYPE),
+                (inst, visitor) -> visitor.visitNewArrayInsn(inst.argument(0, ASTIdentifier.class))
+        );
 
-        register("ldc", ops(JvmOperands.CONSTANT), (inst, visitor) ->
-                visitor.visitLdcInsn(inst.argument(0, ASTElement.class)));
+        register(
+                "ldc", ops(JvmOperands.CONSTANT),
+                (inst, visitor) -> visitor.visitLdcInsn(inst.argument(0, ASTElement.class))
+        );
 
         registerVarProcessors(
                 "iload", "lload", "fload", "dload", "aload", "istore", "lstore", "fstore", "dstore", "astore", "ret"
         );
 
-        register("iinc", ops(DefaultOperands.LITERAL, DefaultOperands.INTEGER), (inst, visitor) ->
-                visitor.visitIincInsn(inst.argument(0, ASTIdentifier.class), inst.argument(1, ASTNumber.class)));
+        register(
+                "iinc", ops(DefaultOperands.LITERAL, DefaultOperands.INTEGER),
+                (inst, visitor) -> visitor
+                        .visitIincInsn(inst.argument(0, ASTIdentifier.class), inst.argument(1, ASTNumber.class))
+        );
 
         registerJumpProcessors(
                 "ifeq", "ifne", "iflt", "ifge", "ifgt", "ifle", "if_icmpeq", "if_icmpne", "if_icmplt", "if_icmpge",
                 "if_icmpgt", "if_icmple", "if_acmpeq", "if_acmpne", "goto", "jsr", "ifnull", "ifnonnull"
         );
-        register("tableswitch", ops(JvmOperands.TABLE_SWITCH), (inst, visitor) ->
-                visitor.visitTableSwitchInsn(inst.argument(0, ASTObject.class)));
-        register("lookupswitch", ops(JvmOperands.LOOKUP_SWITCH), (inst, visitor) ->
-                visitor.visitLookupSwitchInsn(inst.argument(0, ASTObject.class)));
+        register(
+                "tableswitch", ops(JvmOperands.TABLE_SWITCH),
+                (inst, visitor) -> visitor.visitTableSwitchInsn(inst.argument(0, ASTObject.class))
+        );
+        register(
+                "lookupswitch", ops(JvmOperands.LOOKUP_SWITCH),
+                (inst, visitor) -> visitor.visitLookupSwitchInsn(inst.argument(0, ASTObject.class))
+        );
 
         registerFieldProcessors("getstatic", "putstatic", "getfield", "putfield");
 
@@ -77,25 +90,36 @@ public class JvmInstructions extends Instructions<ASTJvmInstructionVisitor> {
                 )
         );
 
-        register("multianewarray", ops(DefaultOperands.LITERAL, DefaultOperands.INTEGER),
+        register(
+                "multianewarray", ops(DefaultOperands.LITERAL, DefaultOperands.INTEGER),
                 (inst, visitor) -> visitor.visitMultiANewArrayInsn(
                         inst.argument(0, ASTIdentifier.class), inst.argument(1, ASTNumber.class)
                 )
         );
 
-        register("jsr_w", ops(DefaultOperands.LABEL), (inst, visitor) ->
-                visitor.visitJumpInsn(inst.argument(0, ASTIdentifier.class)));
-        register("goto_w", ops(DefaultOperands.LABEL), (inst, visitor) ->
-                visitor.visitJumpInsn(inst.argument(0, ASTIdentifier.class)));
-        register("ldc_w", ops(JvmOperands.CONSTANT), (inst, visitor) ->
-                visitor.visitLdcInsn(inst.argument(0, ASTElement.class)));
-        register("ldc2_w", ops(JvmOperands.CONSTANT), (inst, visitor) ->
-                visitor.visitLdcInsn(inst.argument(0, ASTNumber.class)));
+        register(
+                "jsr_w", ops(DefaultOperands.LABEL),
+                (inst, visitor) -> visitor.visitJumpInsn(inst.argument(0, ASTIdentifier.class))
+        );
+        register(
+                "goto_w", ops(DefaultOperands.LABEL),
+                (inst, visitor) -> visitor.visitJumpInsn(inst.argument(0, ASTIdentifier.class))
+        );
+        register(
+                "ldc_w", ops(JvmOperands.CONSTANT),
+                (inst, visitor) -> visitor.visitLdcInsn(inst.argument(0, ASTElement.class))
+        );
+        register(
+                "ldc2_w", ops(JvmOperands.CONSTANT),
+                (inst, visitor) -> visitor.visitLdcInsn(inst.argument(0, ASTNumber.class))
+        );
 
         // intrinsics
-        register("line", ops(DefaultOperands.IDENTIFIER, DefaultOperands.INTEGER),
-                (inst, visitor) -> visitor.visitLineNumber(inst.argument(0, ASTIdentifier.class),
-                        inst.argument(1, ASTNumber.class)));
+        register(
+                "line", ops(DefaultOperands.IDENTIFIER, DefaultOperands.INTEGER),
+                (inst, visitor) -> visitor
+                        .visitLineNumber(inst.argument(0, ASTIdentifier.class), inst.argument(1, ASTNumber.class))
+        );
     }
 
     void registerSimple(String... names) {
@@ -106,40 +130,50 @@ public class JvmInstructions extends Instructions<ASTJvmInstructionVisitor> {
 
     void registerIntProcessors(String... names) {
         for (String name : names) {
-            register(name, ops(DefaultOperands.INTEGER), (inst, visitor) ->
-                    visitor.visitIntInsn(inst.argument(0, ASTNumber.class)));
+            register(
+                    name, ops(DefaultOperands.INTEGER),
+                    (inst, visitor) -> visitor.visitIntInsn(inst.argument(0, ASTNumber.class))
+            );
         }
     }
 
     void registerVarProcessors(String... names) {
         for (String name : names) {
-            register(name, ops(DefaultOperands.LITERAL), (inst, visitor) ->
-                    visitor.visitVarInsn(inst.argument(0, ASTIdentifier.class)));
+            register(
+                    name, ops(DefaultOperands.LITERAL),
+                    (inst, visitor) -> visitor.visitVarInsn(inst.argument(0, ASTIdentifier.class))
+            );
         }
     }
 
     void registerJumpProcessors(String... names) {
         for (String name : names) {
-            register(name, ops(DefaultOperands.LABEL), (inst, visitor) ->
-                    visitor.visitJumpInsn(inst.argument(0, ASTIdentifier.class)));
+            register(
+                    name, ops(DefaultOperands.LABEL),
+                    (inst, visitor) -> visitor.visitJumpInsn(inst.argument(0, ASTIdentifier.class))
+            );
         }
     }
 
     void registerFieldProcessors(String... names) {
         for (String name : names) {
-            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL), (inst, visitor) ->
-                    visitor.visitFieldInsn(
+            register(
+                    name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL),
+                    (inst, visitor) -> visitor.visitFieldInsn(
                             inst.argument(0, ASTIdentifier.class), inst.argument(1, ASTIdentifier.class)
-                    ));
+                    )
+            );
         }
     }
 
     void registerMethodProcessors(String... names) {
         for (String name : names) {
-            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL), (inst, visitor) ->
-                    visitor.visitMethodInsn(
+            register(
+                    name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL),
+                    (inst, visitor) -> visitor.visitMethodInsn(
                             inst.argument(0, ASTIdentifier.class), inst.argument(1, ASTIdentifier.class)
-                    ));
+                    )
+            );
         }
     }
 

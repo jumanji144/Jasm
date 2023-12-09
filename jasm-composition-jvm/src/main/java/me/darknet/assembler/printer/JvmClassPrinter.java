@@ -3,7 +3,6 @@ package me.darknet.assembler.printer;
 import dev.xdark.blw.BytecodeLibrary;
 import dev.xdark.blw.asm.AsmBytecodeLibrary;
 import dev.xdark.blw.asm.ClassWriterProvider;
-import dev.xdark.blw.classfile.ClassBuilder;
 import dev.xdark.blw.classfile.ClassFileView;
 import dev.xdark.blw.classfile.Field;
 import dev.xdark.blw.classfile.Method;
@@ -60,9 +59,8 @@ public class JvmClassPrinter implements ClassPrinter {
         for (InstanceType anInterface : view.interfaces()) {
             ctx.begin().element(".implements").literal(anInterface.internalName()).end();
         }
-        var obj = memberPrinter.printDeclaration(ctx)
-                .literal(view.type().internalName()).print(" ")
-                .declObject().newline();
+        var obj = memberPrinter.printDeclaration(ctx).literal(view.type().internalName()).print(" ").declObject()
+                .newline();
         for (Field field : view.fields()) {
             JvmFieldPrinter printer = new JvmFieldPrinter(field);
             printer.print(obj);
