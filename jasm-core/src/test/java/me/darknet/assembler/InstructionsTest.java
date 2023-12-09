@@ -12,13 +12,14 @@ import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.Tokenizer;
 import me.darknet.assembler.parser.processor.ASTProcessor;
 import me.darknet.assembler.util.Location;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.util.List;
 import java.util.function.Consumer;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 public class InstructionsTest {
 

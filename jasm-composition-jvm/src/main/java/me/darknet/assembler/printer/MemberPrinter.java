@@ -1,11 +1,12 @@
 package me.darknet.assembler.printer;
 
+import me.darknet.assembler.util.BlwModifiers;
+
 import dev.xdark.blw.annotation.Annotation;
 import dev.xdark.blw.classfile.Accessible;
 import dev.xdark.blw.classfile.Annotated;
 import dev.xdark.blw.classfile.Member;
 import dev.xdark.blw.classfile.Signed;
-import me.darknet.assembler.util.BlwModifiers;
 import org.jetbrains.annotations.Nullable;
 
 public record MemberPrinter(

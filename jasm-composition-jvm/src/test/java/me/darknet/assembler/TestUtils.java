@@ -1,21 +1,22 @@
 package me.darknet.assembler;
 
-import dev.xdark.blw.classfile.generic.GenericClassBuilder;
 import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.helper.Processor;
 import me.darknet.assembler.parser.BytecodeFormat;
+
+import dev.xdark.blw.classfile.generic.GenericClassBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.function.ThrowingConsumer;
 
+import static org.junit.jupiter.api.Assertions.fail;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.regex.Pattern;
-
-import static org.junit.jupiter.api.Assertions.fail;
 
 public class TestUtils {
     private static final Pattern DUPLICATE_NEWLINES = Pattern.compile("\\n\\s*\\n");

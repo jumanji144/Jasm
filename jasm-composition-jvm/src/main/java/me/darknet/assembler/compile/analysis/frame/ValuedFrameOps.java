@@ -3,6 +3,7 @@ package me.darknet.assembler.compile.analysis.frame;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.ValuedLocal;
 import me.darknet.assembler.compile.analysis.Values;
+
 import org.jetbrains.annotations.NotNull;
 
 public class ValuedFrameOps implements FrameOps<ValuedFrame> {

@@ -1,8 +1,9 @@
 package me.darknet.assembler.compile.analysis.frame;
 
+import me.darknet.assembler.compile.analysis.Local;
+
 import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.Types;
-import me.darknet.assembler.compile.analysis.Local;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

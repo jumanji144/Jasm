@@ -2,6 +2,7 @@ package me.darknet.assembler.instructions;
 
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.visitor.ASTInstructionVisitor;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;

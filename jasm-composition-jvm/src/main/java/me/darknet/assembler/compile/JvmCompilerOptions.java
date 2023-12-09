@@ -1,6 +1,5 @@
 package me.darknet.assembler.compile;
 
-import dev.xdark.blw.version.JavaVersion;
 import me.darknet.assembler.compile.analysis.VariableNameLookup;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngineFactory;
@@ -9,6 +8,8 @@ import me.darknet.assembler.compiler.ClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
+
+import dev.xdark.blw.version.JavaVersion;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassWriter;
 

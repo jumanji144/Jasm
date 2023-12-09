@@ -8,6 +8,7 @@ import me.darknet.assembler.compile.analysis.EmptyMethodAnalysisLookup;
 import me.darknet.assembler.compiler.Compiler;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.helper.Processor;
+
 import picocli.CommandLine;
 
 import java.io.File;

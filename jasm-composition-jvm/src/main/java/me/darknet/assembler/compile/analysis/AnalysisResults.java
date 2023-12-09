@@ -2,6 +2,7 @@ package me.darknet.assembler.compile.analysis;
 
 import me.darknet.assembler.ast.primitive.ASTCode;
 import me.darknet.assembler.compile.analysis.frame.Frame;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

@@ -1,11 +1,5 @@
 package me.darknet.assembler.compile.visitor;
 
-import dev.xdark.blw.classfile.AccessFlag;
-import dev.xdark.blw.classfile.attribute.generic.GenericInnerClass;
-import dev.xdark.blw.type.InstanceType;
-import dev.xdark.blw.type.MethodType;
-import dev.xdark.blw.type.TypeReader;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.compile.JvmCompilerOptions;
@@ -13,6 +7,13 @@ import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.util.BlwModifiers;
 import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.*;
+
+import dev.xdark.blw.classfile.AccessFlag;
+import dev.xdark.blw.classfile.attribute.generic.GenericInnerClass;
+import dev.xdark.blw.type.InstanceType;
+import dev.xdark.blw.type.MethodType;
+import dev.xdark.blw.type.TypeReader;
+import dev.xdark.blw.type.Types;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

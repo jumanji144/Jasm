@@ -10,12 +10,17 @@ import me.darknet.assembler.compile.analysis.jvm.BasicMethodValueLookup;
 import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
+
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import static me.darknet.assembler.TestUtils.normalize;
+import static me.darknet.assembler.TestUtils.processJvm;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,10 +31,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
-
-import static me.darknet.assembler.TestUtils.normalize;
-import static me.darknet.assembler.TestUtils.processJvm;
-import static org.junit.jupiter.api.Assertions.*;
 
 public class SampleCompilerTest {
     private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";

@@ -1,5 +1,7 @@
 package me.darknet.assembler.printer;
 
+import me.darknet.assembler.util.BlwModifiers;
+
 import dev.xdark.blw.BytecodeLibrary;
 import dev.xdark.blw.asm.AsmBytecodeLibrary;
 import dev.xdark.blw.asm.ClassWriterProvider;
@@ -9,7 +11,6 @@ import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.classfile.attribute.InnerClass;
 import dev.xdark.blw.classfile.generic.GenericClassBuilder;
 import dev.xdark.blw.type.InstanceType;
-import me.darknet.assembler.util.BlwModifiers;
 import org.objectweb.asm.ClassWriter;
 
 import java.io.ByteArrayInputStream;

@@ -3,6 +3,7 @@ package me.darknet.assembler.ast.primitive;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.util.CollectionUtil;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;

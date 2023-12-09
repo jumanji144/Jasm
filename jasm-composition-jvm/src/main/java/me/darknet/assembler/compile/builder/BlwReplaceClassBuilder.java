@@ -1,11 +1,12 @@
 package me.darknet.assembler.compile.builder;
 
+import me.darknet.assembler.compile.analysis.AnalysisResults;
+import me.darknet.assembler.compile.analysis.MethodAnalysisLookup;
+
 import dev.xdark.blw.classfile.MemberIdentifier;
 import dev.xdark.blw.classfile.generic.GenericClassBuilder;
 import dev.xdark.blw.classfile.generic.GenericMethodBuilder;
 import dev.xdark.blw.type.MethodType;
-import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.MethodAnalysisLookup;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

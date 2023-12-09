@@ -1,12 +1,5 @@
 package me.darknet.assembler.compile.visitor;
 
-import dev.xdark.blw.classfile.Method;
-import dev.xdark.blw.classfile.attribute.Parameter;
-import dev.xdark.blw.classfile.attribute.generic.GenericParameter;
-import dev.xdark.blw.type.ClassType;
-import dev.xdark.blw.type.MethodType;
-import dev.xdark.blw.type.ObjectType;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
@@ -15,6 +8,14 @@ import me.darknet.assembler.compile.builder.BlwReplaceMethodBuilder;
 import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
+
+import dev.xdark.blw.classfile.Method;
+import dev.xdark.blw.classfile.attribute.Parameter;
+import dev.xdark.blw.classfile.attribute.generic.GenericParameter;
+import dev.xdark.blw.type.ClassType;
+import dev.xdark.blw.type.MethodType;
+import dev.xdark.blw.type.ObjectType;
+import dev.xdark.blw.type.Types;
 
 import java.util.ArrayList;
 import java.util.List;

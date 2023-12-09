@@ -3,13 +3,14 @@ package me.darknet.assembler;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.Tokenizer;
 import me.darknet.assembler.util.EscapeUtil;
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import java.util.List;
 
 public class EscapeTest {
 

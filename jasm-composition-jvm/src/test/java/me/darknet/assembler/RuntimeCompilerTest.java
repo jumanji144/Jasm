@@ -3,10 +3,15 @@ package me.darknet.assembler;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import static me.darknet.assembler.TestUtils.normalize;
+import static me.darknet.assembler.TestUtils.processJvm;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,10 +22,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
-
-import static me.darknet.assembler.TestUtils.normalize;
-import static me.darknet.assembler.TestUtils.processJvm;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Disabled(
     "Used to gain a lot of test cases/samples. "

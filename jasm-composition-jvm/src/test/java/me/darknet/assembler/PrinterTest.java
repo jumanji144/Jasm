@@ -11,6 +11,7 @@ import me.darknet.assembler.parser.processor.ASTProcessor;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.util.Location;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Assertions;

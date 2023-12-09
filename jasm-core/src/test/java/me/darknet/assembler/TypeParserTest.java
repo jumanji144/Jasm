@@ -2,6 +2,7 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.info.MemberInfo;
 import me.darknet.assembler.util.TypeParser;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;

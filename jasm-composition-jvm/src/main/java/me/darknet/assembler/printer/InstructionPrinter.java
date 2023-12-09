@@ -1,13 +1,14 @@
 package me.darknet.assembler.printer;
 
+import me.darknet.assembler.compile.analysis.jvm.IndexedExecutionEngine;
+import me.darknet.assembler.helper.Names;
+
 import dev.xdark.blw.code.Code;
 import dev.xdark.blw.code.Instruction;
 import dev.xdark.blw.code.JavaOpcodes;
 import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.type.*;
-import me.darknet.assembler.compile.analysis.jvm.IndexedExecutionEngine;
-import me.darknet.assembler.helper.Names;
 
 import java.util.HashMap;
 import java.util.Map;

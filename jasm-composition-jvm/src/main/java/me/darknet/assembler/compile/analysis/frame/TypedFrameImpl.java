@@ -1,10 +1,11 @@
 package me.darknet.assembler.compile.analysis.frame;
 
-import dev.xdark.blw.type.ClassType;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.AnalysisUtils;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compiler.InheritanceChecker;
+
+import dev.xdark.blw.type.ClassType;
+import dev.xdark.blw.type.Types;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;

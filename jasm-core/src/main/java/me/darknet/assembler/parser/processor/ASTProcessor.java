@@ -14,6 +14,7 @@ import me.darknet.assembler.parser.Stateful;
 import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.visitor.Modifiers;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;

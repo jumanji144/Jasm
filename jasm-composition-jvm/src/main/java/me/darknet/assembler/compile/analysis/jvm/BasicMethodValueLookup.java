@@ -1,8 +1,9 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import dev.xdark.blw.code.instruction.MethodInstruction;
 import me.darknet.assembler.compile.analysis.Value;
 import me.darknet.assembler.compile.analysis.Values;
+
+import dev.xdark.blw.code.instruction.MethodInstruction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

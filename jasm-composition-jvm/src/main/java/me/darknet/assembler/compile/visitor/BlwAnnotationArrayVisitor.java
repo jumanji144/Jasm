@@ -1,15 +1,16 @@
 package me.darknet.assembler.compile.visitor;
 
+import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.specific.ASTValue;
+import me.darknet.assembler.visitor.ASTAnnotationArrayVisitor;
+import me.darknet.assembler.visitor.ASTAnnotationVisitor;
+
 import dev.xdark.blw.annotation.ElementArrayBuilder;
 import dev.xdark.blw.annotation.ElementEnum;
 import dev.xdark.blw.annotation.ElementType;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.ObjectType;
 import dev.xdark.blw.type.Types;
-import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.ast.specific.ASTValue;
-import me.darknet.assembler.visitor.ASTAnnotationArrayVisitor;
-import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 
 public class BlwAnnotationArrayVisitor implements ASTAnnotationArrayVisitor, BlwElementAdapter {
     private final ElementArrayBuilder<?> builder;

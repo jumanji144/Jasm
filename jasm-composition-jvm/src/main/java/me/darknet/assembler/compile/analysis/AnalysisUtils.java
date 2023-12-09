@@ -1,10 +1,11 @@
 package me.darknet.assembler.compile.analysis;
 
+import me.darknet.assembler.compiler.InheritanceChecker;
+
 import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.ObjectType;
 import dev.xdark.blw.type.PrimitiveType;
 import dev.xdark.blw.type.Types;
-import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 
 public class AnalysisUtils {

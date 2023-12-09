@@ -4,6 +4,7 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.parser.processor.ASTProcessor;
 import me.darknet.assembler.visitor.ASTInstructionVisitor;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.BiConsumer;

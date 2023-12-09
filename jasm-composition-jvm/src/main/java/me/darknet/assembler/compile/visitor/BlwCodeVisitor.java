@@ -1,14 +1,5 @@
 package me.darknet.assembler.compile.visitor;
 
-import dev.xdark.blw.code.*;
-import dev.xdark.blw.code.attribute.generic.GenericLocal;
-import dev.xdark.blw.code.generic.GenericLabel;
-import dev.xdark.blw.code.instruction.*;
-import dev.xdark.blw.constant.OfDouble;
-import dev.xdark.blw.constant.OfFloat;
-import dev.xdark.blw.constant.OfInt;
-import dev.xdark.blw.constant.OfLong;
-import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.compile.JvmCompilerOptions;
@@ -22,6 +13,16 @@ import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.ConstantMapper;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
+
+import dev.xdark.blw.code.*;
+import dev.xdark.blw.code.attribute.generic.GenericLocal;
+import dev.xdark.blw.code.generic.GenericLabel;
+import dev.xdark.blw.code.instruction.*;
+import dev.xdark.blw.constant.OfDouble;
+import dev.xdark.blw.constant.OfFloat;
+import dev.xdark.blw.constant.OfInt;
+import dev.xdark.blw.constant.OfLong;
+import dev.xdark.blw.type.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;

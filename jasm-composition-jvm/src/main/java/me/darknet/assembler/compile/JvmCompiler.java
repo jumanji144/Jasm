@@ -1,11 +1,5 @@
 package me.darknet.assembler.compile;
 
-import dev.xdark.blw.BytecodeLibrary;
-import dev.xdark.blw.asm.AsmBytecodeLibrary;
-import dev.xdark.blw.asm.ClassWriterProvider;
-import dev.xdark.blw.classfile.ClassBuilder;
-import dev.xdark.blw.classfile.ClassFileView;
-import dev.xdark.blw.version.JavaVersion;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.compile.visitor.BlwRootVisitor;
@@ -14,6 +8,13 @@ import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.transformer.Transformer;
+
+import dev.xdark.blw.BytecodeLibrary;
+import dev.xdark.blw.asm.AsmBytecodeLibrary;
+import dev.xdark.blw.asm.ClassWriterProvider;
+import dev.xdark.blw.classfile.ClassBuilder;
+import dev.xdark.blw.classfile.ClassFileView;
+import dev.xdark.blw.version.JavaVersion;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;

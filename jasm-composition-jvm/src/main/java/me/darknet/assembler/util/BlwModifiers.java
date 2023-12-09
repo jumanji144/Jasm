@@ -2,9 +2,9 @@ package me.darknet.assembler.util;
 
 import me.darknet.assembler.visitor.Modifiers;
 
-import java.util.Map;
-
 import static dev.xdark.blw.classfile.AccessFlag.*;
+
+import java.util.Map;
 
 public class BlwModifiers {
 

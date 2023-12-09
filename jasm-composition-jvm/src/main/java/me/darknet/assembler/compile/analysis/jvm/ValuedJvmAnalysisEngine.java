@@ -1,13 +1,14 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import dev.xdark.blw.code.instruction.*;
-import dev.xdark.blw.constant.*;
-import dev.xdark.blw.type.*;
 import me.darknet.assembler.compile.analysis.*;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
 import me.darknet.assembler.compile.analysis.frame.ValuedFrame;
 import me.darknet.assembler.compile.analysis.frame.ValuedFrameOps;
 import me.darknet.assembler.compiler.InheritanceChecker;
+
+import dev.xdark.blw.code.instruction.*;
+import dev.xdark.blw.constant.*;
+import dev.xdark.blw.type.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

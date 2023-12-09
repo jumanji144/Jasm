@@ -2,6 +2,7 @@ package me.darknet.assembler.ast.primitive;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
+
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;

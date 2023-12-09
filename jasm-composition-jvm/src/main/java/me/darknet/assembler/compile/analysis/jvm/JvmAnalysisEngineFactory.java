@@ -1,6 +1,7 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
 import me.darknet.assembler.compile.analysis.VariableNameLookup;
+
 import org.jetbrains.annotations.NotNull;
 
 /**

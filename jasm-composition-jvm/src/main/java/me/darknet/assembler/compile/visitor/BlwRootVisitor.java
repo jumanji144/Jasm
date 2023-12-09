@@ -1,17 +1,18 @@
 package me.darknet.assembler.compile.visitor;
 
-import dev.xdark.blw.annotation.AnnotationBuilder;
-import dev.xdark.blw.classfile.*;
-import dev.xdark.blw.type.InstanceType;
-import dev.xdark.blw.type.MethodType;
-import dev.xdark.blw.type.TypeReader;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.util.BlwModifiers;
 import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.*;
+
+import dev.xdark.blw.annotation.AnnotationBuilder;
+import dev.xdark.blw.classfile.*;
+import dev.xdark.blw.type.InstanceType;
+import dev.xdark.blw.type.MethodType;
+import dev.xdark.blw.type.TypeReader;
+import dev.xdark.blw.type.Types;
 
 public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions options) implements ASTRootVisitor {
 

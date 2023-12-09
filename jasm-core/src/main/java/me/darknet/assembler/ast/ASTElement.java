@@ -5,6 +5,7 @@ import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.processor.ProcessorAttributes;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Range;
+
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

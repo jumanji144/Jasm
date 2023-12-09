@@ -1,6 +1,7 @@
 package me.darknet.assembler.cli.commands;
 
 import me.darknet.assembler.parser.BytecodeFormat;
+
 import picocli.CommandLine;
 
 @CommandLine.Command(

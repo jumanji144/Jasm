@@ -1,15 +1,16 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import dev.xdark.blw.code.Instruction;
-import dev.xdark.blw.code.JavaOpcodes;
-import dev.xdark.blw.code.Label;
-import dev.xdark.blw.code.instruction.*;
-import dev.xdark.blw.simulation.ExecutionEngine;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.VariableNameLookup;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
+
+import dev.xdark.blw.code.Instruction;
+import dev.xdark.blw.code.JavaOpcodes;
+import dev.xdark.blw.code.Label;
+import dev.xdark.blw.code.instruction.*;
+import dev.xdark.blw.simulation.ExecutionEngine;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

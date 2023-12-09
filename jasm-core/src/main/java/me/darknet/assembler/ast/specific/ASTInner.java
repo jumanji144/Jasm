@@ -5,6 +5,7 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.util.CollectionUtil;
 import me.darknet.assembler.visitor.Modifiers;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

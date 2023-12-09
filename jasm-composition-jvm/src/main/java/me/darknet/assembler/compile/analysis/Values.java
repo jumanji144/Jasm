@@ -4,8 +4,8 @@ import dev.xdark.blw.type.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
-import java.lang.reflect.Type;
 import java.lang.reflect.*;
+import java.lang.reflect.Type;
 import java.net.*;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;

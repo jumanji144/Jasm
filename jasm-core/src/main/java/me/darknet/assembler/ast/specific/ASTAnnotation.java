@@ -11,6 +11,7 @@ import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Pair;
 import me.darknet.assembler.visitor.ASTAnnotationArrayVisitor;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
+
 import org.jetbrains.annotations.Nullable;
 
 public class ASTAnnotation extends ASTElement {

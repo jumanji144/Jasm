@@ -1,15 +1,16 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import dev.xdark.blw.code.instruction.*;
-import dev.xdark.blw.constant.*;
-import dev.xdark.blw.type.ClassType;
-import dev.xdark.blw.type.MethodType;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.VariableNameLookup;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
 import me.darknet.assembler.compile.analysis.frame.TypedFrame;
 import me.darknet.assembler.compile.analysis.frame.TypedFrameOps;
+
+import dev.xdark.blw.code.instruction.*;
+import dev.xdark.blw.constant.*;
+import dev.xdark.blw.type.ClassType;
+import dev.xdark.blw.type.MethodType;
+import dev.xdark.blw.type.Types;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;

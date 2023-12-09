@@ -1,5 +1,12 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
+import me.darknet.assembler.compile.analysis.AnalysisException;
+import me.darknet.assembler.compile.analysis.Local;
+import me.darknet.assembler.compile.analysis.frame.Frame;
+import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
+import me.darknet.assembler.compile.analysis.frame.FrameOps;
+import me.darknet.assembler.compiler.InheritanceChecker;
+
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.instruction.BranchInstruction;
 import dev.xdark.blw.code.instruction.ConditionalJumpInstruction;
@@ -7,12 +14,6 @@ import dev.xdark.blw.simulation.ExecutionEngines;
 import dev.xdark.blw.simulation.Simulation;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.Types;
-import me.darknet.assembler.compile.analysis.AnalysisException;
-import me.darknet.assembler.compile.analysis.Local;
-import me.darknet.assembler.compile.analysis.frame.Frame;
-import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
-import me.darknet.assembler.compile.analysis.frame.FrameOps;
-import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

@@ -1,6 +1,7 @@
 package me.darknet.assembler.helper;
 
 import me.darknet.assembler.ast.primitive.ASTArray;
+
 import org.jetbrains.annotations.Contract;
 
 import java.util.Map;

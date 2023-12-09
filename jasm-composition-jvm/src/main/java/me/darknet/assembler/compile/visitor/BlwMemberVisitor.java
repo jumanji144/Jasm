@@ -1,13 +1,14 @@
 package me.darknet.assembler.compile.visitor;
 
-import dev.xdark.blw.classfile.Member;
-import dev.xdark.blw.classfile.MemberBuilder;
-import dev.xdark.blw.type.Type;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTDeclarationVisitor;
+
+import dev.xdark.blw.classfile.Member;
+import dev.xdark.blw.classfile.MemberBuilder;
+import dev.xdark.blw.type.Type;
+import dev.xdark.blw.type.Types;
 import org.jetbrains.annotations.Nullable;
 
 public class BlwMemberVisitor<T extends Type, M extends Member<T>> implements ASTDeclarationVisitor {

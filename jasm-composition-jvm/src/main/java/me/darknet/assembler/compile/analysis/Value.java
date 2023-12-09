@@ -1,7 +1,8 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.type.*;
 import me.darknet.assembler.compiler.InheritanceChecker;
+
+import dev.xdark.blw.type.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

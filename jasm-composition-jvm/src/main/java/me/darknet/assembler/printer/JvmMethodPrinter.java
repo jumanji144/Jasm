@@ -1,5 +1,10 @@
 package me.darknet.assembler.printer;
 
+import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
+import me.darknet.assembler.helper.Names;
+import me.darknet.assembler.util.EscapeUtil;
+import me.darknet.assembler.util.LabelUtil;
+
 import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.code.CodeElement;
@@ -7,10 +12,6 @@ import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.TryCatchBlock;
 import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.type.ClassType;
-import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
-import me.darknet.assembler.helper.Names;
-import me.darknet.assembler.util.EscapeUtil;
-import me.darknet.assembler.util.LabelUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

@@ -1,6 +1,7 @@
 package me.darknet.assembler.compile;
 
 import me.darknet.assembler.compiler.InheritanceChecker;
+
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 

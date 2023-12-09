@@ -3,6 +3,7 @@ package me.darknet.assembler;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.TokenType;
 import me.darknet.assembler.parser.Tokenizer;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

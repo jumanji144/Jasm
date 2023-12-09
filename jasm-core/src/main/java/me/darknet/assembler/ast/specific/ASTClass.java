@@ -7,6 +7,7 @@ import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.visitor.ASTClassVisitor;
 import me.darknet.assembler.visitor.Modifiers;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

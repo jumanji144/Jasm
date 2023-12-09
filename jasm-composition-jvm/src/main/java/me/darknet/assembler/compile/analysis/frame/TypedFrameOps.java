@@ -1,6 +1,7 @@
 package me.darknet.assembler.compile.analysis.frame;
 
 import me.darknet.assembler.compile.analysis.Local;
+
 import org.jetbrains.annotations.NotNull;
 
 public class TypedFrameOps implements FrameOps<TypedFrame> {

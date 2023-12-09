@@ -5,6 +5,7 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.parser.processor.ASTProcessor;
 import me.darknet.assembler.util.Location;
+
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.BiConsumer;

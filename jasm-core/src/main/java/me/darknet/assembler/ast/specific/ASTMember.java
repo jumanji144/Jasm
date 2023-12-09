@@ -8,6 +8,7 @@ import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CollectionUtil;
 import me.darknet.assembler.visitor.ASTDeclarationVisitor;
 import me.darknet.assembler.visitor.Modifiers;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

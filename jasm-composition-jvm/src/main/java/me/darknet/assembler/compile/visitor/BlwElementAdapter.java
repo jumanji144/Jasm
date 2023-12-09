@@ -1,9 +1,10 @@
 package me.darknet.assembler.compile.visitor;
 
-import dev.xdark.blw.annotation.*;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.specific.ASTValue;
+
+import dev.xdark.blw.annotation.*;
 import org.jetbrains.annotations.NotNull;
 
 public interface BlwElementAdapter {

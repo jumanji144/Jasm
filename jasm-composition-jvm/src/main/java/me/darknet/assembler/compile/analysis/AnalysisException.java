@@ -1,8 +1,9 @@
 package me.darknet.assembler.compile.analysis;
 
+import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
+
 import dev.xdark.blw.code.CodeElement;
 import dev.xdark.blw.simulation.SimulationException;
-import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

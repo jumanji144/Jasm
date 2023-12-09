@@ -8,6 +8,7 @@ import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Pair;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
