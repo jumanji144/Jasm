@@ -495,7 +495,7 @@ public class DeclarationParser {
 
         public void throwEofError(String expected) {
             if (latest == null) {
-                throwError(new Error("Expected '" + expected + "' but got EOF", new Location(-1, -1, "")));
+                throwError(new Error("Expected '" + expected + "' but got EOF", new Location(-1, -1, 0, "")));
                 return;
             }
             throwError(new Error("Expected '" + expected + "' but got EOF", latest.location()));
