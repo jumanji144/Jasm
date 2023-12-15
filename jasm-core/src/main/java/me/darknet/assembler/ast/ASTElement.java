@@ -34,9 +34,7 @@ public class ASTElement {
     }
 
     public ASTElement(ElementType type, @NotNull List<? extends ASTElement> children) {
-        this.children = children.stream()
-                .filter(Objects::nonNull)
-                .sorted(SORT_POS)
+        this.children = children.stream().filter(Objects::nonNull).sorted(SORT_POS)
                 .collect(Collectors.toCollection(ArrayList::new));
         for (ASTElement child : this.children) {
             child.parent = this;
