@@ -15,6 +15,7 @@ import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.visitor.Modifiers;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -334,6 +335,20 @@ public class ASTProcessor {
             }
         }
         return new Result<>(ctx.result.getResult(), ctx.errorCollector.getErrors());
+    }
+
+    public Result<Instruction<?>> processInstruction(@NotNull ASTInstruction instruction) {
+        ParserContext ctx = new ParserContext(format);
+        Instruction<?> insn = format.getInstructions().get(instruction.identifier().content());
+        if (insn == null) {
+            return new Result<>(
+                    null,
+                    List.of(new Error("Unknown instruction: " + instruction.identifier().content(),
+                            instruction.identifier().location()))
+            );
+        }
+        insn.verify(instruction, ctx);
+        return new Result<>(insn, ctx.errorCollector.getErrors());
     }
 
     @FunctionalInterface

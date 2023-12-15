@@ -5,6 +5,7 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.error.Result;
 import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Pair;
@@ -67,6 +68,23 @@ public class DeclarationParser {
             result.add(element);
         }
         return new ParsingResult<>(result, ctx.errorCollector.getErrors(), filtered.first());
+    }
+
+    /**
+     * Parse a single instruction from the given tokens, this will only try to parse
+     * a single instruction. Result for this method will always be a
+     * {@link ASTInstruction} or null if parsing that element failed.
+     * @param tokens the tokens to parse
+     * @return {@link ParsingResult} of the parsing
+     */
+    public ParsingResult<ASTInstruction> parseInstruction(List<Token> tokens) {
+        if (tokens.isEmpty()) {
+            return new ParsingResult<>(null, Collections.emptyList(), Collections.emptyList());
+        }
+        Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
+        this.ctx = new ParserContext(this, new ArrayList<>(filtered.second()));
+        ASTInstruction instruction = parseInstruction(true);
+        return new ParsingResult<>(instruction, ctx.errorCollector.getErrors(), filtered.first());
     }
 
     private Pair<List<ASTComment>, Collection<Token>> filterComments(Collection<Token> tokens) {
@@ -234,7 +252,7 @@ public class DeclarationParser {
         State state = ctx.getState();
         Token peek = ctx.peek();
         if (peek == null) {
-            ctx.throwEofError("content");
+            ctx.throwEofError("declaration content");
             return null;
         }
         List<ASTElement> elements = new ArrayList<>();
@@ -327,7 +345,7 @@ public class DeclarationParser {
         Token peek = ctx.peek();
         List<ASTInstruction> instructions = new ArrayList<>();
         while (!peek.content().equals("}")) {
-            ASTInstruction instruction = parseInstruction();
+            ASTInstruction instruction = parseInstruction(false);
             if (instruction == null)
                 return null;
             instructions.add(instruction);
@@ -343,7 +361,7 @@ public class DeclarationParser {
         return new ASTCode(instructions);
     }
 
-    private ASTInstruction parseInstruction() {
+    private ASTInstruction parseInstruction(boolean eofAllowed) {
         ctx.enterState(State.IN_INSTRUCTION);
         Token instruction = ctx.takeAny();
         if (instruction == null)
@@ -354,7 +372,11 @@ public class DeclarationParser {
         }
         Token peek = ctx.peek();
         if (peek == null) {
-            ctx.throwEofError("instruction argument or label");
+            if(eofAllowed) {
+                ctx.leaveState(State.IN_INSTRUCTION);
+                return new ASTInstruction(new ASTIdentifier(instruction), Collections.emptyList());
+            }
+            ctx.throwEofError("label or instruction argument");
             return null;
         }
         if (peek.content().equals(":")) {
@@ -369,6 +391,10 @@ public class DeclarationParser {
             arguments.add(parse());
             peek = ctx.peek();
             if (peek == null) {
+                if(eofAllowed) {
+                    ctx.leaveState(State.IN_INSTRUCTION);
+                    return new ASTInstruction(identifier, arguments);
+                }
                 ctx.throwEofError("instruction argument");
                 return null;
             }
@@ -495,10 +521,13 @@ public class DeclarationParser {
 
         public void throwEofError(String expected) {
             if (latest == null) {
-                throwError(new Error("Expected '" + expected + "' but got EOF", new Location(-1, -1, "")));
+                throwError(new Error("Expected '" + expected + "'", Location.UNKNOWN));
                 return;
             }
-            throwError(new Error("Expected '" + expected + "' but got EOF", latest.location()));
+            Location location = latest.location();
+            Location eofLocation = new Location(location.line(), location.column() + 1,
+                    1, location.source());
+            throwError(new Error("Expected '" + expected + "'", eofLocation));
         }
 
         public void throwExpectedError(String expected, String got) {
