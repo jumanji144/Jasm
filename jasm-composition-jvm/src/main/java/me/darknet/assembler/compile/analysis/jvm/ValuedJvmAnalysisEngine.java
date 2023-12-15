@@ -26,6 +26,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         super(variableNameLookup);
     }
 
+    public ValuedJvmAnalysisEngine() {
+        super();
+    }
+
     @Override
     public FrameOps<?> newFrameOps() {
         return new ValuedFrameOps();

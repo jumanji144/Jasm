@@ -77,7 +77,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
      * @return Name of variable, or dummy value for unknown index.
      */
     @NotNull
-    private String getLocalName(int index) {
+    public String getLocalName(int index) {
         if (index < 0 || index >= localNames.size())
             return "<?>";
         return localNames.get(index);

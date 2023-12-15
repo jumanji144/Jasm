@@ -26,13 +26,15 @@ import java.util.TreeMap;
 public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEngine, AnalysisResults, JavaOpcodes {
     protected final NavigableMap<Integer, F> frames = new TreeMap<>();
     protected final NavigableMap<Integer, F> terminalFrames = new TreeMap<>();
-    protected final VariableNameLookup variableNameLookup;
+    protected VariableNameLookup variableNameLookup;
     protected AnalysisException analysisFailure;
     protected F frame;
 
     public JvmAnalysisEngine(@NotNull VariableNameLookup variableNameLookup) {
         this.variableNameLookup = variableNameLookup;
     }
+
+    public JvmAnalysisEngine() {}
 
     public abstract FrameOps<?> newFrameOps();
 
