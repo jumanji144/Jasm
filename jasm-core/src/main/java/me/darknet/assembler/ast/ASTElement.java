@@ -34,13 +34,14 @@ public class ASTElement {
     }
 
     public ASTElement(ElementType type, @NotNull List<? extends ASTElement> children) {
-        for (ASTElement child : children) {
-            if (child == null)
-                throw new IllegalStateException("Cannot add null child to prent element");
+        this.children = children.stream()
+                .filter(Objects::nonNull)
+                .sorted(SORT_POS)
+                .collect(Collectors.toCollection(ArrayList::new));
+        for (ASTElement child : this.children) {
             child.parent = this;
         }
         this.type = type;
-        this.children = children.stream().sorted(SORT_POS).collect(Collectors.toCollection(ArrayList::new));
     }
 
     protected void addChild(@NotNull ASTElement element) {
