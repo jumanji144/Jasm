@@ -2,7 +2,10 @@ package me.darknet.assembler.util;
 
 import org.jetbrains.annotations.NotNull;
 
-public record Location(int line, int column, String source) implements Comparable<Location> {
+public record Location(int line, int column, int length, String source) implements Comparable<Location> {
+
+    public static final Location UNKNOWN = new Location(-1, -1, -1, null);
+
     @Override
     public String toString() {
         if (source == null)

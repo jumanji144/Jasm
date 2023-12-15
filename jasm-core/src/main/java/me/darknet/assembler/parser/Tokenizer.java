@@ -166,7 +166,7 @@ public class Tokenizer {
 
         public void nextLine() {
             line++;
-            column = 1;
+            column = 0;
         }
 
         public void next() {
@@ -215,7 +215,7 @@ public class Tokenizer {
         }
 
         public void throwError(String message) {
-            errors.addError(message, new Location(line, column, source));
+            errors.addError(message, new Location(line, column, buffer.length(), source));
         }
 
         static final Pattern NUMBER_PATTERN = Pattern.compile(
@@ -248,7 +248,7 @@ public class Tokenizer {
 
             String content = buffer.toString();
             Range range = new Range(index - content.length(), index);
-            Location location = new Location(line, column, source);
+            Location location = new Location(line, column, content.length(), source);
 
             if (inString) {
                 tokens.add(new Token(range, location, TokenType.STRING, content));
