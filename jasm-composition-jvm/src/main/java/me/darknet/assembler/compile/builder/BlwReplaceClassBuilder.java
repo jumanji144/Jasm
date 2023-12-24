@@ -1,5 +1,7 @@
 package me.darknet.assembler.compile.builder;
 
+import dev.xdark.blw.classfile.generic.GenericFieldBuilder;
+import dev.xdark.blw.type.ClassType;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.MethodAnalysisLookup;
 
@@ -38,6 +40,11 @@ public class BlwReplaceClassBuilder extends GenericClassBuilder implements Metho
     @Override
     public @Nullable AnalysisResults results(MemberIdentifier identifier) {
         return methodAnalysisResults.get(identifier);
+    }
+
+    @Override
+    protected @NotNull GenericFieldBuilder newFieldBuilder(int accessFlags, String name, ClassType type) {
+        return new BlwReplaceFieldBuilder(accessFlags, name, type);
     }
 
     @Override

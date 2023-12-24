@@ -76,7 +76,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
     @Override
     public ASTAnnotationVisitor visitAnnotation(ASTIdentifier classType) {
         InstanceType type = Types.instanceTypeFromInternalName(classType.literal());
-        return new BlwAnnotationVisitor(builder.putVisibleRuntimeAnnotation(type).child());
+        return new BlwAnnotationVisitor(builder.addVisibleRuntimeAnnotation(type).child());
     }
 
     @Override

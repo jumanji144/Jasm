@@ -1,5 +1,7 @@
 package me.darknet.assembler.compiler;
 
+import me.darknet.assembler.util.AnnotationKind;
+
 public interface CompilerOptions<B extends CompilerOptions<?>> {
 
     /**
@@ -50,9 +52,16 @@ public interface CompilerOptions<B extends CompilerOptions<?>> {
     B annotationPath(String path);
 
     /**
-     * @return The annotation path
+     * Where {@code anno_type} is a {@link AnnotationKind} name or display name:
+     * <ul>
+     * <li>Class annotations: {@code <class>.<index>.<anno_type>}</li>
+     * <li>Member annotations: {@code <class>.[field/method].<name>.<descriptor>.<index>.<anno_type>}</li>
+     * </ul>
+     *
+     * @return The annotation path.
      */
     String annotationPath();
+
 
     /**
      * Inheritance checker used when analyzing the compiled result to fill in the

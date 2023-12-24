@@ -3,6 +3,10 @@ package me.darknet.assembler.compile.visitor;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
+import me.darknet.assembler.compile.builder.BlwReplaceFieldBuilder;
+import me.darknet.assembler.compile.builder.BlwReplaceMethodBuilder;
+import me.darknet.assembler.util.AnnotationInstaller;
+import me.darknet.assembler.util.AnnotationKind;
 import me.darknet.assembler.util.BlwModifiers;
 import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.*;
@@ -18,34 +22,34 @@ public record BlwRootVisitor(BlwReplaceClassBuilder builder, JvmCompilerOptions 
 
     @Override
     public ASTAnnotationVisitor visitAnnotation(ASTIdentifier name) {
-        // parse annotation path
-        var path = options.annotationPath().split("\\.");
-
-        // TODO: blw rewrite removed usage of this index
-        //  make some test cases to validate behavior does not change
+        // Parse annotation path
+        var path = options.annotationPath().split("\\."); // TODO: What if the path is null?
         int index = Integer.parseInt(path[path.length - 1]);
-
         InstanceType type = builder.type();
-
         AnnotationBuilder<?> nested = switch (path.length) {
-            case 2 -> builder.putVisibleRuntimeAnnotation(type).child();
-            case 5 -> {
+            case 3 -> {
+                AnnotationKind annotationDir = AnnotationKind.from(path[2]);
+                yield AnnotationInstaller.install(builder, annotationDir, index, type);
+            }
+            case 6 -> {
+                String target = path[2];
                 String member = path[3];
                 String descriptor = path[4];
-                yield switch (path[2]) {
+                AnnotationKind annotationDir = AnnotationKind.from(path[5]);
+                yield switch (target) {
                     case "field" -> {
-                        FieldBuilder<Field, ?> fieldBuilder = builder.getFieldBuilder(member, descriptor);
+                        BlwReplaceFieldBuilder fieldBuilder = CastUtil.cast(builder.getFieldBuilder(member, descriptor));
                         if (fieldBuilder != null)
-                            yield fieldBuilder.putVisibleRuntimeAnnotation(type).child();
+                            yield AnnotationInstaller.install(fieldBuilder, annotationDir, index, type);
                         throw new IllegalStateException("Unexpected missing field data: " + member);
                     }
                     case "method" -> {
-                        MethodBuilder<Method, ?> methodBuilder = builder.getMethodBuilder(member, descriptor);
+                        BlwReplaceMethodBuilder methodBuilder = CastUtil.cast(builder.getMethodBuilder(member, descriptor));
                         if (methodBuilder != null)
-                            yield methodBuilder.putVisibleRuntimeAnnotation(type).child();
+                            yield AnnotationInstaller.install(methodBuilder, annotationDir, index, type);
                         throw new IllegalStateException("Unexpected missing method data: " + member);
                     }
-                    default -> throw new IllegalStateException("Unexpected value: " + path[2]);
+                    default -> throw new IllegalStateException("Unexpected value: " + target);
                 };
             }
             default -> throw new IllegalStateException("Unexpected value: " + path.length);
