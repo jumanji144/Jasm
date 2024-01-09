@@ -1,5 +1,6 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
+import dev.xdark.blw.type.ArrayType;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.VariableNameLookup;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
@@ -105,6 +106,49 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
             case ACONST_NULL -> frame.pushNull();
             case RETURN -> {
                 /* no-op */ }
+            case IASTORE, FASTORE , BASTORE, AASTORE, CASTORE, SASTORE -> frame.pop(3); // arrayref, index, value
+            case DASTORE, LASTORE -> frame.pop(4);
+            case IALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.INT);
+            }
+            case FALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.FLOAT);
+            }
+            case BALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.BYTE);
+            }
+            case CALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.CHAR);
+            }
+            case SALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.SHORT);
+            }
+            case DALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.DOUBLE);
+            }
+            case LALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.LONG);
+            }
+            case AALOAD -> {
+                frame.pop(); // index
+                ClassType arrayRef = frame.pop();
+                if (arrayRef instanceof ArrayType arrayType) {
+                    if (arrayType.dimensions() == 1) {
+                        frame.pushType(arrayType.componentType());
+                    } else {
+                        frame.pushType(Types.arrayTypeFromDescriptor(arrayType.descriptor().substring(1)));
+                    }
+                } else {
+                    frame.pushType(Types.OBJECT);
+                }
+            }
             default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
         }
     }

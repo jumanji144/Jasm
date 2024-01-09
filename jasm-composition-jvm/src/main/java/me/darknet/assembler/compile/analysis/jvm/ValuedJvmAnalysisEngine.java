@@ -278,6 +278,50 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case ACONST_NULL -> frame.pushNull();
             case RETURN -> {
                 /* no-op */ }
+            case IASTORE, FASTORE , BASTORE, AASTORE, CASTORE, SASTORE -> frame.pop(3); // arrayref, index, value
+            case DASTORE, LASTORE -> frame.pop(4);
+            case IALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.INT);
+            }
+            case FALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.FLOAT);
+            }
+            case BALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.BYTE);
+            }
+            case CALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.CHAR);
+            }
+            case SALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.SHORT);
+            }
+            case DALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.DOUBLE);
+            }
+            case LALOAD -> {
+                frame.pop(2); // arrayref, index
+                frame.pushType(Types.LONG);
+            }
+            case AALOAD -> {
+                frame.pop(); // index
+                Value arrayRef = frame.pop();
+                if (arrayRef instanceof Value.ArrayValue arrayValue) {
+                    ArrayType arrayType = arrayValue.arrayType();
+                    if (arrayType.dimensions() == 1) {
+                        frame.pushType(arrayType.componentType());
+                    } else {
+                        frame.pushType(Types.arrayTypeFromDescriptor(arrayType.descriptor().substring(1)));
+                    }
+                } else {
+                    frame.pushType(Types.OBJECT);
+                }
+            }
             default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
         }
     }
