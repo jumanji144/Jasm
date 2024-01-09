@@ -57,6 +57,7 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 
     @Override
     public void setSignature(@Nullable ASTString signature) {
+        replaceChild(this.signature, signature);
         this.signature = signature;
     }
 
@@ -67,10 +68,7 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 
     @Override
     public void setAnnotations(@Nullable List<ASTAnnotation> annotations) {
-        List<ASTAnnotation> oldAnnotations = this.annotations;
-        removeChildren(oldAnnotations);
-        if (annotations != null)
-            addChildren(annotations);
+        replaceChildren(this.annotations, annotations);
         this.annotations = annotations;
     }
 

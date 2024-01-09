@@ -32,7 +32,7 @@ public class ASTMethod extends ASTMember {
         this.format = format;
         addChildren(parameters);
         addChildren(exceptions);
-        addChild(code);
+        if (code != null) addChild(code);
     }
 
     public List<ASTIdentifier> parameters() {

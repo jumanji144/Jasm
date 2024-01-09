@@ -33,6 +33,7 @@ public class ASTClass extends ASTMember {
     }
 
     public void setSourceFile(@Nullable ASTString sourceFile) {
+        replaceChild(this.sourceFile, sourceFile);
         this.sourceFile = sourceFile;
     }
 
@@ -41,6 +42,7 @@ public class ASTClass extends ASTMember {
     }
 
     public void setSuperName(@Nullable ASTIdentifier superName) {
+        replaceChild(this.superName, superName);
         this.superName = superName;
     }
 
@@ -50,6 +52,7 @@ public class ASTClass extends ASTMember {
     }
 
     public void setInterfaces(@NotNull List<ASTIdentifier> interfaces) {
+        replaceChildren(this.interfaces, interfaces);
         this.interfaces = interfaces;
     }
 
@@ -59,9 +62,7 @@ public class ASTClass extends ASTMember {
     }
 
     public void setInnerClasses(@NotNull List<ASTInner> inners) {
-        List<ASTInner> oldInners = this.inners;
-        removeChildren(oldInners);
-        addChildren(inners);
+        replaceChildren(this.inners, inners);
         this.inners = inners;
     }
 

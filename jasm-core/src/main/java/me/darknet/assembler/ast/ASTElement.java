@@ -43,11 +43,15 @@ public class ASTElement {
     }
 
     protected void addChild(@NotNull ASTElement element) {
+        element.parent = this;
         children.add(element);
+        children.sort(SORT_POS);
     }
 
     protected void addChildren(@NotNull Collection<? extends ASTElement> elements) {
+        elements.forEach(e -> e.parent = this);
         children.addAll(elements);
+        children.sort(SORT_POS);
     }
 
     protected void removeChild(@NotNull ASTElement element) {
@@ -56,6 +60,16 @@ public class ASTElement {
 
     protected void removeChildren(@NotNull Collection<? extends ASTElement> elements) {
         children.removeAll(elements);
+    }
+
+    protected void replaceChild(@Nullable ASTElement element, @NotNull ASTElement replacement) {
+        if (element != null) removeChild(element);
+        addChild(replacement);
+    }
+
+    protected void replaceChildren(@Nullable Collection<? extends ASTElement> elements, @NotNull List<? extends ASTElement> replacements) {
+        if (elements != null) removeChildren(elements);
+        addChildren(replacements);
     }
 
     /**
