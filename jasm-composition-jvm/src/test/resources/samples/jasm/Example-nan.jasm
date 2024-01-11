@@ -1,0 +1,22 @@
+// SKIP-ROUND-TRIP-EQUALITY
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            // map to NaND
+            ldc NaN
+            pop2
+
+            ldc NaND
+            pop2
+
+            ldc NaNF
+            pop
+
+            return
+        B:
+        }
+    }
+}

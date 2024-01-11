@@ -64,7 +64,12 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
 
     @Override
     public void acceptDouble(OfDouble value) {
-        ctx.print(String.valueOf(value.value())).print("D");
+        String content = Double.toString(value.value());
+        ctx.print(content);
+
+        // Skip 'D' suffix for things like 'NaN' where it is implied
+        if (!content.matches("[\\D]+"))
+            ctx.print("D");
     }
 
     @Override

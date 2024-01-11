@@ -18,7 +18,12 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
         } else if (element instanceof ElementFloat ef) {
             ctx.print(ef.value() + "F");
         } else if (element instanceof ElementDouble ed) {
-            ctx.print(ed.value() + "D");
+            String content = Double.toString(ed.value());
+            ctx.print(content);
+
+            // Skip 'D' suffix for things like 'NaN' where it is implied
+            if (!content.matches("[\\D]+"))
+                ctx.print( "D");
         } else if (element instanceof ElementString es) {
             ctx.string(es.value());
         } else if (element instanceof ElementBoolean eb) {

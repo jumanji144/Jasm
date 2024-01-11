@@ -149,36 +149,71 @@ public class SampleCompilerTest {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("getSources")
-    void roundTrip(TestArgument arg) throws Throwable {
-        String source = arg.source.get();
-        processJvm(source, new TestJvmCompilerOptions(), classRepresentation -> {
-            if (source.contains("SKIP-ROUND-TRIP-EQUALITY"))
-                return;
+	@Nested
+	class RoundTrip {
+		@ParameterizedTest
+		@MethodSource("getSources")
+		void all(TestArgument arg) throws Throwable {
+			String source = arg.source.get();
+			processJvm(source, new TestJvmCompilerOptions(), classRepresentation -> {
+				if (source.contains("SKIP-ROUND-TRIP-EQUALITY"))
+					return;
 
-            JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
-            PrintContext<?> newCtx = new PrintContext<>("    ");
-            newPrinter.print(newCtx);
-            String newPrinted = newCtx.toString();
+				JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
+				PrintContext<?> newCtx = new PrintContext<>("    ");
+				newPrinter.print(newCtx);
+				String newPrinted = newCtx.toString();
 
-            assertEquals(
-                    normalize(source), normalize(newPrinted),
-                    "There was an unexpected difference in unmodified class: " + arg.name
-            );
-        });
-    }
+				assertEquals(
+						normalize(source), normalize(newPrinted),
+						"There was an unexpected difference in unmodified class: " + arg.name
+				);
+			});
+		}
 
-    public static List<TestArgument> getSources() {
-        try {
-            BiPredicate<Path, BasicFileAttributes> filter = (path, attrib) -> attrib.isRegularFile()
-                    && path.toString().endsWith(".jasm");
-            return Files.find(Paths.get(System.getProperty("user.dir")).resolve("src"), 25, filter)
-                    .map(TestArgument::from).collect(Collectors.toList());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
+		@Test
+		void supportInfinity() throws Throwable {
+			TestArgument arg = TestArgument.fromName("Example-infinity.jasm");
+			String source = arg.source.get();
+			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+			options.engineProvider(ValuedJvmAnalysisEngine::new);
+			processJvm(source, options, classRepresentation -> {
+				JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
+				PrintContext<?> newCtx = new PrintContext<>("    ");
+				newPrinter.print(newCtx);
+				String newPrinted = newCtx.toString();
+
+				assertEquals(normalize(source.replace("InfinityD", "Infinity").replace("+", "")), normalize(newPrinted));
+			});
+		}
+
+		@Test
+		void supportNan() throws Throwable {
+			TestArgument arg = TestArgument.fromName("Example-nan.jasm");
+			String source = arg.source.get();
+			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+			options.engineProvider(ValuedJvmAnalysisEngine::new);
+			processJvm(source, options, classRepresentation -> {
+				JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
+				PrintContext<?> newCtx = new PrintContext<>("    ");
+				newPrinter.print(newCtx);
+				String newPrinted = newCtx.toString();
+
+				assertEquals(normalize(source.replace("NaND", "NaN")), normalize(newPrinted));
+			});
+		}
+
+		public static List<TestArgument> getSources() {
+			try {
+				BiPredicate<Path, BasicFileAttributes> filter = (path, attrib) -> attrib.isRegularFile()
+						&& path.toString().endsWith(".jasm");
+				return Files.find(Paths.get(System.getProperty("user.dir")).resolve("src"), 25, filter)
+						.map(TestArgument::from).collect(Collectors.toList());
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
 
     private record TestArgument(String name, ThrowingSupplier<String> source) {
         public static TestArgument fromName(String name) {

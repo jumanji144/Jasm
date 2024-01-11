@@ -1,0 +1,33 @@
+// SKIP-ROUND-TRIP-EQUALITY
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            ldc Infinity
+            pop2
+            ldc +Infinity
+            pop2
+            ldc -Infinity
+            pop2
+
+            ldc InfinityD
+            pop2
+            ldc +InfinityD
+            pop2
+            ldc -InfinityD
+            pop2
+
+            ldc InfinityF
+            pop
+            ldc +InfinityF
+            pop
+            ldc -InfinityF
+            pop
+
+            return
+        B:
+        }
+    }
+}

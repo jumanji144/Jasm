@@ -16,6 +16,18 @@ public class ASTNumber extends ASTValue {
         if (value.startsWith("0x")) {
             radix = 16;
             value = value.substring(2);
+        } else if (value.startsWith("nan")) {
+            if (value.endsWith("f"))
+                return Float.NaN;
+            return Double.NaN;
+        } else if (value.contains("infinity")) {
+            if (value.startsWith("-")) {
+                if (value.endsWith("f")) return Float.NEGATIVE_INFINITY;
+                return Double.NEGATIVE_INFINITY;
+            }
+            if (value.endsWith("f"))
+                return Float.POSITIVE_INFINITY;
+            return Double.POSITIVE_INFINITY;
         }
         if (value.endsWith("f")) {
             return Float.parseFloat(value.substring(0, value.length() - 1));
@@ -36,7 +48,10 @@ public class ASTNumber extends ASTValue {
         if (value.contains(".")) {
             return !value.endsWith("f");
         } else {
-            return value.endsWith("l") || value.endsWith("d");
+            return value.endsWith("l") || value.endsWith("d") ||
+                    value.equals("nan") || value.equals("nand") ||
+                    value.equals("infinity") || value.equals("+infinity") ||  value.equals("-infinity") ||
+                    value.equals("infinityd") || value.equals("+infinityd") ||  value.equals("-infinityd");
         }
     }
 
@@ -58,6 +73,14 @@ public class ASTNumber extends ASTValue {
 
     public boolean isFloatingPoint() {
         String value = content();
-        return value.contains(".") || value.endsWith("f") || value.endsWith("F");
+        return value.contains(".") || value.endsWith("f") || value.endsWith("F") || isNaN() || isInfinity();
+    }
+
+    public boolean isNaN() {
+        return Double.isNaN(asDouble()) || Float.isNaN(asFloat());
+    }
+
+    public boolean isInfinity() {
+        return Double.isInfinite(asDouble()) || Float.isInfinite(asFloat());
     }
 }

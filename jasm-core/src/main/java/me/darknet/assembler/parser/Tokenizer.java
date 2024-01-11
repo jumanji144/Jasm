@@ -224,7 +224,10 @@ public class Tokenizer {
 
         boolean checkIfNumber(String content) {
             switch (content.toLowerCase()) { // floating point numbers
-                case "nan", "infinity", "+infinity", "-infinity" -> {
+                case "nan", "nand", "nanf",
+                        "infinity", "+infinity", "-infinity",
+                        "infinityd", "+infinityd", "-infinityd",
+                        "infinityf", "+infinityf", "-infinityf"-> {
                     return true;
                 }
             }
