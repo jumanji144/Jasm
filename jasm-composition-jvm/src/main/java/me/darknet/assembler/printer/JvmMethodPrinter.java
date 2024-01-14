@@ -1,5 +1,7 @@
 package me.darknet.assembler.printer;
 
+import dev.xdark.blw.type.PrimitiveType;
+import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
 import me.darknet.assembler.helper.Names;
 import me.darknet.assembler.util.EscapeUtil;
@@ -58,24 +60,29 @@ public class JvmMethodPrinter implements MethodPrinter {
         }
         List<ClassType> types = method.type().parameterTypes();
         for (int i = 0; i < types.size(); i++) {
-            String name = getName(locals, i, offset);
-            parameterNames.put(i + offset, name);
+            int varSlot = i + offset;
+            String name = getName(locals, varSlot);
+            parameterNames.put(varSlot, name);
+
+            // Skip creating parameters for reserved slots
+            if (Types.category(types.get(i)) > 1)
+                i++;
         }
         return new Names(parameterNames, locals);
     }
 
     @NotNull
-    private static String getName(List<Names.Local> locals, int i, int offset) {
+    private static String getName(List<Names.Local> locals, int i) {
         String name = null;
         // search for parameter name in local variables, first reference of the index which matches the type
         for (Names.Local local : locals) {
-            if (local.index() == i + offset) {
+            if (local.index() == i) {
                 name = local.name();
                 break;
             }
         }
         if (name == null)
-            name = "p" + (i + offset);
+            name = "p" + i;
         return name;
     }
 
