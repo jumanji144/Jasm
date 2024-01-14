@@ -1,6 +1,5 @@
 package me.darknet.assembler.printer;
 
-import dev.xdark.blw.type.PrimitiveType;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
 import me.darknet.assembler.helper.Names;
@@ -25,6 +24,7 @@ public class JvmMethodPrinter implements MethodPrinter {
 
     protected Method method;
     protected MemberPrinter memberPrinter;
+    protected String labelPrefix;
 
     public JvmMethodPrinter(Method method) {
         this.method = method;
@@ -36,6 +36,10 @@ public class JvmMethodPrinter implements MethodPrinter {
             return "p" + index;
         else
             return EscapeUtil.escapeLiteral(name);
+    }
+
+    public void setLabelPrefix(String labelPrefix) {
+        this.labelPrefix = labelPrefix;
     }
 
     public Names localNames() {
@@ -86,12 +90,14 @@ public class JvmMethodPrinter implements MethodPrinter {
         return name;
     }
 
-    public static Map<Integer, String> getLabelNames(List<CodeElement> elements) {
+    public Map<Integer, String> getLabelNames(List<CodeElement> elements) {
         Map<Integer, String> labelNames = new HashMap<>();
         int labelIndex = 0;
         for (CodeElement element : elements) {
             if (element instanceof Label label) {
-                labelNames.put(label.getIndex(), LabelUtil.getLabelName(labelIndex++));
+                String labelName = LabelUtil.getLabelName(labelIndex++);
+                if (labelPrefix != null) labelName = labelPrefix + labelName;
+                labelNames.put(label.getIndex(), labelName);
             }
         }
         return labelNames;
