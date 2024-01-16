@@ -11,6 +11,7 @@ import dev.xdark.blw.classfile.generic.GenericClassBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.function.ThrowingConsumer;
+import org.opentest4j.AssertionFailedError;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -31,7 +32,10 @@ public class TestUtils {
                 try {
                     if (outputConsumer != null)
                         outputConsumer.accept(representation);
-                } catch (Throwable e) {
+                } catch (AssertionFailedError e) {
+                    // Pass up the chain
+                    throw e;
+                }catch (Throwable e) {
                     // Consumer should fail instead of us handling it generically here
                     fail(e);
                     return;
