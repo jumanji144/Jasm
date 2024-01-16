@@ -322,6 +322,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     frame.pushType(Types.OBJECT);
                 }
             }
+            case ARRAYLENGTH -> {
+                frame.pop();
+                frame.pushType(Types.INT);
+            }
             default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
         }
     }

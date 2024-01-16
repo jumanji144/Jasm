@@ -102,6 +102,7 @@ public enum JvmOperands implements Operands {
             }
             case IDENTIFIER -> {
                 char first = element.content().charAt(0);
+                // TODO: maybe replace with actual descriptor verification?
                 switch (first) {
                     case 'L', '(', '[' -> {
                     }

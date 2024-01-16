@@ -15,6 +15,7 @@ public enum DefaultOperands implements Operands {
             }
         }
     }),
+    NUMBER((context, element) -> context.isNotType(element, ElementType.NUMBER, "number literal")),
     IDENTIFIER((context, element) -> context.isNotType(element, ElementType.IDENTIFIER, "identifier")),
     LITERAL((context, element) -> {
         // literals can be: number or identifier

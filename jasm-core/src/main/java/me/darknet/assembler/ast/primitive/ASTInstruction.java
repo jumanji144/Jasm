@@ -42,4 +42,15 @@ public class ASTInstruction extends ASTElement {
         return (T) arguments.get(index);
     }
 
+    public ASTIdentifier argument(int index) {
+        return argument(index, ASTIdentifier.class);
+    }
+
+    public ASTArray argumentArray(int index) {
+        return argument(index, ASTArray.class);
+    }
+
+    public ASTObject argumentObject(int index) {
+        return argument(index, ASTObject.class);
+    }
 }
