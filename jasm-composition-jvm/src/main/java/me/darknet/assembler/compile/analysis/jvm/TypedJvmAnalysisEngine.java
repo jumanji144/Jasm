@@ -153,6 +153,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                 frame.pop();
                 frame.pushType(Types.INT);
             }
+            case NOP -> {}
             default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
         }
     }
