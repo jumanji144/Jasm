@@ -2,16 +2,25 @@ package me.darknet.assembler.visitor;
 
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
+import org.jetbrains.annotations.NotNull;
 
 public interface ASTInstructionVisitor {
 
     /**
-     * Called on every instruction visit
+     * Called on every instruction visit.
      *
      * @param instruction
      *                    The instruction
      */
-    void visitInstruction(ASTInstruction instruction);
+    void visitInstruction(@NotNull ASTInstruction instruction);
+
+    /**
+     * Called after {@link #visitInstruction(ASTInstruction)} or {@link #visitLabel(ASTIdentifier)} completes.
+     *
+     * @param instruction
+     *                    The instruction
+     */
+    void postVisitInstruction(@NotNull ASTInstruction instruction);
 
     /**
      * Visit a label
@@ -19,9 +28,9 @@ public interface ASTInstructionVisitor {
      * @param label
      *              the label
      */
-    void visitLabel(ASTIdentifier label);
+    void visitLabel(@NotNull ASTIdentifier label);
 
-    void visitException(ASTIdentifier start, ASTIdentifier end, ASTIdentifier handler, ASTIdentifier type);
+    void visitException(@NotNull ASTIdentifier start, @NotNull ASTIdentifier end, @NotNull ASTIdentifier handler, @NotNull ASTIdentifier type);
 
     void visitEnd();
 

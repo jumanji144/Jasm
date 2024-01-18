@@ -1,5 +1,7 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
+import dev.xdark.blw.code.CodeElement;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.VariableNameLookup;
@@ -14,6 +16,8 @@ import dev.xdark.blw.simulation.ExecutionEngine;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
@@ -26,6 +30,8 @@ import java.util.TreeMap;
 public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEngine, AnalysisResults, JavaOpcodes {
     protected final NavigableMap<Integer, F> frames = new TreeMap<>();
     protected final NavigableMap<Integer, F> terminalFrames = new TreeMap<>();
+    private final Map<ASTInstruction, CodeElement> astToElement = new IdentityHashMap<>();
+    private final Map<CodeElement, ASTInstruction> elementToAst = new IdentityHashMap<>();
     protected final VariableNameLookup variableNameLookup;
     protected AnalysisException analysisFailure;
     protected F frame;
@@ -73,6 +79,22 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
      */
     public void markTerminal(int index, @NotNull F frame) {
         terminalFrames.put(index, frame);
+    }
+
+    @Override
+    public void recordInstructionMapping(@NotNull ASTInstruction instruction, @NotNull CodeElement element) {
+        elementToAst.put(element, instruction);
+        astToElement.put(instruction, element);
+    }
+
+    @Override
+    public @NotNull Map<ASTInstruction, CodeElement> getAstToCodeMap() {
+        return astToElement;
+    }
+
+    @Override
+    public @NotNull Map<CodeElement, ASTInstruction> getCodeToAstMap() {
+        return elementToAst;
     }
 
     @Override

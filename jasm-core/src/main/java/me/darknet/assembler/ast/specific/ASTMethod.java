@@ -73,9 +73,11 @@ public class ASTMethod extends ASTMember {
             for (ASTInstruction instruction : localAstInstructions) {
                 if (instruction instanceof ASTLabel lab) {
                     instructionVisitor.visitLabel(lab.identifier());
+                    instructionVisitor.postVisitInstruction(lab);
                 } else {
                     instructionVisitor.visitInstruction(instruction);
                     localIrInstructions.get(instructionIndex++).transform(instruction, instructionVisitor);
+                    instructionVisitor.postVisitInstruction(instruction);
                 }
             }
 

@@ -1,11 +1,14 @@
 package me.darknet.assembler.compile.analysis;
 
+import dev.xdark.blw.code.CodeElement;
 import me.darknet.assembler.ast.primitive.ASTCode;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
 import java.util.NavigableMap;
 
 /**
@@ -55,4 +58,27 @@ public interface AnalysisResults {
      *                        analysis.
      */
     void setAnalysisFailure(@Nullable AnalysisException analysisFailure);
+
+    /**
+     * Records the relationship of AST --> Element for the given pair.
+     *
+     * @param instruction
+     *         AST instruction.
+     * @param element
+     *         Generated code element.
+     *
+     * @see #getAstToCodeMap() AST --> Element mapping
+     * @see #getAnalysisFailure() Element --> AST mapping
+     */
+    void recordInstructionMapping(@NotNull ASTInstruction instruction, @NotNull CodeElement element);
+
+    /**
+     * @return Map of AST instructions/labels to the generated code elements.
+     */
+    @NotNull Map<ASTInstruction, CodeElement> getAstToCodeMap();
+
+    /**
+     * @return Map of the generated code elements to their source AST instructions/labels.
+     */
+    @NotNull Map<CodeElement, ASTInstruction> getCodeToAstMap();
 }

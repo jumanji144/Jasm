@@ -128,7 +128,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     @Override
-    public void visitInstruction(ASTInstruction instruction) {
+    public void visitInstruction(@NotNull ASTInstruction instruction) {
         last = instruction;
         if (instruction instanceof ASTLabel)
             return;
@@ -136,7 +136,13 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     @Override
-    public void visitException(ASTIdentifier start, ASTIdentifier end, ASTIdentifier handler, ASTIdentifier type) {
+    public void postVisitInstruction(@NotNull ASTInstruction instruction) {
+        CodeElement lastElement = codeBuilderList.getFirstElement();
+        analysisEngine.recordInstructionMapping(instruction, lastElement);
+    }
+
+    @Override
+    public void visitException(@NotNull ASTIdentifier start, @NotNull ASTIdentifier end, @NotNull ASTIdentifier handler, @NotNull ASTIdentifier type) {
         GenericLabel startLabel = nameToLabel.get(start.content()); // assume that labels don't have escapable characters
         GenericLabel endLabel = nameToLabel.get(end.content());
         GenericLabel handlerLabel = nameToLabel.get(handler.content());
@@ -335,7 +341,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     @Override
-    public void visitLabel(ASTIdentifier label) {
+    public void visitLabel(@NotNull ASTIdentifier label) {
         codeBuilderList.addLabel(getOrCreateLabel(label.content()));
     }
 
