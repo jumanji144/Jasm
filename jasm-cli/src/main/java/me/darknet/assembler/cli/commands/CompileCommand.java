@@ -5,6 +5,7 @@ import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.EmptyMethodAnalysisLookup;
+import me.darknet.assembler.compiler.ClassRepresentation;
 import me.darknet.assembler.compiler.Compiler;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.helper.Processor;
@@ -69,7 +70,7 @@ public class CompileCommand implements Runnable {
                 System.exit(1);
                 return null;
             }
-        }).orElse(null), EmptyMethodAnalysisLookup.instance())).annotationPath(annotationTarget.orElse(null));
+        }).orElse(null))).annotationPath(annotationTarget.orElse(null));
     }
 
     private void validateAst(List<ASTElement> ast) {
@@ -124,7 +125,8 @@ public class CompileCommand implements Runnable {
                 System.err.println("Failed to compile source file:");
                 errors.forEach(System.err::println);
                 System.exit(1);
-            }).ifOk((representation) -> {
+            }).ifOk((result) -> {
+                ClassRepresentation representation = result.representation();
                 switch (MainCommand.target) {
                     case JVM -> {
                         try {

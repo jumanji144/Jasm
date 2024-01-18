@@ -2,6 +2,7 @@ package me.darknet.assembler.compiler;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.error.Result;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
@@ -15,6 +16,6 @@ public interface Compiler {
      *
      * @return The result of the compilation process
      */
-    Result<? extends ClassRepresentation> compile(List<ASTElement> ast, CompilerOptions<?> options);
-
+    @NotNull
+    Result<? extends ClassResult> compile(List<ASTElement> ast, CompilerOptions<?> options);
 }

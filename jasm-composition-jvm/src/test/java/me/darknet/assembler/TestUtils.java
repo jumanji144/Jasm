@@ -2,6 +2,7 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JvmCompiler;
+import me.darknet.assembler.compile.visitor.JavaCompileResult;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.helper.Processor;
@@ -25,13 +26,13 @@ public class TestUtils {
     private static final Pattern COMMENTS = Pattern.compile("(?:^|\\n)\\s*//.+");
 
     public static void processJvm(@NotNull String source, @NotNull CompilerOptions<?> options,
-            @Nullable ThrowingConsumer<JavaClassRepresentation> outputConsumer) {
+            @Nullable ThrowingConsumer<JavaCompileResult> outputConsumer) {
         Processor.processSource(source, "<test>", (ast) -> {
             JvmCompiler compiler = new JvmCompiler();
-            compiler.compile(ast, options).ifOk(representation -> {
+            compiler.compile(ast, options).ifOk(result -> {
                 try {
                     if (outputConsumer != null)
-                        outputConsumer.accept(representation);
+                        outputConsumer.accept(result);
                 } catch (AssertionFailedError e) {
                     // Pass up the chain
                     throw e;
@@ -43,6 +44,7 @@ public class TestUtils {
 
                 // Check if bytes are valid
                 try {
+                    JavaClassRepresentation representation = result.representation();
                     byte[] bytes = representation.classFile();
                     compiler.library().read(new ByteArrayInputStream(bytes), new GenericClassBuilder());
                 } catch (IOException e) {

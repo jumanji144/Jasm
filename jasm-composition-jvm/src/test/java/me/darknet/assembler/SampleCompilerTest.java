@@ -41,8 +41,8 @@ public class SampleCompilerTest {
         void basic() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-variables.jasm");
             String source = arg.source.get();
-            processJvm(source, new TestJvmCompilerOptions(), classRepresentation -> {
-                AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
                 Set<String> varNames = results.frames().values().stream().flatMap(Frame::locals).map(Local::name)
                         .collect(Collectors.toSet());
@@ -70,8 +70,8 @@ public class SampleCompilerTest {
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
             options.engineProvider(ValuedJvmAnalysisEngine::new);
-            processJvm(source, options, classRepresentation -> {
-                AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
                 assertFalse(results.terminalFrames().isEmpty());
                 results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
@@ -94,8 +94,8 @@ public class SampleCompilerTest {
                 engine.setMethodValueLookup(new BasicMethodValueLookup());
                 return engine;
             });
-            processJvm(source, options, classRepresentation -> {
-                AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
                 assertFalse(results.terminalFrames().isEmpty());
                 results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
@@ -118,8 +118,8 @@ public class SampleCompilerTest {
                 engine.setFieldValueLookup((instruction, context) -> Values.valueOf(100));
                 return engine;
             });
-            processJvm(source, options, classRepresentation -> {
-                AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
                 assertFalse(results.terminalFrames().isEmpty());
                 results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
@@ -141,8 +141,8 @@ public class SampleCompilerTest {
 			String source = arg.source.get();
 			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
 			options.engineProvider(ValuedJvmAnalysisEngine::new);
-			processJvm(source, options, classRepresentation -> {
-				AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+			processJvm(source, options, result -> {
+				AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
 				assertNull(results.getAnalysisFailure());
 				assertFalse(results.terminalFrames().isEmpty());
 			});
@@ -154,8 +154,8 @@ public class SampleCompilerTest {
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
             options.engineProvider(ValuedJvmAnalysisEngine::new);
-            processJvm(source, options, classRepresentation -> {
-                AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
                 assertFalse(results.terminalFrames().isEmpty());
             });
@@ -168,11 +168,11 @@ public class SampleCompilerTest {
 		@MethodSource("getSources")
 		void all(TestArgument arg) throws Throwable {
 			String source = arg.source.get();
-			processJvm(source, new TestJvmCompilerOptions(), classRepresentation -> {
+			processJvm(source, new TestJvmCompilerOptions(), result -> {
 				if (source.contains("SKIP-ROUND-TRIP-EQUALITY"))
 					return;
 
-				JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
+				JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
 				PrintContext<?> newCtx = new PrintContext<>("    ");
 				newPrinter.print(newCtx);
 				String newPrinted = newCtx.toString();
@@ -190,8 +190,8 @@ public class SampleCompilerTest {
 			String source = arg.source.get();
 			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
 			options.engineProvider(ValuedJvmAnalysisEngine::new);
-			processJvm(source, options, classRepresentation -> {
-				JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
+			processJvm(source, options, result -> {
+				JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
 				PrintContext<?> newCtx = new PrintContext<>("    ");
 				newPrinter.print(newCtx);
 				String newPrinted = newCtx.toString();
@@ -206,8 +206,8 @@ public class SampleCompilerTest {
 			String source = arg.source.get();
 			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
 			options.engineProvider(ValuedJvmAnalysisEngine::new);
-			processJvm(source, options, classRepresentation -> {
-				JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
+			processJvm(source, options, result -> {
+				JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
 				PrintContext<?> newCtx = new PrintContext<>("    ");
 				newPrinter.print(newCtx);
 				String newPrinted = newCtx.toString();

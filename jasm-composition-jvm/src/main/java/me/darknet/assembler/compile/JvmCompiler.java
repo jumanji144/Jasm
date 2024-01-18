@@ -1,8 +1,13 @@
 package me.darknet.assembler.compile;
 
+import dev.xdark.blw.code.CodeElement;
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.compile.analysis.AnalysisException;
+import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.compile.visitor.BlwRootVisitor;
+import me.darknet.assembler.compile.visitor.JavaCompileResult;
 import me.darknet.assembler.compiler.Compiler;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.error.ErrorCollector;
@@ -15,6 +20,8 @@ import dev.xdark.blw.asm.ClassWriterProvider;
 import dev.xdark.blw.classfile.ClassBuilder;
 import dev.xdark.blw.classfile.ClassFileView;
 import dev.xdark.blw.version.JavaVersion;
+import me.darknet.assembler.util.Location;
+import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
@@ -39,8 +46,7 @@ public class JvmCompiler implements Compiler {
     }
 
     @Override
-    public Result<JavaClassRepresentation> compile(List<ASTElement> ast, CompilerOptions<?> options) {
-
+    public @NotNull Result<JavaCompileResult> compile(List<ASTElement> ast, CompilerOptions<?> options) {
         this.library = new AsmBytecodeLibrary(new ClassWriterProvider() {
             @Override
             public ClassWriter newClassWriterFor(ClassReader classReader, ClassFileView classFileView) {
@@ -70,7 +76,7 @@ public class JvmCompiler implements Compiler {
 
         if (ast.size() != 1) {
             collector.addError("Expected exactly one class declaration", null);
-            return new Result<>(null, collector.getErrors());
+            return new Result<>(new JavaCompileResult(null, builder), collector.getErrors());
         }
 
         builder.setVersion(blwOptions.version);
@@ -78,7 +84,7 @@ public class JvmCompiler implements Compiler {
         if (blwOptions.overlay != null)
             applyOverlay(collector, builder, blwOptions.overlay.classFile());
         if (collector.hasErr()) {
-            return new Result<>(null, collector.getErrors());
+            return new Result<>(new JavaCompileResult(null, builder), collector.getErrors());
         }
 
         Transformer transformer = new Transformer(visitor);
@@ -88,15 +94,39 @@ public class JvmCompiler implements Compiler {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             try {
                 library.write(builder.build(), out);
-            } catch (IOException e) {
-                collector.addError("Failed to write class: " + e.getMessage(), null);
-                // we cannot continue, the result might be very corrupted
-                return new Result<>(null, collector.getErrors());
+            } catch (Throwable t) {
+                // We cannot continue, the result might be very corrupted.
+                // Collect as much info that could have led to the error as possible.
+                boolean recordedError = false;
+                for (var methodEntry : builder.allResults().entrySet()) {
+                    AnalysisResults analysisResults = methodEntry.getValue();
+                    AnalysisException failure = analysisResults.getAnalysisFailure();
+                    if (failure != null) {
+                        CodeElement element = failure.getElement();
+                        if (element != null) {
+                            ASTInstruction targetInsn = analysisResults.getCodeToAstMap().get(element);
+                            if (targetInsn != null) {
+                                Location location = targetInsn.location();
+                                collector.addError(failure.getMessage(), location);
+                                recordedError = true;
+                            } else {
+                                collector.addError(failure.getMessage(), Location.UNKNOWN);
+                                recordedError = true;
+                            }
+                        }
+                    }
+                }
+
+                // Fallback if there were no reported errors from the analysis process
+                if (!recordedError)
+                    collector.addError("Failed to write class: " + t.getMessage(), null);
+
+                return new Result<>(new JavaCompileResult(null, builder), collector.getErrors());
             }
-            return new Result<>(new JavaClassRepresentation(out.toByteArray(), builder), collector.getErrors());
+            return new Result<>(new JavaCompileResult(new JavaClassRepresentation(out.toByteArray()), builder), collector.getErrors());
         }
 
-        return new Result<>(null, collector.getErrors());
+        return new Result<>(new JavaCompileResult(null, builder), collector.getErrors());
     }
 
     public BytecodeLibrary library() {

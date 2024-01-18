@@ -38,8 +38,8 @@ public class RuntimeCompilerTest {
         String printed = ctx.toString();
 
         JvmCompilerOptions options = new JvmCompilerOptions();
-        processJvm(printed, options, classRepresentation -> {
-            JvmClassPrinter newPrinter = new JvmClassPrinter(classRepresentation.classFile());
+        processJvm(printed, options, result -> {
+            JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
             PrintContext<?> newCtx = new PrintContext<>("    ");
             newPrinter.print(newCtx);
             String newPrinted = newCtx.toString();
