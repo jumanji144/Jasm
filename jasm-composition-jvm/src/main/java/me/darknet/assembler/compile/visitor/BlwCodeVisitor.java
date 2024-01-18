@@ -137,7 +137,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void postVisitInstruction(@NotNull ASTInstruction instruction) {
-        CodeElement lastElement = codeBuilderList.getFirstElement();
+        CodeElement lastElement = codeBuilderList.getLastElement();
         analysisEngine.recordInstructionMapping(instruction, lastElement);
     }
 
