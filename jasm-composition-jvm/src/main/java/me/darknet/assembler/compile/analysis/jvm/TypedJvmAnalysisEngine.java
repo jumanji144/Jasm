@@ -63,8 +63,8 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                 ClassType type4 = frame.pop();
                 frame.pushTypes(type2, type1, type4, type3, type2, type1);
             }
-            case POP, IINC, IRETURN, LRETURN, FRETURN, DRETURN, ARETURN, MONITORENTER, MONITOREXIT -> frame.pop();
-            case POP2 -> frame.pop2();
+            case POP, IINC, IRETURN, FRETURN, ARETURN, MONITORENTER, MONITOREXIT -> frame.pop();
+            case POP2, LRETURN, DRETURN -> frame.pop2();
             case SWAP -> {
                 ClassType type1 = frame.pop();
                 ClassType type2 = frame.pop();

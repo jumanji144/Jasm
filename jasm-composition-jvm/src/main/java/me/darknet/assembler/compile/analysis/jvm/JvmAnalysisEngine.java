@@ -1,6 +1,8 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
 import dev.xdark.blw.code.CodeElement;
+import dev.xdark.blw.type.ArrayType;
+import dev.xdark.blw.type.ObjectType;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
@@ -129,7 +131,10 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
 
     @Override
     public void execute(AllocateInstruction instruction) {
-        frame.pushType(instruction.type());
+        ObjectType type = instruction.type();
+        if (type instanceof ArrayType)
+            frame.pop(1); // pop array size off stack
+        frame.pushType(type);
     }
 
     @Override

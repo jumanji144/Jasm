@@ -135,6 +135,19 @@ public class SampleCompilerTest {
 
     @Nested
     class Regresssion {
+		@Test
+		void newArrayPopsSizeOffStack() throws Throwable {
+			TestArgument arg = TestArgument.fromName("Example-anewarray.jasm");
+			String source = arg.source.get();
+			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+			options.engineProvider(ValuedJvmAnalysisEngine::new);
+			processJvm(source, options, classRepresentation -> {
+				AnalysisResults results = classRepresentation.analysisLookup().allResults().values().iterator().next();
+				assertNull(results.getAnalysisFailure());
+				assertFalse(results.terminalFrames().isEmpty());
+			});
+		}
+
         @Test
         void athrowDoesNotAllowFlowThroughToNextFrameAndClearsStack() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-exit-exception.jasm");

@@ -92,8 +92,8 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 Value value4 = frame.pop();
                 frame.push(value2, value1, value4, value3, value2, value1);
             }
-            case POP, IRETURN, LRETURN, FRETURN, DRETURN, ARETURN, MONITORENTER, MONITOREXIT -> frame.pop();
-            case POP2 -> frame.pop2();
+            case POP, IRETURN, FRETURN, ARETURN, MONITORENTER, MONITOREXIT -> frame.pop();
+            case POP2, LRETURN, DRETURN -> frame.pop2();
             case SWAP -> {
                 Value value1 = frame.pop();
                 Value value2 = frame.pop();

@@ -2,11 +2,37 @@
 .class public super Example {
     .method public exampleMethod ()V {
         parameters: { this },
+        exceptions: { { C, D, E, Ljava/lang/Exception; } },
         code: {
-        A:
-            anewarray Ljava/lang/Object;
-            return
-        B:
+            A:
+                aload this
+                ifnull H
+            B:
+                iconst_0
+                ifeq G
+            C:
+                nop
+                nop
+            D:
+                goto F
+            E:
+                astore ex
+            F:
+                goto B
+            G:
+                getstatic Example.log Ljava/util/logging/Logger;
+                ldc "foo"
+                iconst_1
+                anewarray Ljava/lang/Object;
+                dup
+                iconst_0
+                aload this
+                aastore
+                invokestatic Example.buildLogMessage (Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;
+                invokevirtual java/util/logging/Logger.info (Ljava/lang/String;)V
+            H:
+                return
+            I:
         }
     }
 }
