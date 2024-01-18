@@ -190,9 +190,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case DDIV -> {
                 Value value1 = frame.pop2();
                 Value value2 = frame.pop2();
-                if (
-                    value1 instanceof Value.KnownDoubleValue double1 && value2 instanceof Value.KnownDoubleValue double2
-                ) {
+                if (value1 instanceof Value.KnownDoubleValue double1 && value2 instanceof Value.KnownDoubleValue double2) {
                     double a = double1.value();
                     double b = double2.value();
                     if (a == 0)
@@ -245,9 +243,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case DCMPL -> {
                 Value value1 = frame.pop2();
                 Value value2 = frame.pop2();
-                if (
-                    value1 instanceof Value.KnownDoubleValue double1 && value2 instanceof Value.KnownDoubleValue double2
-                ) {
+                if (value1 instanceof Value.KnownDoubleValue double1 && value2 instanceof Value.KnownDoubleValue double2) {
                     double a = double1.value();
                     double b = double2.value();
                     if (Double.isNaN(a) || Double.isNaN(b))
@@ -261,9 +257,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case DCMPG -> {
                 Value value1 = frame.pop2();
                 Value value2 = frame.pop2();
-                if (
-                    value1 instanceof Value.KnownDoubleValue double1 && value2 instanceof Value.KnownDoubleValue double2
-                ) {
+                if (value1 instanceof Value.KnownDoubleValue double1 && value2 instanceof Value.KnownDoubleValue double2) {
                     double a = double1.value();
                     double b = double2.value();
                     if (Double.isNaN(a) || Double.isNaN(b))
@@ -393,10 +387,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         }
 
         // If the value is known, we can update it
-        if (local.value()instanceof Value.KnownIntValue intValue) {
-            frame.setLocal(
-                    local.index(), new ValuedLocal(local, Values.valueOf(intValue.value() + instruction.incrementBy()))
-            );
+        if (local.value() instanceof Value.KnownIntValue intValue) {
+            ValuedLocal updatedLocal = new ValuedLocal(local, Values.valueOf(intValue.value() + instruction.incrementBy()));
+            frame.setLocal(local.index(), updatedLocal);
         }
     }
 
@@ -435,7 +428,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             parameters.add(0, frame.pop(type));
 
         Value.ObjectValue context = null;
-        if (instruction.opcode() != INVOKESTATIC && frame.pop()instanceof Value.ObjectValue poppedContext)
+        if (instruction.opcode() != INVOKESTATIC && frame.pop() instanceof Value.ObjectValue poppedContext)
             context = poppedContext;
 
         if (methodType.returnType() != Types.VOID) {
@@ -462,7 +455,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         switch (opcode) {
             case GETFIELD, GETSTATIC -> {
                 Value.ObjectValue context = null;
-                if (opcode == GETFIELD && frame.pop()instanceof Value.ObjectValue poppedContext)
+                if (opcode == GETFIELD && frame.pop() instanceof Value.ObjectValue poppedContext)
                     context = poppedContext;
                 var lookup = fieldValueLookup;
                 if (lookup != null) {

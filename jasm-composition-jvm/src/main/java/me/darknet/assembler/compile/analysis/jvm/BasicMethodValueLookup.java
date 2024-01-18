@@ -22,15 +22,14 @@ public class BasicMethodValueLookup implements MethodValueLookup {
 
     @Override
     public @Nullable Value accept(@NotNull MethodInstruction instruction, Value.@Nullable ObjectValue context,
-            @NotNull List<Value> parameters) {
+                                  @NotNull List<Value> parameters) {
         if (context instanceof Value.KnownStringValue stringValue) {
             String method = instruction.name() + instruction.type().descriptor();
             StringFunc func = INSTANCE_STRING_FUNCS.get(method);
             if (func != null)
                 return func.apply(stringValue.value(), parameters);
         } else if (context == null) {
-            String method = instruction.owner().internalName() + "." + instruction.name()
-                    + instruction.type().descriptor();
+            String method = instruction.owner().internalName() + "." + instruction.name() + instruction.type().descriptor();
             StaticFunc func = STATIC_FUNCS.get(method);
             if (func != null)
                 return func.apply(parameters);
@@ -59,7 +58,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Integer.parseInt(Ljava/lang/String;)I", params -> {
             if (params.isEmpty())
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue text)
+            if (params.get(0) instanceof Value.KnownStringValue text)
                 try {
                     return Values.valueOf(Integer.parseInt(text.value()));
                 } catch (NumberFormatException ignored) {
@@ -69,9 +68,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Integer.parseInt(Ljava/lang/String;I)I", params -> {
             if (params.size() != 2)
                 return Values.INT_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownStringValue text && params.get(1)instanceof Value.KnownIntValue radix
-            )
+            if (params.get(0) instanceof Value.KnownStringValue text &&
+                    params.get(1) instanceof Value.KnownIntValue radix)
                 try {
                     return Values.valueOf(Integer.parseInt(text.value(), radix.value()));
                 } catch (NumberFormatException ignored) {
@@ -81,7 +79,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Integer.parseUnsignedInt(Ljava/lang/String;)I", params -> {
             if (params.isEmpty())
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue text)
+            if (params.get(0) instanceof Value.KnownStringValue text)
                 try {
                     return Values.valueOf(Integer.parseUnsignedInt(text.value()));
                 } catch (NumberFormatException ignored) {
@@ -91,9 +89,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Integer.parseUnsignedInt(Ljava/lang/String;I)I", params -> {
             if (params.size() != 2)
                 return Values.INT_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownStringValue text && params.get(1)instanceof Value.KnownIntValue radix
-            )
+            if (params.get(0) instanceof Value.KnownStringValue text &&
+                    params.get(1) instanceof Value.KnownIntValue radix)
                 try {
                     return Values.valueOf(Integer.parseUnsignedInt(text.value(), radix.value()));
                 } catch (NumberFormatException ignored) {
@@ -107,8 +104,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Integer.lowestOneBit(I)I", (UnIntStaticFunc) Integer::lowestOneBit);
         STATIC_FUNCS.put("java/lang/Integer.highestOneBit(I)I", (UnIntStaticFunc) Integer::highestOneBit);
         STATIC_FUNCS.put("java/lang/Integer.numberOfLeadingZeros(I)I", (UnIntStaticFunc) Integer::numberOfLeadingZeros);
-        STATIC_FUNCS
-                .put("java/lang/Integer.numberOfTrailingZeros(I)I", (UnIntStaticFunc) Integer::numberOfTrailingZeros);
+        STATIC_FUNCS.put("java/lang/Integer.numberOfTrailingZeros(I)I", (UnIntStaticFunc) Integer::numberOfTrailingZeros);
         STATIC_FUNCS.put("java/lang/Integer.bitCount(I)I", (UnIntStaticFunc) Integer::bitCount);
         STATIC_FUNCS.put("java/lang/Integer.compare(II)I", (BiIntStaticFunc) Integer::compare);
         STATIC_FUNCS.put("java/lang/Integer.compareUnsigned(II)I", (BiIntStaticFunc) Integer::compareUnsigned);
@@ -121,28 +117,20 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Integer.toUnsignedLong(I)J", params -> {
             if (params.isEmpty())
                 return Values.LONG_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue a) {
+            if (params.get(0) instanceof Value.KnownIntValue a) {
                 return Values.valueOf(Integer.toUnsignedLong(a.value()));
             }
             return Values.LONG_VALUE;
         });
-        STATIC_FUNCS.put(
-                "java/lang/Integer.toBinaryString(I)Ljava/lang/String;", (IntToStringStaticFunc) Integer::toBinaryString
-        );
-        STATIC_FUNCS.put(
-                "java/lang/Integer.toHexString(I)Ljava/lang/String;", (IntToStringStaticFunc) Integer::toHexString
-        );
-        STATIC_FUNCS.put(
-                "java/lang/Integer.toOctalString(I)Ljava/lang/String;", (IntToStringStaticFunc) Integer::toOctalString
-        );
-        STATIC_FUNCS.put(
-                "java/lang/Integer.toUnsignedString(I)Ljava/lang/String;",
-                (IntToStringStaticFunc) Integer::toUnsignedString
-        );
+        STATIC_FUNCS.put("java/lang/Integer.toBinaryString(I)Ljava/lang/String;", (IntToStringStaticFunc) Integer::toBinaryString);
+        STATIC_FUNCS.put("java/lang/Integer.toHexString(I)Ljava/lang/String;", (IntToStringStaticFunc) Integer::toHexString);
+        STATIC_FUNCS.put("java/lang/Integer.toOctalString(I)Ljava/lang/String;", (IntToStringStaticFunc) Integer::toOctalString);
+        STATIC_FUNCS.put("java/lang/Integer.toUnsignedString(I)Ljava/lang/String;", (IntToStringStaticFunc) Integer::toUnsignedString);
         STATIC_FUNCS.put("java/lang/Integer.toUnsignedString(II)Ljava/lang/String;", params -> {
             if (params.isEmpty())
                 return Values.STRING_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue a && params.get(1)instanceof Value.KnownIntValue b) {
+            if (params.get(0) instanceof Value.KnownIntValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b) {
                 return Values.valueOfString(Integer.toUnsignedString(a.value(), b.value()));
             }
             return Values.STRING_VALUE;
@@ -151,7 +139,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Integer.toString(II)Ljava/lang/String;", params -> {
             if (params.isEmpty())
                 return Values.STRING_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue a && params.get(1)instanceof Value.KnownIntValue b) {
+            if (params.get(0) instanceof Value.KnownIntValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b) {
                 return Values.valueOfString(Integer.toString(a.value(), b.value()));
             }
             return Values.STRING_VALUE;
@@ -174,7 +163,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.floorDiv(JI)I", params -> {
             if (params.size() != 2)
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownLongValue a && params.get(1)instanceof Value.KnownIntValue b) {
+            if (params.get(0) instanceof Value.KnownLongValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b) {
                 try {
                     return Values.valueOf(Math.floorDiv(a.value(), b.value()));
                 } catch (ArithmeticException ignored) {
@@ -187,7 +177,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.floorMod(JI)I", params -> {
             if (params.size() != 2)
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownLongValue a && params.get(1)instanceof Value.KnownIntValue b) {
+            if (params.get(0) instanceof Value.KnownLongValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b) {
                 try {
                     return Values.valueOf(Math.floorMod(a.value(), b.value()));
                 } catch (ArithmeticException ignored) {
@@ -202,7 +193,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.multiplyFull(II)J", params -> {
             if (params.size() != 2)
                 return Values.LONG_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue a && params.get(1)instanceof Value.KnownIntValue b) {
+            if (params.get(0) instanceof Value.KnownIntValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b) {
                 try {
                     return Values.valueOf(Math.multiplyFull(a.value(), b.value()));
                 } catch (ArithmeticException ignored) {
@@ -214,7 +206,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.multiplyExact(JI)J", params -> {
             if (params.size() != 2)
                 return Values.LONG_VALUE;
-            if (params.get(0)instanceof Value.KnownLongValue a && params.get(1)instanceof Value.KnownIntValue b) {
+            if (params.get(0) instanceof Value.KnownLongValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b) {
                 try {
                     return Values.valueOf(Math.multiplyExact(a.value(), b.value()));
                 } catch (ArithmeticException ignored) {
@@ -228,7 +221,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.nextAfter(FD)F", params -> {
             if (params.size() != 2)
                 return Values.FLOAT_VALUE;
-            if (params.get(0)instanceof Value.KnownFloatValue a && params.get(1)instanceof Value.KnownDoubleValue b) {
+            if (params.get(0) instanceof Value.KnownFloatValue a &&
+                    params.get(1) instanceof Value.KnownDoubleValue b) {
                 return Values.valueOf(Math.nextAfter(a.value(), b.value()));
             }
             return Values.FLOAT_VALUE;
@@ -285,7 +279,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.scalb(FI)F", params -> {
             if (params.size() != 2)
                 return Values.FLOAT_VALUE;
-            if (params.get(0)instanceof Value.KnownFloatValue a && params.get(1)instanceof Value.KnownIntValue b) {
+            if (params.get(0) instanceof Value.KnownFloatValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b) {
                 return Values.valueOf(Math.scalb(a.value(), b.value()));
             }
             return Values.FLOAT_VALUE;
@@ -293,7 +288,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.scalb(DI)D", params -> {
             if (params.size() != 2)
                 return Values.DOUBLE_VALUE;
-            if (params.get(0)instanceof Value.KnownDoubleValue a && params.get(1)instanceof Value.KnownIntValue b) {
+            if (params.get(0) instanceof Value.KnownDoubleValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b) {
                 return Values.valueOf(Math.scalb(a.value(), b.value()));
             }
             return Values.DOUBLE_VALUE;
@@ -301,10 +297,9 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.fma(FFF)F", params -> {
             if (params.size() != 3)
                 return Values.FLOAT_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownFloatValue a && params.get(1)instanceof Value.KnownFloatValue b
-                        && params.get(2)instanceof Value.KnownFloatValue c
-            ) {
+            if (params.get(0) instanceof Value.KnownFloatValue a &&
+                    params.get(1) instanceof Value.KnownFloatValue b &&
+                    params.get(2) instanceof Value.KnownFloatValue c) {
                 return Values.valueOf(Math.fma(a.value(), b.value(), c.value()));
 
             }
@@ -313,10 +308,9 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.fma(DDD)D", params -> {
             if (params.size() != 3)
                 return Values.DOUBLE_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownDoubleValue a && params.get(1)instanceof Value.KnownIntValue b
-                        && params.get(2)instanceof Value.KnownIntValue c
-            ) {
+            if (params.get(0) instanceof Value.KnownDoubleValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b &&
+                    params.get(2) instanceof Value.KnownIntValue c) {
                 return Values.valueOf(Math.fma(a.value(), b.value(), c.value()));
 
             }
@@ -338,14 +332,11 @@ public class BasicMethodValueLookup implements MethodValueLookup {
     private static void initSystemStaticFuncs() {
         // STATIC_FUNCS.put("java/lang/System.currentTimeMillis()J", params -> Values.valueOf(System.currentTimeMillis()));
         // STATIC_FUNCS.put("java/lang/System.nanoTime()J", params -> Values.valueOf(System.nanoTime()));
-        STATIC_FUNCS.put(
-                "java/lang/System.lineSeparator()Ljava/lang/String;",
-                params -> Values.valueOfString(System.lineSeparator())
-        );
+        STATIC_FUNCS.put("java/lang/System.lineSeparator()Ljava/lang/String;", params -> Values.valueOfString(System.lineSeparator()));
         STATIC_FUNCS.put("java/lang/System.getProperty(Ljava/lang/String;)Ljava/lang/String;", params -> {
             if (params.isEmpty())
                 return Values.STRING_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue key) {
+            if (params.get(0) instanceof Value.KnownStringValue key) {
                 try {
                     String property = System.getProperty(key.value());
                     if (property != null)
@@ -355,23 +346,20 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             }
             return Values.STRING_VALUE;
         });
-        STATIC_FUNCS
-                .put("java/lang/System.getProperty(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", params -> {
-                    if (params.isEmpty())
-                        return Values.STRING_VALUE;
-                    if (
-                        params.get(0)instanceof Value.KnownStringValue key
-                                && params.get(1)instanceof Value.KnownStringValue fallback
-                    ) {
-                        try {
-                            String property = System.getProperty(key.value(), fallback.value());
-                            if (property != null)
-                                return Values.valueOfString(property);
-                        } catch (Throwable ignored) {
-                        }
-                    }
-                    return Values.STRING_VALUE;
-                });
+        STATIC_FUNCS.put("java/lang/System.getProperty(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", params -> {
+            if (params.isEmpty())
+                return Values.STRING_VALUE;
+            if (params.get(0) instanceof Value.KnownStringValue key && 
+                    params.get(1) instanceof Value.KnownStringValue fallback) {
+                try {
+                    String property = System.getProperty(key.value(), fallback.value());
+                    if (property != null)
+                        return Values.valueOfString(property);
+                } catch (Throwable ignored) {
+                }
+            }
+            return Values.STRING_VALUE;
+        });
     }
 
     /**
@@ -381,245 +369,217 @@ public class BasicMethodValueLookup implements MethodValueLookup {
     private static void initStringFuncs() {
         INSTANCE_STRING_FUNCS.put("length()I", (value, params) -> Values.valueOf(value.length()));
         INSTANCE_STRING_FUNCS.put("hashCode()I", (value, params) -> Values.valueOf(value.hashCode()));
-        INSTANCE_STRING_FUNCS
-                .put("toLowerCase()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.toLowerCase()));
-        INSTANCE_STRING_FUNCS.put(
-                "toLowerCase(Ljava/util/Locale;)Ljava/lang/String;",
-                (value, params) -> Values.valueOfString(value.toLowerCase())
-        );
-        INSTANCE_STRING_FUNCS
-                .put("toUpperCase()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.toUpperCase()));
-        INSTANCE_STRING_FUNCS.put(
-                "toUpperCase(Ljava/util/Locale;)Ljava/lang/String;",
-                (value, params) -> Values.valueOfString(value.toUpperCase())
-        );
+        INSTANCE_STRING_FUNCS.put("toLowerCase()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.toLowerCase()));
+        INSTANCE_STRING_FUNCS.put("toLowerCase(Ljava/util/Locale;)Ljava/lang/String;", (value, params) -> Values.valueOfString(value.toLowerCase()));
+        INSTANCE_STRING_FUNCS.put("toUpperCase()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.toUpperCase()));
+        INSTANCE_STRING_FUNCS.put("toUpperCase(Ljava/util/Locale;)Ljava/lang/String;", (value, params) -> Values.valueOfString(value.toUpperCase()));
         INSTANCE_STRING_FUNCS.put("trim()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.trim()));
         INSTANCE_STRING_FUNCS.put("strip()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.strip()));
-        INSTANCE_STRING_FUNCS
-                .put("stripIndent()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.stripIndent()));
-        INSTANCE_STRING_FUNCS
-                .put("stripLeading()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.stripLeading()));
-        INSTANCE_STRING_FUNCS.put(
-                "stripTrailing()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.stripTrailing())
-        );
+        INSTANCE_STRING_FUNCS.put("stripIndent()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.stripIndent()));
+        INSTANCE_STRING_FUNCS.put("stripLeading()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.stripLeading()));
+        INSTANCE_STRING_FUNCS.put("stripTrailing()Ljava/lang/String;", (value, params) -> Values.valueOfString(value.stripTrailing()));
         INSTANCE_STRING_FUNCS.put("intern()Ljava/lang/String;", (value, params) -> Values.valueOfString(value));
         INSTANCE_STRING_FUNCS.put("toString()Ljava/lang/String;", (value, params) -> Values.valueOfString(value));
         INSTANCE_STRING_FUNCS.put("isBlank()Z", (value, params) -> Values.valueOf(value.isBlank()));
         INSTANCE_STRING_FUNCS.put("isEmpty()Z", (value, params) -> Values.valueOf(value.isEmpty()));
         INSTANCE_STRING_FUNCS.put("repeat(I)Ljava/lang/String;", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty()) return Values.STRING_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue count && count.value() > 0)
+                        return Values.valueOfString(value.repeat(count.value()));
                 return Values.STRING_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue count && count.value() > 0)
-                return Values.valueOfString(value.repeat(count.value()));
-            return Values.STRING_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("equals(Ljava/lang/Object;)Z", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty()) return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue strParam)
+                        return Values.valueOf(value.equals(strParam.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue strParam)
-                return Values.valueOf(value.equals(strParam.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("equalsIgnoreCase(Ljava/lang/String;)Z", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty()) return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue strParam)
+                        return Values.valueOf(value.equalsIgnoreCase(strParam.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue strParam)
-                return Values.valueOf(value.equalsIgnoreCase(strParam.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("contentEquals(Ljava/lang/CharSequence;)Z", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty()) return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue strParam)
+                        return Values.valueOf(value.contentEquals(strParam.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue strParam)
-                return Values.valueOf(value.contentEquals(strParam.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("contains(Ljava/lang/Object;)Z", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty()) return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue strParam)
+                        return Values.valueOf(value.contains(strParam.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue strParam)
-                return Values.valueOf(value.contains(strParam.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("charAt(I)C", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue index &&
+                                index.value() >= 0 &&
+                                index.value() < value.length())
+                        return Values.valueOf(value.charAt(index.value()));
                 return Values.INT_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownIntValue index && index.value() >= 0
-                        && index.value() < value.length()
-            )
-                return Values.valueOf(value.charAt(index.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("indexOf(I)I", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue ch)
+                        return Values.valueOf(value.indexOf(ch.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue ch)
-                return Values.valueOf(value.indexOf(ch.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("indexOf(II)I", (value, params) -> {
-            if (params.size() != 2)
+                if (params.size() != 2)
+                        return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue ch && params.get(1) instanceof Value.KnownIntValue from)
+                        return Values.valueOf(value.indexOf(ch.value(), from.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue ch && params.get(1)instanceof Value.KnownIntValue from)
-                return Values.valueOf(value.indexOf(ch.value(), from.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("indexOf(Ljava/lang/String;)I", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue ch)
+                        return Values.valueOf(value.indexOf(ch.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue ch)
-                return Values.valueOf(value.indexOf(ch.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("indexOf(Ljava/lang/String;I)I", (value, params) -> {
-            if (params.size() != 2)
+                if (params.size() != 2)
+                        return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue ch && params.get(1) instanceof Value.KnownIntValue from)
+                        return Values.valueOf(value.indexOf(ch.value(), from.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue ch && params.get(1)instanceof Value.KnownIntValue from)
-                return Values.valueOf(value.indexOf(ch.value(), from.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("startsWith(Ljava/lang/String;I)Z", (value, params) -> {
-            if (params.size() != 2)
+                if (params.size() != 2)
+                        return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue prefix &&
+                                params.get(1) instanceof Value.KnownIntValue toOffset)
+                        return Values.valueOf(value.startsWith(prefix.value(), toOffset.value()));
                 return Values.INT_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownStringValue prefix
-                        && params.get(1)instanceof Value.KnownIntValue toOffset
-            )
-                return Values.valueOf(value.startsWith(prefix.value(), toOffset.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("startsWith(Ljava/lang/String;)Z", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue prefix)
+                        return Values.valueOf(value.startsWith(prefix.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue prefix)
-                return Values.valueOf(value.startsWith(prefix.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("endsWith(Ljava/lang/String;)Z", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue suffix)
+                        return Values.valueOf(value.endsWith(suffix.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue suffix)
-                return Values.valueOf(value.endsWith(suffix.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("compareTo(Ljava/lang/String;)I", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue other)
+                        return Values.valueOf(value.compareTo(other.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue other)
-                return Values.valueOf(value.compareTo(other.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("compareToIgnoreCase(Ljava/lang/String;)I", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue other)
+                        return Values.valueOf(value.compareToIgnoreCase(other.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue other)
-                return Values.valueOf(value.compareToIgnoreCase(other.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("substring(I)Ljava/lang/String;", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty()) return Values.STRING_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue begin && 
+                                begin.value() >= 0 && 
+                                begin.value() < value.length())
+                        return Values.valueOfString(value.substring(begin.value()));
                 return Values.STRING_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownIntValue begin && begin.value() >= 0
-                        && begin.value() < value.length()
-            )
-                return Values.valueOfString(value.substring(begin.value()));
-            return Values.STRING_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("substring(II)Ljava/lang/String;", (value, params) -> {
-            if (params.size() != 2)
+                if (params.size() != 2) return Values.STRING_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue begin &&
+                                begin.value() >= 0 &&
+                                begin.value() < value.length() &&
+                                params.get(1) instanceof Value.KnownIntValue end &&
+                                end.value() >= begin.value() &&
+                                end.value() < value.length())
+                        return Values.valueOfString(value.substring(begin.value(), end.value()));
                 return Values.STRING_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownIntValue begin && begin.value() >= 0
-                        && begin.value() < value.length() && params.get(1)instanceof Value.KnownIntValue end
-                        && end.value() >= begin.value() && end.value() < value.length()
-            )
-                return Values.valueOfString(value.substring(begin.value(), end.value()));
-            return Values.STRING_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("codePointAt(I)I", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty()) return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue index && 
+                                index.value() >= 0 && index.value() < value.length())
+                        return Values.valueOf(value.codePointAt(index.value()));
                 return Values.INT_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownIntValue index && index.value() >= 0
-                        && index.value() < value.length()
-            )
-                return Values.valueOf(value.codePointAt(index.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("codePointBefore(I)I", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty()) return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue index && 
+                                index.value() >= 0 && index.value() < value.length())
+                        return Values.valueOf(value.codePointBefore(index.value()));
                 return Values.INT_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownIntValue index && index.value() >= 0
-                        && index.value() < value.length()
-            )
-                return Values.valueOf(value.codePointBefore(index.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("codePointCount(II)I", (value, params) -> {
-            if (params.size() != 2)
+                if (params.size() != 2)
+                    return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue begin && 
+                                begin.value() >= 0 &&
+                                begin.value() < value.length() &&
+                                params.get(1) instanceof Value.KnownIntValue end && 
+                                end.value() >= begin.value() &&
+                                end.value() < value.length())
+                        return Values.valueOf(value.codePointCount(begin.value(), end.value()));
                 return Values.INT_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownIntValue begin && begin.value() >= 0
-                        && begin.value() < value.length() && params.get(1)instanceof Value.KnownIntValue end
-                        && end.value() >= begin.value() && end.value() < value.length()
-            )
-                return Values.valueOf(value.codePointCount(begin.value(), end.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("offsetByCodePoints(II)I", (value, params) -> {
-            if (params.size() != 2)
+                if (params.size() != 2)
+                    return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue index &&
+                                index.value() >= 0 && 
+                                index.value() < value.length() && 
+                                params.get(1) instanceof Value.KnownIntValue offset)
+                        return Values.valueOf(value.offsetByCodePoints(index.value(), offset.value()));
                 return Values.INT_VALUE;
-            if (
-                params.get(0)instanceof Value.KnownIntValue index && index.value() >= 0
-                        && index.value() < value.length() && params.get(1)instanceof Value.KnownIntValue offset
-            )
-                return Values.valueOf(value.offsetByCodePoints(index.value(), offset.value()));
-            return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("regex(Ljava/lang/String;)Z", (value, params) -> {
-            if (params.isEmpty())
+                if (params.isEmpty()) return Values.INT_VALUE;
+                if (params.get(0) instanceof Value.KnownStringValue regex)
+                        return Values.valueOf(value.matches(regex.value()));
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownStringValue regex)
-                return Values.valueOf(value.matches(regex.value()));
-            return Values.INT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/String.valueOf(I)Ljava/lang/String;", params -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.STRING_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue param)
+                        return Values.valueOfString(String.valueOf(param.value()));
                 return Values.STRING_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue param)
-                return Values.valueOfString(String.valueOf(param.value()));
-            return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/String.valueOf(F)Ljava/lang/String;", params -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.STRING_VALUE;
+                if (params.get(0) instanceof Value.KnownFloatValue param)
+                        return Values.valueOfString(String.valueOf(param.value()));
                 return Values.STRING_VALUE;
-            if (params.get(0)instanceof Value.KnownFloatValue param)
-                return Values.valueOfString(String.valueOf(param.value()));
-            return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/String.valueOf(D)Ljava/lang/String;", params -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.STRING_VALUE;
+                if (params.get(0) instanceof Value.KnownDoubleValue param)
+                        return Values.valueOfString(String.valueOf(param.value()));
                 return Values.STRING_VALUE;
-            if (params.get(0)instanceof Value.KnownDoubleValue param)
-                return Values.valueOfString(String.valueOf(param.value()));
-            return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/String.valueOf(J)Ljava/lang/String;", params -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.STRING_VALUE;
+                if (params.get(0) instanceof Value.KnownLongValue param)
+                        return Values.valueOfString(String.valueOf(param.value()));
                 return Values.STRING_VALUE;
-            if (params.get(0)instanceof Value.KnownLongValue param)
-                return Values.valueOfString(String.valueOf(param.value()));
-            return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/String.valueOf(Z)Ljava/lang/String;", params -> {
-            if (params.isEmpty())
+                if (params.isEmpty())
+                        return Values.STRING_VALUE;
+                if (params.get(0) instanceof Value.KnownIntValue param)
+                        return Values.valueOfString(String.valueOf(param.value() != 0));
                 return Values.STRING_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue param)
-                return Values.valueOfString(String.valueOf(param.value() != 0));
-            return Values.STRING_VALUE;
         });
     }
 
@@ -650,9 +610,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.isEmpty())
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue a) {
+            if (params.get(0) instanceof Value.KnownIntValue a)
                 return Values.valueOf(apply(a.value()));
-            }
             return Values.INT_VALUE;
         }
     }
@@ -668,9 +627,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.isEmpty())
                 return Values.FLOAT_VALUE;
-            if (params.get(0)instanceof Value.KnownFloatValue a) {
+            if (params.get(0) instanceof Value.KnownFloatValue a)
                 return Values.valueOf(apply(a.value()));
-            }
             return Values.FLOAT_VALUE;
         }
     }
@@ -686,9 +644,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.isEmpty())
                 return Values.LONG_VALUE;
-            if (params.get(0)instanceof Value.KnownLongValue a) {
+            if (params.get(0) instanceof Value.KnownLongValue a)
                 return Values.valueOf(apply(a.value()));
-            }
             return Values.LONG_VALUE;
         }
     }
@@ -704,9 +661,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.isEmpty())
                 return Values.DOUBLE_VALUE;
-            if (params.get(0)instanceof Value.KnownDoubleValue a) {
+            if (params.get(0) instanceof Value.KnownDoubleValue a)
                 return Values.valueOf(apply(a.value()));
-            }
             return Values.DOUBLE_VALUE;
         }
     }
@@ -722,7 +678,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.isEmpty())
                 return Values.STRING_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue a) {
+            if (params.get(0) instanceof Value.KnownIntValue a) {
                 String value = apply(a.value());
                 if (value != null)
                     return Values.valueOfString(value);
@@ -742,9 +698,9 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.size() != 2)
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue a && params.get(1)instanceof Value.KnownIntValue b) {
+            if (params.get(0) instanceof Value.KnownIntValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b)
                 return Values.valueOf(apply(a.value(), b.value()));
-            }
             return Values.INT_VALUE;
         }
     }
@@ -760,9 +716,9 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.size() != 2)
                 return Values.FLOAT_VALUE;
-            if (params.get(0)instanceof Value.KnownFloatValue a && params.get(1)instanceof Value.KnownFloatValue b) {
+            if (params.get(0) instanceof Value.KnownFloatValue a &&
+                    params.get(1) instanceof Value.KnownFloatValue b)
                 return Values.valueOf(apply(a.value(), b.value()));
-            }
             return Values.FLOAT_VALUE;
         }
     }
@@ -778,9 +734,9 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.size() != 2)
                 return Values.LONG_VALUE;
-            if (params.get(0)instanceof Value.KnownLongValue a && params.get(1)instanceof Value.KnownLongValue b) {
+            if (params.get(0) instanceof Value.KnownLongValue a &&
+                    params.get(1) instanceof Value.KnownLongValue b)
                 return Values.valueOf(apply(a.value(), b.value()));
-            }
             return Values.LONG_VALUE;
         }
     }
@@ -796,9 +752,9 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.size() != 2)
                 return Values.DOUBLE_VALUE;
-            if (params.get(0)instanceof Value.KnownDoubleValue a && params.get(1)instanceof Value.KnownDoubleValue b) {
+            if (params.get(0) instanceof Value.KnownDoubleValue a &&
+                    params.get(1) instanceof Value.KnownDoubleValue b)
                 return Values.valueOf(apply(a.value(), b.value()));
-            }
             return Values.DOUBLE_VALUE;
         }
     }
@@ -814,7 +770,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.size() != 2)
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownIntValue a && params.get(1)instanceof Value.KnownIntValue b) {
+            if (params.get(0) instanceof Value.KnownIntValue a &&
+                    params.get(1) instanceof Value.KnownIntValue b) {
                 try {
                     return Values.valueOf(apply(a.value(), b.value()));
                 } catch (ArithmeticException ignored) {
@@ -835,7 +792,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         default Value apply(@NotNull List<Value> params) {
             if (params.size() != 2)
                 return Values.LONG_VALUE;
-            if (params.get(0)instanceof Value.KnownLongValue a && params.get(1)instanceof Value.KnownLongValue b) {
+            if (params.get(0) instanceof Value.KnownLongValue a &&
+                    params.get(1) instanceof Value.KnownLongValue b) {
                 try {
                     return Values.valueOf(apply(a.value(), b.value()));
                 } catch (ArithmeticException ignored) {
@@ -854,9 +812,9 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         @Override
         @Nullable
         default Value apply(@NotNull List<Value> params) {
-            if (params.isEmpty())
+            if (params.isEmpty()) 
                 return Values.INT_VALUE;
-            if (params.get(0)instanceof Value.KnownLongValue a) {
+            if (params.get(0) instanceof Value.KnownLongValue a) {
                 try {
                     return Values.valueOf(apply(a.value()));
                 } catch (ArithmeticException ignored) {

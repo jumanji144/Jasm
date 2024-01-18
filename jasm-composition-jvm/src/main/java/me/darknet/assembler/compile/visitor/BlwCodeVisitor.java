@@ -353,7 +353,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitEnd() {
         Label begin, end;
-        if (codeBuilderList.getFirstElement()instanceof Label startLabel) {
+        if (codeBuilderList.getFirstElement() instanceof Label startLabel) {
             begin = startLabel;
         } else {
             // TODO: Warn user that they're missing a start label and this will fuck analysis up
@@ -363,7 +363,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             codeBuilderList.addLabel(0, begin = new GenericLabel());
         }
 
-        if (codeBuilderList.getLastElement()instanceof Label lastLabel) {
+        if (codeBuilderList.getLastElement() instanceof Label lastLabel) {
             end = lastLabel;
         } else {
             codeBuilderList.addLabel(end = new GenericLabel());
