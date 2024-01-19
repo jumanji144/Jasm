@@ -1,0 +1,20 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            getstatic java/lang/System.out Ljava/io/PrintStream;
+            ifnull B
+            aconst_null
+            goto C
+        B:
+            iconst_0
+        C:
+            // Handled unverifiable bytecode (illegal stack merge, object vs int)
+            pop
+            return
+        D:
+        }
+    }
+}

@@ -18,8 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import static me.darknet.assembler.TestUtils.normalize;
-import static me.darknet.assembler.TestUtils.processJvm;
+import static me.darknet.assembler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
@@ -33,7 +32,8 @@ import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 public class SampleCompilerTest {
-    private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";
+	private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";
+	private static final String PATH_ILLEGAL_PREFIX = "src/test/resources/samples/jasm-illegal/";
 
     @Nested
     class Variables {
@@ -133,6 +133,20 @@ public class SampleCompilerTest {
         }
     }
 
+	@Nested
+	class Illegal {
+		@Test
+		void intAndObjectStackMerge() throws Throwable {
+			TestArgument arg = TestArgument.fromName("Example-object-int-stack-merge.jasm");
+			String source = arg.source.get();
+			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+			options.engineProvider(ValuedJvmAnalysisEngine::new);
+			processAnalysisFailJvm(source, options, result -> {
+
+			});
+		}
+	}
+
     @Nested
     class Regresssion {
 		@Test
@@ -230,7 +244,10 @@ public class SampleCompilerTest {
 
     private record TestArgument(String name, ThrowingSupplier<String> source) {
         public static TestArgument fromName(String name) {
-            return from(Paths.get(System.getProperty("user.dir")).resolve(PATH_PREFIX).resolve(name));
+			Path path = Paths.get(System.getProperty("user.dir")).resolve(PATH_PREFIX).resolve(name);
+			if (!Files.exists(path))
+				path = Paths.get(System.getProperty("user.dir")).resolve(PATH_ILLEGAL_PREFIX).resolve(name);
+			return from(path);
         }
 
         public static TestArgument from(Path path) {

@@ -26,7 +26,7 @@ public class TestUtils {
     private static final Pattern COMMENTS = Pattern.compile("(?:^|\\n)\\s*//.+");
 
     public static void processJvm(@NotNull String source, @NotNull CompilerOptions<?> options,
-            @Nullable ThrowingConsumer<JavaCompileResult> outputConsumer) {
+                                  @Nullable ThrowingConsumer<JavaCompileResult> outputConsumer) {
         Processor.processSource(source, "<test>", (ast) -> {
             JvmCompiler compiler = new JvmCompiler();
             compiler.compile(ast, options).ifOk(result -> {
@@ -36,7 +36,7 @@ public class TestUtils {
                 } catch (AssertionFailedError e) {
                     // Pass up the chain
                     throw e;
-                }catch (Throwable e) {
+                } catch (Throwable e) {
                     // Consumer should fail instead of us handling it generically here
                     fail(e);
                     return;
@@ -54,9 +54,36 @@ public class TestUtils {
                 for (Error error : errors) {
                     System.err.println(error);
                 }
-                fail("Failed to compile class");
+                fail("Failed to analyze/compile class");
             });
         }, errors -> {
+            for (Error error : errors) {
+                System.err.println(error);
+            }
+            fail("Failed to parse class");
+        }, BytecodeFormat.JVM);
+    }
+
+    public static void processAnalysisFailJvm(@NotNull String source, @NotNull CompilerOptions<?> options,
+                                              @Nullable ThrowingConsumer<JavaCompileResult> outputConsumer) {
+        Processor.processSource(source, "<test>", (ast) -> {
+            JvmCompiler compiler = new JvmCompiler();
+            compiler.compile(ast, options).ifOk(result -> {
+                fail("Failure was expected");
+            }).ifErr((result, errors) -> {
+                try {
+                    if (outputConsumer != null)
+                        outputConsumer.accept(result);
+                } catch (AssertionFailedError e) {
+                    // Pass up the chain
+                    throw e;
+                } catch (Throwable e) {
+                    // Consumer should fail instead of us handling it generically here
+                    fail(e);
+                }
+            });
+        }, errors -> {
+            // We expect to parse the class, but for analysis to fail
             for (Error error : errors) {
                 System.err.println(error);
             }
