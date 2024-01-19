@@ -170,7 +170,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                                     Frame mergeTarget = existing.copy();
                                     shouldVisitTarget = mergeTarget.merge(checker, frame);
                                     if (shouldVisitTarget)
-                                        engine.putAndMergeFrame(checker, index, mergeTarget);
+                                        engine.putAndMergeFrame(checker, targetIndex, mergeTarget);
                                 }
 
                                 // Queue the fork-point if needed.
