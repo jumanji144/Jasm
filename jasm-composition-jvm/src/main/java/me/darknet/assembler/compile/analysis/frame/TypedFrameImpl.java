@@ -82,7 +82,7 @@ public class TypedFrameImpl implements TypedFrame {
                 ClassType merged = AnalysisUtils.commonType(checker, ourType, otherType);
                 if (!Objects.equals(merged, ourType)) {
                     changed = true;
-                    locals.put(index, otherLocal.adaptType(merged));
+                    setLocal(index, otherLocal.adaptType(merged));
                 }
             }
         }

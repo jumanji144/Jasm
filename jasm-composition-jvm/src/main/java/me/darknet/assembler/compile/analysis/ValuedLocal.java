@@ -1,6 +1,7 @@
 package me.darknet.assembler.compile.analysis;
 
 import dev.xdark.blw.type.ClassType;
+import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 
 public class ValuedLocal extends Local {
@@ -22,6 +23,12 @@ public class ValuedLocal extends Local {
     @NotNull
     public ValuedLocal adaptType(@NotNull ClassType newType) {
         return new ValuedLocal(index, name, newType, Values.valueOf(newType));
+    }
+
+    @NotNull
+    public ValuedLocal mergeWith(@NotNull InheritanceChecker checker, @NotNull ValuedLocal other) throws ValueMergeException {
+        Value newValue = value.mergeWith(checker, other.value);
+        return new ValuedLocal(index, name, newValue.type(), newValue);
     }
 
     @NotNull

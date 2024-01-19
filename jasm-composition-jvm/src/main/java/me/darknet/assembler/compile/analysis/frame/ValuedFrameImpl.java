@@ -68,21 +68,22 @@ public class ValuedFrameImpl implements ValuedFrame {
         boolean changed = false;
         for (Map.Entry<Integer, ValuedLocal> entry : other.getLocals().entrySet()) {
             int index = entry.getKey();
+            ValuedLocal local = getLocal(index);
             ValuedLocal otherLocal = entry.getValue();
-            ClassType otherType = otherLocal.type();
-            ClassType ourType = getLocalType(index);
-            if (otherType == Types.VOID || ourType == Types.VOID) {
-                continue;
-            }
-            if (ourType == null) {
-                changed = true;
-                setLocal(index, otherLocal);
-            } else {
-                ClassType merged = AnalysisUtils.commonType(checker, ourType, otherType);
-                if (!Objects.equals(merged, ourType)) {
+
+            // If we don't have the local, we got a problem.
+            if (local == null)
+                throw new FrameMergeException(this, other, "Local not present for merging: " + index);
+
+            // Merge the local values.
+            try {
+                ValuedLocal mergedLocal = local.mergeWith(checker, otherLocal);
+                if (!Objects.equals(local, mergedLocal)) {
+                    setLocal(index, mergedLocal);
                     changed = true;
-                    setLocal(index, otherLocal.adaptType(merged));
                 }
+            } catch (ValueMergeException ex) {
+                throw new FrameMergeException(this, other, ex.getMessage());
             }
         }
 
