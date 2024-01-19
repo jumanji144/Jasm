@@ -34,17 +34,19 @@ public class Values {
     public static final Value.KnownLongValue LONG_MIN = new Value.KnownLongValue(Long.MIN_VALUE);
     public static final Value.KnownLongValue LONG_MAX = new Value.KnownLongValue(Long.MAX_VALUE);
     public static final Value.KnownFloatValue FLOAT_M1 = new Value.KnownFloatValue(-1);
+    public static final Value.KnownFloatValue FLOAT_0 = new Value.KnownFloatValue(0);
+    public static final Value.KnownFloatValue FLOAT_1 = new Value.KnownFloatValue(1);
     public static final Value.KnownFloatValue FLOAT_MIN = new Value.KnownFloatValue(Float.MIN_VALUE);
     public static final Value.KnownFloatValue FLOAT_MAX = new Value.KnownFloatValue(Float.MAX_VALUE);
     public static final Value.KnownFloatValue FLOAT_NAN = new Value.KnownFloatValue(Float.NaN);
     public static final Value.KnownDoubleValue DOUBLE_M1 = new Value.KnownDoubleValue(-1);
+    public static final Value.KnownDoubleValue DOUBLE_0 = new Value.KnownDoubleValue(0);
+    public static final Value.KnownDoubleValue DOUBLE_1 = new Value.KnownDoubleValue(1);
     public static final Value.KnownDoubleValue DOUBLE_MIN = new Value.KnownDoubleValue(Double.MIN_VALUE);
     public static final Value.KnownDoubleValue DOUBLE_MAX = new Value.KnownDoubleValue(Double.MAX_VALUE);
     public static final Value.KnownDoubleValue DOUBLE_NAN = new Value.KnownDoubleValue(Double.NaN);
     private static final Value.KnownIntValue[] INT_VALUES;
-    private static final Value.KnownFloatValue[] FLOAT_VALUES;
     private static final Value.KnownLongValue[] LONG_VALUES;
-    private static final Value.KnownDoubleValue[] DOUBLE_VALUES;
     public static final Value.IntValue INT_VALUE = new Value.UnnownIntValue();
     public static final Value.FloatValue FLOAT_VALUE = new Value.UnknownFloatValue();
     public static final Value.LongValue LONG_VALUE = new Value.UnknownLongValue();
@@ -102,8 +104,10 @@ public class Values {
     }
 
     public static @NotNull Value.KnownFloatValue valueOf(float v) {
-        if (v >= 0 && v < NUM_FLOAT_VALS)
-            return FLOAT_VALUES[(int) v];
+        if (v == 0)
+            return FLOAT_0;
+        if (v == 1)
+            return FLOAT_1;
         if (v == -1)
             return FLOAT_M1;
         if (v == Float.MIN_VALUE)
@@ -116,8 +120,10 @@ public class Values {
     }
 
     public static @NotNull Value.KnownDoubleValue valueOf(double v) {
-        if (v >= 0 && v < NUM_DOUBLE_VALS)
-            return DOUBLE_VALUES[(int) v];
+        if (v == 0)
+            return DOUBLE_0;
+        if (v == 1)
+            return DOUBLE_1;
         if (v == -1)
             return DOUBLE_M1;
         if (v == Float.MIN_VALUE)
@@ -180,16 +186,10 @@ public class Values {
         // Known values
         INT_VALUES = new Value.KnownIntValue[NUM_INT_VALS];
         LONG_VALUES = new Value.KnownLongValue[NUM_LONG_VALS];
-        FLOAT_VALUES = new Value.KnownFloatValue[NUM_FLOAT_VALS];
-        DOUBLE_VALUES = new Value.KnownDoubleValue[NUM_DOUBLE_VALS];
         for (int i = 0; i < INT_VALUES.length; i++)
             INT_VALUES[i] = new Value.KnownIntValue(i);
         for (int i = 0; i < LONG_VALUES.length; i++)
             LONG_VALUES[i] = new Value.KnownLongValue(i);
-        for (int i = 0; i < FLOAT_VALUES.length; i++)
-            FLOAT_VALUES[i] = new Value.KnownFloatValue(i);
-        for (int i = 0; i < DOUBLE_VALUES.length; i++)
-            DOUBLE_VALUES[i] = new Value.KnownDoubleValue(i);
 
         // Common strings
         List<String> strings = List.of("", " ", "  ", "   ", "    ", "\n", "\t", "\0");
