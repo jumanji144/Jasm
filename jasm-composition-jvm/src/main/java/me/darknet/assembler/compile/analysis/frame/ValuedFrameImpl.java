@@ -71,9 +71,13 @@ public class ValuedFrameImpl implements ValuedFrame {
             ValuedLocal local = getLocal(index);
             ValuedLocal otherLocal = entry.getValue();
 
-            // If we don't have the local, we got a problem.
-            if (local == null)
-                throw new FrameMergeException(this, other, "Local not present for merging: " + index);
+            // If we don't have the local, copy it from the other frame.
+            if (local == null) {
+                // We do not set 'changed' since expanding local variable scope is not going to change
+                // behavior of frames that previously passed analysis.
+                setLocal(index, otherLocal);
+                continue;
+            }
 
             // Merge the local values.
             try {
