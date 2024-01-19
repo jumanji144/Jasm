@@ -34,8 +34,8 @@ import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 public class SampleCompilerTest {
-	private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";
-	private static final String PATH_ILLEGAL_PREFIX = "src/test/resources/samples/jasm-illegal/";
+    private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";
+    private static final String PATH_ILLEGAL_PREFIX = "src/test/resources/samples/jasm-illegal/";
 
     @Nested
     class Variables {
@@ -135,34 +135,34 @@ public class SampleCompilerTest {
         }
     }
 
-	@Nested
-	class Illegal {
-		@Test
-		void intAndObjectStackMerge() throws Throwable {
-			TestArgument arg = TestArgument.fromName("Example-object-int-stack-merge.jasm");
-			String source = arg.source.get();
-			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-			options.engineProvider(ValuedJvmAnalysisEngine::new);
-			processAnalysisFailJvm(source, options, result -> {
+    @Nested
+    class Illegal {
+        @Test
+        void intAndObjectStackMerge() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-object-int-stack-merge.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processAnalysisFailJvm(source, options, result -> {
 
-			});
-		}
-	}
+            });
+        }
+    }
 
     @Nested
     class Regresssion {
-		@Test
-		void newArrayPopsSizeOffStack() throws Throwable {
-			TestArgument arg = TestArgument.fromName("Example-anewarray.jasm");
-			String source = arg.source.get();
-			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-			options.engineProvider(ValuedJvmAnalysisEngine::new);
-			processJvm(source, options, result -> {
-				AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
-				assertNull(results.getAnalysisFailure());
-				assertFalse(results.terminalFrames().isEmpty());
-			});
-		}
+        @Test
+        void newArrayPopsSizeOffStack() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-anewarray.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            });
+        }
 
         @Test
         void athrowDoesNotAllowFlowThroughToNextFrameAndClearsStack() throws Throwable {
@@ -177,101 +177,101 @@ public class SampleCompilerTest {
             });
         }
 
-		@Test
-		void checkcastChangesType() throws Throwable {
-			TestArgument arg = TestArgument.fromName("Example-checkcast.jasm");
-			String source = arg.source.get();
-			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-			options.inheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
-			options.engineProvider(ValuedJvmAnalysisEngine::new);
-			processJvm(source, options, result -> {
-				AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
-				assertNull(results.getAnalysisFailure());
-				assertFalse(results.terminalFrames().isEmpty());
+        @Test
+        void checkcastChangesType() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-checkcast.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.inheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
 
-				Frame endFrame = results.terminalFrames().lastEntry().getValue();
-				if (endFrame instanceof ValuedFrame valuedEndFrame) {
-					Value returnValue = valuedEndFrame.peek();
-					assertEquals(Types.instanceType(List.class), returnValue.type());
-				} else {
-					fail("Wrong return value");
-				}
-			});
-		}
+                Frame endFrame = results.terminalFrames().lastEntry().getValue();
+                if (endFrame instanceof ValuedFrame valuedEndFrame) {
+                    Value returnValue = valuedEndFrame.peek();
+                    assertEquals(Types.instanceType(List.class), returnValue.type());
+                } else {
+                    fail("Wrong return value");
+                }
+            });
+        }
     }
 
-	@Nested
-	class RoundTrip {
-		@ParameterizedTest
-		@MethodSource("getSources")
-		void all(TestArgument arg) throws Throwable {
-			String source = arg.source.get();
-			processJvm(source, new TestJvmCompilerOptions(), result -> {
-				if (source.contains("SKIP-ROUND-TRIP-EQUALITY"))
-					return;
+    @Nested
+    class RoundTrip {
+        @ParameterizedTest
+        @MethodSource("getSources")
+        void all(TestArgument arg) throws Throwable {
+            String source = arg.source.get();
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                if (source.contains("SKIP-ROUND-TRIP-EQUALITY"))
+                    return;
 
-				JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
-				PrintContext<?> newCtx = new PrintContext<>("    ");
-				newPrinter.print(newCtx);
-				String newPrinted = newCtx.toString();
+                JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
+                PrintContext<?> newCtx = new PrintContext<>("    ");
+                newPrinter.print(newCtx);
+                String newPrinted = newCtx.toString();
 
-				assertEquals(
-						normalize(source), normalize(newPrinted),
-						"There was an unexpected difference in unmodified class: " + arg.name
-				);
-			});
-		}
+                assertEquals(
+                        normalize(source), normalize(newPrinted),
+                        "There was an unexpected difference in unmodified class: " + arg.name
+                );
+            });
+        }
 
-		@Test
-		void supportInfinity() throws Throwable {
-			TestArgument arg = TestArgument.fromName("Example-infinity.jasm");
-			String source = arg.source.get();
-			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-			options.engineProvider(ValuedJvmAnalysisEngine::new);
-			processJvm(source, options, result -> {
-				JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
-				PrintContext<?> newCtx = new PrintContext<>("    ");
-				newPrinter.print(newCtx);
-				String newPrinted = newCtx.toString();
+        @Test
+        void supportInfinity() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-infinity.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
+                PrintContext<?> newCtx = new PrintContext<>("    ");
+                newPrinter.print(newCtx);
+                String newPrinted = newCtx.toString();
 
-				assertEquals(normalize(source.replace("InfinityD", "Infinity").replace("+", "")), normalize(newPrinted));
-			});
-		}
+                assertEquals(normalize(source.replace("InfinityD", "Infinity").replace("+", "")), normalize(newPrinted));
+            });
+        }
 
-		@Test
-		void supportNan() throws Throwable {
-			TestArgument arg = TestArgument.fromName("Example-nan.jasm");
-			String source = arg.source.get();
-			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-			options.engineProvider(ValuedJvmAnalysisEngine::new);
-			processJvm(source, options, result -> {
-				JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
-				PrintContext<?> newCtx = new PrintContext<>("    ");
-				newPrinter.print(newCtx);
-				String newPrinted = newCtx.toString();
+        @Test
+        void supportNan() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-nan.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
+                PrintContext<?> newCtx = new PrintContext<>("    ");
+                newPrinter.print(newCtx);
+                String newPrinted = newCtx.toString();
 
-				assertEquals(normalize(source.replace("NaND", "NaN")), normalize(newPrinted));
-			});
-		}
+                assertEquals(normalize(source.replace("NaND", "NaN")), normalize(newPrinted));
+            });
+        }
 
-		public static List<TestArgument> getSources() {
-			try {
-				BiPredicate<Path, BasicFileAttributes> filter = (path, attrib) -> attrib.isRegularFile()
-						&& path.toString().endsWith(".jasm");
-				return Files.find(Paths.get(System.getProperty("user.dir")).resolve("src"), 25, filter)
-						.map(TestArgument::from).collect(Collectors.toList());
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
-	}
+        public static List<TestArgument> getSources() {
+            try {
+                BiPredicate<Path, BasicFileAttributes> filter = (path, attrib) -> attrib.isRegularFile()
+                        && path.toString().endsWith(".jasm");
+                return Files.find(Paths.get(System.getProperty("user.dir")).resolve("src"), 25, filter)
+                        .map(TestArgument::from).collect(Collectors.toList());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
     private record TestArgument(String name, ThrowingSupplier<String> source) {
         public static TestArgument fromName(String name) {
-			Path path = Paths.get(System.getProperty("user.dir")).resolve(PATH_PREFIX).resolve(name);
-			if (!Files.exists(path))
-				path = Paths.get(System.getProperty("user.dir")).resolve(PATH_ILLEGAL_PREFIX).resolve(name);
-			return from(path);
+            Path path = Paths.get(System.getProperty("user.dir")).resolve(PATH_PREFIX).resolve(name);
+            if (!Files.exists(path))
+                path = Paths.get(System.getProperty("user.dir")).resolve(PATH_ILLEGAL_PREFIX).resolve(name);
+            return from(path);
         }
 
         public static TestArgument from(Path path) {

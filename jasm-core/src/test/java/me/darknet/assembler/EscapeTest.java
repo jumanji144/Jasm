@@ -33,12 +33,12 @@ public class EscapeTest {
                     "0 -10 10f 10.16F 10.161616D 10L 0xDEADBEEF 0E10", ".class public java/lang/HelloWorld", """
                             @ParameterizedTest
                             @ValueSource(
-                            	strings = {
-                            		"epic\\u0020obfuscated\\u0020name",
-                            		"{ \\"Hello World\\", type: \\"java/lang/HelloWorld\\" }",
-                            		"0 -10 10f 10.16F 10.161616D 10L 0xDEADBEEF 0E10",
-                            		".class public java/lang/HelloWorld"
-                            	}
+                                strings = {
+                                    "epic\\u0020obfuscated\\u0020name",
+                                    "{ \\"Hello World\\", type: \\"java/lang/HelloWorld\\" }",
+                                    "0 -10 10f 10.16F 10.161616D 10L 0xDEADBEEF 0E10",
+                                    ".class public java/lang/HelloWorld"
+                                }
                             )
                             """ }
     )
