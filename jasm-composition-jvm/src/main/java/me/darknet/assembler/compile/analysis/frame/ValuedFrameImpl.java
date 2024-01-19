@@ -1,9 +1,6 @@
 package me.darknet.assembler.compile.analysis.frame;
 
-import me.darknet.assembler.compile.analysis.AnalysisUtils;
-import me.darknet.assembler.compile.analysis.Value;
-import me.darknet.assembler.compile.analysis.ValuedLocal;
-import me.darknet.assembler.compile.analysis.Values;
+import me.darknet.assembler.compile.analysis.*;
 import me.darknet.assembler.compiler.InheritanceChecker;
 
 import dev.xdark.blw.type.ClassType;
@@ -84,7 +81,7 @@ public class ValuedFrameImpl implements ValuedFrame {
                 ClassType merged = AnalysisUtils.commonType(checker, ourType, otherType);
                 if (!Objects.equals(merged, ourType)) {
                     changed = true;
-                    locals.put(index, otherLocal.adaptType(merged));
+                    setLocal(index, otherLocal.adaptType(merged));
                 }
             }
         }
@@ -109,7 +106,12 @@ public class ValuedFrameImpl implements ValuedFrame {
                 newStack.add(Values.VOID_VALUE);
                 continue;
             }
-            Value merged = value1.mergeWith(checker, value2);
+            Value merged;
+            try {
+                merged = value1.mergeWith(checker, value2);
+            } catch (ValueMergeException ex) {
+                throw new FrameMergeException(this, other, ex.getMessage());
+            }
             if (!Objects.equals(merged, value1)) {
                 changed = true;
                 it1.remove();

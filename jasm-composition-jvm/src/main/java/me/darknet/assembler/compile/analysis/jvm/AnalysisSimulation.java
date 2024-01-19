@@ -161,7 +161,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                                 Frame existing = engine.getFrame(targetIndex);
                                 if (existing == null) {
                                     // Not seen before, should visit as fork-point.
-                                    engine.putFrame(targetIndex, frame);
+                                    engine.putAndMergeFrame(checker, targetIndex, frame);
                                     shouldVisitTarget = true;
                                 } else {
                                     // We've already created a frame for that index previously.
@@ -170,7 +170,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                                     Frame mergeTarget = existing.copy();
                                     shouldVisitTarget = mergeTarget.merge(checker, frame);
                                     if (shouldVisitTarget)
-                                        engine.putFrame(index, mergeTarget);
+                                        engine.putAndMergeFrame(checker, index, mergeTarget);
                                 }
 
                                 // Queue the fork-point if needed.
@@ -186,13 +186,13 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                         // Break if control flow does not have fall-through case.
                         if (!(element instanceof ConditionalJumpInstruction))
                             break;
-
-                        // Only record the frame if there is fall-through.
-                        // Immediate jumps and switches do not.
-                        engine.putFrame(index, frame);
-                    } else {
-                        // Not branching, record the frame.
-                        engine.putFrame(index, frame);
+                    }
+                    try {
+                        // Either a non-branching instruction, or a conditional jump with fall-through,
+                        // thus we want to record the frame.
+                        engine.putAndMergeFrame(checker, index, frame);
+                    } catch (FrameMergeException ex) {
+                        throw new AnalysisException(element, ex);
                     }
                 }
             }

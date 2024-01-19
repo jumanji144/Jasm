@@ -1,5 +1,6 @@
 package me.darknet.assembler.compile.analysis;
 
+import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import me.darknet.assembler.compiler.InheritanceChecker;
 
 import dev.xdark.blw.type.*;
@@ -14,7 +15,7 @@ public sealed interface Value {
     ClassType type();
 
     @NotNull
-    Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other);
+    Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException;
 
     @Nullable
     default String valueAsString() {
@@ -29,12 +30,12 @@ public sealed interface Value {
 
         @Override
         @NotNull
-        default Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) {
+        default Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
             if (equals(other))
                 return this;
             if (other instanceof PrimitiveValue primitiveValue)
                 return Values.valueOfPrimitive(type().widen(primitiveValue.type()));
-            throw new IllegalStateException("Cannot merge primitive with non-primitive");
+            throw new ValueMergeException("Cannot merge primitive with non-primitive");
         }
 
         @NotNull
@@ -258,10 +259,10 @@ public sealed interface Value {
         }
 
         @Override
-        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) {
+        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
             if (equals(other))
                 return this;
-            throw new IllegalStateException("Invalid void (top) merge");
+            throw new ValueMergeException("Invalid void (top) merge");
         }
     }
 
@@ -274,7 +275,7 @@ public sealed interface Value {
         ObjectType type();
 
         @Override
-        default @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) {
+        default @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
             if (equals(other) || other instanceof NullValue)
                 return this;
             if (other instanceof ObjectValue objectValue) {
@@ -282,7 +283,7 @@ public sealed interface Value {
                         .getCommonSuperclass(type().internalName(), objectValue.type().internalName());
                 return Values.valueOfInstance(Types.instanceTypeFromInternalName(commonSuperclass));
             }
-            throw new IllegalStateException("Invalid object merge");
+            throw new ValueMergeException("Invalid merge of object and non-object value");
         }
     }
 
@@ -294,10 +295,12 @@ public sealed interface Value {
         }
 
         @Override
-        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) {
+        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
             if (equals(other))
                 return this;
-            return other;
+            if (other instanceof ObjectValue)
+                return other;
+            throw new ValueMergeException("Invalid merge of 'null' and non-object value");
         }
 
         @Override
@@ -319,12 +322,12 @@ public sealed interface Value {
         }
 
         @Override
-        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) {
+        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
             if (equals(other))
                 return this;
             if (other instanceof ObjectValue)
                 return Values.OBJECT_VALUE;
-            throw new IllegalStateException("Invalid array merge");
+            throw new ValueMergeException("Invalid array merge with non-object value");
         }
     }
 

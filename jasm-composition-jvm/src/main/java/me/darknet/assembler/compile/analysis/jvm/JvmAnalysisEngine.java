@@ -8,6 +8,7 @@ import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.VariableNameLookup;
 import me.darknet.assembler.compile.analysis.frame.Frame;
+import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
 
 import dev.xdark.blw.code.Instruction;
@@ -15,6 +16,7 @@ import dev.xdark.blw.code.JavaOpcodes;
 import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.simulation.ExecutionEngine;
+import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -71,6 +73,27 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
      */
     public void putFrame(int index, @NotNull F frame) {
         frames.put(index, frame);
+    }
+
+    /**
+     * @param checker
+     *              Inheritance checker to use for determining common super-types.
+     * @param index
+     *              Key.
+     * @param frame
+     *              Frame to put.
+     */
+    public void putAndMergeFrame(@NotNull InheritanceChecker checker, int index, @NotNull F frame) throws FrameMergeException {
+        F old = getFrame(index);
+
+        if (old == null) {
+            putFrame(index, frame);
+            return;
+        }
+
+        F merged = (F) old.copy();
+        merged.merge(checker, frame);
+        putFrame(index, merged);
     }
 
     /**
