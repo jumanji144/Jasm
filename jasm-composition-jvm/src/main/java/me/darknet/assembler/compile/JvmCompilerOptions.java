@@ -56,7 +56,9 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     }
 
     public @NotNull JvmAnalysisEngine<?> createEngine(@NotNull VariableNameLookup lookup) {
-        return engineProvider.create(lookup);
+        JvmAnalysisEngine<?> engine = engineProvider.create(lookup);
+        engine.setChecker(inheritanceChecker());
+        return engine;
     }
 
     @Override

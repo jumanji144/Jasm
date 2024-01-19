@@ -18,7 +18,6 @@ import java.util.List;
  * JVM engine which tracks types and values of items in the stack/locals.
  */
 public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
-    private InheritanceChecker checker;
     private MethodValueLookup methodValueLookup;
     private FieldValueLookup fieldValueLookup;
 
@@ -29,15 +28,6 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     @Override
     public FrameOps<?> newFrameOps() {
         return new ValuedFrameOps();
-    }
-
-    /**
-     * @param checker
-     *                Inheritance checker to use. Can be {@code null} to disable
-     *                capabilities surrounding {@code instanceof} and casting.
-     */
-    public void setChecker(InheritanceChecker checker) {
-        this.checker = checker;
     }
 
     /**
@@ -412,9 +402,14 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(CheckCastInstruction instruction) {
-        // Doing this instead of no-op so if we have an empty stack we trigger an error
         Value value = frame.pop();
-        frame.push(value);
+        if (value.type().equals(instruction.type())) {
+            // re-use instance if possible
+            frame.push(value);
+        } else {
+            Value valueOfType = Values.valueOf(instruction.type());
+            frame.push(valueOfType);
+        }
     }
 
     @Override

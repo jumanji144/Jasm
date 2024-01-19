@@ -1,9 +1,7 @@
 package me.darknet.assembler.compile.analysis;
 
-import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
-import me.darknet.assembler.compiler.InheritanceChecker;
-
 import dev.xdark.blw.type.*;
+import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

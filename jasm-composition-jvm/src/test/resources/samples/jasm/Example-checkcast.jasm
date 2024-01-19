@@ -1,0 +1,13 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()Ljava/lang/Object; {
+        parameters: { this },
+        code: {
+        A:
+            getstatic Dummy.dummy Ljava/util/Collection;
+            checkcast Ljava/util/List;
+            areturn
+        B:
+        }
+    }
+}

@@ -1,5 +1,6 @@
 package me.darknet.assembler;
 
+import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.Value;
@@ -8,6 +9,7 @@ import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.ValuedFrame;
 import me.darknet.assembler.compile.analysis.jvm.BasicMethodValueLookup;
 import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
+import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
@@ -174,6 +176,28 @@ public class SampleCompilerTest {
                 assertFalse(results.terminalFrames().isEmpty());
             });
         }
+
+		@Test
+		void checkcastChangesType() throws Throwable {
+			TestArgument arg = TestArgument.fromName("Example-checkcast.jasm");
+			String source = arg.source.get();
+			TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+			options.inheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+			options.engineProvider(ValuedJvmAnalysisEngine::new);
+			processJvm(source, options, result -> {
+				AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+				assertNull(results.getAnalysisFailure());
+				assertFalse(results.terminalFrames().isEmpty());
+
+				Frame endFrame = results.terminalFrames().lastEntry().getValue();
+				if (endFrame instanceof ValuedFrame valuedEndFrame) {
+					Value returnValue = valuedEndFrame.peek();
+					assertEquals(Types.instanceType(List.class), returnValue.type());
+				} else {
+					fail("Wrong return value");
+				}
+			});
+		}
     }
 
 	@Nested

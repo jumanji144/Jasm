@@ -37,6 +37,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     private final Map<ASTInstruction, CodeElement> astToElement = new IdentityHashMap<>();
     private final Map<CodeElement, ASTInstruction> elementToAst = new IdentityHashMap<>();
     protected final VariableNameLookup variableNameLookup;
+    protected InheritanceChecker checker;
     protected AnalysisException analysisFailure;
     protected F frame;
 
@@ -45,6 +46,15 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     }
 
     public abstract FrameOps<?> newFrameOps();
+
+    /**
+     * @param checker
+     *                Inheritance checker to use. Can be {@code null} to disable
+     *                capabilities surrounding {@code instanceof} and casting.
+     */
+    public void setChecker(InheritanceChecker checker) {
+        this.checker = checker;
+    }
 
     /**
      * @param index
