@@ -102,7 +102,10 @@ public class ValuedFrameImpl implements ValuedFrame {
         while (it1.hasNext() && it2.hasNext()) {
             Value value1 = it1.next();
             Value value2 = it2.next();
-            if (value1 == Values.VOID_VALUE || value2 == Values.VOID_VALUE) {
+            if (value1 == value2) {
+                newStack.add(value1);
+                continue;
+            } else if (value1 == Values.VOID_VALUE || value2 == Values.VOID_VALUE) {
                 newStack.add(Values.VOID_VALUE);
                 continue;
             }

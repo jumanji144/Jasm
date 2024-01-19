@@ -99,7 +99,10 @@ public class TypedFrameImpl implements TypedFrame {
         while (it1.hasNext() && it2.hasNext()) {
             ClassType type1 = it1.next();
             ClassType type2 = it2.next();
-            if (type1 == Types.VOID || type2 == Types.VOID) {
+            if (type1.equals(type2)) {
+                newStack.add(type1);
+                continue;
+            } else if (type1 == Types.VOID || type2 == Types.VOID) {
                 newStack.add(Types.VOID);
                 continue;
             }
