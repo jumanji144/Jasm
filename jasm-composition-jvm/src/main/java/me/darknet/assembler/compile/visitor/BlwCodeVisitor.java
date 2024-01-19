@@ -10,8 +10,10 @@ import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compiler.InheritanceChecker;
+import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.ConstantMapper;
+import me.darknet.assembler.util.Location;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 
 import dev.xdark.blw.code.*;
@@ -31,6 +33,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final CodeBuilder<?> codeBuilder;
     private final CodeListBuilder codeBuilderList;
     private final InheritanceChecker checker;
+    private final ErrorCollector errorCollector;
     private final Map<String, GenericLabel> nameToLabel = new HashMap<>();
     private final List<Local> parameters;
     /**
@@ -45,16 +48,19 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     /**
      * @param options
      *                   Compiler option to pull values from.
+     * @param errorCollector
+     *                   Collector for error reporting.
      * @param builder
      *                   Builder to insert code into.
      * @param parameters
      *                   Parameter variables.
      */
     @SuppressWarnings("unchecked")
-    public BlwCodeVisitor(JvmCompilerOptions options, CodeBuilder<?> builder, List<Local> parameters) {
+    public BlwCodeVisitor(JvmCompilerOptions options, ErrorCollector errorCollector, CodeBuilder<?> builder, List<Local> parameters) {
         this.codeBuilder = builder;
         this.codeBuilderList = builder.codeList().child();
         this.checker = options.inheritanceChecker();
+        this.errorCollector = errorCollector;
         this.analysisEngine = (JvmAnalysisEngine<Frame>) options.createEngine(this::getLocalName);
         this.parameters = parameters;
 
@@ -387,6 +393,12 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             );
         } catch (AnalysisException ex) {
             analysisEngine.setAnalysisFailure(ex);
+
+            ASTInstruction problemAst = analysisEngine.getCodeToAstMap().get(ex.getElement());
+            if (problemAst != null)
+                errorCollector.addError(ex.getMessage(), problemAst.location());
+            else
+                errorCollector.addError(ex.getMessage(), Location.UNKNOWN);
         }
 
         // Populate variables

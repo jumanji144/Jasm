@@ -5,6 +5,7 @@ import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.builder.BlwReplaceMethodBuilder;
+import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
@@ -16,6 +17,7 @@ import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.ObjectType;
 import dev.xdark.blw.type.Types;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +52,7 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
     }
 
     @Override
-    public ASTJvmInstructionVisitor visitJvmCode() {
+    public ASTJvmInstructionVisitor visitJvmCode(@NotNull ErrorCollector collector) {
         List<Local> parameters = new ArrayList<>();
 
         int localIndex = 0;
@@ -73,7 +75,7 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
             }
         }
 
-        return new BlwCodeVisitor(options, builder.code().child(), parameters) {
+        return new BlwCodeVisitor(options, collector, builder.code().child(), parameters) {
             @Override
             public void visitEnd() {
                 super.visitEnd();
