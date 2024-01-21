@@ -62,8 +62,9 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
 
         for (int i = 0; i < type.parameterTypes().size(); i++) {
             String name;
-            if (i < parameterNames.size()) {
-                name = parameterNames.get(i + (isStatic ? 0 : 1));
+            int nameIndex = i + (isStatic ? 0 : 1);
+            if (nameIndex < parameterNames.size()) {
+                name = parameterNames.get(nameIndex);
             } else {
                 name = "p" + i;
             }
