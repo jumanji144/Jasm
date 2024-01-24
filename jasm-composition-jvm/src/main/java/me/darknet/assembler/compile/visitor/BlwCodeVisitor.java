@@ -342,6 +342,11 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     @Override
+    public void visitShortInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTIdentifier bsm, ASTArray bsmArgs) {
+
+    }
+
+    @Override
     public void visitMultiANewArrayInsn(ASTIdentifier descriptor, ASTNumber numDimensions) {
         add(new AllocateInstruction(Types.arrayTypeFromDescriptor(descriptor.literal())));
     }
