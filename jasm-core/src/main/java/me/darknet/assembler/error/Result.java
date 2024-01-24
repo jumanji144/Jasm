@@ -136,8 +136,8 @@ public class Result<T> {
         return new Result<>(null, List.of(error));
     }
 
-    public static <T> Result<T> exception(Exception e) {
-        return new Result<>(null, List.of(Error.of(e)));
+    public static <T> Result<T> exception(Throwable t) {
+        return new Result<>(null, List.of(Error.of(t)));
     }
 
 }

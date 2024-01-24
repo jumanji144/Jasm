@@ -52,9 +52,9 @@ public class Error {
         return new Error(message, location);
     }
 
-    public static Error of(Exception e) {
-        Error error = new Error(e.getMessage(), null);
-        error.setInCodeSource(e.getStackTrace());
+    public static Error of(Throwable t) {
+        Error error = new Error(t.getMessage(), null);
+        error.setInCodeSource(t.getStackTrace());
 
         return error;
     }
