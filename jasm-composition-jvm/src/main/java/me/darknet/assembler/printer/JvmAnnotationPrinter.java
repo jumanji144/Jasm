@@ -2,6 +2,8 @@ package me.darknet.assembler.printer;
 
 import dev.xdark.blw.annotation.*;
 
+import java.util.Map;
+
 public class JvmAnnotationPrinter implements AnnotationPrinter {
 
     private final Annotation annotation;
@@ -43,10 +45,7 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
             printer.print(ctx);
         } else if (element instanceof ElementArray ea) {
             var array = ctx.array();
-            for (var entry : ea) {
-                printElement(array, entry);
-                array.arg();
-            }
+            array.print(ea, this::printElement);
             array.end();
         } else {
             throw new IllegalStateException("Unexpected value: " + element);
@@ -55,17 +54,19 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
 
     @Override
     public void print(PrintContext<?> ctx) {
+        Annotation annotation = this.annotation;
         ctx.begin().element(".annotation").literal(annotation.type().internalName()).print(" ");
         if (annotation.names().isEmpty()) {
             ctx.print("{}");
             return;
         }
         var obj = ctx.object();
-        for (var entry : annotation) {
-            obj.literalValue(entry.getKey());
-            printElement(obj, entry.getValue());
-            obj.next();
-        }
+        obj.print(annotation, this::printEntry);
         obj.end();
+    }
+
+    private void printEntry(PrintContext.ObjectPrint ctx, Map.Entry<String, Element> entry) {
+        ctx.literalValue(entry.getKey());
+        printElement(ctx, entry.getValue());
     }
 }

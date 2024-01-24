@@ -10,7 +10,6 @@ import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.code.CodeElement;
 import dev.xdark.blw.code.Label;
-import dev.xdark.blw.code.TryCatchBlock;
 import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.type.ClassType;
 import org.jetbrains.annotations.NotNull;
@@ -111,11 +110,7 @@ public class JvmMethodPrinter implements MethodPrinter {
         Names names = localNames();
         if (!names.parameters().isEmpty()) {
             var arr = obj.value("parameters").array();
-
-            for (String value : names.parameters().values()) {
-                arr.print(value).arg();
-            }
-
+            arr.print(names.parameters().values(), PrintContext::print);
             arr.end();
             obj.next();
         }
@@ -124,21 +119,18 @@ public class JvmMethodPrinter implements MethodPrinter {
             Map<Integer, String> labelNames = getLabelNames(methodCode.elements());
             if (!methodCode.tryCatchBlocks().isEmpty()) {
                 var arr = obj.value("exceptions").array();
+                arr.print(methodCode.tryCatchBlocks(), (print, tcb) -> {
+                    var exception = print.array();
+                    String start = labelNames.get(tcb.start().getIndex());
+                    String end = labelNames.get(tcb.end().getIndex());
+                    String handler = labelNames.get(tcb.handler().getIndex());
 
-                for (TryCatchBlock tryCatchBlock : methodCode.tryCatchBlocks()) {
-                    var exception = arr.array();
-
-                    String start = labelNames.get(tryCatchBlock.start().getIndex());
-                    String end = labelNames.get(tryCatchBlock.end().getIndex());
-                    String handler = labelNames.get(tryCatchBlock.handler().getIndex());
-
-                    String type = tryCatchBlock.type() == null ? "*" : tryCatchBlock.type().descriptor();
+                    String type = tcb.type() == null ? "*" : tcb.type().descriptor();
 
                     exception.print(start).arg().print(end).arg().print(handler).arg().print(type);
 
                     exception.end();
-                    arr.arg();
-                }
+                });
 
                 arr.end();
                 obj.next();

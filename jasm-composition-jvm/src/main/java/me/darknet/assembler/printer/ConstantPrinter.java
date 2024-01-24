@@ -49,10 +49,7 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
         printMethodHandle(dynamic.methodHandle(), ctx);
         var bsmArray = array.arg().array();
         ConstantPrinter printer = new ConstantPrinter(bsmArray);
-        for (var arg : dynamic.args()) {
-            arg.accept(printer);
-            bsmArray.arg();
-        }
+        bsmArray.print(dynamic.args(), (__, arg) -> arg.accept(printer));
         bsmArray.end();
         array.end();
     }

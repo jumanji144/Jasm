@@ -49,7 +49,7 @@ public class JvmClassPrinter implements ClassPrinter {
             obj.value("inner").literal(innerClass.type().internalName()).next();
             InstanceType outer = innerClass.outerType();
             if (outer != null) {
-                obj.value("outer").literal(outer.internalName()).next();
+                obj.value("outer").literal(outer.internalName());
             }
             obj.end();
             ctx.end();

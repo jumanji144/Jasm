@@ -11,6 +11,7 @@ import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.type.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class InstructionPrinter implements IndexedExecutionEngine {
@@ -115,13 +116,22 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     public void execute(LookupSwitchInstruction instruction) {
         var obj = ctx.instruction("lookupswitch").object();
         obj.value("default").print(labelNames.get(instruction.defaultTarget().getIndex())).next();
-        for (int i = 0; i < instruction.keys().length; i++) {
-            Label target = instruction.targets().get(i);
-            int key = instruction.keys()[i];
-            obj.value(String.valueOf(key)).print(labelNames.get(target.getIndex())).next();
+        // Java has no zip function
+        int[] keys = instruction.keys();
+        List<Label> targets = instruction.targets();
+        if (keys.length != 0) {
+            printLookupCase(obj, keys[0], targets.get(0));
+            for (int i = 1; i < keys.length; i++) {
+                obj.next();
+                printLookupCase(obj, keys[i], targets.get(i));
+            }
         }
         obj.end();
         ctx.next();
+    }
+
+    private void printLookupCase(PrintContext.ObjectPrint ctx, int key, Label target) {
+        ctx.value(String.valueOf(key)).print(labelNames.get(target.getIndex()));
     }
 
     @Override
@@ -130,9 +140,8 @@ public class InstructionPrinter implements IndexedExecutionEngine {
         obj.value("min").print(String.valueOf(instruction.min())).next();
         obj.value("max").print(String.valueOf(instruction.min() + instruction.targets().size())).next();
         var arr = obj.value("cases").array();
-        for (Label target : instruction.targets()) {
-            arr.print(labelNames.get(target.getIndex())).arg();
-        }
+        List<Label> targets = instruction.targets();
+        arr.print(targets, (print, lbl) -> print.print(labelNames.get(lbl.getIndex())));
         arr.end();
         obj.next();
         obj.value("default").print(labelNames.get(instruction.defaultTarget().getIndex())).end();
@@ -195,10 +204,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
         ConstantPrinter.printMethodHandle(instruction.bootstrapHandle(), ctx);
         var bsmArray = ctx.arg().array();
         ConstantPrinter printer = new ConstantPrinter(bsmArray);
-        for (var arg : instruction.args()) {
-            arg.accept(printer);
-            bsmArray.arg();
-        }
+        bsmArray.print(instruction.args(), (__, cst) -> cst.accept(printer));
         bsmArray.end();
         ctx.next();
     }

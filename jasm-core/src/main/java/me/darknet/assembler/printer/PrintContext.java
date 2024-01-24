@@ -2,7 +2,12 @@ package me.darknet.assembler.printer;
 
 import me.darknet.assembler.util.EscapeUtil;
 
-import static me.darknet.assembler.util.StringUtil.removeLast;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.UncheckedIOException;
+import java.io.Writer;
+import java.util.Iterator;
+import java.util.function.BiConsumer;
 
 @SuppressWarnings("unchecked")
 public class PrintContext<T extends PrintContext<?>> {
@@ -13,20 +18,20 @@ public class PrintContext<T extends PrintContext<?>> {
 
     protected String indent = "";
     protected String indentStep;
-    protected StringBuilder sb;
+    protected Writer writer;
 
-    public PrintContext(String indentStep) {
+    public PrintContext(String indentStep, Writer writer) {
         this.indentStep = indentStep;
-        this.sb = new StringBuilder();
+        this.writer = writer;
     }
 
-    public void clear() {
-        this.sb = new StringBuilder();
+    public PrintContext(String indentStep) {
+        this(indentStep, new StringWriter());
     }
 
     public PrintContext(PrintContext<?> ctx) {
         this.indentStep = ctx.indentStep;
-        this.sb = ctx.sb;
+        this.writer = ctx.writer;
         this.indent = ctx.indent;
     }
 
@@ -35,12 +40,20 @@ public class PrintContext<T extends PrintContext<?>> {
     }
 
     T append(String s) {
-        sb.append(s);
+        try {
+            writer.append(s);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
         return (T) this;
     }
 
     T append(char c) {
-        sb.append(c);
+        try {
+            writer.append(c);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
         return (T) this;
     }
 
@@ -117,7 +130,7 @@ public class PrintContext<T extends PrintContext<?>> {
     }
 
     public String toString() {
-        return sb.toString();
+        return writer.toString();
     }
 
     public T unindent() {
@@ -151,6 +164,17 @@ public class PrintContext<T extends PrintContext<?>> {
             return this;
         }
 
+        public <E> ObjectPrint print(Iterable<E> iterable, BiConsumer<ObjectPrint, E> printer) {
+            Iterator<E> iterator = iterable.iterator();
+            if (iterator.hasNext()) {
+                printer.accept(this, iterator.next());
+                while (iterator.hasNext()) {
+                    printer.accept(next(), iterator.next());
+                }
+            }
+            return this;
+        }
+
         @Override
         public ObjectPrint begin() {
             return this;
@@ -158,7 +182,6 @@ public class PrintContext<T extends PrintContext<?>> {
 
         @Override
         public void end() {
-            removeLast(sb, ",\n", 2 + indent.length());
             unindent();
             this.newline().print("}");
         }
@@ -182,8 +205,7 @@ public class PrintContext<T extends PrintContext<?>> {
 
         @Override
         public void end() {
-            removeLast(sb, "\n", 1);
-            this.newline().print("}");
+            this.print("}");
         }
 
         public DeclObjectPrint begin() {
@@ -199,13 +221,23 @@ public class PrintContext<T extends PrintContext<?>> {
         }
 
         public ArrayPrint arg() {
-            this.print(", ");
+            print(", ");
+            return this;
+        }
+
+        public <E> ArrayPrint print(Iterable<E> iterable, BiConsumer<ArrayPrint, E> printer) {
+            Iterator<E> iterator = iterable.iterator();
+            if (iterator.hasNext()) {
+                printer.accept(this, iterator.next());
+                while (iterator.hasNext()) {
+                    printer.accept(arg(), iterator.next());
+                }
+            }
             return this;
         }
 
         @Override
         public void end() {
-            removeLast(sb, ", ", 2);
             this.print(" }");
         }
     }
@@ -223,7 +255,8 @@ public class PrintContext<T extends PrintContext<?>> {
         }
 
         public CodePrint label(String key) {
-            return this.unindent().print(indent).print(key).print(": ").indent();
+            this.unindent().print(indent).print(key).print(": ").indent();
+            return this;
         }
 
         public CodePrint arg() {
@@ -238,10 +271,8 @@ public class PrintContext<T extends PrintContext<?>> {
 
         @Override
         public void end() {
-            removeLast(sb, "\n", 2);
             unindent();
-            this.line().print(indent).print("}");
+            this.print(indent).print("}");
         }
     }
-
 }
