@@ -15,14 +15,6 @@ public interface ASTInstructionVisitor {
     void visitInstruction(@NotNull ASTInstruction instruction);
 
     /**
-     * Called after {@link #visitInstruction(ASTInstruction)} or {@link #visitLabel(ASTIdentifier)} completes.
-     *
-     * @param instruction
-     *                    The instruction
-     */
-    void postVisitInstruction(@NotNull ASTInstruction instruction);
-
-    /**
      * Visit a label
      *
      * @param label

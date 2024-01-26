@@ -41,6 +41,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
      * detail later. See {@link #visitEnd()}
      */
     private final List<String> localNames = new ArrayList<>();
+    private final List<ASTInstruction> visitedInstructions = new ArrayList<>();
     private final JvmAnalysisEngine<Frame> analysisEngine;
     private ASTInstruction last;
     private int opcode = 0;
@@ -139,12 +140,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         if (instruction instanceof ASTLabel)
             return;
         opcode = BlwOpcodes.opcode(instruction.identifier().content());
-    }
-
-    @Override
-    public void postVisitInstruction(@NotNull ASTInstruction instruction) {
-        CodeElement lastElement = codeBuilderList.getLastElement();
-        analysisEngine.recordInstructionMapping(instruction, lastElement);
+        visitedInstructions.add(instruction);
     }
 
     @Override
@@ -353,6 +349,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitLabel(@NotNull ASTIdentifier label) {
+        visitedInstructions.add((ASTInstruction) label.parent());
         codeBuilderList.addLabel(getOrCreateLabel(label.content()));
     }
 
@@ -363,6 +360,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitEnd() {
+        correlateAstAndCodeElements();
+
         Label begin, end;
         if (codeBuilderList.getFirstElement() instanceof Label startLabel) {
             begin = startLabel;
@@ -415,6 +414,16 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
                     String name = getLocalName(index);
                     codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
                 });
+    }
+
+    private void correlateAstAndCodeElements() {
+        List<ASTInstruction> instructions = visitedInstructions;
+        List<CodeElement> elements = codeBuilderList.getElements();
+        for (int i = 0; i < instructions.size(); i++) {
+            ASTInstruction instruction = instructions.get(i);
+            CodeElement element = elements.get(i);
+            analysisEngine.recordInstructionMapping(instruction, element);
+        }
     }
 
     private void add(Instruction instruction) {
