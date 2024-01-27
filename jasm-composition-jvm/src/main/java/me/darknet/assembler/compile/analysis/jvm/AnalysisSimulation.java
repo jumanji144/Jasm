@@ -139,12 +139,9 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                     // Abort if control flow is terminal.
                     int opcode = insn.opcode();
                     if (opcode == ATHROW || (opcode >= IRETURN && opcode <= RETURN)) {
-                        // Record the frame.
-                        engine.putFrame(index, frame);
-
                         // We use the old frame so that it snapshots the state before
                         // the return instruction pops off the return value off the stack.
-                        engine.markTerminal(index, oldFrame);
+                        engine.markTerminal(index - 1, oldFrame);
                         break;
                     }
 
@@ -158,16 +155,16 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                                 );
                             try {
                                 boolean shouldVisitTarget;
-                                Frame existing = engine.getFrame(targetIndex);
-                                if (existing == null) {
+                                Frame targetFrame = engine.getFrame(targetIndex);
+                                if (targetFrame == null) {
                                     // Not seen before, should visit as fork-point.
-                                    engine.putAndMergeFrame(checker, targetIndex, frame);
+                                    engine.putFrame(targetIndex, frame);
                                     shouldVisitTarget = true;
                                 } else {
                                     // We've already created a frame for that index previously.
                                     // We only want to revisit it if merging the current frame into the target's
                                     // will result in a change to the target frame's state.
-                                    Frame mergeTarget = existing.copy();
+                                    Frame mergeTarget = targetFrame.copy();
                                     shouldVisitTarget = mergeTarget.merge(checker, frame);
                                     if (shouldVisitTarget)
                                         engine.putAndMergeFrame(checker, targetIndex, mergeTarget);
@@ -184,7 +181,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                         }
 
                         // Break if control flow does not have fall-through case.
-                        if (!(element instanceof ConditionalJumpInstruction))
+                        if (!bi.hasFallthrough())
                             break;
                     }
                     try {

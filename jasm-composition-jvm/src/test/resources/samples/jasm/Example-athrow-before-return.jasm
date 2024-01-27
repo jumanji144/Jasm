@@ -1,0 +1,27 @@
+.super java/lang/Object
+.class Example {
+    .method public example ()Ljava/lang/String; {
+        parameters: { this },
+        code: {
+        A:
+            iconst_1
+            tableswitch {
+                min: 1,
+                max: 2,
+                cases: { B },
+                default: C
+            }
+        B:
+            ldc "foo"
+            goto D
+        C:
+            new java/lang/UnsupportedOperationException
+            dup
+            invokespecial java/lang/UnsupportedOperationException.<init> ()V
+            athrow
+        D:
+            areturn
+        E:
+        }
+    }
+}
