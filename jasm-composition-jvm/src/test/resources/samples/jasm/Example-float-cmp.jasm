@@ -1,0 +1,18 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            ldc 1.25F
+            ldc 5.55F
+            fcmpg
+            ldc 1.25F
+            ldc 5.55F
+            fcmpl
+            iadd
+            ireturn
+        B:
+        }
+    }
+}

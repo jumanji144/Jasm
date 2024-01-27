@@ -203,8 +203,8 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 }
             }
             case FCMPL -> {
-                Value value1 = frame.pop2();
-                Value value2 = frame.pop2();
+                Value value1 = frame.pop();
+                Value value2 = frame.pop();
                 if (value1 instanceof Value.KnownFloatValue float1 && value2 instanceof Value.KnownFloatValue float2) {
                     float a = float1.value();
                     float b = float2.value();
@@ -217,8 +217,8 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 }
             }
             case FCMPG -> {
-                Value value1 = frame.pop2();
-                Value value2 = frame.pop2();
+                Value value1 = frame.pop();
+                Value value2 = frame.pop();
                 if (value1 instanceof Value.KnownFloatValue float1 && value2 instanceof Value.KnownFloatValue float2) {
                     float a = float1.value();
                     float b = float2.value();
