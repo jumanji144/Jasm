@@ -115,17 +115,14 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     @Override
     public void execute(LookupSwitchInstruction instruction) {
         var obj = ctx.instruction("lookupswitch").object();
-        obj.value("default").print(labelNames.get(instruction.defaultTarget().getIndex())).next();
         // Java has no zip function
         int[] keys = instruction.keys();
         List<Label> targets = instruction.targets();
-        if (keys.length != 0) {
-            printLookupCase(obj, keys[0], targets.get(0));
-            for (int i = 1; i < keys.length; i++) {
-                obj.next();
-                printLookupCase(obj, keys[i], targets.get(i));
-            }
+        for (int i = 0; i < keys.length; i++) {
+            printLookupCase(obj, keys[i], targets.get(i));
+            obj.next();
         }
+        obj.value("default").print(labelNames.get(instruction.defaultTarget().getIndex()));
         obj.end();
         ctx.next();
     }
