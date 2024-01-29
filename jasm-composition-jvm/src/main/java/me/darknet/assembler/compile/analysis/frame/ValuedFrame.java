@@ -107,12 +107,25 @@ public non-sealed interface ValuedFrame extends Frame {
     void push(@NotNull Value value);
 
     /**
+     * Pushes a raw value onto the stack, without pushing a {@link me.darknet.assembler.compile.analysis.Values#VOID_VALUE}
+     * for {@link Types#LONG} and {@link Types#DOUBLE}.
+     * @param value Value to push onto the stack.
+     */
+    void pushRaw(@NotNull Value value);
+
+    /**
      * @param values
      *               Value to push onto the stack.
      */
     default void push(@NotNull Value... values) {
         for (Value value : values) {
             push(value);
+        }
+    }
+
+    default void pushRaw(@NotNull Value... values) {
+        for (Value value : values) {
+            pushRaw(value);
         }
     }
 }

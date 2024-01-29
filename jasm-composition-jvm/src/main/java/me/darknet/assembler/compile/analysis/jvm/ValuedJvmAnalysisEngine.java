@@ -56,38 +56,38 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case DUP_X1 -> {
                 Value value1 = frame.pop();
                 Value value2 = frame.pop();
-                frame.push(value1, value2, value1);
+                frame.pushRaw(value1, value2, value1);
             }
             case DUP_X2 -> {
                 Value value1 = frame.pop();
                 Value value2 = frame.pop();
                 Value value3 = frame.pop();
-                frame.push(value1, value3, value2, value1);
+                frame.pushRaw(value1, value3, value2, value1);
             }
             case DUP2 -> {
                 Value value1 = frame.pop();
                 Value value2 = frame.pop();
-                frame.push(value2, value1, value2, value1);
+                frame.pushRaw(value2, value1, value2, value1);
             }
             case DUP2_X1 -> {
                 Value value1 = frame.pop();
                 Value value2 = frame.pop();
                 Value value3 = frame.pop();
-                frame.push(value2, value1, value3, value2, value1);
+                frame.pushRaw(value2, value1, value3, value2, value1);
             }
             case DUP2_X2 -> {
                 Value value1 = frame.pop();
                 Value value2 = frame.pop();
                 Value value3 = frame.pop();
                 Value value4 = frame.pop();
-                frame.push(value2, value1, value4, value3, value2, value1);
+                frame.pushRaw(value2, value1, value4, value3, value2, value1);
             }
             case POP, IRETURN, FRETURN, ARETURN, MONITORENTER, MONITOREXIT -> frame.pop();
             case POP2, LRETURN, DRETURN -> frame.pop2();
             case SWAP -> {
                 Value value1 = frame.pop();
                 Value value2 = frame.pop();
-                frame.push(value1, value2);
+                frame.pushRaw(value1, value2);
             }
             case INEG, FNEG -> {
                 Value value = frame.pop();

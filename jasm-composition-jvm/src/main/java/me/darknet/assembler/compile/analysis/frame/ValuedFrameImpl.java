@@ -172,6 +172,11 @@ public class ValuedFrameImpl implements ValuedFrame {
             stack.push(Values.VOID_VALUE);
     }
 
+    @Override
+    public void pushRaw(@NotNull Value value) {
+        stack.push(value);
+    }
+
     @NotNull
     @Override
     public Value peek() {
