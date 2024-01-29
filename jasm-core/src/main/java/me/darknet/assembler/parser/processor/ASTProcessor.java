@@ -397,6 +397,7 @@ public class ASTProcessor {
                 ASTElement parent) {
             if (isNull(e, description, parent.location()))
                 return true;
+
             return isNotType(e, expectedElementType, description);
         }
 
@@ -595,6 +596,12 @@ public class ASTProcessor {
                     "Expected " + expected + " but got " + actual.type().name().toLowerCase() + " '" + actual.content()
                             + "'",
                     actual.location()
+            );
+        }
+
+        public void throwIllegalArgumentStateError(String state, ASTElement actual) {
+            throwError(
+                    actual.type().name().toLowerCase() + " '" + actual.content() + "' is " + state, actual.location()
             );
         }
 

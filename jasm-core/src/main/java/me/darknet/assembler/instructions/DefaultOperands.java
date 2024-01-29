@@ -14,9 +14,25 @@ public enum DefaultOperands implements Operands {
             if (number.isFloatingPoint()) {
                 context.throwUnexpectedElementError("integer literal", number);
             }
+            // try to parse the number
+            try {
+                number.asInt();
+            } catch (NumberFormatException e) {
+                context.throwIllegalArgumentStateError("not a valid integer literal", number);
+            }
         }
     }),
-    NUMBER((context, element) -> context.isNotType(element, ElementType.NUMBER, "number literal")),
+    NUMBER((context, element) -> {
+       if (!context.isNotType(element, ElementType.NUMBER, "number literal")) {
+           ASTNumber number = (ASTNumber) element;
+           // attempt to parse it
+           try {
+               number.number();
+           } catch (NumberFormatException e) {
+               context.throwUnexpectedElementError("not a valid number literal", number);
+           }
+       }
+    }),
     IDENTIFIER((context, element) -> context.isNotType(element, ElementType.IDENTIFIER, "identifier")),
     LITERAL((context, element) -> {
         // literals can be: number or identifier
@@ -31,7 +47,7 @@ public enum DefaultOperands implements Operands {
 
         boolean valid = DescriptorUtil.isValidMethodDescriptor(element.content());
         if (!valid)
-            context.throwUnexpectedElementError("method descriptor", element);
+            context.throwUnexpectedElementError("not a valid method descriptor", element);
 
     }),
     FIELD_DESCRIPTOR((context, element) -> {
@@ -41,7 +57,7 @@ public enum DefaultOperands implements Operands {
 
         boolean valid = DescriptorUtil.isValidFieldDescriptor(element.content());
         if (!valid)
-            context.throwUnexpectedElementError("field descriptor", element);
+            context.throwUnexpectedElementError("not a valid field descriptor", element);
     }),
     DESCRIPTOR((context, element) -> {
         // descriptor can be: method or field or array
@@ -53,7 +69,7 @@ public enum DefaultOperands implements Operands {
             valid = DescriptorUtil.isValidFieldDescriptor(element.content());
 
         if (!valid)
-            context.throwUnexpectedElementError("descriptor", element);
+            context.throwUnexpectedElementError("not a valid descriptor", element);
     });
 
     private final Operand operand;

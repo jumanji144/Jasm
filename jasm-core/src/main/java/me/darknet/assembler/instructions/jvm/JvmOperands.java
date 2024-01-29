@@ -99,16 +99,29 @@ public enum JvmOperands implements Operands {
 
     public static void verifyConstant(ASTProcessor.ParserContext context, ASTElement element) {
         switch (element.type()) {
-            case NUMBER, STRING, CHARACTER -> {
+            case NUMBER -> {
+                ASTNumber number = (ASTNumber) element;
+                // attempt to parse it
+                try {
+                    number.number();
+                } catch (NumberFormatException e) {
+                    context.throwIllegalArgumentStateError("not a valid number literal", number);
+                }
+            }
+            case STRING, CHARACTER -> {
             }
             case IDENTIFIER -> {
                 char first = element.content().charAt(0);
-                // TODO: maybe replace with actual descriptor verification?
-                switch (first) {
-                    case 'L', '(', '[' -> {
+                boolean valid = switch (first) {
+                    case 'L', '[' -> DescriptorUtil.isValidFieldDescriptor(element.content());
+                    case '(' -> DescriptorUtil.isValidMethodDescriptor(element.content());
+                    default -> {
+                        context.throwUnexpectedElementError("class, method or array descriptor", element);
+                        yield true; // skip verification error
                     }
-                    default -> context.throwUnexpectedElementError("class, method or array descriptor", element);
-                }
+                };
+                if (!valid)
+                    context.throwIllegalArgumentStateError("not a valid descriptor", element);
             }
             case ARRAY -> {
                 ASTArray array = (ASTArray) element;
@@ -118,8 +131,9 @@ public enum JvmOperands implements Operands {
                     return;
                 }
                 switch (last.type()) {
-                    case ARRAY -> verifyConstantDynamic(context, array);
+                    case ARRAY, EMPTY -> verifyConstantDynamic(context, array);
                     case IDENTIFIER -> verifyHandle(context, array);
+                    default -> context.throwUnexpectedElementError("constant", element);
                 }
             }
             default -> context.throwUnexpectedElementError("constant", element);
@@ -139,11 +153,21 @@ public enum JvmOperands implements Operands {
         if (context.validateCorrect(array.value(1), ElementType.IDENTIFIER, "type", array))
             return;
 
+        ASTIdentifier type = array.value(1);
+
+        String descriptor = type.content();
+        boolean valid = DescriptorUtil.isValidFieldDescriptor(descriptor);
+        if (!valid) {
+            context.throwIllegalArgumentStateError("not a valid field descriptor", type);
+            return;
+        }
+
         if (verifyHandle(context, array.value(2)))
             return;
 
         ASTElement argsElement = array.value(3);
-        ASTArray args = context.validateEmptyableElement(argsElement, ElementType.ARRAY, "args", argsElement);
+
+        ASTArray args = context.validateEmptyableElement(argsElement, ElementType.ARRAY, "args", array);
         for (ASTElement value : args.values()) {
             if (context.isNull(value, "args element", args.location()))
                 return;
@@ -180,7 +204,7 @@ public enum JvmOperands implements Operands {
         };
 
         if (!valid) {
-            context.throwUnexpectedElementError("field or method descriptor", values.get(2));
+            context.throwIllegalArgumentStateError("not a valid descriptor", values.get(2));
             return true;
         }
 

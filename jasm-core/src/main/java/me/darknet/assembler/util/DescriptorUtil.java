@@ -15,6 +15,10 @@ public class DescriptorUtil {
                 case '(' -> parenthesesCount++;
                 case ')' -> {
                     parenthesesCount--;
+                    if(parenthesesCount == 0) {
+                        if (i >= chars.length - 1)
+                            return false;
+                    }
                     if (parenthesesCount < 0)
                         return false;
                 }

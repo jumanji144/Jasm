@@ -54,6 +54,7 @@ public class ConstantMapper {
         return switch (element.type()) {
             case CHARACTER -> {
                 ASTCharacter character = (ASTCharacter) element;
+                assert character.content() != null;
                 yield new OfInt(character.content().charAt(0));
             }
             case NUMBER -> {
@@ -75,6 +76,7 @@ public class ConstantMapper {
             case STRING -> new OfString(element.value().content());
             case IDENTIFIER -> {
                 ASTIdentifier identifier = (ASTIdentifier) element;
+                assert identifier.content() != null;
                 char first = identifier.content().charAt(0);
                 yield switch (first) {
                     case 'L' -> new OfType(Types.instanceTypeFromDescriptor(identifier.literal()));
@@ -86,8 +88,9 @@ public class ConstantMapper {
             case ARRAY -> {
                 ASTArray array = (ASTArray) element;
                 ASTElement last = array.values().get(array.values().size() - 1);
+                assert last != null;
                 yield switch (last.type()) {
-                    case ARRAY -> new OfDynamic(constantDynamicFromArray(array));
+                    case ARRAY, EMPTY -> new OfDynamic(constantDynamicFromArray(array));
                     case IDENTIFIER -> new OfMethodHandle(methodHandleFromArray(array));
                     default -> throw new IllegalStateException("Unexpected value: " + last.type());
                 };
