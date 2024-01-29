@@ -83,7 +83,7 @@ public class JvmInstructions extends Instructions<ASTJvmInstructionVisitor> {
 
         register(
                 "invokedynamic",
-                ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL, JvmOperands.HANDLE, JvmOperands.ARGS),
+                ops(DefaultOperands.LITERAL, DefaultOperands.DESCRIPTOR, JvmOperands.HANDLE, JvmOperands.ARGS),
                 (inst, visitor) -> visitor.visitInvokeDynamicInsn(
                         inst.argument(0, ASTIdentifier.class), inst.argument(1, ASTIdentifier.class),
                         inst.argument(2, ASTArray.class), inst.argument(3, ASTArray.class)
@@ -158,7 +158,7 @@ public class JvmInstructions extends Instructions<ASTJvmInstructionVisitor> {
     void registerFieldProcessors(String... names) {
         for (String name : names) {
             register(
-                    name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL),
+                    name, ops(DefaultOperands.LITERAL, DefaultOperands.FIELD_DESCRIPTOR),
                     (inst, visitor) -> visitor.visitFieldInsn(
                             inst.argument(0, ASTIdentifier.class), inst.argument(1, ASTIdentifier.class)
                     )
@@ -169,7 +169,7 @@ public class JvmInstructions extends Instructions<ASTJvmInstructionVisitor> {
     void registerMethodProcessors(String... names) {
         for (String name : names) {
             register(
-                    name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL),
+                    name, ops(DefaultOperands.LITERAL, DefaultOperands.METHOD_DESCRIPTOR),
                     (inst, visitor) -> visitor.visitMethodInsn(
                             inst.argument(0, ASTIdentifier.class), inst.argument(1, ASTIdentifier.class)
                     )

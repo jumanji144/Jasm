@@ -2,6 +2,7 @@ package me.darknet.assembler.instructions;
 
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTNumber;
+import me.darknet.assembler.util.DescriptorUtil;
 
 public enum DefaultOperands implements Operands {
 
@@ -22,7 +23,38 @@ public enum DefaultOperands implements Operands {
         if (element.type() != ElementType.NUMBER && element.type() != ElementType.IDENTIFIER)
             context.throwUnexpectedElementError("literal", element);
     }),
-    LABEL((context, element) -> context.isNotType(element, ElementType.IDENTIFIER, "label"));
+    LABEL((context, element) -> context.isNotType(element, ElementType.IDENTIFIER, "label")),
+    METHOD_DESCRIPTOR((context, element) -> {
+        // method descriptor can be: method or array
+        if (context.isNotType(element, ElementType.IDENTIFIER, "method descriptor"))
+            return;
+
+        boolean valid = DescriptorUtil.isValidMethodDescriptor(element.content());
+        if (!valid)
+            context.throwUnexpectedElementError("method descriptor", element);
+
+    }),
+    FIELD_DESCRIPTOR((context, element) -> {
+        // field descriptor can be: field or array
+        if (context.isNotType(element, ElementType.IDENTIFIER, "field descriptor"))
+            return;
+
+        boolean valid = DescriptorUtil.isValidFieldDescriptor(element.content());
+        if (!valid)
+            context.throwUnexpectedElementError("field descriptor", element);
+    }),
+    DESCRIPTOR((context, element) -> {
+        // descriptor can be: method or field or array
+        if (context.isNotType(element, ElementType.IDENTIFIER, "descriptor"))
+            return;
+
+        boolean valid = DescriptorUtil.isValidMethodDescriptor(element.content());
+        if (!valid)
+            valid = DescriptorUtil.isValidFieldDescriptor(element.content());
+
+        if (!valid)
+            context.throwUnexpectedElementError("descriptor", element);
+    });
 
     private final Operand operand;
 

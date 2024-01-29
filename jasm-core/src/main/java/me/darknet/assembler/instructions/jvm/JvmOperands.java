@@ -10,6 +10,7 @@ import me.darknet.assembler.helper.Handle;
 import me.darknet.assembler.instructions.Operand;
 import me.darknet.assembler.instructions.Operands;
 import me.darknet.assembler.parser.processor.ASTProcessor;
+import me.darknet.assembler.util.DescriptorUtil;
 
 import java.util.List;
 
@@ -161,9 +162,25 @@ public enum JvmOperands implements Operands {
             context.throwUnexpectedElementError("kind, name and descriptor", element);
             return true;
         }
+
         // first should be kind
-        if (!Handle.KINDS.containsKey(values.get(0).content())) {
+        Handle.Kind kind = Handle.Kind.from(values.get(0).content());
+
+        if (kind == null) {
             context.throwUnexpectedElementError("kind", values.get(0));
+            return true;
+        }
+
+        // 3rd is descriptor
+        String descriptor = values.get(2).content();
+        boolean valid = switch (kind) {
+            case GET_FIELD, GET_STATIC, PUT_FIELD, PUT_STATIC -> DescriptorUtil.isValidFieldDescriptor(descriptor);
+            case INVOKE_VIRTUAL, INVOKE_STATIC, INVOKE_SPECIAL, NEW_INVOKE_SPECIAL, INVOKE_INTERFACE -> DescriptorUtil
+                    .isValidMethodDescriptor(descriptor);
+        };
+
+        if (!valid) {
+            context.throwUnexpectedElementError("field or method descriptor", values.get(2));
             return true;
         }
 
