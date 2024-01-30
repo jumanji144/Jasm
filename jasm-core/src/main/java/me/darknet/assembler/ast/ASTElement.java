@@ -49,8 +49,9 @@ public class ASTElement {
     }
 
     protected void addChildren(@NotNull Collection<? extends ASTElement> elements) {
-        elements.forEach(e -> e.parent = this);
-        children.addAll(elements);
+        Collection<ASTElement> filtered = elements.stream().filter(Objects::nonNull).collect(Collectors.toList());
+        filtered.forEach(element -> element.parent = this);
+        children.addAll(filtered);
         children.sort(SORT_POS);
     }
 
@@ -83,19 +84,21 @@ public class ASTElement {
         return value == null ? null : value.content();
     }
 
-    @Nullable
     public Range range() {
         if (cachedRange != null)
             return cachedRange;
         if (value == null || children.size() > 1) {
             List<ASTElement> localChildren = children;
+            if (localChildren.isEmpty()) // no possible range usable
+                return Range.EMPTY;
+
             if (localChildren.size() == 1)
                 return localChildren.get(0).range();
 
             Range first = localChildren.get(0).range();
             Range last = localChildren.get(localChildren.size() - 1).range();
             if (first == null || last == null)
-                return null;
+                return Range.EMPTY;
 
             return cachedRange = new Range(first.start(), last.end());
         }

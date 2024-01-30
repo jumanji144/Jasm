@@ -23,7 +23,7 @@ public class ASTClass extends ASTMember {
 
     public ASTClass(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull List<ASTElement> contents) {
         super(ElementType.CLASS, modifiers, name, name);
-        this.children.addAll(contents);
+        addChildren(contents);
         this.contents = contents;
     }
 
