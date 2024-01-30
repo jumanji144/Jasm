@@ -11,6 +11,7 @@ import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.helper.Handle;
 import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.ConstantMapper;
 import me.darknet.assembler.util.Location;
@@ -326,20 +327,26 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     @Override
-    public void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTArray bsm, ASTArray bsmArgs) {
+    public void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTElement bsm, ASTArray bsmArgs) {
+
+        Handle handle;
+
+        if(bsm instanceof ASTIdentifier identifier) {
+            handle = Handle.HANDLE_SHORTCUTS.get(identifier.content());
+        } else if(bsm instanceof ASTArray array) {
+            handle = Handle.from(array);
+        } else {
+            throw new IllegalStateException("Unexpected value: " + bsm);
+        }
+
         add(
                 new InvokeDynamicInstruction(
                         name.literal(),
                         Objects.requireNonNullElse(new TypeReader(descriptor.literal()).read(), Types.OBJECT),
-                        ConstantMapper.methodHandleFromArray(bsm),
+                        ConstantMapper.methodHandleFromHandle(handle),
                         bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
                 )
         );
-    }
-
-    @Override
-    public void visitShortInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTIdentifier bsm, ASTArray bsmArgs) {
-
     }
 
     @Override

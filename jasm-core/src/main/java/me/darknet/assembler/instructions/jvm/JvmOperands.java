@@ -116,8 +116,23 @@ public enum JvmOperands implements Operands {
                     case 'L', '[' -> DescriptorUtil.isValidFieldDescriptor(element.content());
                     case '(' -> DescriptorUtil.isValidMethodDescriptor(element.content());
                     default -> {
-                        context.throwUnexpectedElementError("class, method or array descriptor", element);
-                        yield true; // skip verification error
+                        // maybe its a number handle
+                        switch (element.content().toLowerCase()) {
+                            case "nan", "nand", "nanf",
+                                    "infinity", "+infinity", "-infinity",
+                                    "infinityd", "+infinityd", "-infinityd",
+                                    "infinityf", "+infinityf", "-infinityf" -> {
+                            }
+                            default -> {
+                                // maybe is a short handle
+                                Handle handle = Handle.HANDLE_SHORTCUTS.get(element.content());
+                                if (handle == null) {
+                                    context.throwUnexpectedElementError("class, method or array descriptor", element);
+                                }
+                            }
+                        }
+                        // skip verification error
+                        yield true;
                     }
                 };
                 if (!valid)
@@ -177,6 +192,16 @@ public enum JvmOperands implements Operands {
     }
 
     public static boolean verifyHandle(ASTProcessor.ParserContext context, ASTElement element) {
+        if(element instanceof ASTIdentifier identifier) { // maybe short handle?
+            Handle handle = Handle.HANDLE_SHORTCUTS.get(identifier.content());
+            if(handle != null) {
+                return false;
+            }
+
+            context.throwUnexpectedElementError("handle or short-handle", element);
+            return true;
+        }
+
         if (context.isNotType(element, ElementType.ARRAY, "handle"))
             return true;
 

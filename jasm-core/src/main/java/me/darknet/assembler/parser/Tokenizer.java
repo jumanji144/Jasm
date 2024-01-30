@@ -223,14 +223,6 @@ public class Tokenizer {
         );
 
         boolean checkIfNumber(String content) {
-            switch (content.toLowerCase()) { // floating point numbers
-                case "nan", "nand", "nanf",
-                        "infinity", "+infinity", "-infinity",
-                        "infinityd", "+infinityd", "-infinityd",
-                        "infinityf", "+infinityf", "-infinityf"-> {
-                    return true;
-                }
-            }
             // note: in this case, a regex is easier to implement than a state machine
             return NUMBER_PATTERN.matcher(content).matches();
         }

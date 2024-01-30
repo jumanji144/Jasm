@@ -31,6 +31,16 @@ public enum DefaultOperands implements Operands {
            } catch (NumberFormatException e) {
                context.throwUnexpectedElementError("not a valid number literal", number);
            }
+       } else if (!context.isNotType(element, ElementType.IDENTIFIER, "identifier")) {
+           switch (element.content().toLowerCase()) {
+               case "nan", "nand", "nanf",
+                       "infinity", "+infinity", "-infinity",
+                       "infinityd", "+infinityd", "-infinityd",
+                       "infinityf", "+infinityf", "-infinityf" -> {
+                   // valid
+               }
+               default -> context.throwUnexpectedElementError("not a valid number literal", element);
+           }
        }
     }),
     IDENTIFIER((context, element) -> context.isNotType(element, ElementType.IDENTIFIER, "identifier")),

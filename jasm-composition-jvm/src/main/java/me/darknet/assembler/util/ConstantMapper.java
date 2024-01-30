@@ -7,6 +7,8 @@ import me.darknet.assembler.helper.Handle;
 import dev.xdark.blw.constant.*;
 import dev.xdark.blw.type.*;
 
+import java.io.PrintStream;
+import java.lang.invoke.MethodHandles;
 import java.util.List;
 
 public class ConstantMapper {
@@ -30,6 +32,19 @@ public class ConstantMapper {
 
         // TODO: ITF
         return new MethodHandle(kind.ordinal() + 1, owner, methodName, methodType, false);
+    }
+
+    public static MethodHandle methodHandleFromHandle(Handle handle) {
+        var split = handle.name().split("\\.");
+        String className = split[0];
+        String methodName = split[1];
+
+        ObjectType owner = Types.instanceTypeFromInternalName(className);
+
+        Type methodType = handle.kind().isField() ?
+                new TypeReader(handle.descriptor()).read() : Types.methodType(handle.descriptor());
+
+        return new MethodHandle(handle.kind().ordinal() + 1, owner, methodName, methodType, false);
     }
 
     public static ConstantDynamic constantDynamicFromArray(ASTArray array) {
@@ -80,7 +95,25 @@ public class ConstantMapper {
                     case 'L' -> new OfType(Types.instanceTypeFromDescriptor(identifier.literal()));
                     case '(' -> new OfType(Types.methodType(identifier.literal()));
                     case '[' -> new OfType(Types.arrayTypeFromDescriptor(identifier.literal()));
-                    default -> throw new IllegalStateException("Unexpected value: " + first);
+                    default -> switch (identifier.literal().toLowerCase()) {
+                        case "true" -> new OfInt(1);
+                        case "false" -> new OfInt(0);
+                        case "nan", "nand" -> new OfDouble(Double.NaN);
+                        case "nanf" -> new OfFloat(Float.NaN);
+                        case "+infinity", "+infinityd", "infinity", "infinityd"
+                                -> new OfDouble(Double.POSITIVE_INFINITY);
+                        case "+infinityf", "infinityf" -> new OfFloat(Float.POSITIVE_INFINITY);
+                        case "-infinity", "-infinityd" -> new OfDouble(Double.NEGATIVE_INFINITY);
+                        case "-infinityf" -> new OfFloat(Float.NEGATIVE_INFINITY);
+                        default -> {
+                            // maybe is a short handle
+                            Handle handle = Handle.HANDLE_SHORTCUTS.get(identifier.literal());
+                            if (handle != null) {
+                                yield new OfMethodHandle(methodHandleFromHandle(handle));
+                            }
+                            throw new IllegalStateException("Unexpected value: " + first);
+                        }
+                    };
                 };
             }
             case ARRAY -> {

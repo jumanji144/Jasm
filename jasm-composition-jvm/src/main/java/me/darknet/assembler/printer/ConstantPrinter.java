@@ -5,6 +5,7 @@ import dev.xdark.blw.type.ConstantDynamic;
 import dev.xdark.blw.type.MethodHandle;
 import dev.xdark.blw.type.ObjectType;
 import dev.xdark.blw.type.Type;
+import me.darknet.assembler.helper.Handle;
 
 import java.util.Map;
 
@@ -16,6 +17,11 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
     );
 
     public static void printMethodHandle(MethodHandle handle, PrintContext<?> ctx) {
+        String shortHandle = Handle.SHORTCUT_LOOKUP.get(handle.owner().internalName() + "." + handle.name() + handle.type().descriptor());
+        if (shortHandle != null) {
+            ctx.literal(shortHandle);
+            return;
+        }
         var array = ctx.array();
         array.print(HANDLE_TYPES.get(handle.kind())).arg().literal(handle.owner().internalName()).literal(".")
                 .literal(handle.name()).arg().literal(handle.type().descriptor()).end();

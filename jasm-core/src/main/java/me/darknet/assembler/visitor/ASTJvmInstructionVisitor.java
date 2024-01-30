@@ -154,42 +154,16 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
      * @param descriptor
      *                   the descriptor of the method
      * @param bsm
-     *                   the bootstrap method, see
+     *                   the bootstrap method, might be one of the following:
+     *                   - {@link ASTArray} of size 3, see
      *                   {@link me.darknet.assembler.helper.Handle#from(ASTArray)}
+     *                   - {@link ASTIdentifier}, see
+     *                   {@link me.darknet.assembler.helper.Handle#HANDLE_SHORTCUTS}
      * @param bsmArgs
      *                   the bootstrap method arguments, see
      *                   {@link me.darknet.assembler.helper.Constant#from(ASTElement)}
      */
-    void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTArray bsm, ASTArray bsmArgs);
-
-    /**
-     * Visits a shortened invoke dynamic instruction.
-     * Difference to the normal invoke dynamic instruction is that the bootstrap method is not specified via handle,
-     * but rather via a shortcut name.
-     * Here is the table of the shortcut names and their corresponding bootstrap methods:
-     * <ul>
-     *     <li>LambdaMetaFactory.metafactory -> {@link java.lang.invoke.LambdaMetafactory#metafactory(java.lang.invoke.MethodHandles.Lookup, String, java.lang.invoke.MethodType, java.lang.invoke.MethodType, java.lang.invoke.MethodHandle, java.lang.invoke.MethodType)}</li>
-     *     <li>LambdaMetaFactory.altMetafactory -> {@link java.lang.invoke.LambdaMetafactory#altMetafactory(java.lang.invoke.MethodHandles.Lookup, String, java.lang.invoke.MethodType, Object...)}</li>
-     *     <li>ConstantBootstraps.nullConstant -> {@link java.lang.invoke.ConstantBootstraps#nullConstant(java.lang.invoke.MethodHandles.Lookup, String, Class)}</li>
-     *     <li>ConstantBootstraps.primitiveClass -> {@link java.lang.invoke.ConstantBootstraps#primitiveClass(java.lang.invoke.MethodHandles.Lookup, String, Class)}</li>
-     *     <li>ConstantBootstraps.enumConstant -> {@link java.lang.invoke.ConstantBootstraps#enumConstant(MethodHandles.Lookup, String, Class)}</li>
-     *     <li>ConstantBootstraps.getStaticFinal -> {@link java.lang.invoke.ConstantBootstraps#getStaticFinal(java.lang.invoke.MethodHandles.Lookup, String, Class, Class)}</li>
-     *     <li>ConstantBootstraps.getStaticFinal -> {@link java.lang.invoke.ConstantBootstraps#getStaticFinal(java.lang.invoke.MethodHandles.Lookup, String, Class)}</li>
-     *     <li>ConstantBootstraps.invoke -> {@link java.lang.invoke.ConstantBootstraps#invoke(MethodHandles.Lookup, String, Class, MethodHandle, Object...)}</li>
-     *     <li>ConstantBootstraps.fieldVarHandle -> {@link java.lang.invoke.ConstantBootstraps#fieldVarHandle(MethodHandles.Lookup, String, Class, Class, Class)}</li>
-     *     <li>ConstantBootstraps.staticFieldVarHandle -> {@link java.lang.invoke.ConstantBootstraps#staticFieldVarHandle(MethodHandles.Lookup, String, Class, Class, Class)}</li>
-     *     <li>ConstantBootstraps.arrayVarHandle -> {@link java.lang.invoke.ConstantBootstraps#arrayVarHandle(MethodHandles.Lookup, String, Class, Class)}</li>
-     *     <li>ConstantBootstraps.explicitCast -> {@link java.lang.invoke.ConstantBootstraps#explicitCast(MethodHandles.Lookup, String, Class, Object)}</li>
-     *     <li>SwitchBootstraps.enumSwitch -> {@link java.lang.runtime.SwitchBootstraps#enumSwitch(MethodHandles.Lookup, String, MethodType, Object...)}</li>
-     *     <li>SwitchBootstraps.stringSwitch -> {@link java.lang.runtime.SwitchBootstraps#typeSwitch(MethodHandles.Lookup, String, MethodType, Object...)}</li>
-     *     <li>ObjectMethods.bootstrap -> {@link java.lang.runtime.ObjectMethods#bootstrap(MethodHandles.Lookup, String, TypeDescriptor, Class, String, MethodHandle...)}
-     * </ul>
-     * @param name the name of the method
-     * @param descriptor the descriptor of the method
-     * @param bsm the bootstrap method name
-     * @param bsmArgs the bootstrap method arguments, see {@link me.darknet.assembler.helper.Constant#from(ASTElement)}
-     */
-    void visitShortInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTIdentifier bsm, ASTArray bsmArgs);
+    void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTElement bsm, ASTArray bsmArgs);
 
     /**
      * Visit a multidimensional array instruction
