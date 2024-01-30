@@ -1,0 +1,40 @@
+.inner public static final {
+    name: Lookup,
+    inner: java/lang/invoke/MethodHandles$Lookup,
+    outer: java/lang/invoke/MethodHandles
+}
+.super java/lang/Object
+.class public super Example {
+    .method public static bootstrapMethod (Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite; {
+        parameters: { lookup, name, type },
+        code: {
+        A:
+            aload lookup
+            ldc Ljava/io/PrintStream;
+            ldc "println"
+            getstatic java/lang/Void.TYPE Ljava/lang/Class;
+            ldc Ljava/lang/String;
+            invokestatic java/lang/invoke/MethodType.methodType (Ljava/lang/Class;Ljava/lang/Class;)Ljava/lang/invoke/MethodType;
+            invokevirtual java/lang/invoke/MethodHandles$Lookup.findVirtual (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;
+            astore handle
+            new java/lang/invoke/ConstantCallSite;
+            dup
+            aload handle
+            invokespecial java/lang/invoke/ConstantCallSite.<init> (Ljava/lang/invoke/MethodHandle;)V
+            areturn
+        B:
+        }
+    }
+
+    .method public static main ([Ljava/lang/String;)V {
+        parameters: { args },
+        code: {
+        A:
+            getstatic java/lang/System.out Ljava/io/PrintStream;
+            ldc "Hello, World!"
+            invokedynamic hello (Ljava/io/PrintStream;Ljava/lang/String;)V { invokestatic, Example.bootstrapMethod, (Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite; } { }
+            return
+        B:
+        }
+    }
+}

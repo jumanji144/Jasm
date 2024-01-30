@@ -1,0 +1,38 @@
+.inner public static final {
+    name: Lookup,
+    inner: java/lang/invoke/MethodHandles$Lookup,
+    outer: java/lang/invoke/MethodHandles
+}
+.super java/lang/Object
+.class public super Example {
+
+
+    .method public static main ([Ljava/lang/String;)V {
+        parameters: { args },
+        code: {
+        A:
+            new java/util/ArrayList
+            dup
+            invokespecial java/util/ArrayList.<init> ()V
+            astore strings
+            aload strings
+            invokedynamic accept ()Ljava/util/function/Consumer; LambdaMetafactory.metafactory { (Ljava/lang/Object;)V, { invokestatic, Example.lambda$new$0, (Ljava/lang/String;)V }, (Ljava/lang/String;)V }
+            invokeinterface java/util/List.forEach (Ljava/util/function/Consumer;)V
+            return
+        B:
+        }
+    }
+
+    .method private static synthetic lambda$new$0 (Ljava/lang/String;)V {
+        parameters: { str },
+        code: {
+        A:
+            getstatic java/lang/System.out Ljava/io/PrintStream;
+            aload str
+            invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V
+            return
+        B:
+        }
+    }
+
+}
