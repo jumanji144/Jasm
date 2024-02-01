@@ -329,11 +329,17 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         } else if (constant instanceof OfString cString) {
             frame.push(Values.valueOfString(cString.value()));
         } else if (constant instanceof OfMethodHandle mh) {
-            frame.pushType(Types.methodType(mh.value().type().descriptor()).returnType());
+            // push java/lang/invoke/MethodHandle
+            frame.pushType(METHOD_HANDLE);
         } else if (constant instanceof OfDynamic dyn) {
             frame.pushType(dyn.value().type());
         } else if (constant instanceof OfType tp) {
-            frame.pushType((ClassType) tp.value());
+            Type type = tp.value();
+            if (type instanceof ClassType ct)
+                frame.pushType(ct);
+            else if (type instanceof MethodType mt)
+                // push java/lang/invoke/MethodType
+                frame.pushType(METHOD_TYPE);
         }
     }
 

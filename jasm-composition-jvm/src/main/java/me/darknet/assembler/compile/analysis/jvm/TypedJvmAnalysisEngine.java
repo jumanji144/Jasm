@@ -1,6 +1,6 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import dev.xdark.blw.type.ArrayType;
+import dev.xdark.blw.type.*;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.VariableNameLookup;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
@@ -9,9 +9,6 @@ import me.darknet.assembler.compile.analysis.frame.TypedFrameOps;
 
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.constant.*;
-import dev.xdark.blw.type.ClassType;
-import dev.xdark.blw.type.MethodType;
-import dev.xdark.blw.type.Types;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -172,11 +169,17 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
         } else if (constant instanceof OfString) {
             frame.pushType(Types.type(String.class));
         } else if (constant instanceof OfMethodHandle mh) {
-            frame.pushType(Types.methodType(mh.value().type().descriptor()).returnType());
+            // push java/lang/invoke/MethodHandle
+            frame.pushType(METHOD_HANDLE);
         } else if (constant instanceof OfDynamic dyn) {
             frame.pushType(dyn.value().type());
         } else if (constant instanceof OfType tp) {
-            frame.pushType((ClassType) tp.value());
+            Type type = tp.value();
+            if (type instanceof ClassType ct)
+                frame.pushType(ct);
+            else if (type instanceof MethodType mt)
+                // push java/lang/invoke/MethodType
+                frame.pushType(METHOD_TYPE);
         }
     }
 

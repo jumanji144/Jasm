@@ -1,8 +1,7 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
 import dev.xdark.blw.code.CodeElement;
-import dev.xdark.blw.type.ArrayType;
-import dev.xdark.blw.type.ObjectType;
+import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
@@ -40,6 +39,9 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     protected InheritanceChecker checker;
     protected AnalysisException analysisFailure;
     protected F frame;
+
+    protected static InstanceType METHOD_TYPE = Types.instanceType(MethodType.class);
+    protected static InstanceType METHOD_HANDLE = Types.instanceType(MethodHandle.class);
 
     public JvmAnalysisEngine(@NotNull VariableNameLookup variableNameLookup) {
         this.variableNameLookup = variableNameLookup;
