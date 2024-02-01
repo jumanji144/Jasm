@@ -7,7 +7,7 @@ import me.darknet.assembler.compile.analysis.Value;
 import me.darknet.assembler.compile.analysis.Values;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.ValuedFrame;
-import me.darknet.assembler.compile.analysis.jvm.BasicMethodValueLookup;
+import me.darknet.assembler.compile.analysis.BasicMethodValueLookup;
 import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.printer.JvmClassPrinter;
