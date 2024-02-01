@@ -418,19 +418,24 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         List<ClassType> types = methodType.parameterTypes();
         int size = types.size();
 
+        boolean canLookup = true;
         List<Value> parameters = new ArrayList<>(size);
-        for (ClassType type : types)
-            parameters.add(0, frame.pop(type));
+        for (ClassType type : types) {
+            Value value = frame.pop(type);
+            parameters.add(0, value);
+            canLookup &= value.isKnown();
+        }
 
         Value.ObjectValue context = null;
-        if (instruction.opcode() != INVOKESTATIC && frame.pop() instanceof Value.ObjectValue poppedContext)
+        if (instruction.opcode() != INVOKESTATIC && frame.pop() instanceof Value.ObjectValue poppedContext) {
             context = poppedContext;
+            canLookup &= poppedContext.isKnown();
+        }
 
         if (methodType.returnType() != Types.VOID) {
-            var lookup = methodValueLookup;
-            if (lookup != null) {
+            if (canLookup && methodValueLookup != null) {
                 // 3rd parties can register return values for known methods
-                Value value = lookup.accept(instruction, context, parameters);
+                Value value = methodValueLookup.accept(instruction, context, parameters);
                 if (value != null) {
                     frame.push(value);
                 } else {
@@ -452,10 +457,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 Value.ObjectValue context = null;
                 if (opcode == GETFIELD && frame.pop() instanceof Value.ObjectValue poppedContext)
                     context = poppedContext;
-                var lookup = fieldValueLookup;
-                if (lookup != null) {
+                if (fieldValueLookup != null && (opcode == GETSTATIC || (context != null && context.isKnown()))) {
                     // 3rd parties can register values for known fields
-                    Value value = lookup.accept(instruction, context);
+                    Value value = fieldValueLookup.accept(instruction, context);
                     if (value != null) {
                         frame.push(value);
                     } else {

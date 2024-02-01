@@ -20,6 +20,8 @@ public sealed interface Value {
         return null;
     }
 
+    default boolean isKnown() { return false; }
+
     /** Value of primitive content */
     sealed interface PrimitiveValue extends Value {
         @Override
@@ -86,6 +88,11 @@ public sealed interface Value {
         public @NotNull String valueAsString() {
             return String.valueOf(value);
         }
+
+        @Override
+        public boolean isKnown() {
+            return true;
+        }
     }
 
     /** Value of unknown int content. */
@@ -136,6 +143,11 @@ public sealed interface Value {
         @Override
         public @NotNull String valueAsString() {
             return String.valueOf(value);
+        }
+
+        @Override
+        public boolean isKnown() {
+            return true;
         }
     }
 
@@ -188,6 +200,11 @@ public sealed interface Value {
         public @NotNull String valueAsString() {
             return String.valueOf(value);
         }
+
+        @Override
+        public boolean isKnown() {
+            return true;
+        }
     }
 
     /** Value of unknown long content. */
@@ -238,6 +255,11 @@ public sealed interface Value {
         @Override
         public @NotNull String valueAsString() {
             return String.valueOf(value);
+        }
+
+        @Override
+        public boolean isKnown() {
+            return true;
         }
     }
 
@@ -305,6 +327,11 @@ public sealed interface Value {
         public @NotNull String valueAsString() {
             return "null";
         }
+
+        @Override
+        public boolean isKnown() {
+            return true;
+        }
     }
 
     /**
@@ -344,6 +371,11 @@ public sealed interface Value {
         @Override
         public @NotNull String valueAsString() {
             return value;
+        }
+
+        @Override
+        public boolean isKnown() {
+            return true;
         }
     }
 
