@@ -1,10 +1,7 @@
 package me.darknet.assembler.printer;
 
 import dev.xdark.blw.constant.*;
-import dev.xdark.blw.type.ConstantDynamic;
-import dev.xdark.blw.type.MethodHandle;
-import dev.xdark.blw.type.ObjectType;
-import dev.xdark.blw.type.Type;
+import dev.xdark.blw.type.*;
 import me.darknet.assembler.helper.Handle;
 
 import java.util.Map;
@@ -37,14 +34,12 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
         printMethodHandle(value.value(), ctx);
     }
 
+
+
     @Override
     public void acceptType(OfType value) {
-        Type type = value.value();
-        if (type instanceof ObjectType ct) {
-            ctx.print("L").literal(ct.internalName()).print(";");
-        } else {
-            ctx.literal(type.descriptor());
-        }
+        Type t = value.value();
+        ctx.literal(t.descriptor());
     }
 
     @Override
