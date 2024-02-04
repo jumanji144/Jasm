@@ -92,7 +92,19 @@ public class ConstantMapper {
                 assert identifier.content() != null;
                 char first = identifier.content().charAt(0);
                 yield switch (first) {
-                    case 'L' -> new OfType(Types.instanceTypeFromDescriptor(identifier.literal()));
+                    case 'L' -> {
+                        // if last is `;` then it's a class type, if not could be a short handle
+                        char last = identifier.content().charAt(identifier.content().length() - 1);
+                        if(last == ';') {
+                            yield new OfType(Types.instanceTypeFromDescriptor(identifier.literal()));
+                        } else {
+                            Handle handle = Handle.HANDLE_SHORTCUTS.get(identifier.literal());
+                            if (handle != null) {
+                                yield new OfMethodHandle(methodHandleFromHandle(handle));
+                            }
+                            throw new IllegalStateException("Unexpected value: " + first);
+                        }
+                    }
                     case '(' -> new OfType(Types.methodType(identifier.literal()));
                     case '[' -> new OfType(Types.arrayTypeFromDescriptor(identifier.literal()));
                     default -> switch (identifier.literal().toLowerCase()) {

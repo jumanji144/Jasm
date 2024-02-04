@@ -113,7 +113,19 @@ public enum JvmOperands implements Operands {
             case IDENTIFIER -> {
                 char first = element.content().charAt(0);
                 boolean valid = switch (first) {
-                    case 'L', '[' -> DescriptorUtil.isValidFieldDescriptor(element.content());
+                    case 'L', '[' -> {
+                        // if last is `;` then it's a class type, if not could be a short handle
+                        char last = element.content().charAt(element.content().length() - 1);
+                        if (last == ';') {
+                            yield DescriptorUtil.isValidFieldDescriptor(element.content());
+                        } else {
+                            Handle handle = Handle.HANDLE_SHORTCUTS.get(element.content());
+                            if (handle == null) {
+                                context.throwUnexpectedElementError("class, method or array descriptor", element);
+                            }
+                            yield true;
+                        }
+                    }
                     case '(' -> DescriptorUtil.isValidMethodDescriptor(element.content());
                     default -> {
                         // maybe its a number handle
