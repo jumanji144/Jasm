@@ -113,7 +113,7 @@ public enum JvmOperands implements Operands {
             case IDENTIFIER -> {
                 char first = element.content().charAt(0);
                 boolean valid = switch (first) {
-                    case 'L', '[' -> {
+                    case 'L' -> {
                         // if last is `;` then it's a class type, if not could be a short handle
                         char last = element.content().charAt(element.content().length() - 1);
                         if (last == ';') {
@@ -126,9 +126,10 @@ public enum JvmOperands implements Operands {
                             yield true;
                         }
                     }
+                    case '[' -> DescriptorUtil.isValidFieldDescriptor(element.content());
                     case '(' -> DescriptorUtil.isValidMethodDescriptor(element.content());
                     default -> {
-                        // maybe its a number handle
+                        // maybe it's a number handle
                         switch (element.content().toLowerCase()) {
                             case "nan", "nand", "nanf",
                                     "infinity", "+infinity", "-infinity",
