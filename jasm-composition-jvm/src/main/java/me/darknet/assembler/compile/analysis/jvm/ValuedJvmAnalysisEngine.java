@@ -135,9 +135,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case LSUB -> ((LongOp) (a, b) -> b - a).accept(frame);
             case LMUL -> ((LongOp) (a, b) -> b * a).accept(frame);
             case LREM -> ((LongOp) (a, b) -> b % a).accept(frame);
-            case LSHL -> ((LongOp) (a, b) -> b << a).accept(frame);
-            case LSHR -> ((LongOp) (a, b) -> b >> a).accept(frame);
-            case LUSHR -> ((LongOp) (a, b) -> b >>> a).accept(frame);
+            case LSHL -> ((LongIntOp) (a, b) -> a << b).accept(frame);
+            case LSHR -> ((LongIntOp) (a, b) -> a >> b).accept(frame);
+            case LUSHR -> ((LongIntOp) (a, b) -> b >>> a).accept(frame);
             case LAND -> ((LongOp) (a, b) -> b & a).accept(frame);
             case LOR -> ((LongOp) (a, b) -> b | a).accept(frame);
             case LXOR -> ((LongOp) (a, b) -> b ^ a).accept(frame);
@@ -543,6 +543,20 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             Value value2 = frame.pop2();
             if (value1 instanceof Value.KnownLongValue long1 && value2 instanceof Value.KnownLongValue long2) {
                 frame.push(Values.valueOf(op(long1.value(), long2.value())));
+            } else {
+                frame.pushType(Types.LONG);
+            }
+        }
+    }
+
+    private interface LongIntOp {
+        long op(long a, int b);
+
+        default void accept(@NotNull ValuedFrame frame) {
+            Value value1 = frame.pop();
+            Value value2 = frame.pop2();
+            if (value1 instanceof Value.KnownIntValue int1 && value2 instanceof Value.KnownLongValue long2) {
+                frame.push(Values.valueOf(op(long2.value(), int1.value())));
             } else {
                 frame.pushType(Types.LONG);
             }
