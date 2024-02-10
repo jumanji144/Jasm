@@ -71,8 +71,13 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                 frame.pop2();
                 frame.pushType(Types.INT);
             }
-            case LADD, LSUB, LMUL, LDIV, LREM, LSHL, LSHR, LUSHR, LAND, LOR, LXOR -> {
+            case LADD, LSUB, LMUL, LDIV, LREM, LAND, LOR, LXOR -> {
                 frame.pop(4); // LONG + TOP, LONG + TOP
+                frame.pushType(Types.LONG);
+            }
+            case LSHL, LSHR, LUSHR -> {
+                frame.pop();
+                frame.pop2();
                 frame.pushType(Types.LONG);
             }
             case FADD, FSUB, FMUL, FDIV, FREM -> {
