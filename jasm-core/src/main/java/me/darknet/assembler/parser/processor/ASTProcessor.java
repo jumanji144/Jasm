@@ -33,8 +33,9 @@ public class ASTProcessor {
                 ctx.throwError("enum declaration outside of annotation", decl.location());
                 return null;
             }
-            ASTIdentifier type = ctx.validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "enum type", decl);
-            ASTIdentifier name = ctx.validateElement(decl.elements().get(1), ElementType.IDENTIFIER, "enum name", decl);
+            List<ASTElement> elements = decl.elements();
+            ASTIdentifier type = ctx.validateElement(elements.get(0), ElementType.IDENTIFIER, "enum type", decl);
+            ASTIdentifier name = ctx.validateElement(elements.get(1), ElementType.IDENTIFIER, "enum name", decl);
             if (type == null || name == null)
                 return null;
             return new ASTEnum(type, name);

@@ -36,7 +36,7 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
         } else if (element instanceof ElementShort es) {
             ctx.print(Short.toString(es.value()));
         } else if (element instanceof ElementEnum ee) {
-            ctx.element(".enum").literal(ee.type().internalName()).print(".").literal(ee.name());
+            ctx.element(".enum").literal(ee.type().internalName()).print(" ").literal(ee.name());
         } else if (element instanceof ElementType et) {
             ctx.print("L").literal(et.value().internalName()).literal(";");
         } else if (element instanceof Annotation) {
