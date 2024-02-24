@@ -1,10 +1,14 @@
 .annotation TestAnnotation {
     number: 15,
-    subAnnotation1: .annotation org/jetbrains/annotations/NotNull {
+    charValue: 'c',
+    subWithString: .annotation org/jetbrains/annotations/NotNull {
         value: "Hello, world!"
     },
-    subAnnotation2: .annotation EnumHolder {
+    subWithEnum: .annotation EnumHolder {
         value: .enum net/fabricmc/api/EnvType CLIENT
+    },
+    subWithClass: .annotation ClassHolder {
+        value: { LExample; }
     },
     stringArray: { "one", "two", "three" }
 }

@@ -231,7 +231,7 @@ public class ASTProcessor {
 
     static ASTElement validateElementValue(ParserContext ctx, ASTElement value) {
         switch (value.type()) {
-            case NUMBER, STRING -> {
+            case NUMBER, STRING, CHARACTER -> {
             }
             case IDENTIFIER -> {
                 ASTIdentifier identifier = (ASTIdentifier) value;
