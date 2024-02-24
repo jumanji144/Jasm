@@ -1,7 +1,10 @@
 .annotation TestAnnotation {
     number: 15,
-    subAnnotation: .annotation org/jetbrains/annotations/NotNull {
+    subAnnotation1: .annotation org/jetbrains/annotations/NotNull {
         value: "Hello, world!"
+    },
+    subAnnotation2: .annotation EnumHolder {
+        value: .enum net/fabricmc/api/EnvType CLIENT
     },
     stringArray: { "one", "two", "three" }
 }
