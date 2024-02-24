@@ -9,6 +9,8 @@ import dev.xdark.blw.classfile.Member;
 import dev.xdark.blw.classfile.Signed;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+
 public record MemberPrinter(
         @Nullable Annotated annotated, @Nullable Signed signed, @Nullable Accessible accessible, Type type
 ) {
@@ -53,20 +55,23 @@ public record MemberPrinter(
         return ctx;
     }
 
-    public AnnotationPrinter printAnnotation(int index) {
+    /**
+     * @param index Index into <i>all</i> annotations, where indices are based on the combined list of annotations.
+     * @return Printer for the annotation. {@code null} if the index does not point to a known annotation.
+     */
+    public @Nullable AnnotationPrinter printAnnotation(int index) {
         if (annotated != null) {
-            // go through the annotations
-            for (int i = 0; i < annotated.visibleRuntimeAnnotations().size(); i++) {
-                if (i == index) {
-                    return new JvmAnnotationPrinter(annotated.visibleRuntimeAnnotations().get(i));
-                }
-            }
-            for (int i = annotated.visibleRuntimeAnnotations().size(); i < annotated.invisibleRuntimeAnnotations()
-                    .size() + annotated.visibleRuntimeAnnotations().size(); i++) {
-                if (i == index) {
-                    return new JvmAnnotationPrinter(annotated.invisibleRuntimeAnnotations().get(i));
-                }
-            }
+            // First check visible annotations.
+            List<Annotation> visibleAnnos = annotated.visibleRuntimeAnnotations();
+            int runtimeAnnotationCount = visibleAnnos.size();
+            if (index < runtimeAnnotationCount)
+                return new JvmAnnotationPrinter(visibleAnnos.get(index));
+
+            // Next check invisible annotations, offsetting the index by the number of visible annotations.
+            List<Annotation> invisibleAnnos = annotated.invisibleRuntimeAnnotations();
+            int targetInvisibleIndex = index - runtimeAnnotationCount;
+            if (targetInvisibleIndex < invisibleAnnos.size())
+                return new JvmAnnotationPrinter(invisibleAnnos.get(targetInvisibleIndex));
         }
         return null;
     }
