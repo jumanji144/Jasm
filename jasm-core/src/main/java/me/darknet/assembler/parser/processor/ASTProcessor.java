@@ -7,6 +7,7 @@ import me.darknet.assembler.ast.specific.*;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.error.Result;
+import me.darknet.assembler.helper.Handle;
 import me.darknet.assembler.instructions.Instruction;
 import me.darknet.assembler.instructions.Instructions;
 import me.darknet.assembler.parser.BytecodeFormat;
@@ -237,8 +238,6 @@ public class ASTProcessor {
                 ASTIdentifier identifier = (ASTIdentifier) value;
                 if (identifier.content().equals("true") || identifier.content().equals("false")) {
                     value = new ASTBool(identifier.value());
-                } else if (!identifier.content().startsWith("L")) {
-                    ctx.throwUnexpectedElementError("class type or boolean", value);
                 }
             }
             case EMPTY -> value = ASTEmpty.EMPTY_ARRAY;

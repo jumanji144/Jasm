@@ -8,7 +8,7 @@
         value: .enum net/fabricmc/api/EnvType CLIENT
     },
     subWithClass: .annotation ClassHolder {
-        value: { LExample; }
+        value: { java/lang/String }
     },
     stringArray: { "one", "two", "three" }
 }
