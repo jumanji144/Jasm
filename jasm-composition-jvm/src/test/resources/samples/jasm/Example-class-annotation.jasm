@@ -1,5 +1,6 @@
 .annotation TestAnnotation {
     number: 15,
+    bogusNumber: NaN,
     charValue: 'c',
     subWithString: .annotation org/jetbrains/annotations/NotNull {
         value: "Hello, world!"

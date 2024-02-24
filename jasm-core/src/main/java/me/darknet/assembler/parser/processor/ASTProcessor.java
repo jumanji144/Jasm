@@ -12,6 +12,7 @@ import me.darknet.assembler.instructions.Instruction;
 import me.darknet.assembler.instructions.Instructions;
 import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.parser.Stateful;
+import me.darknet.assembler.util.DescriptorUtil;
 import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.visitor.Modifiers;
@@ -236,9 +237,19 @@ public class ASTProcessor {
             }
             case IDENTIFIER -> {
                 ASTIdentifier identifier = (ASTIdentifier) value;
-                if (identifier.content().equals("true") || identifier.content().equals("false")) {
-                    value = new ASTBool(identifier.value());
-                }
+                value = switch (identifier.content().toLowerCase()) {
+                    case "true", "false" -> new ASTBool(identifier.value());
+                    case "nan", "nand", "nanf",
+                            "+infinity", "+infinityd", "infinity", "infinityd",
+                            "+infinityf", "infinityf",  "-infinity", "-infinityd", "-infinityf" -> new ASTNumber(identifier.value());
+                    default -> {
+                        if (!DescriptorUtil.isValidFieldDescriptor('L' + identifier.literal() + ';')) {
+                            ctx.throwUnexpectedElementError("Expected class type, boolean, or special number", value);
+                            yield null;
+                        }
+                        yield value;
+                    }
+                };
             }
             case EMPTY -> value = ASTEmpty.EMPTY_ARRAY;
             case DECLARATION -> {
