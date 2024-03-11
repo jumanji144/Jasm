@@ -292,6 +292,11 @@ public class ASTProcessor {
     }
 
     public static ASTAnnotation parseAnnotation(ParserContext ctx, ASTDeclaration declaration) {
+        // verify that we have exactly 3 elements
+        if (declaration.elements().size() != 3) {
+            ctx.throwError("Expected annotation type and values", declaration.location());
+            return null;
+        }
         ASTIdentifier type = ctx.validateIdentifier(declaration.elements().get(0), "annotation type", declaration);
         ASTObject values = ctx.validateEmptyableElement(
                 declaration.elements().get(1), ElementType.OBJECT, "annotation values", declaration
