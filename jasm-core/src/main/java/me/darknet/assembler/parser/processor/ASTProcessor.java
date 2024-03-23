@@ -17,7 +17,6 @@ import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.visitor.Modifiers;
 
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -292,8 +291,8 @@ public class ASTProcessor {
     }
 
     public static ASTAnnotation parseAnnotation(ParserContext ctx, ASTDeclaration declaration) {
-        // verify that we have exactly 3 elements
-        if (declaration.elements().size() != 3) {
+        // verify that we have exactly 2 elements
+        if (declaration.elements().size() != 2) {
             ctx.throwError("Expected annotation type and values", declaration.location());
             return null;
         }
