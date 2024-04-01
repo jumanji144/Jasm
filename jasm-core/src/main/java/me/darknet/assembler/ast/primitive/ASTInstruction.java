@@ -4,9 +4,12 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.util.CollectionUtil;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class ASTInstruction extends ASTElement {
 
@@ -17,6 +20,14 @@ public class ASTInstruction extends ASTElement {
         super(ElementType.CODE_INSTRUCTION, CollectionUtil.mergeNonNull(arguments, identifier));
         this.identifier = identifier;
         this.arguments = arguments;
+    }
+
+    @Override
+    public @NotNull String content() {
+        return identifier.content() + " " + arguments.stream()
+                .filter(Objects::nonNull)
+                .map(ASTElement::content)
+                .collect(Collectors.joining(" "));
     }
 
     public ASTIdentifier identifier() {

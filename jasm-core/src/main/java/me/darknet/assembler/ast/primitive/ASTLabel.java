@@ -1,5 +1,7 @@
 package me.darknet.assembler.ast.primitive;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Collections;
 
 public class ASTLabel extends ASTInstruction {
@@ -8,4 +10,8 @@ public class ASTLabel extends ASTInstruction {
         super(identifier, Collections.emptyList());
     }
 
+    @Override
+    public @NotNull String content() {
+        return identifier().content() + ":";
+    }
 }
