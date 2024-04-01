@@ -1,6 +1,7 @@
 package me.darknet.assembler.ast;
 
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.processor.ProcessorAttributes;
 import me.darknet.assembler.util.Location;
@@ -92,17 +93,31 @@ public class ASTElement {
             if (localChildren.isEmpty()) // no possible range usable
                 return Range.EMPTY;
 
-            if (localChildren.size() == 1)
-                return localChildren.get(0).range();
-
             Range first = localChildren.get(0).range();
+            if (localChildren.size() == 1)
+                return createRange(first.start(), first.end());
+
             Range last = localChildren.get(localChildren.size() - 1).range();
             if (first == null || last == null)
                 return Range.EMPTY;
 
-            return cachedRange = new Range(first.start(), last.end());
+            return cachedRange = createRange(first.start(), last.end());
         }
-        return cachedRange = value.range();
+        Range range = value.range();
+        return cachedRange = createRange(range.start(), range.end());
+    }
+
+    /**
+     * Child types will override this if they need to adjust the range slightly.
+     * Consider {@link ASTLabel} which normally would not include the ':' without
+     * adding {@code end + 1}.
+     *
+     * @param start New range start.
+     * @param end New range end.
+     * @return New range.
+     */
+    protected @NotNull Range createRange(int start, int end) {
+        return new Range(start, end);
     }
 
     public Token value() {

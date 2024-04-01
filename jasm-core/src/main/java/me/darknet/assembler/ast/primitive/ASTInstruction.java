@@ -24,6 +24,7 @@ public class ASTInstruction extends ASTElement {
 
     @Override
     public @NotNull String content() {
+        if (arguments.isEmpty()) return identifier.content();
         return identifier.content() + " " + arguments.stream()
                 .filter(Objects::nonNull)
                 .map(ASTElement::content)
