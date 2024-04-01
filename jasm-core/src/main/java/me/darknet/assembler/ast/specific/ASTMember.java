@@ -25,11 +25,6 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
     public ASTMember(@NotNull ElementType type, @NotNull Modifiers modifiers, @NotNull ASTIdentifier name,
             @NotNull ASTIdentifier descriptor) {
         super(type, CollectionUtil.merge(modifiers.modifiers(), name));
-        if (!modifiers.modifiers().isEmpty()) {
-            this.value = modifiers.modifiers().get(0).value();
-        } else {
-            this.value = name.value();
-        }
         this.modifiers = modifiers;
         this.name = name;
         this.descriptor = descriptor;
