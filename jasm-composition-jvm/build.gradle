@@ -8,8 +8,8 @@ repositories {
 }
 
 dependencies {
-    api 'com.github.jumanji144:blw:8e8333c734'
-    implementation 'org.ow2.asm:asm:9.6'
+    api 'com.github.jumanji144:blw:e5f83c9468'
+    implementation 'org.ow2.asm:asm:9.7'
 
     api project(path: ':jasm-core')
 }
