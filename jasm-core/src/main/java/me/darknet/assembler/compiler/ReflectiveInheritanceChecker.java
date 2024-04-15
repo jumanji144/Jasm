@@ -1,17 +1,20 @@
 package me.darknet.assembler.compiler;
 
 public class ReflectiveInheritanceChecker implements InheritanceChecker {
-    public static final ReflectiveInheritanceChecker INSTANCE = new ReflectiveInheritanceChecker();
+    public static final ReflectiveInheritanceChecker INSTANCE =
+            new ReflectiveInheritanceChecker(ReflectiveInheritanceChecker.class.getClassLoader());
 
-    private ReflectiveInheritanceChecker() {
+    private final ClassLoader loader;
+
+    public ReflectiveInheritanceChecker(ClassLoader loader) {
+        this.loader = loader;
     }
 
     @Override
     public boolean isSubclassOf(String child, String parent) {
         try {
-            ClassLoader classLoader = getClass().getClassLoader();
-            Class<?> childClass = Class.forName(child.replace('/', '.'), false, classLoader);
-            Class<?> parentClass = Class.forName(parent.replace('/', '.'), false, classLoader);
+            Class<?> childClass = Class.forName(child.replace('/', '.'), false, this.loader);
+            Class<?> parentClass = Class.forName(parent.replace('/', '.'), false, this.loader);
             return parentClass.isAssignableFrom(childClass);
         } catch (ClassNotFoundException e) {
             String missingType = e.getMessage();
@@ -22,9 +25,8 @@ public class ReflectiveInheritanceChecker implements InheritanceChecker {
     @Override
     public String getCommonSuperclass(String type1, String type2) {
         try {
-            ClassLoader classLoader = getClass().getClassLoader();
-            Class<?> class1 = Class.forName(type1.replace('/', '.'), false, classLoader);
-            Class<?> class2 = Class.forName(type2.replace('/', '.'), false, classLoader);
+            Class<?> class1 = Class.forName(type1.replace('/', '.'), false, this.loader);
+            Class<?> class2 = Class.forName(type2.replace('/', '.'), false, this.loader);
             if (class1.isAssignableFrom(class2))
                 return type1;
             if (class2.isAssignableFrom(class1))

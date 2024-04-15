@@ -1,20 +1,23 @@
 package me.darknet.assembler.cli.commands;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.cli.compile.jvm.SafeClassLoader;
 import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compile.JvmCompilerOptions;
-import me.darknet.assembler.compile.analysis.EmptyMethodAnalysisLookup;
-import me.darknet.assembler.compiler.ClassRepresentation;
+import me.darknet.assembler.compiler.*;
 import me.darknet.assembler.compiler.Compiler;
-import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.helper.Processor;
 
 import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,6 +52,12 @@ public class CompileCommand implements Runnable {
     )
     private int bytecodeVersion;
 
+    @CommandLine.Option(
+            names = { "-lib",
+                    "--library" }, description = "Library folder path", paramLabel = "path"
+    )
+    private Optional<String> libraryFolder;
+
     private Compiler compiler;
     private CompilerOptions<?> options;
 
@@ -62,6 +71,30 @@ public class CompileCommand implements Runnable {
             default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
         }
 
+        InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
+        if (this.libraryFolder.isPresent()) {
+            URL[] urls = new URL[0];
+            try (var stream = Files.walk(Paths.get(this.libraryFolder.get()))) {
+                urls = stream
+                        .filter(Files::isRegularFile)
+                        .filter(path -> path.toString().endsWith(".class") || path.toString().endsWith(".jar"))
+                        .map(Path::toUri)
+                        .map(uri -> {
+                            try {
+                                return uri.toURL();
+                            } catch (Exception e) {
+                                System.err.println("Failed to convert path to URL: " + e.getMessage());
+                                System.exit(1);
+                                return null;
+                            }
+                        }).toArray(URL[]::new);
+            } catch (IOException e) {
+                System.err.println("Failed to read library folder: " + e.getMessage());
+                System.exit(1);
+            }
+            inheritanceChecker = new ReflectiveInheritanceChecker(new SafeClassLoader(urls));
+        }
+
         options.version(bytecodeVersion).overlay(new JavaClassRepresentation(overlay.map(file -> {
             try {
                 return Files.readAllBytes(file.toPath());
@@ -70,7 +103,8 @@ public class CompileCommand implements Runnable {
                 System.exit(1);
                 return null;
             }
-        }).orElse(null))).annotationPath(annotationTarget.orElse(null));
+        }).orElse(null))).annotationPath(annotationTarget.orElse(null))
+        .inheritanceChecker(inheritanceChecker);
     }
 
     private void validateAst(List<ASTElement> ast) {

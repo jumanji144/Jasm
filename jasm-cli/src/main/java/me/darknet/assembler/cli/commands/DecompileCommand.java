@@ -8,9 +8,11 @@ import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.Optional;
+import java.util.zip.ZipFile;
 
 @CommandLine.Command(
         name = "decompile", description = "Decompile Java Assembler bytecode", mixinStandardHelpOptions = true
@@ -26,6 +28,9 @@ public class DecompileCommand implements Runnable {
     @CommandLine.Option(names = { "-i", "--indent" }, description = "Indentation", defaultValue = "    ")
     private String indent;
 
+    @CommandLine.Option(names = { "-c", "--class" }, description = "Class name (in java format a.b.c) if a archive file is used", paramLabel = "name")
+    private Optional<String> className;
+
     @Override
     public void run() {
         OutputStream out = System.out;
@@ -38,13 +43,25 @@ public class DecompileCommand implements Runnable {
             }
         }
 
+
         try {
+            InputStream classStream = Files.newInputStream(source.toPath());
+            if (source.getName().endsWith(".jar")) {
+                if (className.isEmpty()) {
+                    System.err.println("Class name is required for archive files");
+                    System.exit(1);
+                }
+
+                ZipFile zipFile = new ZipFile(source);
+                classStream = zipFile.getInputStream(zipFile.getEntry(className.get().replace('.', '/') + ".class"));
+            }
+
             PrintContext<?> ctx = new PrintContext<>(indent);
 
             Printer printer;
 
             switch (MainCommand.target) {
-                case JVM -> printer = new JvmClassPrinter(Files.newInputStream(source.toPath()));
+                case JVM -> printer = new JvmClassPrinter(classStream);
                 case DALVIK -> throw new UnsupportedOperationException("Dalvik target is not supported yet");
                 default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
             }
