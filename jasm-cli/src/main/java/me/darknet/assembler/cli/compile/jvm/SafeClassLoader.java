@@ -11,8 +11,11 @@ import java.net.URLClassLoader;
 
 public final class SafeClassLoader extends URLClassLoader {
 
+    private final URL[] urls;
+
     public SafeClassLoader(URL[] urls) {
         super(urls, ClassLoader.getSystemClassLoader().getParent());
+        this.urls = urls;
     }
 
     @Override
@@ -31,6 +34,16 @@ public final class SafeClassLoader extends URLClassLoader {
         cw.visit(Opcodes.V1_8, cr.getAccess(), cr.getClassName(), null, cr.getSuperName(), cr.getInterfaces());
         byte[] bc = cw.toByteArray();
         return defineClass(null, bc, 0, bc.length);
+    }
+
+    @Override
+    public URL findResource(String name) {
+        for (URL url : urls) {
+            if (url.getFile().endsWith(name)) {
+                return url;
+            }
+        }
+        return super.findResource(name);
     }
 
     static {
