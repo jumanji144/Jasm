@@ -49,9 +49,7 @@ public class ASTNumber extends ASTValue {
             return !value.endsWith("f");
         } else {
             return value.endsWith("l") || value.endsWith("d") ||
-                    value.equals("nan") || value.equals("nand") ||
-                    value.equals("infinity") || value.equals("+infinity") ||  value.equals("-infinity") ||
-                    value.equals("infinityd") || value.equals("+infinityd") ||  value.equals("-infinityd");
+                    isNaN() || isInfinity();
         }
     }
 
@@ -77,10 +75,13 @@ public class ASTNumber extends ASTValue {
     }
 
     public boolean isNaN() {
-        return Double.isNaN(asDouble()) || Float.isNaN(asFloat());
+        String value = content().toLowerCase();
+        return value.equals("nan") || value.equals("nand");
     }
 
     public boolean isInfinity() {
-        return Double.isInfinite(asDouble()) || Float.isInfinite(asFloat());
+        String value = content().toLowerCase();
+        return value.equals("infinity") || value.equals("+infinity") ||  value.equals("-infinity") ||
+                value.equals("infinityd") || value.equals("+infinityd") ||  value.equals("-infinityd");
     }
 }
