@@ -12,13 +12,22 @@ import java.util.List;
 public class ErrorCollector {
 
     private final List<Error> errors = new ArrayList<>();
+    private final List<Warn> warns = new ArrayList<>();
 
     public void addError(Error error) {
         errors.add(error);
     }
 
+    public void addWarn(Warn warn) {
+        warns.add(warn);
+    }
+
     public void addError(String message, Location location) {
         errors.add(new Error(message, location));
+    }
+
+    public void addWarn(String message, Location location) {
+        warns.add(new Warn(message, location));
     }
 
     public void addAll(Collection<Error> errors) {
@@ -29,8 +38,16 @@ public class ErrorCollector {
         return !errors.isEmpty();
     }
 
+    public boolean hasWarn() {
+        return !warns.isEmpty();
+    }
+
     public List<Error> getErrors() {
         return errors;
+    }
+
+    public List<Warn> getWarns() {
+        return warns;
     }
 
 }
