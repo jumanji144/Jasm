@@ -29,7 +29,7 @@ public class CompileCommand implements Runnable {
     @CommandLine.Parameters(index = "0", description = "Source file", arity = "0..1", paramLabel = "file")
     private Optional<File> source;
 
-    @CommandLine.Option(names = { "-o", "--output" }, description = "Output file", required = true, paramLabel = "file")
+    @CommandLine.Option(names = { "-o", "--output" }, description = "Output file", paramLabel = "file")
     private File output;
 
     @CommandLine.Option(names = { "-s", "--source" }, description = "Source code", paramLabel = "code")
@@ -163,8 +163,16 @@ public class CompileCommand implements Runnable {
                 ClassRepresentation representation = result.representation();
                 switch (MainCommand.target) {
                     case JVM -> {
+		        Path outputPath;
+                        if (output != null) {
+                           outputPath = output.toPath();
+                        } else {
+                           String inputFilename = source.isPresent() ? source.get().getName() : "output";
+                           String classFilename = inputFilename.endsWith(".java") ? inputFilename.substring(0, inputFilename.length() - 5) + ".class" : inputFilename + ".class";
+                           outputPath = Paths.get(classFilename);
+                        }
                         try {
-                            Files.write(output.toPath(), ((JavaClassRepresentation) representation).classFile());
+                            Files.write(outputPath, ((JavaClassRepresentation) representation).classFile());
                         } catch (IOException e) {
                             System.err.println("Failed to write output file: " + e.getMessage());
                             System.exit(1);
