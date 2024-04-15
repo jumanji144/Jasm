@@ -30,6 +30,7 @@ public class BlwOpcodes {
                 throw new ExceptionInInitializerError(e);
             }
         }
+        opcodes.put("line", -1);
     }
 
 }

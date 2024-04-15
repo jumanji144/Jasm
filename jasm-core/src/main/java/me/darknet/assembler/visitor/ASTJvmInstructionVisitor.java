@@ -175,14 +175,4 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
      */
     void visitMultiANewArrayInsn(ASTIdentifier descriptor, ASTNumber numDimensions);
 
-    /**
-     * Visit a line number
-     *
-     * @param label
-     *              the label
-     * @param line
-     *              the line number
-     */
-    void visitLineNumber(ASTIdentifier label, ASTNumber line);
-
 }

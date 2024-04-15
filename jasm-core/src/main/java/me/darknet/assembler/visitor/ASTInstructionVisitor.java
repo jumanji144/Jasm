@@ -2,6 +2,7 @@ package me.darknet.assembler.visitor;
 
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import org.jetbrains.annotations.NotNull;
 
 public interface ASTInstructionVisitor {
@@ -21,6 +22,16 @@ public interface ASTInstructionVisitor {
      *              the label
      */
     void visitLabel(@NotNull ASTIdentifier label);
+
+    /**
+     * Visit a line number
+     *
+     * @param label
+     *              the label
+     * @param line
+     *              the line number
+     */
+    void visitLineNumber(ASTIdentifier label, ASTNumber line);
 
     void visitException(@NotNull ASTIdentifier start, @NotNull ASTIdentifier end, @NotNull ASTIdentifier handler, @NotNull ASTIdentifier type);
 

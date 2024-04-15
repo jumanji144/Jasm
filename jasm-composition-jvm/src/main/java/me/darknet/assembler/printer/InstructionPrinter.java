@@ -48,7 +48,11 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
     @Override
     public void label(Label label) {
-        ctx.label(labelNames.get(label.getIndex())).next();
+        String name = labelNames.get(label.getIndex());
+        ctx.label(name).next();
+        if(label.getLineNumber() != Label.UNSET) {
+            ctx.instruction("line").print(name).arg().print(Integer.toString(label.getLineNumber())).next();
+        }
     }
 
     @Override
@@ -218,7 +222,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
     @Override
     public void execute(VariableIncrementInstruction instruction) {
-        ctx.instruction(OPCODES[instruction.opcode()]).arg()
+        ctx.instruction(OPCODES[instruction.opcode()])
                 .literal(names.getName(instruction.variableIndex(), currentIndex + 1)).arg()
                 .literal(Integer.toString(instruction.incrementBy())).next();
     }
