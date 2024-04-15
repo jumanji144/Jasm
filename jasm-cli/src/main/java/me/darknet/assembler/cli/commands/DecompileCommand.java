@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.zip.ZipFile;
 
@@ -34,44 +35,76 @@ public class DecompileCommand implements Runnable {
     @Override
     public void run() {
         OutputStream out = System.out;
-        if (output.isPresent()) {
-            try {
-                out = Files.newOutputStream(output.get().toPath());
-            } catch (IOException e) {
-                System.err.println("Failed to open output file: " + e.getMessage());
-                System.exit(1);
-            }
-        }
-
 
         try {
             InputStream classStream = Files.newInputStream(source.toPath());
             if (source.getName().endsWith(".jar")) {
+                ZipFile zipFile = new ZipFile(source);
                 if (className.isEmpty()) {
-                    System.err.println("Class name is required for archive files");
-                    System.exit(1);
+                    // decompile all classes
+                    if (output.isEmpty()) {
+                        System.err.println("Output folder or target class name is required for decompiling jar files");
+                        System.exit(1);
+                    }
+
+                    Path outputPath = output.get().toPath();
+
+                    zipFile.stream().forEach(entry -> {
+                        try {
+                            if (entry.getName().endsWith(".class")) {
+                                InputStream stream = zipFile.getInputStream(entry);
+                                String name = entry.getName().replace(".class", ".jasm");
+                                Path outputPathFile = outputPath.resolve(name);
+                                // make sure parent directories exist
+                                Files.createDirectories(outputPathFile.getParent());
+                                decompile(stream, Files.newOutputStream(outputPathFile));
+                                System.out.println("Decompiled: " + name);
+                            }
+                        } catch (IOException e) {
+                            System.err.println("Failed to decompile file: " + e.getMessage());
+                            e.printStackTrace();
+                            System.exit(1);
+                        }
+                    });
+
+                    return;
                 }
 
-                ZipFile zipFile = new ZipFile(source);
                 classStream = zipFile.getInputStream(zipFile.getEntry(className.get().replace('.', '/') + ".class"));
             }
 
-            PrintContext<?> ctx = new PrintContext<>(indent);
-
-            Printer printer;
-
-            switch (MainCommand.target) {
-                case JVM -> printer = new JvmClassPrinter(classStream);
-                case DALVIK -> throw new UnsupportedOperationException("Dalvik target is not supported yet");
-                default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
+            if (output.isPresent()) {
+                try {
+                    out = Files.newOutputStream(output.get().toPath());
+                } catch (IOException e) {
+                    System.err.println("Failed to open output file: " + e.getMessage());
+                    System.exit(1);
+                }
             }
 
-            printer.print(ctx);
+            decompile(classStream, out);
 
-            out.write(ctx.toString().getBytes());
+            System.out.println("\nDecompiled successfully");
         } catch (IOException e) {
-            System.err.println("Failed to decompile source file: " + e.getMessage());
+            System.err.println("Failed to decompile file: " + e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
+    }
+
+    private void decompile(InputStream input, OutputStream output) throws IOException {
+        PrintContext<?> ctx = new PrintContext<>(indent);
+
+        Printer printer;
+
+        switch (MainCommand.target) {
+            case JVM -> printer = new JvmClassPrinter(input);
+            case DALVIK -> throw new UnsupportedOperationException("Dalvik target is not supported yet");
+            default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
+        }
+
+        printer.print(ctx);
+
+        output.write(ctx.toString().getBytes());
     }
 }
