@@ -112,10 +112,10 @@ public class JvmMethodPrinter implements MethodPrinter {
             var arr = obj.value("parameters").array();
             arr.print(names.parameters().values(), PrintContext::print);
             arr.end();
-            obj.next();
         }
         var methodCode = method.code();
         if (methodCode != null) {
+            obj.next();
             Map<Integer, String> labelNames = getLabelNames(methodCode.elements());
             if (!methodCode.tryCatchBlocks().isEmpty()) {
                 var arr = obj.value("exceptions").array();
