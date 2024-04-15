@@ -116,9 +116,9 @@ public class JvmInstructions extends Instructions<ASTJvmInstructionVisitor> {
 
         // intrinsics
         register(
-                "line", ops(DefaultOperands.IDENTIFIER, DefaultOperands.INTEGER),
+                "line", ops(DefaultOperands.INTEGER),
                 (inst, visitor) -> visitor
-                        .visitLineNumber(inst.argument(0, ASTIdentifier.class), inst.argument(1, ASTNumber.class))
+                        .visitLineNumber(inst.argument(0, ASTNumber.class))
         );
     }
 

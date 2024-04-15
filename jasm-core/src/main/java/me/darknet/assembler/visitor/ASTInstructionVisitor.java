@@ -26,12 +26,10 @@ public interface ASTInstructionVisitor {
     /**
      * Visit a line number
      *
-     * @param label
-     *              the label
      * @param line
      *              the line number
      */
-    void visitLineNumber(ASTIdentifier label, ASTNumber line);
+    void visitLineNumber(ASTNumber line);
 
     void visitException(@NotNull ASTIdentifier start, @NotNull ASTIdentifier end, @NotNull ASTIdentifier handler, @NotNull ASTIdentifier type);
 

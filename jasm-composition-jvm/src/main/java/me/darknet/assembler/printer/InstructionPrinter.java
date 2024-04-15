@@ -51,7 +51,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
         String name = labelNames.get(label.getIndex());
         ctx.label(name).next();
         if(label.getLineNumber() != Label.UNSET) {
-            ctx.instruction("line").print(name).arg().print(Integer.toString(label.getLineNumber())).next();
+            ctx.instruction("line").print(Integer.toString(label.getLineNumber())).next();
         }
     }
 

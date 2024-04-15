@@ -361,8 +361,10 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     }
 
     @Override
-    public void visitLineNumber(ASTIdentifier label, ASTNumber line) {
-        getOrCreateLabel(label.content()).setLineNumber(line.asInt());
+    public void visitLineNumber(ASTNumber line) {
+        Label label = new GenericLabel();
+        label.setLineNumber(line.asInt());
+        codeBuilderList.addLabel(label);
     }
 
     @Override
