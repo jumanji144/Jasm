@@ -54,7 +54,7 @@ public class CompileCommand implements Runnable {
 
     @CommandLine.Option(
             names = { "-lib",
-                    "--library" }, description = "Library folder path", paramLabel = "path"
+                    "--library-folder" }, description = "Library folder path", paramLabel = "path"
     )
     private Optional<String> libraryFolder;
 
