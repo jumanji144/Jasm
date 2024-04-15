@@ -71,7 +71,7 @@ public class CompileCommand implements Runnable {
             default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
         }
 
-        InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
+        InheritanceChecker inheritanceChecker = new ReflectiveInheritanceChecker(new SafeClassLoader(new URL[0]));
         if (this.libraryFolder.isPresent()) {
             URL[] urls = new URL[0];
             try (var stream = Files.walk(Paths.get(this.libraryFolder.get()))) {
