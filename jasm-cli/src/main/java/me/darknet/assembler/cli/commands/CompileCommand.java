@@ -168,7 +168,7 @@ public class CompileCommand implements Runnable {
                            outputPath = output.toPath();
                         } else {
                            String inputFilename = source.isPresent() ? source.get().getName() : "output";
-                           String classFilename = inputFilename.endsWith(".java") ? inputFilename.substring(0, inputFilename.length() - 5) + ".class" : inputFilename + ".class";
+                           String classFilename = inputFilename.endsWith(".jasm") ? inputFilename.substring(0, inputFilename.length() - 5) + ".class" : inputFilename + ".class";
                            outputPath = Paths.get(classFilename);
                         }
                         try {
