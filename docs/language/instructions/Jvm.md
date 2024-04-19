@@ -10,6 +10,9 @@ It can be represented by the following expressions:
 - any identifier
 - any number
 
+Important: In order to make sure obfuscation does not break jasm, number literals are **interpreted as identifiers**. This means that `astore 2` does NOT store the top object to the variable in slot `2`, but stores it to a variable CALLED `2`. It does not have to be variable 2.
+There is currently no way to load / store a specific local index.
+
 ### Constant
 A constant is a object present in the constant pool and can be represented by the following expressions:
 - identifier:
