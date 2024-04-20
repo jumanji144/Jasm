@@ -416,13 +416,16 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
         // Populate variables
         int paramOffset = parameters.size();
-        analysisEngine.frames().values().stream().flatMap(Frame::locals).filter(local -> local.index() >= paramOffset)
-                .distinct().forEach(local -> {
+        analysisEngine.frames().values().stream()
+                .flatMap(Frame::locals)
+                .filter(local -> local.index() >= paramOffset)
+                .map(local -> {
                     int index = local.index();
                     ClassType type = local.type();
                     String name = getLocalName(index);
-                    codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
-                });
+                    return new GenericLocal(begin, end, index, name, type, null);
+                }).distinct()
+                .forEach(codeBuilder::localVariable);
     }
 
     private void correlateAstAndCodeElements() {
