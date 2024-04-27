@@ -75,7 +75,7 @@ public class JvmCompiler implements Compiler {
         BlwRootVisitor visitor = new BlwRootVisitor(builder, blwOptions);
 
         if (ast.size() != 1) {
-            collector.addError("Expected exactly one class declaration", null);
+            collector.addError("Expected exactly one declaration", null);
             return new Result<>(new JavaCompileResult(null, builder), collector.getErrors());
         }
 
