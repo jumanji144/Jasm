@@ -6,6 +6,8 @@ import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.error.Result;
+import me.darknet.assembler.visitor.ASTFieldVisitor;
+import me.darknet.assembler.visitor.ASTMethodVisitor;
 import me.darknet.assembler.visitor.ASTRootVisitor;
 
 import java.util.List;
@@ -32,14 +34,11 @@ public class Transformer {
         ASTRootVisitor localVisitor = visitor;
         for (ASTElement declaration : declarations) {
             if (declaration instanceof ASTField field) {
-                field.accept(
-                        collector, localVisitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor())
-                );
+                ASTFieldVisitor fieldVisitor = localVisitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor());
+                field.accept(collector, fieldVisitor);
             } else if (declaration instanceof ASTMethod method) {
-                method.accept(
-                        collector,
-                        localVisitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor())
-                );
+                ASTMethodVisitor methodVisitor = localVisitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor());
+                method.accept(collector, methodVisitor);
             } else if (declaration instanceof ASTClass clazz) {
                 clazz.accept(collector, localVisitor.visitClass(clazz.getModifiers(), clazz.getName()));
             } else {
