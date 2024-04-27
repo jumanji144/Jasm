@@ -17,7 +17,7 @@
             invokestatic java/lang/invoke/MethodType.methodType (Ljava/lang/Class;Ljava/lang/Class;)Ljava/lang/invoke/MethodType;
             invokevirtual java/lang/invoke/MethodHandles$Lookup.findVirtual (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;
             astore handle
-            new java/lang/invoke/ConstantCallSite;
+            new java/lang/invoke/ConstantCallSite
             dup
             aload handle
             invokespecial java/lang/invoke/ConstantCallSite.<init> (Ljava/lang/invoke/MethodHandle;)V
