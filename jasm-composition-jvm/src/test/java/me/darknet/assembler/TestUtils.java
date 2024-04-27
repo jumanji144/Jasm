@@ -12,12 +12,15 @@ import dev.xdark.blw.classfile.generic.GenericClassBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.function.ThrowingConsumer;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.util.CheckClassAdapter;
 import org.opentest4j.AssertionFailedError;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.regex.Pattern;
 
 public class TestUtils {
@@ -42,14 +45,27 @@ public class TestUtils {
                     return;
                 }
 
-                // Check if bytes are valid
-                try {
-                    JavaClassRepresentation representation = result.representation();
-                    byte[] bytes = representation.classFile();
-                    compiler.library().read(new ByteArrayInputStream(bytes), new GenericClassBuilder());
-                } catch (IOException e) {
-                    fail("Generated class was not readable", e);
-                }
+	            // Check if bytes are a valid class file
+	            JavaClassRepresentation representation = result.representation();
+	            byte[] bytes = representation.classFile();
+	            try {
+		            compiler.library().read(new ByteArrayInputStream(bytes), new GenericClassBuilder());
+	            } catch (IOException e) {
+		            fail("Generated class was not readable", e);
+	            }
+
+	            // And double check that its verifiable
+	            try {
+		            CheckClassAdapter.verify(
+				            new ClassReader(bytes),
+				            true,
+				            new PrintWriter(System.out)
+		            );
+	            } catch (Throwable e) {
+		            fail("Generated class was not verifiable", e);
+	            }
+
+
             }).ifErr(errors -> {
                 for (Error error : errors) {
                     System.err.println(error);

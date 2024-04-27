@@ -10,6 +10,7 @@ repositories {
 dependencies {
     api 'com.github.jumanji144:blw:825256cb71'
     implementation 'org.ow2.asm:asm:9.7'
+    implementation 'org.ow2.asm:asm-util:9.7'
 
     api project(path: ':jasm-core')
 }
