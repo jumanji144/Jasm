@@ -1,24 +1,24 @@
+.super java/lang/Object
 .class public super Example {
     .method public exampleMethod ()LExample; {
         parameters: { this },
-        exceptions: { { A, B, C, * } },
+        exceptions: { { A, B, B, * } },
         code: {
         A:
             iconst_1
             istore value
             iload value
-            ifeq D
-        B:
+            ifeq C
             new java/lang/Throwable
             dup
             invokespecial java/lang/Throwable.<init> ()V
             athrow
-        C:
+        B:
             astore ex
-        D:
+        C:
             aload this
             areturn
-        E:
+        D:
         }
     }
 }
