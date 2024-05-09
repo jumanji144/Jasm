@@ -6,12 +6,12 @@ import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.processor.ProcessorAttributes;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Range;
-
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class ASTElement {
@@ -85,7 +85,37 @@ public class ASTElement {
         return value == null ? null : value.content();
     }
 
-    public Range range() {
+
+    /**
+     * Recursively walk the AST model.
+     *
+     * @param visitor Visitor that accepts the current element, then all children if the current element returns {@code true}.
+     */
+    public void walk(@NotNull Predicate<ASTElement> visitor) {
+        if (visitor.test(this))
+            children().forEach(c -> c.walk(visitor));
+    }
+
+    /**
+     * Pick the deepest AST element at the given absolute position.
+     *
+     * @param position Position to pick an element of.
+     * @return Deepest element at the given absolute position. If no child matches then this returns the current element.
+     */
+    @NotNull
+    public ASTElement pick(int position) {
+        for (ASTElement child : children()) {
+            if (child.range().within(position)) {
+                return child.pick(position);
+            }
+        }
+        return this;
+    }
+
+    /**
+     * @return Inclusive range of AST content.
+     */
+    public @NotNull Range range() {
         if (cachedRange != null)
             return cachedRange;
         if (value == null || children.size() > 1) {
@@ -98,9 +128,6 @@ public class ASTElement {
                 return createRange(first.start(), first.end());
 
             Range last = localChildren.get(localChildren.size() - 1).range();
-            if (first == null || last == null)
-                return Range.EMPTY;
-
             return cachedRange = createRange(first.start(), last.end());
         }
         Range range = value.range();
