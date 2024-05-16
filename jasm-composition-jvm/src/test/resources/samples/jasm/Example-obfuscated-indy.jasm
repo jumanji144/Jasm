@@ -1,0 +1,15 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            bipush 20
+            invokedynamic \u0020 (I)I { invokestatic, A.a, (Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;)Ljava/lang/invoke/CallSite; } { ".\u000F{." }
+
+            pop
+            return
+        B:
+        }
+    }
+}
