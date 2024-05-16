@@ -107,7 +107,7 @@ public class DeclarationParser {
                 return parseEmpty();
             }
         }
-        if (next.content().startsWith(".")) {
+        if (next.type().equals(TokenType.IDENTIFIER) && next.content().startsWith(".")) {
             return parseArrayOrNestedDeclaration();
         }
         // now we need to determine if it's an array or an object
