@@ -108,14 +108,15 @@ public class JvmMethodPrinter implements MethodPrinter {
         var obj = memberPrinter.printDeclaration(ctx).literal(method.name()).print(" ")
                 .literal(method.type().descriptor()).print(" ").object();
         Names names = localNames();
-        if (!names.parameters().isEmpty()) {
+        boolean hasParameters = !names.parameters().isEmpty();
+        if (hasParameters) {
             var arr = obj.value("parameters").array();
             arr.print(names.parameters().values(), PrintContext::print);
             arr.end();
         }
         var methodCode = method.code();
         if (methodCode != null) {
-            obj.next();
+            if (hasParameters) obj.next();
             Map<Integer, String> labelNames = getLabelNames(methodCode.elements());
             if (!methodCode.tryCatchBlocks().isEmpty()) {
                 var arr = obj.value("exceptions").array();
