@@ -1,0 +1,40 @@
+.super java/lang/Object
+.class public super Example {
+    .method public new1XXarray ()V {
+        parameters: { this },
+        code: {
+        A:
+            iconst_1
+            multianewarray [[[C 1
+            astore map
+            return
+        B:
+        }
+    }
+
+    .method public new11Xarray ()V {
+        parameters: { this },
+        code: {
+        A:
+            iconst_1
+            iconst_1
+            multianewarray [[[C 1
+            astore map
+            return
+        B:
+        }
+    }
+
+    .method public new11array ()V {
+        parameters: { this },
+        code: {
+        A:
+            iconst_1
+            iconst_1
+            multianewarray [[C 2
+            astore map
+            return
+        B:
+        }
+    }
+}

@@ -351,7 +351,9 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitMultiANewArrayInsn(ASTIdentifier descriptor, ASTNumber numDimensions) {
-        add(new AllocateInstruction(Types.arrayTypeFromDescriptor(descriptor.literal())));
+        ArrayType arrayType = Types.arrayTypeFromDescriptor(descriptor.literal());
+        int dimSize = numDimensions.asInt();
+        add(new AllocateMultiDimArrayInstruction(arrayType, dimSize));
     }
 
     @Override

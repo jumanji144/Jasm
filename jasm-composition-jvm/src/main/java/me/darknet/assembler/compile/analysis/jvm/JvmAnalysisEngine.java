@@ -173,6 +173,12 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     }
 
     @Override
+    public void execute(AllocateMultiDimArrayInstruction instruction) {
+        frame.pop(instruction.dimensions()); // pop n values off the stack that fill in the dimension sizes
+        frame.pushType(instruction.type());
+    }
+
+    @Override
     public void execute(LookupSwitchInstruction instruction) {
         frame.pop(1);
     }

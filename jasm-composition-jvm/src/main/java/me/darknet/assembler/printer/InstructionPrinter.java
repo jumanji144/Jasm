@@ -165,7 +165,6 @@ public class InstructionPrinter implements IndexedExecutionEngine {
         if (type instanceof InstanceType instance) {
             ctx.instruction("new").literal(instance.internalName()).next();
         } else {
-            String descriptor = type.descriptor();
             ArrayType arrayType = (ArrayType) type;
             int dimensions = arrayType.dimensions();
             if (dimensions == 1) {
@@ -176,10 +175,15 @@ public class InstructionPrinter implements IndexedExecutionEngine {
                 } else if (component instanceof PrimitiveType primitiveComponent) {
                     ctx.instruction("newarray").print(primitiveComponent.name()).next();
                 }
-            } else {
-                ctx.instruction("multianewarray").literal(descriptor).arg().print(Integer.toString(dimensions)).next();
             }
         }
+    }
+
+    @Override
+    public void execute(AllocateMultiDimArrayInstruction instruction) {
+        String descriptor = instruction.type().descriptor();
+        int dimensions = instruction.dimensions();
+        ctx.instruction("multianewarray").literal(descriptor).arg().print(Integer.toString(dimensions)).next();
     }
 
     @Override
