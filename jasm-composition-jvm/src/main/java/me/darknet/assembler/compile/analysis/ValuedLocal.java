@@ -59,6 +59,6 @@ public class ValuedLocal extends Local {
 
     @Override
     public String toString() {
-        return "ValuedLocal{" + "index=" + index + +'\'' + ", name='" + name + '\'' + ", value=" + value + '}';
+        return "ValuedLocal{" + "index=" + index + "'" + ", name='" + name + '\'' + ", value=" + value + '}';
     }
 }

@@ -287,7 +287,7 @@ public sealed interface Value {
     }
 
     /** Value of object content. */
-    sealed interface ObjectValue extends Value {
+    non-sealed interface ObjectValue extends Value {
         /**
          * @return Value's type.
          */
