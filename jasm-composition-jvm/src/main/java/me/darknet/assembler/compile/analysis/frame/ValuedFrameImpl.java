@@ -144,8 +144,6 @@ public class ValuedFrameImpl implements ValuedFrame {
 
     @Override
     public void setLocal(int index, ValuedLocal local) {
-        if (local.type() == AnalysisUtils.NULL)
-            local = local.adaptType(Types.OBJECT);
         locals.put(index, local);
     }
 
