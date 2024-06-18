@@ -7,13 +7,11 @@ import dev.xdark.blw.type.ObjectType;
 import dev.xdark.blw.type.PrimitiveType;
 import dev.xdark.blw.type.Types;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.UUID;
 
 public class AnalysisUtils {
-    /**
-     * Dummy type used as a placeholder for null.
-     */
-    public static final ObjectType NULL = Types.instanceTypeFromDescriptor("null");
-
     /**
      * @param checker
      *                Inheritance checker to use for determining common super-types.
@@ -24,9 +22,12 @@ public class AnalysisUtils {
      *
      * @return Common type between the two.
      */
-    @NotNull
-    public static ClassType commonType(@NotNull InheritanceChecker checker, @NotNull ClassType a,
-            @NotNull ClassType b) {
+    @Nullable
+    public static ClassType commonType(@NotNull InheritanceChecker checker, @Nullable ClassType a, @Nullable ClassType b) {
+        if (a == null && b == null) return null;
+        if (a != null && b == null) return a;
+        if (a == null && b != null) return b;
+
         if (a instanceof PrimitiveType ap && b instanceof PrimitiveType bp) {
             return bp.widen(ap.widen(bp));
         } else if (a instanceof ObjectType ao && b instanceof ObjectType bo) {

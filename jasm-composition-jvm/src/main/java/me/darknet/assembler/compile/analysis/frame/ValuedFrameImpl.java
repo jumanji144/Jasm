@@ -6,6 +6,7 @@ import me.darknet.assembler.compiler.InheritanceChecker;
 import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.Types;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
@@ -143,18 +144,19 @@ public class ValuedFrameImpl implements ValuedFrame {
     }
 
     @Override
-    public void setLocal(int index, ValuedLocal local) {
+    public void setLocal(int index, @NotNull ValuedLocal local) {
         locals.put(index, local);
     }
 
     @Override
-    @SuppressWarnings("ConstantValue")
-    public void pushType(@NotNull ClassType type) {
-        if (type == null)
-            throw new IllegalStateException("Cannot push null as typed value to stack");
-        stack.push(Values.valueOf(type));
-        if (type == Types.LONG || type == Types.DOUBLE)
-            stack.push(Values.VOID_VALUE);
+    public void pushType(@Nullable ClassType type) {
+        if (type == null) {
+            stack.push(Values.NULL_VALUE);
+        } else {
+            stack.push(Values.valueOf(type));
+            if (type == Types.LONG || type == Types.DOUBLE)
+                stack.push(Values.VOID_VALUE);
+        }
     }
 
     @Override

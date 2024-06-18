@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
  * Outline of possible value states.
  */
 public sealed interface Value {
-    @NotNull
+    @Nullable
     ClassType type();
 
     @NotNull
@@ -289,18 +289,20 @@ public sealed interface Value {
     /** Value of object content. */
     non-sealed interface ObjectValue extends Value {
         /**
-         * @return Value's type.
+         * @return Value's type. Can be {@code null} for the {@link NullValue} subtype.
          */
-        @NotNull
+        @Nullable
         ObjectType type();
 
         @Override
+        @SuppressWarnings("DataFlowIssue") // Null warnings in the 2nd block isn't an issue, caught in 1st block.
         default @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
             if (equals(other) || other instanceof NullValue)
                 return this;
             if (other instanceof ObjectValue objectValue) {
-                String commonSuperclass = checker
-                        .getCommonSuperclass(type().internalName(), objectValue.type().internalName());
+                String type1 = type().internalName();
+                String type2 = objectValue.type().internalName();
+                String commonSuperclass = checker.getCommonSuperclass(type1, type2);
                 return Values.valueOfInstance(Types.instanceTypeFromInternalName(commonSuperclass));
             }
             throw new ValueMergeException("Invalid merge of object and non-object value");
@@ -310,8 +312,8 @@ public sealed interface Value {
     /** Value of null object content. */
     record NullValue() implements ObjectValue {
         @Override
-        public @NotNull ObjectType type() {
-            return AnalysisUtils.NULL;
+        public @Nullable ObjectType type() {
+            return null;
         }
 
         @Override

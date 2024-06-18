@@ -3,6 +3,7 @@ package me.darknet.assembler.compile.analysis;
 import dev.xdark.blw.type.ClassType;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class ValuedLocal extends Local {
     private final Value value;
@@ -15,9 +16,15 @@ public class ValuedLocal extends Local {
         this(index, name, value.type(), value);
     }
 
-    public ValuedLocal(int index, @NotNull String name, @NotNull ClassType type, @NotNull Value value) {
+    public ValuedLocal(int index, @NotNull String name, @Nullable ClassType type, @NotNull Value value) {
         super(index, name, type);
         this.value = value;
+    }
+
+    @NotNull
+    public ValuedLocal asNull() {
+        if (isNull()) return this;
+        return new ValuedLocal(index, name, null, value);
     }
 
     @NotNull
@@ -27,6 +34,10 @@ public class ValuedLocal extends Local {
 
     @NotNull
     public ValuedLocal mergeWith(@NotNull InheritanceChecker checker, @NotNull ValuedLocal other) throws ValueMergeException {
+        if (isNull() && !other.isNull())
+            return other;
+        else if (!isNull() && other.isNull())
+            return this;
         Value newValue = value.mergeWith(checker, other.value);
         return new ValuedLocal(index, name, newValue.type(), newValue);
     }
@@ -59,6 +70,6 @@ public class ValuedLocal extends Local {
 
     @Override
     public String toString() {
-        return "ValuedLocal{" + "index=" + index + "'" + ", name='" + name + '\'' + ", value=" + value + '}';
+        return "ValuedLocal{" + "index=" + index + +'\'' + ", name='" + name + '\'' + (isNull() ? ", null=true" : ", value=" + value) + '}';
     }
 }

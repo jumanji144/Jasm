@@ -16,7 +16,7 @@ import java.util.stream.Stream;
  * @see TypedFrame Frame tracking only type information.
  * @see ValuedFrame Frame tracking type and value information.
  */
-public sealed interface Frame permits TypedFrame,ValuedFrame {
+public sealed interface Frame permits TypedFrame, ValuedFrame {
     /**
      * @return Copy of the current frame.
      */
@@ -27,7 +27,7 @@ public sealed interface Frame permits TypedFrame,ValuedFrame {
      * @param index
      *              Index of variable to check.
      *
-     * @return Type of the variable, or {@code null} if not a known variable.
+     * @return Type of the variable, or {@code null} if not a known variable or a known {@code null} value.
      */
     @Nullable
     ClassType getLocalType(int index);
@@ -45,15 +45,15 @@ public sealed interface Frame permits TypedFrame,ValuedFrame {
 
     /**
      * @param type
-     *             Type to push onto the stack.
+     *             Type to push onto the stack. Can be {@code null} for {@code null} stack values.
      */
-    void pushType(@NotNull ClassType type);
+    void pushType(@Nullable ClassType type);
 
     /**
      * @param types
-     *              Type to push onto the stack.
+     *              Type to push onto the stack. Can be {@code null} for {@code null} stack values.
      */
-    default void pushTypes(@NotNull ClassType... types) {
+    default void pushTypes(@Nullable ClassType... types) {
         for (ClassType type : types) {
             pushType(type);
         }

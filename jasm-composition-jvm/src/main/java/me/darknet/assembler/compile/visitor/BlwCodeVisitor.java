@@ -394,7 +394,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             if (parameter == null)
                 continue; // wide parameter
             codeBuilder.localVariable(
-                    new GenericLocal(begin, end, parameter.index(), parameter.name(), parameter.type(), null)
+                    new GenericLocal(begin, end, parameter.index(), parameter.name(), parameter.safeType(), null)
             );
         }
 
@@ -423,7 +423,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
                 .filter(local -> local.index() >= paramOffset)
                 .map(local -> {
                     int index = local.index();
-                    ClassType type = local.type();
+                    ClassType type = local.safeType();
                     String name = getLocalName(index);
                     return new GenericLocal(begin, end, index, name, type, null);
                 }).distinct()
