@@ -92,9 +92,13 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                 frame.pop(4);
                 frame.pushType(Types.INT);
             }
-            case INEG, FNEG -> {
-                ClassType type = frame.pop();
-                frame.pushType(type);
+            case INEG -> {
+                frame.pop();
+                frame.pushType(Types.INT);
+            }
+            case FNEG -> {
+                frame.pop();
+                frame.pushType(Types.FLOAT);
             }
             case LNEG -> {
                 frame.pop2();
@@ -173,7 +177,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
             frame.pushType(Types.DOUBLE);
         } else if (constant instanceof OfString) {
             frame.pushType(Types.type(String.class));
-        } else if (constant instanceof OfMethodHandle mh) {
+        } else if (constant instanceof OfMethodHandle) {
             // push java/lang/invoke/MethodHandle
             frame.pushType(METHOD_HANDLE);
         } else if (constant instanceof OfDynamic dyn) {
@@ -194,8 +198,11 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
         final int opcode = instruction.opcode();
         switch (opcode) {
             case ILOAD, LLOAD, FLOAD, DLOAD, ALOAD -> {
+                // Check if the index is a known null value, or actually a non-existent local.
                 ClassType type = frame.getLocalType(index);
-                if (type == null) {
+                if (type == null && frame.getLocal(index) == null) {
+                    // We only adapt these loads if the value is a truly unknown local.
+                    // If the local is known to be null, we keep it as-is.
                     type = switch (opcode) {
                         case ILOAD -> Types.INT;
                         case LLOAD -> Types.LONG;

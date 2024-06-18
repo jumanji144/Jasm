@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * JVM engine which tracks types and values of items in the stack/locals.
@@ -399,7 +400,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             String parent = targetType.internalName();
             frame.push(Values.valueOf(checker.isSubclassOf(child, parent)));
         } else {
-            if (type.equals(targetType))
+            if (Objects.equals(type, targetType))
                 frame.push(Values.INT_1);
             else
                 frame.pushType(Types.INT);
@@ -409,11 +410,12 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     @Override
     public void execute(CheckCastInstruction instruction) {
         Value value = frame.pop();
-        if (value.type().equals(instruction.type())) {
+        ObjectType insnType = instruction.type();
+        if (Objects.equals(value.type(), insnType)) {
             // re-use instance if possible
             frame.push(value);
         } else {
-            Value valueOfType = Values.valueOf(instruction.type());
+            Value valueOfType = Values.valueOf(insnType);
             frame.push(valueOfType);
         }
     }

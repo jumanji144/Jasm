@@ -8,11 +8,14 @@ import me.darknet.assembler.compile.analysis.Values;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.ValuedFrame;
 import me.darknet.assembler.compile.analysis.BasicMethodValueLookup;
+import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.ThrowingSupplier;
@@ -29,8 +32,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
+import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class SampleCompilerTest {
@@ -131,6 +137,37 @@ public class SampleCompilerTest {
                     else
                         fail("Unexpected ret-val: " + returnValue);
                 });
+            });
+        }
+
+        @Test
+        void typeInferenceListForValuedAnalysis() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-type-infer-list.jasm");
+            String source = arg.source.get();
+            listTypeInference(source, options -> options.engineProvider(ValuedJvmAnalysisEngine::new));
+        }
+
+        @Test
+        void typeInferenceListForTypedAnalysis() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-type-infer-list.jasm");
+            String source = arg.source.get();
+            listTypeInference(source, options -> options.engineProvider(TypedJvmAnalysisEngine::new));
+        }
+
+        void listTypeInference(@NotNull String source, @Nullable Consumer<TestJvmCompilerOptions> optionsConsumer) {
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            if (optionsConsumer != null) optionsConsumer.accept(options);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                NavigableMap<Integer, Frame> frames = results.frames();
+                Frame lastFrame = frames.lastEntry().getValue();
+                Local local = lastFrame.locals()
+                        .filter(l -> l.name().equals("c"))
+                        .findFirst().orElse(null);
+                assertNotNull(local, "The 'c' local was not found");
+                assertEquals(local.type(), Types.instanceType(List.class), "Expected 'c' == List.class");
             });
         }
     }

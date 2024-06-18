@@ -1,0 +1,89 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            line 14
+            aconst_null
+            astore c
+        B:
+            line 15
+            new java/util/Random
+            dup
+            invokespecial java/util/Random.<init> ()V
+            iconst_5
+            invokevirtual java/util/Random.nextInt (I)I
+            tableswitch {
+                min: 0,
+                max: 5,
+                cases: { C, E, G, I, K },
+                default: M
+            }
+        C:
+            line 17
+            new java/util/ArrayList
+            dup
+            invokespecial java/util/ArrayList.<init> ()V
+            astore c
+        D:
+            line 18
+            goto M
+        E:
+            line 20
+            new java/util/concurrent/CopyOnWriteArrayList
+            dup
+            invokespecial java/util/concurrent/CopyOnWriteArrayList.<init> ()V
+            astore c
+        F:
+            line 21
+            goto M
+        G:
+            line 23
+            new java/util/LinkedList
+            dup
+            invokespecial java/util/LinkedList.<init> ()V
+            astore c
+        H:
+            line 24
+            goto M
+        I:
+            line 26
+            new dev/xdark/blw/util/LazyList
+            dup
+            invokedynamic get ()Ljava/util/function/Supplier; LambdaMetafactory.metafactory { ()Ljava/lang/Object;, { invokestatic, simulation/Demo.lambda$main$0, ()Ljava/lang/Object; }, ()Ljava/lang/Object; }
+            invokespecial dev/xdark/blw/util/LazyList.<init> (Ljava/util/function/Supplier;)V
+            astore c
+        J:
+            line 27
+            goto M
+        K:
+            line 29
+            invokestatic java/util/Collections.emptyList ()Ljava/util/List;
+            astore c
+        L:
+            line 30
+            goto M
+        M:
+            line 36
+            aload c
+            invokeinterface java/util/Collection.isEmpty ()Z
+            ifeq O
+        N:
+            line 37
+            ldc "Hello world"
+            invokestaticinterface java/util/List.of (Ljava/lang/Object;)Ljava/util/List;
+            astore c
+        O:
+            line 39
+            getstatic java/lang/System.out Ljava/io/PrintStream;
+            aload c
+            invokedynamic makeConcatWithConstants (Ljava/util/Collection;)Ljava/lang/String; { invokestatic, java/lang/invoke/StringConcatFactory.makeConcatWithConstants, (Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite; } { "List: \u0001" }
+            invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V
+        P:
+            line 40
+            return
+        Q:
+        }
+    }
+}

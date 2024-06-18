@@ -65,23 +65,24 @@ public non-sealed interface TypedFrame extends Frame {
      *
      * @return Top type on the stack.
      */
-    @NotNull
+    @Nullable
     ClassType pop();
 
     /**
      * @return Top type <i>(offset by one)</i> on the stack.
      */
-    @NotNull
+    @Nullable
     default ClassType pop2() {
-        pop();
+        if (pop() == null) throw new IllegalStateException("Couldn't pop wide, found null");
         return pop();
     }
 
     /**
      * @param type
      *             Type to pop off the stack.
+     * @return Type on the stack. {@code null} if a known {@code null} value was on the stack.
      */
-    @NotNull
+    @Nullable
     default ClassType pop(@NotNull ClassType type) {
         if (type == Types.LONG || type == Types.DOUBLE) {
             return pop2();
@@ -91,8 +92,8 @@ public non-sealed interface TypedFrame extends Frame {
     }
 
     /**
-     * @return Top type on the stack.
+     * @return Top type on the stack. {@code null} if a known {@code null} value was on the stack.
      */
-    @NotNull
+    @Nullable
     ClassType peek();
 }
