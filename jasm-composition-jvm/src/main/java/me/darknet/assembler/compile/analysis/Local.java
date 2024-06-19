@@ -45,6 +45,8 @@ public class Local {
 
     @NotNull
     public Local adaptType(@NotNull ClassType newType) {
+        if (Objects.equals(type, newType))
+            return this;
         return new Local(index, name, newType);
     }
 

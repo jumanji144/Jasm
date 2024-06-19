@@ -5,6 +5,8 @@ import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Objects;
+
 public class ValuedLocal extends Local {
     private final Value value;
 
@@ -29,6 +31,8 @@ public class ValuedLocal extends Local {
 
     @NotNull
     public ValuedLocal adaptType(@NotNull ClassType newType) {
+        if (Objects.equals(type, newType))
+            return this;
         return new ValuedLocal(index, name, newType, Values.valueOf(newType));
     }
 
@@ -49,10 +53,6 @@ public class ValuedLocal extends Local {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
         if (!super.equals(o))
             return false;
 
