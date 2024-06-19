@@ -29,6 +29,8 @@ import dev.xdark.blw.type.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final CodeBuilder<?> codeBuilder;
@@ -417,17 +419,31 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         }
 
         // Populate variables
+        //  - Our variables are not scoped, so we can merge by name.
+        //  - Known 'null' locals can merge with duplicate locals which may have type info associated with them
         int paramOffset = parameters.size();
-        analysisEngine.frames().values().stream()
+        Map<String, Local> localsMap = analysisEngine.frames().values().stream()
                 .flatMap(Frame::locals)
+                .map(l -> (Local) l) // Required to make the stream type-safe
                 .filter(local -> local.index() >= paramOffset)
-                .map(local -> {
-                    int index = local.index();
-                    ClassType type = local.safeType();
-                    String name = getLocalName(index);
-                    return new GenericLocal(begin, end, index, name, type, null);
-                }).distinct()
-                .forEach(codeBuilder::localVariable);
+                .collect(Collectors.toMap(Local::name, Function.identity(), (a, b) -> {
+                    ClassType at = a.type(); // These may be 'null' for known 'null' values
+                    ClassType bt = b.type();
+
+                    // Edge cases: If we have null values use the other local (with type info hopefully)
+                    if (at == null)
+                        return b;
+                    if (bt == null)
+                        return a;
+
+                    // Merge locals by type
+                    return a.adaptType(common(at, bt));
+                }));
+        localsMap.forEach((name, local) -> {
+            int index = local.index();
+            ClassType type = local.safeType();
+            codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
+        });
     }
 
     private void correlateAstAndCodeElements() {
@@ -442,5 +458,31 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     private void add(Instruction instruction) {
         codeBuilderList.addInstruction(instruction);
+    }
+
+    private @NotNull ClassType common(@NotNull ClassType a, @NotNull ClassType b) {
+        if (a instanceof ObjectType ao && b instanceof ObjectType bo) {
+            if (ao instanceof ArrayType aa) {
+                if (bo instanceof ArrayType ba) {
+                    // a == array, b == array
+                    Type ct = common(aa.rootComponentType(), ba.rootComponentType());
+                    String arrayDims = "[".repeat(aa.dimensions());
+                    return Types.arrayTypeFromDescriptor(arrayDims + ct.descriptor());
+                }
+
+                // a == array, b == not-array
+                return Types.OBJECT;
+            } else if (bo instanceof ArrayType) {
+                // a == not-array, b == array
+                return Types.OBJECT;
+            }
+
+            // a == object, b == object
+            String ct = checker.getCommonSuperclass(ao.internalName(), bo.internalName());
+            return Types.instanceTypeFromInternalName(ct);
+        } else if (a instanceof PrimitiveType ap && b instanceof PrimitiveType bp) {
+            return ap.widen(bp);
+        }
+        throw new IllegalStateException("Cannot find common type between " + a.descriptor() + " and " + b.descriptor());
     }
 }
