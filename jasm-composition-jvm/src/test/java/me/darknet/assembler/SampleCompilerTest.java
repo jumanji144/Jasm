@@ -22,6 +22,8 @@ import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.ClassNode;
 
 import static me.darknet.assembler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -148,8 +150,22 @@ public class SampleCompilerTest {
         }
 
         @Test
+        void typeInferenceListForValuedAnalysisAlt() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-type-infer-list-alt.jasm");
+            String source = arg.source.get();
+            listTypeInference(source, options -> options.engineProvider(ValuedJvmAnalysisEngine::new));
+        }
+
+        @Test
         void typeInferenceListForTypedAnalysis() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-type-infer-list.jasm");
+            String source = arg.source.get();
+            listTypeInference(source, options -> options.engineProvider(TypedJvmAnalysisEngine::new));
+        }
+
+        @Test
+        void typeInferenceListForTypedAnalysisAlt() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-type-infer-list-alt.jasm");
             String source = arg.source.get();
             listTypeInference(source, options -> options.engineProvider(TypedJvmAnalysisEngine::new));
         }
@@ -159,6 +175,11 @@ public class SampleCompilerTest {
             options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
             if (optionsConsumer != null) optionsConsumer.accept(options);
             processJvm(source, options, result -> {
+                ClassReader reader = new ClassReader(result.representation().classFile());
+                ClassNode node = new ClassNode();
+                reader.accept(node, 0);
+
+
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
                 NavigableMap<Integer, Frame> frames = results.frames();
@@ -166,8 +187,8 @@ public class SampleCompilerTest {
                 Local local = lastFrame.locals()
                         .filter(l -> l.name().equals("c"))
                         .findFirst().orElse(null);
-                assertNotNull(local, "The 'c' local was not found");
-                assertEquals(local.type(), Types.instanceType(List.class), "Expected 'c' == List.class");
+                 assertNotNull(local, "The 'c' local was not found");
+                 assertEquals(local.type(), Types.instanceType(List.class), "Expected 'c' == List.class");
             });
         }
     }

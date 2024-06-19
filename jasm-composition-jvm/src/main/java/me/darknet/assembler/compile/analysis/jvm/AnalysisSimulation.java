@@ -9,7 +9,6 @@ import me.darknet.assembler.compiler.InheritanceChecker;
 
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.instruction.BranchInstruction;
-import dev.xdark.blw.code.instruction.ConditionalJumpInstruction;
 import dev.xdark.blw.simulation.ExecutionEngines;
 import dev.xdark.blw.simulation.Simulation;
 import dev.xdark.blw.type.InstanceType;
@@ -18,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, AnalysisSimulation.Info>, JavaOpcodes {
     private static final int MAX_QUEUE = 2048;
@@ -94,6 +94,9 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
             if (frame == null)
                 throw new AnalysisException("No frame at index " + index);
 
+            // For tracking a change coming from a previous iteration / flow point.
+            boolean mergeChangedPreviously = false;
+
             // Execute sequentially until hitting a fork-point with forcefully directed (or terminating) flow.
             while (index < elementCount) {
                 Frame oldFrame = frame.copy();
@@ -113,7 +116,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
 
                         // We can continue the sequential execution if the code has already been visited
                         // and there were no changes in the merge process.
-                        if (!changed && visited.get(index))
+                        if (!mergeChangedPreviously && !changed && visited.get(index))
                             break;
                     } catch (FrameMergeException ex) {
                         throw new AnalysisException(element, ex);
@@ -150,9 +153,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                         for (Label target : bi.targetsStream().toList()) {
                             int targetIndex = elements.indexOf(target);
                             if (targetIndex < 0 || targetIndex > elementCount)
-                                throw new AnalysisException(
-                                        bi, "Target for branch instruction " + bi + " does not exist"
-                                );
+                                throw new AnalysisException(bi, "Target for branch instruction " + bi + " does not exist");
                             try {
                                 boolean shouldVisitTarget;
                                 Frame targetFrame = engine.getFrame(targetIndex);
@@ -187,7 +188,10 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                     try {
                         // Either a non-branching instruction, or a conditional jump with fall-through,
                         // thus we want to record the frame.
-                        engine.putAndMergeFrame(checker, index, frame);
+                        //
+                        // Additionally, if this results in a merge change we want the next iteration to be made
+                        // aware of this so that it won't pre-maturely abort.
+                        mergeChangedPreviously = engine.putAndMergeFrame(checker, index, frame);
                     } catch (FrameMergeException ex) {
                         throw new AnalysisException(element, ex);
                     }

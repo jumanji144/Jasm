@@ -58,6 +58,14 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
         this.checker = checker;
     }
 
+
+    /**
+     * @return Inheritance checker used. May be {@code null} if not assigned.
+     */
+    public @Nullable InheritanceChecker getChecker() {
+        return checker;
+    }
+
     /**
      * @param index
      *              Key.
@@ -94,18 +102,22 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
      *              Key.
      * @param frame
      *              Frame to put.
+     *
+     * @return {@code true} when the frame merge resulted in a change.
+     * {@code false} when the frame merge resulted in no change.
      */
-    public void putAndMergeFrame(@NotNull InheritanceChecker checker, int index, @NotNull F frame) throws FrameMergeException {
+    public boolean putAndMergeFrame(@NotNull InheritanceChecker checker, int index, @NotNull F frame) throws FrameMergeException {
         F old = getFrame(index);
 
         if (old == null) {
             putFrame(index, frame);
-            return;
+            return true;
         }
 
         F merged = (F) old.copy();
-        merged.merge(checker, frame);
+        boolean changed = merged.merge(checker, frame);
         putFrame(index, merged);
+        return changed;
     }
 
     /**

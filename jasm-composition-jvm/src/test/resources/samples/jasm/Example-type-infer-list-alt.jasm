@@ -1,0 +1,23 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            aconst_null
+            astore c
+            iconst_0
+            ifeq B
+            goto C
+        B:
+            getstatic java/util/Collections.EMPTY_LIST Ljava/util/List;
+            astore c
+        C:
+            getstatic java/lang/System.out Ljava/io/PrintStream;
+            aload c
+            invokevirtual java/io/PrintStream.println (Ljava/lang/Object;)V
+            return
+        D:
+        }
+    }
+}
