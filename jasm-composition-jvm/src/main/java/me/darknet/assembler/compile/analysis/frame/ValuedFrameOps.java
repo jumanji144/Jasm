@@ -15,6 +15,6 @@ public class ValuedFrameOps implements FrameOps<ValuedFrame> {
     @Override
     public void setFrameLocal(@NotNull ValuedFrame frame, int idx, @NotNull Local param) {
         // Adapt to valued locals
-        frame.setLocal(idx, new ValuedLocal(param, Values.valueOf(param.type())));
+        frame.setLocal(idx, new ValuedLocal(param, Values.valueOf(param.safeType())));
     }
 }
