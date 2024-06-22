@@ -4,7 +4,6 @@ import me.darknet.assembler.compile.analysis.*;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
 import me.darknet.assembler.compile.analysis.frame.ValuedFrame;
 import me.darknet.assembler.compile.analysis.frame.ValuedFrameOps;
-import me.darknet.assembler.compiler.InheritanceChecker;
 
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.constant.*;

@@ -15,7 +15,7 @@ import org.objectweb.asm.ClassWriter;
 
 public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
 
-    protected int asmArgs = 0;
+    protected int asmArgs;
     protected JavaVersion version;
     protected JavaClassRepresentation overlay;
     protected String annotationPath;

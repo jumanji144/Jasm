@@ -1,5 +1,6 @@
 package me.darknet.assembler.printer;
 
+import dev.xdark.blw.code.Code;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
 import me.darknet.assembler.helper.Names;
@@ -21,8 +22,8 @@ import java.util.Map;
 
 public class JvmMethodPrinter implements MethodPrinter {
 
-    protected Method method;
-    protected MemberPrinter memberPrinter;
+    protected final Method method;
+    protected final MemberPrinter memberPrinter;
     protected String labelPrefix;
 
     public JvmMethodPrinter(Method method) {
@@ -44,8 +45,9 @@ public class JvmMethodPrinter implements MethodPrinter {
     public Names localNames() {
         List<Names.Local> locals = new ArrayList<>();
         boolean isStatic = (method.accessFlags() & AccessFlag.ACC_STATIC) != 0;
-        if (method.code() != null) {
-            for (Local localVariable : method.code().localVariables()) {
+        Code code = method.code();
+        if (code != null) {
+            for (Local localVariable : code.localVariables()) {
                 // transform local name
                 String name = escapeName(localVariable.name(), localVariable.index(), isStatic);
                 locals.add(

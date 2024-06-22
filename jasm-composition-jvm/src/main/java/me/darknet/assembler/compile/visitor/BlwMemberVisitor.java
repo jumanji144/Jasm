@@ -27,7 +27,7 @@ public class BlwMemberVisitor<T extends Type, M extends Member<T>> implements AS
 
     @Override
     public void visitSignature(@Nullable ASTString signature) {
-        builder.signature(signature.content());
+        if (signature != null) builder.signature(signature.content());
     }
 
     @Override

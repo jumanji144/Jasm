@@ -70,6 +70,6 @@ public class ValuedLocal extends Local {
 
     @Override
     public String toString() {
-        return "ValuedLocal{" + "index=" + index + +'\'' + ", name='" + name + '\'' + (isNull() ? ", null=true" : ", value=" + value) + '}';
+        return "ValuedLocal{" + "index=" + index + "'" + ", name='" + name + '\'' + (isNull() ? ", null=true" : ", value=" + value) + '}';
     }
 }

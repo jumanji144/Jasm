@@ -93,6 +93,10 @@ public class JvmCompiler implements Compiler {
         if (!collector.hasErr()) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             try {
+                // This just exists to reduce debugging needed to find out that the user didn't specify the class
+                // definition properly in their JASM input.
+                if (builder.type() == null) throw new IllegalStateException("Cannot build class, type name not specified");
+
                 library.write(builder.build(), out);
             } catch (Throwable t) {
                 // We cannot continue, the result might be very corrupted.
@@ -108,11 +112,10 @@ public class JvmCompiler implements Compiler {
                             if (targetInsn != null) {
                                 Location location = targetInsn.location();
                                 collector.addError(failure.getMessage(), location);
-                                recordedError = true;
                             } else {
                                 collector.addError(failure.getMessage(), Location.UNKNOWN);
-                                recordedError = true;
                             }
+                            recordedError = true;
                         }
                     }
                 }

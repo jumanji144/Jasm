@@ -31,6 +31,9 @@ import java.util.TreeMap;
  * @see ValuedJvmAnalysisEngine For basic value-tracking of stack/locals.
  */
 public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEngine, AnalysisResults, JavaOpcodes {
+    protected static final InstanceType METHOD_TYPE = Types.instanceType(MethodType.class);
+    protected static final InstanceType METHOD_HANDLE = Types.instanceType(MethodHandle.class);
+
     protected final NavigableMap<Integer, F> frames = new TreeMap<>();
     protected final NavigableMap<Integer, F> terminalFrames = new TreeMap<>();
     private final Map<ASTInstruction, CodeElement> astToElement = new IdentityHashMap<>();
@@ -39,9 +42,6 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     protected InheritanceChecker checker;
     protected AnalysisException analysisFailure;
     protected F frame;
-
-    protected static InstanceType METHOD_TYPE = Types.instanceType(MethodType.class);
-    protected static InstanceType METHOD_HANDLE = Types.instanceType(MethodHandle.class);
 
     public JvmAnalysisEngine(@NotNull VariableNameLookup variableNameLookup) {
         this.variableNameLookup = variableNameLookup;
@@ -106,6 +106,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
      * @return {@code true} when the frame merge resulted in a change.
      * {@code false} when the frame merge resulted in no change.
      */
+    @SuppressWarnings("unchecked")
     public boolean putAndMergeFrame(@NotNull InheritanceChecker checker, int index, @NotNull F frame) throws FrameMergeException {
         F old = getFrame(index);
 

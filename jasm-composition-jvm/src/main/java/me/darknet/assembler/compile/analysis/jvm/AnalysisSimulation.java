@@ -17,7 +17,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, AnalysisSimulation.Info>, JavaOpcodes {
     private static final int MAX_QUEUE = 2048;

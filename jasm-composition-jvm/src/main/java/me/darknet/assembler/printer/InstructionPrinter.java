@@ -30,7 +30,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
     protected PrintContext.CodePrint ctx;
     protected Code code;
-    protected Map<Integer, String> labelNames = new HashMap<>();
+    protected Map<Integer, String> labelNames;
     protected Names names;
     private int currentIndex = 0;
 

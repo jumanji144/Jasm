@@ -9,8 +9,6 @@ import dev.xdark.blw.type.Types;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.UUID;
-
 public class AnalysisUtils {
     /**
      * @param checker
@@ -26,7 +24,7 @@ public class AnalysisUtils {
     public static ClassType commonType(@NotNull InheritanceChecker checker, @Nullable ClassType a, @Nullable ClassType b) {
         if (a == null && b == null) return null;
         if (a != null && b == null) return a;
-        if (a == null && b != null) return b;
+        if (a == null) return b; // "b != null" will always be 'true' in this case
 
         if (a instanceof PrimitiveType ap && b instanceof PrimitiveType bp) {
             return bp.widen(ap.widen(bp));
