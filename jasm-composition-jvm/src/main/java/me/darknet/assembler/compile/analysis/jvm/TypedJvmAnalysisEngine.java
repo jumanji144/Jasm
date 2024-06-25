@@ -358,8 +358,9 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
     public void execute(MethodInstruction instruction) {
         MethodType methodType = instruction.type();
         List<ClassType> types = methodType.parameterTypes();
-        for (ClassType type : types)
-            frame.pop(type);
+        for (int i = types.size(); i > 0; i--) {
+            frame.pop(types.get(i - 1));
+        }
         if (instruction.opcode() != INVOKESTATIC) {
             ClassType contextType = frame.pop();
             if (contextType == null)

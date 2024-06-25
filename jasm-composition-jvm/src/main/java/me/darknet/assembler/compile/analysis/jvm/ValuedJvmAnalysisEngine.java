@@ -554,7 +554,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
         boolean canLookup = true;
         List<Value> parameters = new ArrayList<>(size);
-        for (ClassType type : types) {
+
+        for (int i = types.size(); i > 0; i--) {
+            ClassType type = types.get(i - 1);
             Value value = frame.pop(type);
             parameters.add(0, value);
             canLookup &= value.isKnown();
