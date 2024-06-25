@@ -1,0 +1,14 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()Ljava/lang/Object; {
+        parameters: { this },
+        code: {
+        A:
+            aconst_null
+            iconst_1
+            aaload
+            areturn
+        B:
+        }
+    }
+}

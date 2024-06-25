@@ -1,0 +1,13 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()Ljava/lang/Object; {
+        parameters: { this },
+        code: {
+        A:
+            iconst_1
+            invokevirtual java/lang/System.toString ()Ljava/lang/String;
+            areturn
+        B:
+        }
+    }
+}

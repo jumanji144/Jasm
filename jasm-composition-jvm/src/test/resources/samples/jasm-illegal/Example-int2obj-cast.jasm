@@ -1,0 +1,13 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()Ljava/lang/Object; {
+        parameters: { this },
+        code: {
+        A:
+            bipush 42
+            checkcast Ljava/util/List;
+            areturn
+        B:
+        }
+    }
+}

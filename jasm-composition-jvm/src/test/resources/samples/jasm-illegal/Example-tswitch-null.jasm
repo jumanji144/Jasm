@@ -1,0 +1,23 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            aconst_null
+            tableswitch {
+                min: 0,
+                max: 1,
+                cases: { B },
+                default: C
+            }
+        B:
+            iconst_1
+            ireturn
+        C:
+            iconst_0
+            ireturn
+        D:
+        }
+    }
+}

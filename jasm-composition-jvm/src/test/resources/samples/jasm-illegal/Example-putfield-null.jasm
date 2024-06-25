@@ -1,0 +1,14 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()Ljava/lang/Object; {
+        parameters: { this },
+        code: {
+        A:
+            aconst_null
+            aconst_null
+            putfield java/lang/System.out Ljava/io/PrintStream;
+            areturn
+        B:
+        }
+    }
+}

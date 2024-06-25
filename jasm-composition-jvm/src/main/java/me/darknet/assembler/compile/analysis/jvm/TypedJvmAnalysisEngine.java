@@ -60,7 +60,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                 ClassType type4 = frame.pop();
                 frame.pushTypes(type2, type1, type4, type3, type2, type1);
             }
-            case POP, IINC, IRETURN, FRETURN, ARETURN, MONITORENTER, MONITOREXIT -> frame.pop();
+            case POP, IRETURN, FRETURN, ARETURN, MONITORENTER, MONITOREXIT -> frame.pop();
             case POP2, LRETURN, DRETURN -> frame.pop2();
             case SWAP -> {
                 ClassType type1 = frame.pop();
@@ -68,82 +68,176 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                 frame.pushTypes(type1, type2);
             }
             case IADD, ISUB, IMUL, IDIV, IREM, ISHL, ISHR, IUSHR, IAND, IOR, IXOR, FCMPG, FCMPL -> {
-                frame.pop2();
+                ClassType valueType1 = frame.pop();
+                ClassType valueType2 = frame.pop();
+                if (!(valueType1 instanceof PrimitiveType))
+                    warn(instruction, "Top value to operate on is not a primitive");
+                if (!(valueType2 instanceof PrimitiveType))
+                    warn(instruction, "Bottom value to operate on is not a primitive");
                 frame.pushType(Types.INT);
             }
             case LADD, LSUB, LMUL, LDIV, LREM, LAND, LOR, LXOR -> {
-                frame.pop(4); // LONG + TOP, LONG + TOP
+                ClassType valueType1 = frame.pop2();
+                ClassType valueType2 = frame.pop2();
+                if (!(valueType1 instanceof PrimitiveType))
+                    warn(instruction, "Top value to operate on is not a primitive");
+                if (!(valueType2 instanceof PrimitiveType))
+                    warn(instruction, "Bottom value to operate on is not a primitive");
                 frame.pushType(Types.LONG);
             }
             case LSHL, LSHR, LUSHR -> {
-                frame.pop();
-                frame.pop2();
+                ClassType offsetType = frame.pop();
+                ClassType valueType = frame.pop2();
+                if (!(offsetType instanceof PrimitiveType))
+                    warn(instruction, "Shift offset is not a primitive");
+                if (!(valueType instanceof PrimitiveType))
+                    warn(instruction, "Shift target is not a primitive");
                 frame.pushType(Types.LONG);
             }
             case FADD, FSUB, FMUL, FDIV, FREM -> {
-                frame.pop2();
+                ClassType valueType1 = frame.pop();
+                ClassType valueType2 = frame.pop();
+                if (!(valueType1 instanceof PrimitiveType))
+                    warn(instruction, "Top value to operate on is not a primitive");
+                if (!(valueType2 instanceof PrimitiveType))
+                    warn(instruction, "Bottom value to operate on is not a primitive");
                 frame.pushType(Types.FLOAT);
             }
             case DADD, DSUB, DMUL, DDIV, DREM -> {
-                frame.pop(4);
+                ClassType valueType1 = frame.pop2();
+                ClassType valueType2 = frame.pop2();
+                if (!(valueType1 instanceof PrimitiveType))
+                    warn(instruction, "Top value to operate on is not a primitive");
+                if (!(valueType2 instanceof PrimitiveType))
+                    warn(instruction, "Bottom value to operate on is not a primitive");
                 frame.pushType(Types.DOUBLE);
             }
             case DCMPL, DCMPG, LCMP -> {
-                frame.pop(4);
+                ClassType valueType1 = frame.pop2();
+                ClassType valueType2 = frame.pop2();
+                if (!(valueType1 instanceof PrimitiveType))
+                    warn(instruction, "Top value to compare is not a primitive");
+                if (!(valueType2 instanceof PrimitiveType))
+                    warn(instruction, "Bottom value to compare is not a primitive");
                 frame.pushType(Types.INT);
             }
             case INEG -> {
-                frame.pop();
+                ClassType valueType = frame.pop();
+                if (!(valueType instanceof PrimitiveType))
+                    warn(instruction, "Value to negate is not a primitive");
                 frame.pushType(Types.INT);
             }
             case FNEG -> {
-                frame.pop();
+                ClassType valueType = frame.pop();
+                if (!(valueType instanceof PrimitiveType))
+                    warn(instruction, "Value to negate is not a primitive");
                 frame.pushType(Types.FLOAT);
             }
             case LNEG -> {
-                frame.pop2();
+                ClassType valueType = frame.pop2();
+                if (!(valueType instanceof PrimitiveType))
+                    warn(instruction, "Value to negate is not a primitive");
                 frame.pushType(Types.LONG);
             }
             case DNEG -> {
-                frame.pop2();
+                ClassType valueType = frame.pop2();
+                if (!(valueType instanceof PrimitiveType))
+                    warn(instruction, "Value to negate is not a primitive");
                 frame.pushType(Types.DOUBLE);
             }
             case ATHROW -> frame.getStack().clear();
             case ACONST_NULL -> frame.pushNull();
-            case RETURN -> {
-                /* no-op */ }
-            case IASTORE, FASTORE , BASTORE, AASTORE, CASTORE, SASTORE -> frame.pop(3); // arrayref, index, value
-            case DASTORE, LASTORE -> frame.pop(4);
+            case RETURN -> { /* no-op */ }
+            case IASTORE, FASTORE, BASTORE, AASTORE, CASTORE, SASTORE -> {
+                ClassType valueType = frame.pop();
+                ClassType indexType = frame.pop();
+                ClassType arrayType = frame.pop();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
+                if (!(valueType instanceof PrimitiveType))
+                    warn(instruction, "Value to store in array is not a primitive");
+            }
+            case DASTORE, LASTORE -> {
+                ClassType valueType = frame.pop2();
+                ClassType indexType = frame.pop();
+                ClassType arrayType = frame.pop();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
+                if (!(valueType instanceof PrimitiveType)) {
+                    warn(instruction, "Value to store in array is not a primitive");
+                } else warn(instruction, "Value to store in array is not a primitive");
+            }
             case IALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop();
+                ClassType arrayType = frame.pop();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.INT);
             }
             case FALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop();
+                ClassType arrayType = frame.pop();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.FLOAT);
             }
             case BALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop();
+                ClassType arrayType = frame.pop();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.BYTE);
             }
             case CALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop();
+                ClassType arrayType = frame.pop();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.CHAR);
             }
             case SALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop();
+                ClassType arrayType = frame.pop();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.SHORT);
             }
             case DALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop();
+                ClassType arrayType = frame.pop();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.DOUBLE);
             }
             case LALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop();
+                ClassType arrayType = frame.pop();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.LONG);
             }
             case AALOAD -> {
-                frame.pop(); // index
+                ClassType indexType = frame.pop();// index
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
                 ClassType arrayRef = frame.pop();
                 if (arrayRef instanceof ArrayType arrayType) {
                     if (arrayType.dimensions() == 1) {
@@ -152,11 +246,18 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                         frame.pushType(Types.arrayTypeFromDescriptor(arrayType.descriptor().substring(1)));
                     }
                 } else {
+                    warn(instruction, "Array reference on stack is not an array");
                     frame.pushType(Types.OBJECT);
                 }
             }
             case ARRAYLENGTH -> {
-                frame.pop();
+                ClassType stackType = frame.pop();
+                if (stackType == null)
+                    warn(instruction, "Cannot get array length of 'null'");
+                else if (stackType instanceof PrimitiveType)
+                    warn(instruction, "Cannot get array length of primitive");
+                else if (stackType instanceof InstanceType)
+                    warn(instruction, "Cannot get array length of non-array reference");
                 frame.pushType(Types.INT);
             }
             case NOP -> {}
@@ -216,21 +317,40 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
             }
             case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> {
                 String name = variableNameLookup.getVarName(index);
-                ClassType type = opcode == LSTORE || opcode == DSTORE ? frame.pop2() : frame.pop();
-                frame.setLocal(index, new Local(index, name, type));
+                ClassType stackType = opcode == LSTORE || opcode == DSTORE ? frame.pop2() : frame.pop();
+                ClassType assumedType = switch (opcode) {
+                    case ISTORE -> Types.INT;
+                    case LSTORE -> Types.LONG;
+                    case FSTORE -> Types.FLOAT;
+                    case DSTORE -> Types.DOUBLE;
+                    case ASTORE -> Types.OBJECT;
+                    default -> throw new IllegalStateException("Unexpected opcode: " + opcode);
+                };
+                if (assumedType == Types.OBJECT) {
+                    if (stackType instanceof PrimitiveType)
+                        warn(instruction, "Incorrect var assignment, " + stackType.descriptor() + " into reference");
+                } else if (stackType == null || assumedType.getClass() != stackType.getClass()) {
+                    String stackName = stackType == null ? "'null'" : stackType.descriptor();
+                    warn(instruction, "Incorrect var assignment, " + stackName + " into " + assumedType.descriptor());
+                }
+                frame.setLocal(index, new Local(index, name, stackType));
             }
         }
     }
 
     @Override
     public void execute(InstanceofInstruction instruction) {
-        frame.pop();
+        ClassType origin = frame.pop();
+        if (origin instanceof PrimitiveType)
+            warn(instruction, "Cannot instanceof primitive to reference");
         frame.pushType(Types.INT);
     }
 
     @Override
     public void execute(CheckCastInstruction instruction) {
-        frame.pop();
+        ClassType origin = frame.pop();
+        if (origin instanceof PrimitiveType)
+            warn(instruction, "Cannot cast primitive to reference");
         frame.pushType(instruction.type());
     }
 
@@ -240,8 +360,15 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
         List<ClassType> types = methodType.parameterTypes();
         for (ClassType type : types)
             frame.pop(type);
-        if (instruction.opcode() != INVOKESTATIC)
-            frame.pop();
+        if (instruction.opcode() != INVOKESTATIC) {
+            ClassType contextType = frame.pop();
+            if (contextType == null)
+                warn(instruction, "Cannot invoke method of 'null' reference");
+            else if (contextType instanceof PrimitiveType)
+                warn(instruction, "Cannot invoke method on primitive");
+            else if (contextType instanceof ArrayType)
+                warn(instruction, "Cannot invoke method on array");
+        }
         if (methodType.returnType() != Types.VOID)
             frame.pushType(methodType.returnType());
     }
@@ -251,13 +378,25 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
         int opcode = instruction.opcode();
         switch (opcode) {
             case GETFIELD -> {
-                frame.pop();
+                ClassType contextType = frame.pop();
+                if (contextType == null)
+                    warn(instruction, "Cannot get field of 'null' reference");
+                else if (contextType instanceof PrimitiveType)
+                    warn(instruction, "Cannot get field of primitive");
+                else if (contextType instanceof ArrayType)
+                    warn(instruction, "Cannot get field of array");
                 frame.pushType(instruction.type());
             }
             case GETSTATIC -> frame.pushType(instruction.type());
             case PUTFIELD -> {
                 frame.pop(instruction.type());
-                frame.pop();
+                ClassType contextType = frame.pop();
+                if (contextType == null)
+                    warn(instruction, "Cannot put field on 'null' reference");
+                else if (contextType instanceof PrimitiveType)
+                    warn(instruction, "Cannot put field on primitive");
+                else if (contextType instanceof ArrayType)
+                    warn(instruction, "Cannot put field on array");
             }
             case PUTSTATIC -> frame.pop(instruction.type());
             default -> throw new IllegalStateException("Unknown field insn: " + opcode);
@@ -276,22 +415,38 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(PrimitiveConversionInstruction instruction) {
-        frame.pop(instruction.from());
+        ClassType type = frame.pop(instruction.from());
+        if (type == null)
+            warn(instruction, "Cannot convert 'null' on stack to primitive");
+        else if (type instanceof ObjectType)
+            warn(instruction, "Cannot convert 'null' on stack to reference type");
         frame.pushType(instruction.to());
     }
 
     @Override
     public void execute(LookupSwitchInstruction instruction) {
-        frame.pop();
+        ClassType type = frame.pop();
+        if (type == null)
+            warn(instruction, "Cannot switch off 'null' on stack");
+        else if (type instanceof ObjectType)
+            warn(instruction, "Cannot switch off reference type on stack");
     }
 
     @Override
     public void execute(TableSwitchInstruction instruction) {
-        frame.pop();
+        ClassType type = frame.pop();
+        if (type == null)
+            warn(instruction, "Cannot switch off 'null' on stack");
+        else if (type instanceof ObjectType)
+            warn(instruction, "Cannot switch off reference type on stack");
     }
 
     @Override
     public void execute(VariableIncrementInstruction instruction) {
-        // no-op
+        Local local = frame.getLocal(instruction.variableIndex());
+        if (local == null) {
+            // Invalid iinc target
+            error(instruction, "Invalid iinc target, not a recognized variable");
+        }
     }
 }

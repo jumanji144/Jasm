@@ -1,0 +1,13 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            aconst_null
+            arraylength
+            ireturn
+        B:
+        }
+    }
+}

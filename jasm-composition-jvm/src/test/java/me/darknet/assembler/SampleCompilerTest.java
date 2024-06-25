@@ -35,7 +35,6 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.NavigableMap;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -45,6 +44,9 @@ public class SampleCompilerTest {
     private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";
     private static final String PATH_ILLEGAL_PREFIX = "src/test/resources/samples/jasm-illegal/";
 
+    /**
+     * For testing variable outputs.
+     */
     @Nested
     class Variables {
         @Test
@@ -67,6 +69,9 @@ public class SampleCompilerTest {
         }
     }
 
+    /**
+     * For testing analysis engine capabilities.
+     */
     @Nested
     class Analysis {
         @ParameterizedTest
@@ -170,6 +175,7 @@ public class SampleCompilerTest {
             listTypeInference(source, options -> options.engineProvider(TypedJvmAnalysisEngine::new));
         }
 
+        @SuppressWarnings("DataFlowIssue")
         void listTypeInference(@NotNull String source, @Nullable Consumer<TestJvmCompilerOptions> optionsConsumer) {
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
             options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
@@ -193,20 +199,134 @@ public class SampleCompilerTest {
         }
     }
 
+    /**
+     * For cases known to emit errors.
+     */
     @Nested
-    class Illegal {
+    class Error {
         @Test
         void intAndObjectStackMerge() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-object-int-stack-merge.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
             options.engineProvider(ValuedJvmAnalysisEngine::new);
-            processAnalysisFailJvm(source, options, result -> {
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processAnalysisFailJvm(source, options);
+        }
 
-            });
+        @Test
+        void intAndObjectLocalMerge() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-int-object-var-merge.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processAnalysisFailJvm(source, options);
         }
     }
 
+    /**
+     * For cases known to emit warnings, but not strictly errors.
+     */
+    @Nested
+    class Warning {
+        @Test
+        void int2Object() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-int2obj-cast.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-int2obj-instanceof.jasm"));
+        }
+
+        @Test
+        void null2Int() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-null2int-ineg.jasm"));
+        }
+
+        @Test
+        void object2Int() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-obj2int-iadd.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-obj2int-f2i.jasm"));
+        }
+
+        @Test
+        void switchOnNull() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-tswitch-null.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-lswitch-null.jasm"));
+        }
+
+        @Test
+        void switchOnObj() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-tswitch-obj.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-lswitch-obj.jasm"));
+        }
+
+        @Test
+        void getField() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-getfield-null.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-getfield-prim.jasm"));
+        }
+
+        @Test
+        void putField() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-putfield-null.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-putfield-prim.jasm"));
+        }
+
+        @Test
+        void invokeContext() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-invokevirtual-null.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-invokevirtual-prim.jasm"));
+        }
+
+        @Test
+        void storeTypeIncompatibility() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-istore-obj.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-istore-null.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-astore-int.jasm"));
+        }
+
+        @Test
+        void arrays() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-arraylen-null.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-arraylen-int.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-arraylen-obj.jasm"));
+
+            warnOnBothEngines(TestArgument.fromName("Example-arrayload-null.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-arrayload-int.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-arrayload-obj.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-arrayload-index.jasm"));
+
+            warnOnBothEngines(TestArgument.fromName("Example-arraystore-null.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-arraystore-int.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-arraystore-obj.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-arraystore-index.jasm"));
+        }
+
+        @Test
+        void math() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-fneg-null.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-fcmpl-null-a.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-fcmpl-null-b.jasm"));
+        }
+
+        void warnOnBothEngines(TestArgument arg) throws Throwable {
+            // Both analysis engines should have warnings for these cases
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+
+            // Simpler type-only stack analysis engine
+            options.engineProvider(TypedJvmAnalysisEngine::new);
+            processAnalysisWarnJvm(source, options);
+
+            // Value stack analysis engine
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processAnalysisWarnJvm(source, options);
+        }
+    }
+
+    /**
+     * Cases that came up as bug reports. Exist to ensure we do not regress in behavior and re-introduce bugs.
+     */
     @Nested
     class Regresssion {
         @Test
@@ -214,6 +334,27 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-anewarray.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            });
+        }
+
+        @Test
+        void arrayLoadAndStores() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-varied-array-ops.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            });
+
+            // Again with the other engine
             options.engineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
@@ -258,10 +399,13 @@ public class SampleCompilerTest {
         }
     }
 
+    /**
+     * Assemble, disassemble, compare against original input. They should be identical (barring whitespace).
+     */
     @Nested
     class RoundTrip {
         @ParameterizedTest
-        @MethodSource("getSources")
+        @MethodSource("getValidSources")
         void all(TestArgument arg) throws Throwable {
             String source = arg.source.get();
             processJvm(source, new TestJvmCompilerOptions(), result -> {
@@ -322,9 +466,15 @@ public class SampleCompilerTest {
                 throw new RuntimeException(e);
             }
         }
+
+        public static List<TestArgument> getValidSources() {
+           return getSources().stream()
+                   .filter(a -> !a.path().toString().contains("illegal"))
+                   .toList();
+        }
     }
 
-    private record TestArgument(String name, ThrowingSupplier<String> source) {
+    private record TestArgument(Path path, String name, ThrowingSupplier<String> source) {
         public static TestArgument fromName(String name) {
             Path path = Paths.get(System.getProperty("user.dir")).resolve(PATH_PREFIX).resolve(name);
             if (!Files.exists(path))
@@ -333,7 +483,7 @@ public class SampleCompilerTest {
         }
 
         public static TestArgument from(Path path) {
-            return new TestArgument(path.getFileName().toString(), () -> Files.readString(path));
+            return new TestArgument(path, path.getFileName().toString(), () -> Files.readString(path));
         }
 
         @Override

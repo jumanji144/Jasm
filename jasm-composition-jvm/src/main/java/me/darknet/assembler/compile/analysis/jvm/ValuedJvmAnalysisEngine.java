@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * JVM engine which tracks types and values of items in the stack/locals.
@@ -95,7 +96,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     frame.push(primitiveValue.negate());
                 else {
                     frame.pushType(value.type());
-                    setAnalysisFailure(new AnalysisException(instruction, "Negate on non-primitive stack value"));
+                    warn(instruction, "Value to negate is not a primitive");
                 }
             }
             case LNEG, DNEG -> {
@@ -104,19 +105,19 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     frame.push(primitiveValue.negate());
                 else {
                     frame.pushType(value.type());
-                    setAnalysisFailure(new AnalysisException(instruction, "Negate on non-primitive stack value"));
+                    warn(instruction, "Value to negate is not a primitive");
                 }
             }
-            case IADD -> ((IntOp) Integer::sum).accept(frame);
-            case ISUB -> ((IntOp) (a, b) -> b - a).accept(frame);
-            case IMUL -> ((IntOp) (a, b) -> b * a).accept(frame);
-            case IREM -> ((IntOp) (a, b) -> b % a).accept(frame);
-            case ISHL -> ((IntOp) (a, b) -> b << a).accept(frame);
-            case ISHR -> ((IntOp) (a, b) -> b >> a).accept(frame);
-            case IUSHR -> ((IntOp) (a, b) -> b >>> a).accept(frame);
-            case IAND -> ((IntOp) (a, b) -> b & a).accept(frame);
-            case IOR -> ((IntOp) (a, b) -> b | a).accept(frame);
-            case IXOR -> ((IntOp) (a, b) -> b ^ a).accept(frame);
+            case IADD -> ((IntOp) Integer::sum).accept(frame, m -> warn(instruction, m));
+            case ISUB -> ((IntOp) (a, b) -> b - a).accept(frame, m -> warn(instruction, m));
+            case IMUL -> ((IntOp) (a, b) -> b * a).accept(frame, m -> warn(instruction, m));
+            case IREM -> ((IntOp) (a, b) -> b % a).accept(frame, m -> warn(instruction, m));
+            case ISHL -> ((IntOp) (a, b) -> b << a).accept(frame, m -> warn(instruction, m));
+            case ISHR -> ((IntOp) (a, b) -> b >> a).accept(frame, m -> warn(instruction, m));
+            case IUSHR -> ((IntOp) (a, b) -> b >>> a).accept(frame, m -> warn(instruction, m));
+            case IAND -> ((IntOp) (a, b) -> b & a).accept(frame, m -> warn(instruction, m));
+            case IOR -> ((IntOp) (a, b) -> b | a).accept(frame, m -> warn(instruction, m));
+            case IXOR -> ((IntOp) (a, b) -> b ^ a).accept(frame, m -> warn(instruction, m));
             case IDIV -> {
                 Value value1 = frame.pop();
                 Value value2 = frame.pop();
@@ -128,19 +129,23 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     else
                         frame.push(Values.valueOf(b / a));
                 } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
                     frame.pushType(Types.INT);
                 }
             }
-            case LADD -> ((LongOp) Long::sum).accept(frame);
-            case LSUB -> ((LongOp) (a, b) -> b - a).accept(frame);
-            case LMUL -> ((LongOp) (a, b) -> b * a).accept(frame);
-            case LREM -> ((LongOp) (a, b) -> b % a).accept(frame);
-            case LSHL -> ((LongIntOp) (a, b) -> a << b).accept(frame);
-            case LSHR -> ((LongIntOp) (a, b) -> a >> b).accept(frame);
-            case LUSHR -> ((LongIntOp) (a, b) -> b >>> a).accept(frame);
-            case LAND -> ((LongOp) (a, b) -> b & a).accept(frame);
-            case LOR -> ((LongOp) (a, b) -> b | a).accept(frame);
-            case LXOR -> ((LongOp) (a, b) -> b ^ a).accept(frame);
+            case LADD -> ((LongOp) Long::sum).accept(frame, m -> warn(instruction, m));
+            case LSUB -> ((LongOp) (a, b) -> b - a).accept(frame, m -> warn(instruction, m));
+            case LMUL -> ((LongOp) (a, b) -> b * a).accept(frame, m -> warn(instruction, m));
+            case LREM -> ((LongOp) (a, b) -> b % a).accept(frame, m -> warn(instruction, m));
+            case LSHL -> ((LongIntOp) (a, b) -> a << b).accept(frame, m -> warn(instruction, m));
+            case LSHR -> ((LongIntOp) (a, b) -> a >> b).accept(frame, m -> warn(instruction, m));
+            case LUSHR -> ((LongIntOp) (a, b) -> b >>> a).accept(frame, m -> warn(instruction, m));
+            case LAND -> ((LongOp) (a, b) -> b & a).accept(frame, m -> warn(instruction, m));
+            case LOR -> ((LongOp) (a, b) -> b | a).accept(frame, m -> warn(instruction, m));
+            case LXOR -> ((LongOp) (a, b) -> b ^ a).accept(frame, m -> warn(instruction, m));
             case LDIV -> {
                 Value value1 = frame.pop2();
                 Value value2 = frame.pop2();
@@ -152,13 +157,17 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     else
                         frame.push(Values.valueOf(b / a));
                 } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
                     frame.pushType(Types.LONG);
                 }
             }
-            case FADD -> ((FloatOp) Float::sum).accept(frame);
-            case FSUB -> ((FloatOp) (a, b) -> b - a).accept(frame);
-            case FMUL -> ((FloatOp) (a, b) -> b * a).accept(frame);
-            case FREM -> ((FloatOp) (a, b) -> b % a).accept(frame);
+            case FADD -> ((FloatOp) Float::sum).accept(frame, m -> warn(instruction, m));
+            case FSUB -> ((FloatOp) (a, b) -> b - a).accept(frame, m -> warn(instruction, m));
+            case FMUL -> ((FloatOp) (a, b) -> b * a).accept(frame, m -> warn(instruction, m));
+            case FREM -> ((FloatOp) (a, b) -> b % a).accept(frame, m -> warn(instruction, m));
             case FDIV -> {
                 Value value1 = frame.pop();
                 Value value2 = frame.pop();
@@ -170,13 +179,17 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     else
                         frame.push(Values.valueOf(b / a));
                 } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
                     frame.pushType(Types.FLOAT);
                 }
             }
-            case DADD -> ((DoubleOp) Double::sum).accept(frame);
-            case DSUB -> ((DoubleOp) (a, b) -> b - a).accept(frame);
-            case DMUL -> ((DoubleOp) (a, b) -> b * a).accept(frame);
-            case DREM -> ((DoubleOp) (a, b) -> b % a).accept(frame);
+            case DADD -> ((DoubleOp) Double::sum).accept(frame, m -> warn(instruction, m));
+            case DSUB -> ((DoubleOp) (a, b) -> b - a).accept(frame, m -> warn(instruction, m));
+            case DMUL -> ((DoubleOp) (a, b) -> b * a).accept(frame, m -> warn(instruction, m));
+            case DREM -> ((DoubleOp) (a, b) -> b % a).accept(frame, m -> warn(instruction, m));
             case DDIV -> {
                 Value value1 = frame.pop2();
                 Value value2 = frame.pop2();
@@ -188,6 +201,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     else
                         frame.push(Values.valueOf(b / a));
                 } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
                     frame.pushType(Types.DOUBLE);
                 }
             }
@@ -199,6 +216,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     long b = long2.value();
                     frame.push(Values.valueOf(Long.compare(a, b)));
                 } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
                     frame.pushType(Types.INT);
                 }
             }
@@ -213,6 +234,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     else
                         frame.push(Values.valueOf(Double.compare(a, b)));
                 } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
                     frame.pushType(Types.INT);
                 }
             }
@@ -227,6 +252,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     else
                         frame.push(Values.valueOf(Double.compare(a, b)));
                 } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
                     frame.pushType(Types.INT);
                 }
             }
@@ -241,6 +270,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     else
                         frame.push(Values.valueOf(Double.compare(a, b)));
                 } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
                     frame.pushType(Types.INT);
                 }
             }
@@ -255,6 +288,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     else
                         frame.push(Values.valueOf(Double.compare(a, b)));
                 } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
                     frame.pushType(Types.INT);
                 }
             }
@@ -262,38 +299,96 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case ACONST_NULL -> frame.pushNull();
             case RETURN -> {
                 /* no-op */ }
-            case IASTORE, FASTORE , BASTORE, AASTORE, CASTORE, SASTORE -> frame.pop(3); // arrayref, index, value
-            case DASTORE, LASTORE -> frame.pop(4);
+            case IASTORE, FASTORE , BASTORE, AASTORE, CASTORE, SASTORE -> {
+                ClassType valueType = frame.pop().type();
+                ClassType indexType = frame.pop().type();
+                ClassType arrayType = frame.pop().type();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
+                if (!(valueType instanceof PrimitiveType))
+                    warn(instruction, "Value to store in array is not a primitive");
+            }
+            case DASTORE, LASTORE -> {
+                ClassType valueType = frame.pop2().type();
+                ClassType indexType = frame.pop().type();
+                ClassType arrayType = frame.pop().type();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
+                if (!(valueType instanceof PrimitiveType)) {
+                    warn(instruction, "Value to store in array is not a primitive");
+                } else warn(instruction, "Value to store in array is not a primitive");
+            }
             case IALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop().type();
+                ClassType arrayType = frame.pop().type();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.INT);
             }
             case FALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop().type();
+                ClassType arrayType = frame.pop().type();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.FLOAT);
             }
             case BALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop().type();
+                ClassType arrayType = frame.pop().type();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.BYTE);
             }
             case CALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop().type();
+                ClassType arrayType = frame.pop().type();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.CHAR);
             }
             case SALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop().type();
+                ClassType arrayType = frame.pop().type();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.SHORT);
             }
             case DALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop().type();
+                ClassType arrayType = frame.pop().type();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.DOUBLE);
             }
             case LALOAD -> {
-                frame.pop(2); // arrayref, index
+                ClassType indexType = frame.pop().type();
+                ClassType arrayType = frame.pop().type();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
                 frame.pushType(Types.LONG);
             }
             case AALOAD -> {
-                frame.pop(); // index
+                ClassType indexType = frame.pop().type();// index
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
                 Value arrayRef = frame.pop();
                 if (arrayRef instanceof Value.ArrayValue arrayValue) {
                     ArrayType arrayType = arrayValue.arrayType();
@@ -303,11 +398,18 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                         frame.pushType(Types.arrayTypeFromDescriptor(arrayType.descriptor().substring(1)));
                     }
                 } else {
+                    warn(instruction, "Array reference on stack is not an array");
                     frame.pushType(Types.OBJECT);
                 }
             }
             case ARRAYLENGTH -> {
-                frame.pop();
+                ClassType stackType = frame.pop().type();
+                if (stackType == null)
+                    warn(instruction, "Cannot get array length of 'null'");
+                else if (stackType instanceof PrimitiveType)
+                    warn(instruction, "Cannot get array length of primitive");
+                else if (stackType instanceof InstanceType)
+                    warn(instruction, "Cannot get array length of non-array reference");
                 frame.pushType(Types.INT);
             }
             case NOP -> {}
@@ -368,6 +470,24 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> {
                 String name = variableNameLookup.getVarName(index);
                 Value value = opcode == LSTORE || opcode == DSTORE ? frame.pop2() : frame.pop();
+
+                ClassType stackType = value.type();
+                ClassType assumedType = switch (opcode) {
+                    case ISTORE -> Types.INT;
+                    case LSTORE -> Types.LONG;
+                    case FSTORE -> Types.FLOAT;
+                    case DSTORE -> Types.DOUBLE;
+                    case ASTORE -> Types.OBJECT;
+                    default -> throw new IllegalStateException("Unexpected opcode: " + opcode);
+                };
+                if (assumedType == Types.OBJECT) {
+                    if (stackType instanceof PrimitiveType)
+                        warn(instruction, "Incorrect var assignment, " + stackType.descriptor() + " into reference");
+                } else if (stackType == null || assumedType.getClass() != stackType.getClass()) {
+                    String stackName = stackType == null ? "'null'" : stackType.descriptor();
+                    warn(instruction, "Incorrect var assignment, " + stackName + " into " + assumedType.descriptor());
+                }
+
                 frame.setLocal(index, new ValuedLocal(index, name, value));
             }
         }
@@ -378,7 +498,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         ValuedLocal local = frame.getLocal(instruction.variableIndex());
         if (local == null) {
             // Invalid iinc target
-            setAnalysisFailure(new AnalysisException(instruction, "Invalid iinc target"));
+            error(instruction, "Invalid iinc target, not a recognized variable");
             return;
         }
 
@@ -391,15 +511,18 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(InstanceofInstruction instruction) {
-        ClassType type = frame.pop().type();
+        ClassType originType = frame.pop().type();
         ObjectType targetType = instruction.type();
 
-        if (checker != null && type instanceof ObjectType objType) {
+        if (originType instanceof PrimitiveType) {
+            warn(instruction, "Cannot instanceof primitive to reference");
+            frame.pushType(Types.INT);
+        } else if (checker != null && originType instanceof ObjectType objType) {
             String child = objType.internalName();
             String parent = targetType.internalName();
             frame.push(Values.valueOf(checker.isSubclassOf(child, parent)));
         } else {
-            if (Objects.equals(type, targetType))
+            if (Objects.equals(originType, targetType))
                 frame.push(Values.INT_1);
             else
                 frame.pushType(Types.INT);
@@ -408,11 +531,15 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(CheckCastInstruction instruction) {
-        Value value = frame.pop();
+        Value originValue = frame.pop();
+        ClassType originType = originValue.type();
+        if (originType instanceof PrimitiveType)
+            warn(instruction, "Cannot cast primitive to reference");
+
         ObjectType insnType = instruction.type();
-        if (Objects.equals(value.type(), insnType)) {
+        if (Objects.equals(originType, insnType)) {
             // re-use instance if possible
-            frame.push(value);
+            frame.push(originValue);
         } else {
             Value valueOfType = Values.valueOf(insnType);
             frame.push(valueOfType);
@@ -433,16 +560,28 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             canLookup &= value.isKnown();
         }
 
-        Value.ObjectValue context = null;
-        if (instruction.opcode() != INVOKESTATIC && frame.pop() instanceof Value.ObjectValue poppedContext) {
-            context = poppedContext;
-            canLookup &= poppedContext.isKnown();
+        Value.ObjectValue contextObject = null;
+        if (instruction.opcode() != INVOKESTATIC) {
+            Value contextValue = frame.pop();
+
+            if (contextValue instanceof Value.ObjectValue poppedContext) {
+                contextObject = poppedContext;
+                canLookup &= poppedContext.isKnown();
+            }
+
+            ClassType contextType = contextValue.type();
+            if (contextType == null)
+                warn(instruction, "Cannot invoke method of 'null' reference");
+            else if (contextType instanceof PrimitiveType)
+                warn(instruction, "Cannot invoke method on primitive");
+            else if (contextType instanceof ArrayType)
+                warn(instruction, "Cannot invoke method on array");
         }
 
         if (methodType.returnType() != Types.VOID) {
             if (canLookup && methodValueLookup != null) {
                 // 3rd parties can register return values for known methods
-                Value value = methodValueLookup.accept(instruction, context, parameters);
+                Value value = methodValueLookup.accept(instruction, contextObject, parameters);
                 if (value != null) {
                     frame.push(value);
                 } else {
@@ -460,13 +599,33 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         final int opcode = instruction.opcode();
         final ClassType type = instruction.type();
         switch (opcode) {
-            case GETFIELD, GETSTATIC -> {
-                Value.ObjectValue context = null;
-                if (opcode == GETFIELD && frame.pop() instanceof Value.ObjectValue poppedContext)
-                    context = poppedContext;
-                if (fieldValueLookup != null && (opcode == GETSTATIC || (context != null && context.isKnown()))) {
+            case GETFIELD -> {
+                Value contextValue = frame.pop();
+                ClassType contextType = contextValue.type();
+                if (contextType == null)
+                    warn(instruction, "Cannot get field of 'null' reference");
+                else if (contextType instanceof PrimitiveType)
+                    warn(instruction, "Cannot get field of primitive");
+                else if (contextType instanceof ArrayType)
+                    warn(instruction, "Cannot get field of array");
+                if (fieldValueLookup != null && contextValue.isKnown()
+                        && contextValue instanceof Value.ObjectValue ov) {
                     // 3rd parties can register values for known fields
-                    Value value = fieldValueLookup.accept(instruction, context);
+                    Value value = fieldValueLookup.accept(instruction, ov);
+                    if (value != null) {
+                        frame.push(value);
+                    } else {
+                        // No value from lookup, use generic value of field type
+                        frame.pushType(type);
+                    }
+                } else {
+                    frame.pushType(type);
+                }
+            }
+            case GETSTATIC -> {
+	            if (fieldValueLookup != null) {
+                    // 3rd parties can register values for known fields
+                    Value value = fieldValueLookup.accept(instruction, null);
                     if (value != null) {
                         frame.push(value);
                     } else {
@@ -479,7 +638,14 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             }
             case PUTFIELD -> {
                 frame.pop(type);
-                frame.pop();
+                Value contextValue = frame.pop();
+                ClassType contextType = contextValue.type();
+                if (contextType == null)
+                    warn(instruction, "Cannot put field on 'null' reference");
+                else if (contextType instanceof PrimitiveType)
+                    warn(instruction, "Cannot put field on primitive");
+                else if (contextType instanceof ArrayType)
+                    warn(instruction, "Cannot put field on array");
             }
             case PUTSTATIC -> frame.pop(type);
             default -> throw new IllegalStateException("Unknown field insn: " + opcode);
@@ -503,20 +669,46 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         if (fromValue instanceof Value.PrimitiveValue primitiveValue) {
             frame.push(primitiveValue.cast(targetType));
         } else {
-            setAnalysisFailure(new AnalysisException(instruction, "Primitive conversion on non-primitive stack value"));
+            ClassType type = fromValue.type();
+            if (type == null)
+                warn(instruction, "Cannot convert 'null' on stack to primitive");
+            else if (type instanceof ObjectType)
+                warn(instruction, "Cannot convert 'null' on stack to reference type");
             frame.pushType(targetType);
         }
+    }
+
+    @Override
+    public void execute(LookupSwitchInstruction instruction) {
+        ClassType type = frame.pop().type();
+        if (type == null)
+            warn(instruction, "Cannot switch off 'null' on stack");
+        else if (type instanceof ObjectType)
+            warn(instruction, "Cannot switch off reference type on stack");
+    }
+
+    @Override
+    public void execute(TableSwitchInstruction instruction) {
+        ClassType type = frame.pop().type();
+        if (type == null)
+            warn(instruction, "Cannot switch off 'null' on stack");
+        else if (type instanceof ObjectType)
+            warn(instruction, "Cannot switch off reference type on stack");
     }
 
     private interface IntOp {
         int op(int a, int b);
 
-        default void accept(@NotNull ValuedFrame frame) {
+        default void accept(@NotNull ValuedFrame frame, @NotNull Consumer<String> warningConsumer) {
             Value value1 = frame.pop();
             Value value2 = frame.pop();
             if (value1 instanceof Value.KnownIntValue int1 && value2 instanceof Value.KnownIntValue int2) {
                 frame.push(Values.valueOf(op(int1.value(), int2.value())));
             } else {
+                if (!(value1.type() instanceof PrimitiveType))
+                    warningConsumer.accept("Top value is not a primitive");
+                if (!(value2.type() instanceof PrimitiveType))
+                    warningConsumer.accept("Bottom value is not a primitive");
                 frame.pushType(Types.INT);
             }
         }
@@ -525,12 +717,16 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     private interface FloatOp {
         float op(float a, float b);
 
-        default void accept(@NotNull ValuedFrame frame) {
+        default void accept(@NotNull ValuedFrame frame, @NotNull Consumer<String> warningConsumer) {
             Value value1 = frame.pop();
             Value value2 = frame.pop();
             if (value1 instanceof Value.KnownFloatValue float1 && value2 instanceof Value.KnownFloatValue float2) {
                 frame.push(Values.valueOf(op(float1.value(), float2.value())));
             } else {
+                if (!(value1.type() instanceof PrimitiveType))
+                    warningConsumer.accept("Top value is not a primitive");
+                if (!(value2.type() instanceof PrimitiveType))
+                    warningConsumer.accept("Bottom value is not a primitive");
                 frame.pushType(Types.FLOAT);
             }
         }
@@ -539,12 +735,16 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     private interface LongOp {
         long op(long a, long b);
 
-        default void accept(@NotNull ValuedFrame frame) {
+        default void accept(@NotNull ValuedFrame frame, @NotNull Consumer<String> warningConsumer) {
             Value value1 = frame.pop2();
             Value value2 = frame.pop2();
             if (value1 instanceof Value.KnownLongValue long1 && value2 instanceof Value.KnownLongValue long2) {
                 frame.push(Values.valueOf(op(long1.value(), long2.value())));
             } else {
+                if (!(value1.type() instanceof PrimitiveType))
+                    warningConsumer.accept("Top value is not a primitive");
+                if (!(value2.type() instanceof PrimitiveType))
+                    warningConsumer.accept("Bottom value is not a primitive");
                 frame.pushType(Types.LONG);
             }
         }
@@ -553,12 +753,16 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     private interface LongIntOp {
         long op(long a, int b);
 
-        default void accept(@NotNull ValuedFrame frame) {
+        default void accept(@NotNull ValuedFrame frame, @NotNull Consumer<String> warningConsumer) {
             Value value1 = frame.pop();
             Value value2 = frame.pop2();
             if (value1 instanceof Value.KnownIntValue int1 && value2 instanceof Value.KnownLongValue long2) {
                 frame.push(Values.valueOf(op(long2.value(), int1.value())));
             } else {
+                if (!(value1.type() instanceof PrimitiveType))
+                    warningConsumer.accept("Top value is not a primitive");
+                if (!(value2.type() instanceof PrimitiveType))
+                    warningConsumer.accept("Bottom value is not a primitive");
                 frame.pushType(Types.LONG);
             }
         }
@@ -567,12 +771,16 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     private interface DoubleOp {
         double op(double a, double b);
 
-        default void accept(@NotNull ValuedFrame frame) {
+        default void accept(@NotNull ValuedFrame frame, @NotNull Consumer<String> warningConsumer) {
             Value value1 = frame.pop2();
             Value value2 = frame.pop2();
             if (value1 instanceof Value.KnownDoubleValue double1 && value2 instanceof Value.KnownDoubleValue double2) {
                 frame.push(Values.valueOf(op(double1.value(), double2.value())));
             } else {
+                if (!(value1.type() instanceof PrimitiveType))
+                    warningConsumer.accept("Top value is not a primitive");
+                if (!(value2.type() instanceof PrimitiveType))
+                    warningConsumer.accept("Bottom value is not a primitive");
                 frame.pushType(Types.DOUBLE);
             }
         }

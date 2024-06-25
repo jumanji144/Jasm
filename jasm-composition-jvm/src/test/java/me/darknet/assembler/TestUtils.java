@@ -5,6 +5,8 @@ import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compile.visitor.JavaCompileResult;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.error.Error;
+import me.darknet.assembler.error.Result;
+import me.darknet.assembler.error.Warn;
 import me.darknet.assembler.helper.Processor;
 import me.darknet.assembler.parser.BytecodeFormat;
 
@@ -28,6 +30,12 @@ public class TestUtils {
     private static final Pattern END_LINE_PADDING = Pattern.compile("[ \\t]+\\n");
     private static final Pattern COMMENTS = Pattern.compile("(?:^|\\n)\\s*//.+");
 
+	/**
+	 * Asserts that valid output was emitted with no errors <i>(Warnings are ok though)</i>.
+	 *
+	 * @param source Jasm source to process.
+	 * @param options Jasm compiler options.
+	 */
     public static void processJvm(@NotNull String source, @NotNull CompilerOptions<?> options,
                                   @Nullable ThrowingConsumer<JavaCompileResult> outputConsumer) {
         Processor.processSource(source, "<test>", (ast) -> {
@@ -70,7 +78,7 @@ public class TestUtils {
                 for (Error error : errors) {
                     System.err.println(error);
                 }
-                fail("Failed to analyze/compile class");
+                fail("Failed to analyze/compile class, errors were reported");
             });
         }, errors -> {
             for (Error error : errors) {
@@ -80,24 +88,17 @@ public class TestUtils {
         }, BytecodeFormat.JVM);
     }
 
-    public static void processAnalysisFailJvm(@NotNull String source, @NotNull CompilerOptions<?> options,
-                                              @Nullable ThrowingConsumer<JavaCompileResult> outputConsumer) {
+
+	/**
+	 * Asserts that errors were emitted.
+	 *
+	 * @param source Jasm source to process.
+	 * @param options Jasm compiler options.
+	 */
+    public static void processAnalysisFailJvm(@NotNull String source, @NotNull CompilerOptions<?> options) {
         Processor.processSource(source, "<test>", (ast) -> {
             JvmCompiler compiler = new JvmCompiler();
-            compiler.compile(ast, options).ifOk(result -> {
-                fail("Failure was expected");
-            }).ifErr((result, errors) -> {
-                try {
-                    if (outputConsumer != null)
-                        outputConsumer.accept(result);
-                } catch (AssertionFailedError e) {
-                    // Pass up the chain
-                    throw e;
-                } catch (Throwable e) {
-                    // Consumer should fail instead of us handling it generically here
-                    fail(e);
-                }
-            });
+            compiler.compile(ast, options).ifOk(result -> fail("Failure was expected"));
         }, errors -> {
             // We expect to parse the class, but for analysis to fail
             for (Error error : errors) {
@@ -106,6 +107,32 @@ public class TestUtils {
             fail("Failed to parse class");
         }, BytecodeFormat.JVM);
     }
+
+	/**
+	 * Asserts that warnings were emitted.
+	 *
+	 * @param source Jasm source to process.
+	 * @param options Jasm compiler options.
+	 */
+	public static void processAnalysisWarnJvm(@NotNull String source, @NotNull CompilerOptions<?> options) {
+		Processor.processSource(source, "<test>", (ast) -> {
+			JvmCompiler compiler = new JvmCompiler();
+			var result = compiler.compile(ast, options);
+			if (result.hasWarn()) {
+				for (Warn warn : result.getWarns()) {
+					System.out.println(warn);
+				}
+			} else {
+				fail("Warnings were expected");
+			}
+		}, errors -> {
+			// We expect to parse the class, but for analysis to fail
+			for (Error error : errors) {
+				System.err.println(error);
+			}
+			fail("Failed to parse class");
+		}, BytecodeFormat.JVM);
+	}
 
     public static String normalize(String input) {
         input = input.replace("\r", "");

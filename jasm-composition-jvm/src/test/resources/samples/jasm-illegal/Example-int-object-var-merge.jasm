@@ -1,0 +1,15 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            ldc "foo"
+            astore foo
+            bipush 42
+            istore foo
+            ireturn
+        B:
+        }
+    }
+}

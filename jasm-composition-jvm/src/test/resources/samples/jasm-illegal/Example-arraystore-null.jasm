@@ -1,0 +1,15 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            aconst_null
+            iconst_1
+            ldc "value"
+            aastore
+            return
+        B:
+        }
+    }
+}

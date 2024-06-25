@@ -1,0 +1,60 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+            A:
+                iconst_1
+                newarray int
+                astore ia
+                iconst_1
+                newarray byte
+                astore ba
+                iconst_1
+                newarray long
+                astore la
+                iconst_1
+                newarray double
+                astore da
+                aload ia
+                iconst_0
+                bipush 32
+                iastore
+                aload ba
+                iconst_0
+                bipush 32
+                i2b
+                bastore
+                aload la
+                iconst_0
+                lconst_1
+                lastore
+                aload da
+                iconst_0
+                dconst_1
+                dastore
+                aload ia
+                iconst_0
+                iaload
+                ineg
+                pop
+                aload ba
+                iconst_0
+                baload
+                ineg
+                pop
+                aload la
+                iconst_0
+                laload
+                lneg
+                pop2
+                aload da
+                iconst_0
+                daload
+                dneg
+                pop2
+                return
+            B:
+        }
+    }
+}

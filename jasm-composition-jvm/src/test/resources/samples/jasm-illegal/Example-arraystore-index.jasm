@@ -1,0 +1,16 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            iconst_1
+            newarray int
+            ldc "not an index"
+            ldc "value"
+            aastore
+            return
+        B:
+        }
+    }
+}
