@@ -447,7 +447,13 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
         Local local = frame.getLocal(instruction.variableIndex());
         if (local == null) {
             // Invalid iinc target
-            error(instruction, "Invalid iinc target, not a recognized variable");
+            String name = variableNameLookup.getVarName(instruction.variableIndex());
+            if (name == null) {
+                error(instruction, "Invalid iinc target, not a recognized variable");
+                return;
+            }
+
+            frame.setLocal(instruction.variableIndex(), new Local(instruction.variableIndex(), name, Types.INT));
         }
     }
 }

@@ -497,9 +497,15 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     public void execute(VariableIncrementInstruction instruction) {
         ValuedLocal local = frame.getLocal(instruction.variableIndex());
         if (local == null) {
-            // Invalid iinc target
-            error(instruction, "Invalid iinc target, not a recognized variable");
-            return;
+            // create a new local with the increment value
+            String name = variableNameLookup.getVarName(instruction.variableIndex());
+            if (name == null) {
+                error(instruction, "Invalid iinc target, not a recognized variable");
+                return;
+            }
+
+            local = new ValuedLocal(instruction.variableIndex(), name, Values.valueOf(instruction.incrementBy()));
+            frame.setLocal(instruction.variableIndex(), local);
         }
 
         // If the value is known, we can update it

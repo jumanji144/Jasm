@@ -28,6 +28,7 @@ import dev.xdark.blw.constant.OfInt;
 import dev.xdark.blw.constant.OfLong;
 import dev.xdark.blw.type.*;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.Function;
@@ -87,12 +88,12 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
      * @param index
      *              Index of variable.
      *
-     * @return Name of variable, or dummy value for unknown index.
+     * @return Name of variable, or {@code null} if not found.
      */
-    @NotNull
+    @Nullable
     private String getLocalName(int index) {
         if (index < 0 || index >= localNames.size())
-            return "<?>";
+            return null;
         return localNames.get(index);
     }
 
