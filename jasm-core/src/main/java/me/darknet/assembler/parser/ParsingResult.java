@@ -17,7 +17,7 @@ public class ParsingResult<T> extends Result<T> {
     private final List<ASTComment> comments;
 
     public ParsingResult(T value, List<Error> errors, List<ASTComment> comments) {
-        super(value, errors);
+        super(value, errors, List.of());
         this.comments = comments;
     }
 

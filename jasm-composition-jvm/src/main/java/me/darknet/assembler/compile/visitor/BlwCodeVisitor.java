@@ -68,6 +68,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         this.analysisEngine = (JvmAnalysisEngine<Frame>) options.createEngine(this::getLocalName);
         this.parameters = parameters;
 
+        analysisEngine.setErrorCollector(errorCollector);
+
         // Populate variables from params.
         parameters.stream().filter(Objects::nonNull).forEach(param -> getOrCreateLocal(param.name(), param.size() > 1));
     }

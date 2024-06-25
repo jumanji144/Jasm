@@ -45,7 +45,7 @@ public class Transformer {
                 collector.addError("Don't know how to process: " + declaration.type(), declaration.location());
             }
         }
-        return new Result<>(null, collector.getErrors());
+        return new Result<>(null, collector.getErrors(), collector.getWarns());
     }
 
 }

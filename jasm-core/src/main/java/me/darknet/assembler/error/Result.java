@@ -15,14 +15,20 @@ public class Result<T> {
 
     private final T value;
     private final List<Error> errors;
+    private final List<Warn> warns;
 
-    public Result(T value, List<Error> errors) {
+    public Result(T value, List<Error> errors, List<Warn> warns) {
         this.errors = errors;
         this.value = value;
+        this.warns = warns;
     }
 
     public List<Error> errors() {
         return errors;
+    }
+
+    public List<Warn> getWarns() {
+        return warns;
     }
 
     /**
@@ -45,10 +51,17 @@ public class Result<T> {
     }
 
     /**
-     * @return true if the result has an error, false if there are no errors.
+     * @return {@code true} if the result has an error, {@code false} if there are no errors.
      */
     public boolean hasErr() {
         return !errors.isEmpty();
+    }
+
+    /**
+     * @return {@code true} if the result has an warning, {@code false} if there are no warnings.
+     */
+    public boolean hasWarn() {
+        return !warns.isEmpty();
     }
 
     /**
@@ -95,6 +108,13 @@ public class Result<T> {
         return this;
     }
 
+    public Result<T> ifWarn(Consumer<List<Warn>> consumer) {
+        if (hasWarn()) {
+            consumer.accept(warns);
+        }
+        return this;
+    }
+
     /**
      * Applies the given consumer if the result is ok or an error.
      *
@@ -125,19 +145,19 @@ public class Result<T> {
     }
 
     public static <T> Result<T> ok(T value) {
-        return new Result<>(value, List.of());
+        return new Result<>(value, List.of(), List.of());
     }
 
     public static <T> Result<T> err(List<Error> errors) {
-        return new Result<>(null, errors);
+        return new Result<>(null, errors, List.of());
     }
 
     public static <T> Result<T> err(Error error) {
-        return new Result<>(null, List.of(error));
+        return new Result<>(null, List.of(error), List.of());
     }
 
     public static <T> Result<T> exception(Throwable t) {
-        return new Result<>(null, List.of(Error.of(t)));
+        return new Result<>(null, List.of(Error.of(t)), List.of());
     }
 
 }

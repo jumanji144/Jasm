@@ -142,7 +142,7 @@ public class Tokenizer {
 
         ctx.collectToken();
 
-        return new Result<>(ctx.tokens, ctx.errors.getErrors());
+        return new Result<>(ctx.tokens, ctx.errors.getErrors(), ctx.errors.getWarns());
     }
 
     private static class TokenizerContext {

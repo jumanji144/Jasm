@@ -349,7 +349,7 @@ public class ASTProcessor {
                 ctx.throwUnexpectedElementError("declaration", astElement);
             }
         }
-        return new Result<>(ctx.result.getResult(), ctx.errorCollector.getErrors());
+        return new Result<>(ctx.result.getResult(), ctx.errorCollector.getErrors(), ctx.errorCollector.getWarns());
     }
 
     @FunctionalInterface

@@ -16,6 +16,7 @@ import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.simulation.ExecutionEngine;
 import me.darknet.assembler.compiler.InheritanceChecker;
+import me.darknet.assembler.error.ErrorCollector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,6 +41,8 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     private final Map<CodeElement, ASTInstruction> elementToAst = new IdentityHashMap<>();
     protected final VariableNameLookup variableNameLookup;
     protected InheritanceChecker checker;
+    protected ErrorCollector errorCollector;
+
     protected AnalysisException analysisFailure;
     protected F frame;
 
@@ -58,12 +61,43 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
         this.checker = checker;
     }
 
-
     /**
      * @return Inheritance checker used. May be {@code null} if not assigned.
      */
     public @Nullable InheritanceChecker getChecker() {
         return checker;
+    }
+
+    /**
+     * @param errorCollector
+     * 		Collector to dump error/warnings into.
+     */
+    public void setErrorCollector(ErrorCollector errorCollector) {
+        this.errorCollector = errorCollector;
+    }
+
+    /**
+     * @param element
+     * 		Origin of the warning.
+     * @param message
+     * 		Warning message content.
+     */
+    protected void warn(@NotNull CodeElement element, @NotNull String message) {
+        if (errorCollector == null) return;
+        ASTInstruction ast = getCodeToAstMap().get(element);
+        if (ast != null) errorCollector.addWarn(message, ast.location());
+    }
+
+    /**
+     * @param element
+     * 		Origin of the warning.
+     * @param message
+     * 		Error message content.
+     */
+    protected void error(@NotNull CodeElement element, @NotNull String message) {
+        if (errorCollector == null) return;
+        ASTInstruction ast = getCodeToAstMap().get(element);
+        if (ast != null) errorCollector.addError(message, ast.location());
     }
 
     /**

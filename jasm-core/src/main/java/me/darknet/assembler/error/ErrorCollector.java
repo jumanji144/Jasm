@@ -30,8 +30,12 @@ public class ErrorCollector {
         warns.add(new Warn(message, location));
     }
 
-    public void addAll(Collection<Error> errors) {
+    public void addErrors(Collection<Error> errors) {
         this.errors.addAll(errors);
+    }
+
+    public void addWarnings(Collection<Warn> warns) {
+        this.warns.addAll(warns);
     }
 
     public boolean hasErr() {
@@ -50,4 +54,13 @@ public class ErrorCollector {
         return warns;
     }
 
+    @Override
+    public String toString() {
+        if (!hasErr() && !hasWarn())
+            return "ErrorCollector{}";
+        return "ErrorCollector{" +
+                "errors=" + errors +
+                ", warns=" + warns +
+                '}';
+    }
 }

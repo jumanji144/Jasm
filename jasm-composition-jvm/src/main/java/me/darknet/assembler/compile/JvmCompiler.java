@@ -76,7 +76,7 @@ public class JvmCompiler implements Compiler {
 
         if (ast.size() != 1) {
             collector.addError("Expected exactly one declaration", null);
-            return new Result<>(new JavaCompileResult(null, builder), collector.getErrors());
+            return new Result<>(new JavaCompileResult(null, builder), collector.getErrors(), collector.getWarns());
         }
 
         builder.setVersion(blwOptions.version);
@@ -84,11 +84,11 @@ public class JvmCompiler implements Compiler {
         if (blwOptions.overlay != null)
             applyOverlay(collector, builder, blwOptions.overlay.classFile());
         if (collector.hasErr()) {
-            return new Result<>(new JavaCompileResult(null, builder), collector.getErrors());
+            return new Result<>(new JavaCompileResult(null, builder), collector.getErrors(), collector.getWarns());
         }
 
         Transformer transformer = new Transformer(visitor);
-        transformer.transform(ast).ifErr(collector::addAll);
+        transformer.transform(ast).ifErr(collector::addErrors).ifWarn(collector::addWarnings);
 
         if (!collector.hasErr()) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -124,12 +124,15 @@ public class JvmCompiler implements Compiler {
                 if (!recordedError)
                     collector.addError("Failed to write class: " + t.getMessage(), null);
 
-                return new Result<>(new JavaCompileResult(null, builder), collector.getErrors());
+                return new Result<>(new JavaCompileResult(null, builder),
+                        collector.getErrors(), collector.getWarns());
             }
-            return new Result<>(new JavaCompileResult(new JavaClassRepresentation(out.toByteArray()), builder), collector.getErrors());
+            return new Result<>(new JavaCompileResult(new JavaClassRepresentation(out.toByteArray()), builder),
+                    collector.getErrors(), collector.getWarns());
         }
 
-        return new Result<>(new JavaCompileResult(null, builder), collector.getErrors());
+        return new Result<>(new JavaCompileResult(null, builder),
+                collector.getErrors(), collector.getWarns());
     }
 
     public BytecodeLibrary library() {
