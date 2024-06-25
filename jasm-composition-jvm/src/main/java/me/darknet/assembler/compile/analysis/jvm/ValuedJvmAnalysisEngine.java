@@ -438,7 +438,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         } else if (constant instanceof OfType tp) {
             Type type = tp.value();
             if (type instanceof ClassType ct)
-                frame.pushType(ct);
+                frame.pushType(CLASS);
             else if (type instanceof MethodType mt)
                 // push java/lang/invoke/MethodType
                 frame.pushType(METHOD_TYPE);

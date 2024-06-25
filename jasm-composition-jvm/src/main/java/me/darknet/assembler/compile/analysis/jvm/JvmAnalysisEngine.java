@@ -34,6 +34,7 @@ import java.util.TreeMap;
 public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEngine, AnalysisResults, JavaOpcodes {
     protected static final InstanceType METHOD_TYPE = Types.instanceType(MethodType.class);
     protected static final InstanceType METHOD_HANDLE = Types.instanceType(MethodHandle.class);
+    protected static final InstanceType CLASS = Types.instanceType(Class.class);
 
     protected final NavigableMap<Integer, F> frames = new TreeMap<>();
     protected final NavigableMap<Integer, F> terminalFrames = new TreeMap<>();
