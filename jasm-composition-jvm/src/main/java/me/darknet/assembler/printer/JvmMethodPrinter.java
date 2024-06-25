@@ -1,6 +1,7 @@
 package me.darknet.assembler.printer;
 
 import dev.xdark.blw.code.Code;
+import dev.xdark.blw.type.Type;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
 import me.darknet.assembler.helper.Names;
@@ -43,19 +44,32 @@ public class JvmMethodPrinter implements MethodPrinter {
     }
 
     public Names localNames() {
+        Map<String, Type> nameToType = new HashMap<>();
         List<Names.Local> locals = new ArrayList<>();
         boolean isStatic = (method.accessFlags() & AccessFlag.ACC_STATIC) != 0;
         Code code = method.code();
         if (code != null) {
-            for (Local localVariable : code.localVariables()) {
-                // transform local name
-                String name = escapeName(localVariable.name(), localVariable.index(), isStatic);
-                locals.add(
-                        new Names.Local(
-                                localVariable.index(), localVariable.start().getIndex(), localVariable.end().getIndex(),
-                                name, localVariable.type().descriptor()
-                        )
-                );
+            for (Local local : code.localVariables()) {
+                // Transform local name to be legal
+                int index = local.index();
+                String name = escapeName(local.name(), index, isStatic);
+                String descriptor = local.type().descriptor();
+                Type varType = Types.typeFromDescriptor(descriptor);
+
+                // De-conflict variable names if two names of incompatible types occupy the same name.
+                //    int foo = 0       ---> foo
+                //    String foo = ""   ---> foo2
+                //    byte[] foo = ...  ---> foo3
+                Type existingVarType = nameToType.get(name);
+                if (existingVarType != null && varType.getClass() != existingVarType.getClass()) {
+                    int i = 2;
+                    String prefix = name;
+                    while (nameToType.get(name) != null)
+                        name = prefix + (i++);
+                }
+
+                locals.add(new Names.Local(index, local.start().getIndex(), local.end().getIndex(), name, descriptor));
+                nameToType.put(name, varType);
             }
         }
         Map<Integer, String> parameterNames = new HashMap<>();
