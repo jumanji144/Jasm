@@ -438,6 +438,17 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
                     if (bt == null)
                         return a;
 
+                    // Edge case: If the types aren't of the same sort they cannot possibly be merged.
+                    // There is no "correct" solution at this step, so just yield object and call it a day.
+                    //
+                    // Reproduction code:
+                    //   ldc "foo"
+                    //   astore foo
+                    //   bipush 10
+                    //   istore foo <--- Foo cannot be an object and an int in our system
+                    if (at.getClass() != bt.getClass())
+                        return a.adaptType(Types.OBJECT);
+
                     // Merge locals by type
                     return a.adaptType(common(at, bt));
                 }));
