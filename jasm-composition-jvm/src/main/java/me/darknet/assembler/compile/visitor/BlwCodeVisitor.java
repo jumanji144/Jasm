@@ -6,6 +6,7 @@ import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
+import me.darknet.assembler.compile.analysis.ValueMergeException;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
@@ -423,12 +424,15 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         // Populate variables
         //  - Our variables are not scoped, so we can merge by name.
         //  - Known 'null' locals can merge with duplicate locals which may have type info associated with them
+        Map<String, Local> localsMap = new HashMap<>();
         int paramOffset = parameters.size();
-        Map<String, Local> localsMap = analysisEngine.frames().values().stream()
-                .flatMap(Frame::locals)
-                .map(l -> (Local) l) // Required to make the stream type-safe
-                .filter(local -> local.index() >= paramOffset)
-                .collect(Collectors.toMap(Local::name, Function.identity(), (a, b) -> {
+        analysisEngine.frames().forEach((index, frame) -> {
+            for (Local local : frame.locals().toList()) {
+                // Skip parameters
+                if (local.index() < paramOffset)
+                    continue;
+
+                localsMap.merge(local.name(), local, (a, b) -> {
                     ClassType at = a.type(); // These may be 'null' for known 'null' values
                     ClassType bt = b.type();
 
@@ -450,8 +454,23 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
                         return a.adaptType(Types.OBJECT);
 
                     // Merge locals by type
-                    return a.adaptType(common(at, bt));
-                }));
+                    try {
+                        return a.adaptType(common(at, bt));
+                    } catch (ValueMergeException e) {
+                        // If the values could not be merged, report where the failure originated from.
+                        CodeElement element = code.elements().get(index);
+                        ASTInstruction ast = analysisEngine.getCodeToAstMap().get(element);
+                        if (ast != null) {
+                            errorCollector.addError(e.getMessage(), ast.location());
+                            return a.adaptType(Types.OBJECT);
+                        } else {
+                            throw new IllegalStateException();
+                        }
+                    }
+                });
+            }
+        });
+
         localsMap.forEach((name, local) -> {
             int index = local.index();
             ClassType type = local.safeType();
@@ -473,7 +492,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         codeBuilderList.addInstruction(instruction);
     }
 
-    private @NotNull ClassType common(@NotNull ClassType a, @NotNull ClassType b) {
+    private @NotNull ClassType common(@NotNull ClassType a, @NotNull ClassType b) throws ValueMergeException {
         if (a instanceof ObjectType ao && b instanceof ObjectType bo) {
             if (ao instanceof ArrayType aa) {
                 if (bo instanceof ArrayType ba) {
@@ -496,6 +515,6 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         } else if (a instanceof PrimitiveType ap && b instanceof PrimitiveType bp) {
             return ap.widen(bp);
         }
-        throw new IllegalStateException("Cannot find common type between " + a.descriptor() + " and " + b.descriptor());
+        throw new ValueMergeException("Cannot find common type between " + a.descriptor() + " and " + b.descriptor());
     }
 }
