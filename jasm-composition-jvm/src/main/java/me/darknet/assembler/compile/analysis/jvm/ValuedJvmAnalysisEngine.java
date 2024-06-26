@@ -300,24 +300,12 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case RETURN -> {
                 /* no-op */ }
             case AASTORE -> {
-                ClassType valueType = frame.pop().type();
-                ClassType indexType = frame.pop().type();
-                ClassType arrayType = frame.pop().type();
-                if (!(indexType instanceof PrimitiveType))
-                    warn(instruction, "Array index on stack is not a primitive");
-                if (!(arrayType instanceof ArrayType))
-                    warn(instruction, "Array reference on stack is not an array");
+                ClassType valueType = doArrayStore(instruction);
                 if (!(valueType instanceof ObjectType))
                     warn(instruction, "Value to store in array is not a reference");
             }
             case IASTORE, FASTORE , BASTORE, CASTORE, SASTORE -> {
-                ClassType valueType = frame.pop().type();
-                ClassType indexType = frame.pop().type();
-                ClassType arrayType = frame.pop().type();
-                if (!(indexType instanceof PrimitiveType))
-                    warn(instruction, "Array index on stack is not a primitive");
-                if (!(arrayType instanceof ArrayType))
-                    warn(instruction, "Array reference on stack is not an array");
+                ClassType valueType = doArrayStore(instruction);
                 if (!(valueType instanceof PrimitiveType))
                     warn(instruction, "Value to store in array is not a primitive");
             }
@@ -426,6 +414,17 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case NOP -> {}
             default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
         }
+    }
+
+    private ClassType doArrayStore(SimpleInstruction instruction) {
+        ClassType valueType = frame.pop().type();
+        ClassType indexType = frame.pop().type();
+        ClassType arrayType = frame.pop().type();
+        if (!(indexType instanceof PrimitiveType))
+            warn(instruction, "Array index on stack is not a primitive");
+        if (!(arrayType instanceof ArrayType))
+            warn(instruction, "Array reference on stack is not an array");
+        return valueType;
     }
 
     @Override
