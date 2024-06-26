@@ -299,7 +299,18 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case ACONST_NULL -> frame.pushNull();
             case RETURN -> {
                 /* no-op */ }
-            case IASTORE, FASTORE , BASTORE, AASTORE, CASTORE, SASTORE -> {
+            case AASTORE -> {
+                ClassType valueType = frame.pop().type();
+                ClassType indexType = frame.pop().type();
+                ClassType arrayType = frame.pop().type();
+                if (!(indexType instanceof PrimitiveType))
+                    warn(instruction, "Array index on stack is not a primitive");
+                if (!(arrayType instanceof ArrayType))
+                    warn(instruction, "Array reference on stack is not an array");
+                if (!(valueType instanceof ObjectType))
+                    warn(instruction, "Value to store in array is not a reference");
+            }
+            case IASTORE, FASTORE , BASTORE, CASTORE, SASTORE -> {
                 ClassType valueType = frame.pop().type();
                 ClassType indexType = frame.pop().type();
                 ClassType arrayType = frame.pop().type();
