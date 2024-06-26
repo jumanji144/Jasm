@@ -1,0 +1,12 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()Ljava/lang/Class; {
+        parameters: { this },
+        code: {
+        A:
+            ldc Ljava/lang/String;
+            areturn
+        B:
+        }
+    }
+}

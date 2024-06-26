@@ -1,0 +1,16 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            iconst_1
+            ldc 10000000L
+            bipush 100
+            invokestatic java/lang/Math.multiplyExact (JI)J
+            pop2
+            ireturn
+        B:
+        }
+    }
+}

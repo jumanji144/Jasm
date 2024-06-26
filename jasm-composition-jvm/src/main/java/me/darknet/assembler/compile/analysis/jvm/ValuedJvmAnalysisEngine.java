@@ -577,6 +577,8 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             Value value = frame.pop(type);
             parameters.add(0, value);
             canLookup &= value.isKnown();
+            if (value instanceof Value.VoidValue)
+                warn(instruction, "Cannot pass 'void' as method argument");
         }
 
         Value.ObjectValue contextObject = null;

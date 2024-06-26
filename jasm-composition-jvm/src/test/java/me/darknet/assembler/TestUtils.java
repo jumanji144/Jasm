@@ -23,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 public class TestUtils {
@@ -35,59 +37,75 @@ public class TestUtils {
 	 *
 	 * @param source Jasm source to process.
 	 * @param options Jasm compiler options.
+	 * @param outputConsumer Consumer to act on the compilation result.
 	 */
     public static void processJvm(@NotNull String source, @NotNull CompilerOptions<?> options,
                                   @Nullable ThrowingConsumer<JavaCompileResult> outputConsumer) {
-        Processor.processSource(source, "<test>", (ast) -> {
-            JvmCompiler compiler = new JvmCompiler();
-            compiler.compile(ast, options).ifOk(result -> {
-                try {
-                    if (outputConsumer != null)
-                        outputConsumer.accept(result);
-                } catch (AssertionFailedError e) {
-                    // Pass up the chain
-                    throw e;
-                } catch (Throwable e) {
-                    // Consumer should fail instead of us handling it generically here
-                    fail(e);
-                    return;
-                }
-
-	            // Check if bytes are a valid class file
-	            JavaClassRepresentation representation = result.representation();
-	            byte[] bytes = representation.classFile();
-	            try {
-		            compiler.library().read(new ByteArrayInputStream(bytes), new GenericClassBuilder());
-	            } catch (IOException e) {
-		            fail("Generated class was not readable", e);
-	            }
-
-	            // And double check that its verifiable
-	            try {
-		            CheckClassAdapter.verify(
-				            new ClassReader(bytes),
-				            true,
-				            new PrintWriter(System.out)
-		            );
-	            } catch (Throwable e) {
-		            fail("Generated class was not verifiable", e);
-	            }
-
-
-            }).ifErr(errors -> {
-                for (Error error : errors) {
-                    System.err.println(error);
-                }
-                fail("Failed to analyze/compile class, errors were reported");
-            });
-        }, errors -> {
-            for (Error error : errors) {
-                System.err.println(error);
-            }
-            fail("Failed to parse class");
-        }, BytecodeFormat.JVM);
+        processJvm(source, options, outputConsumer, null);
     }
 
+	/**
+	 * Asserts that valid output was emitted with no errors <i>(Warnings are ok though)</i>.
+	 *
+	 * @param source Jasm source to process.
+	 * @param options Jasm compiler options.
+	 * @param outputConsumer Consumer to act on the compilation result.
+	 * @param warningConsumer Consumer to act on warnings.
+	 */
+	public static void processJvm(@NotNull String source, @NotNull CompilerOptions<?> options,
+	                              @Nullable ThrowingConsumer<JavaCompileResult> outputConsumer,
+	                              @Nullable Consumer<List<Warn>> warningConsumer) {
+		Processor.processSource(source, "<test>", (ast) -> {
+			JvmCompiler compiler = new JvmCompiler();
+			compiler.compile(ast, options).ifOk(result -> {
+				try {
+					if (outputConsumer != null)
+						outputConsumer.accept(result);
+				} catch (AssertionFailedError e) {
+					// Pass up the chain
+					throw e;
+				} catch (Throwable e) {
+					// Consumer should fail instead of us handling it generically here
+					fail(e);
+					return;
+				}
+
+				// Check if bytes are a valid class file
+				JavaClassRepresentation representation = result.representation();
+				byte[] bytes = representation.classFile();
+				try {
+					compiler.library().read(new ByteArrayInputStream(bytes), new GenericClassBuilder());
+				} catch (IOException e) {
+					fail("Generated class was not readable", e);
+				}
+
+				// And double check that its verifiable
+				try {
+					CheckClassAdapter.verify(
+							new ClassReader(bytes),
+							true,
+							new PrintWriter(System.out)
+					);
+				} catch (Throwable e) {
+					fail("Generated class was not verifiable", e);
+				}
+
+
+			}).ifErr(errors -> {
+				for (Error error : errors) {
+					System.err.println(error);
+				}
+				fail("Failed to analyze/compile class, errors were reported");
+			}).ifWarn(warns -> {
+				if (warningConsumer != null) warningConsumer.accept(warns);
+			});
+		}, errors -> {
+			for (Error error : errors) {
+				System.err.println(error);
+			}
+			fail("Failed to parse class");
+		}, BytecodeFormat.JVM);
+	}
 
 	/**
 	 * Asserts that errors were emitted.

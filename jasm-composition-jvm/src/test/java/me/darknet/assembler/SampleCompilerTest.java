@@ -1,5 +1,6 @@
 package me.darknet.assembler;
 
+import dev.xdark.blw.code.instruction.MethodInstruction;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
@@ -8,6 +9,7 @@ import me.darknet.assembler.compile.analysis.Values;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.ValuedFrame;
 import me.darknet.assembler.compile.analysis.BasicMethodValueLookup;
+import me.darknet.assembler.compile.analysis.jvm.MethodValueLookup;
 import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
@@ -96,6 +98,26 @@ public class SampleCompilerTest {
                     else
                         fail("Unexpected ret-val: " + returnValue);
                 });
+            });
+        }
+
+        @Test
+        void ldcPushType() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-push-type.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+
+                ValuedFrame frame = (ValuedFrame) results.terminalFrames().values().iterator().next();
+                if (frame.peek() instanceof Value.ObjectValue objectValue) {
+                    assertEquals(Types.instanceType(Class.class), objectValue.type(), "Pushing type to stack did not yield class reference");
+                } else {
+                    fail("Did not yield object value");
+                }
             });
         }
 
@@ -374,6 +396,39 @@ public class SampleCompilerTest {
                 assertNull(results.getAnalysisFailure());
                 assertFalse(results.terminalFrames().isEmpty());
             });
+        }
+
+        @Test
+        void stackPopForInvokes() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-wide-invoke.jasm");
+            String source = arg.source.get();
+
+            // Create an analysis engine which will observe the invokestatic method in the source.
+            // If wide types are mishandled it will not get visited.
+            boolean[] visited = new boolean[1];
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(lookup -> {
+                ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
+                engine.setMethodValueLookup(new MethodValueLookup() {
+                    @Override
+                    public @NotNull Value accept(@NotNull MethodInstruction instruction, Value.@Nullable ObjectValue context, @NotNull List<Value> parameters) {
+                        visited[0] = true;
+                        return Values.LONG_VALUE;
+                    }
+                });
+                return engine;
+            });
+
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            }, warns -> {
+                // Void type usage in the engine for method parameters should emit a warning.
+                // If this occurs we've broken something.
+                fail("Expected no warnings, found: " + warns);
+            });
+            assertTrue(visited[0], "Method call was not visited");
         }
 
         @Test
