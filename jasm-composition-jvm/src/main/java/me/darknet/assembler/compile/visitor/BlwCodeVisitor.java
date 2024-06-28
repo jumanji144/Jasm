@@ -31,8 +31,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final CodeBuilder<?> codeBuilder;
@@ -48,7 +46,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final List<String> localNames = new ArrayList<>();
     private final List<ASTInstruction> visitedInstructions = new ArrayList<>();
     private final JvmAnalysisEngine<Frame> analysisEngine;
-    private ASTInstruction last;
+    private ASTInstruction currentInstructionAst;
     private int opcode = 0;
 
     /**
@@ -143,7 +141,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitInstruction(@NotNull ASTInstruction instruction) {
-        last = instruction;
+        currentInstructionAst = instruction;
         if (instruction instanceof ASTLabel)
             return;
         opcode = BlwOpcodes.opcode(instruction.identifier().content());
@@ -163,7 +161,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitInsn() {
-        String content = last.identifier().content();
+        String content = currentInstructionAst.identifier().content();
         Instruction instruction = switch (content) {
             case "iconst_m1" -> new ConstantInstruction.Int(new OfInt(-1));
             case "iconst_0", "iconst_1", "iconst_2", "iconst_3", "iconst_4", "iconst_5", "lconst_0", "lconst_1", "fconst_0", "fconst_1", "fconst_2", "dconst_0", "dconst_1" -> {
@@ -322,7 +320,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitMethodInsn(ASTIdentifier path, ASTIdentifier descriptor) {
-        boolean itf = last.identifier().content().endsWith("interface");
+        boolean itf = currentInstructionAst.identifier().content().endsWith("interface");
         String literal = path.literal();
         int index = literal.lastIndexOf('.');
         String owner = literal.substring(0, index);
@@ -365,7 +363,9 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitLabel(@NotNull ASTIdentifier label) {
         visitedInstructions.add((ASTInstruction) label.parent());
-        codeBuilderList.addLabel(getOrCreateLabel(label.content()));
+        Label labelElement = getOrCreateLabel(label.content());
+        analysisEngine.recordInstructionMapping(currentInstructionAst, labelElement);
+        codeBuilderList.addLabel(labelElement);
     }
 
     @Override
@@ -377,8 +377,6 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitEnd() {
-        correlateAstAndCodeElements();
-
         Label begin, end;
         if (codeBuilderList.getFirstElement() instanceof Label startLabel) {
             begin = startLabel;
@@ -479,18 +477,13 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         });
     }
 
-    private void correlateAstAndCodeElements() {
-        List<ASTInstruction> instructions = visitedInstructions;
-        List<CodeElement> elements = codeBuilderList.getElements();
-        for (int i = 0; i < instructions.size(); i++) {
-            ASTInstruction instruction = instructions.get(i);
-            CodeElement element = elements.get(i);
-            analysisEngine.recordInstructionMapping(instruction, element);
-        }
-    }
-
-    private void add(Instruction instruction) {
+    private void add(@NotNull Instruction instruction) {
         codeBuilderList.addInstruction(instruction);
+
+        // The ASTMethod will record the current ASTInstruction being mapped. Thus, when we see a call to something like
+        // visitTableSwitch and we add a TableSwitchInstruction to the CodeBuilder, we know that added instruction maps
+        // to the current AST being visited.
+        analysisEngine.recordInstructionMapping(currentInstructionAst, instruction);
     }
 
     private @NotNull ClassType common(@NotNull ClassType a, @NotNull ClassType b) throws ValueMergeException {
