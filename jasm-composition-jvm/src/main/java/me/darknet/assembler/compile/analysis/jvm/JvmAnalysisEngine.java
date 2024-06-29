@@ -227,16 +227,6 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     }
 
     @Override
-    public void execute(LookupSwitchInstruction instruction) {
-        frame.pop(1);
-    }
-
-    @Override
-    public void execute(TableSwitchInstruction instruction) {
-        frame.pop(1);
-    }
-
-    @Override
     public void execute(ImmediateJumpInstruction instruction) {
         // no-op
     }

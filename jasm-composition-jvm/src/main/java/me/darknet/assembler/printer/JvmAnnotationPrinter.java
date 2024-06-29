@@ -25,7 +25,7 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
             ctx.print(content);
 
             // Skip 'D' suffix for things like 'NaN' where it is implied
-            if (!content.matches("[\\D]+"))
+            if (!content.matches("\\D+"))
                 ctx.print( "D");
         } else if (element instanceof ElementString es) {
             ctx.string(es.value());

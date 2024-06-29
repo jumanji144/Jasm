@@ -20,8 +20,6 @@ import java.util.concurrent.*;
 public class Values {
     private static final int NUM_INT_VALS = 128;
     private static final int NUM_LONG_VALS = 128;
-    private static final int NUM_FLOAT_VALS = 10;
-    private static final int NUM_DOUBLE_VALS = 10;
     private static final Map<String, Value.ArrayValue> ARRAY_VALUES = new HashMap<>();
     private static final Map<String, Value.ObjectValue> INSTANCE_VALUES = new HashMap<>();
     private static final Map<String, Value.KnownStringValue> STRING_VALUES = new HashMap<>();

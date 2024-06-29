@@ -23,7 +23,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
             try {
                 OPCODES[field.getInt(null)] = field.getName().toLowerCase();
             } catch (IllegalAccessException e) {
-                e.printStackTrace();
+                throw new IllegalStateException(e);
             }
         }
     }
