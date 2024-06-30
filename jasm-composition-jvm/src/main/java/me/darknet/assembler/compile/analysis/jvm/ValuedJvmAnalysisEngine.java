@@ -301,7 +301,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 /* no-op */ }
             case AASTORE -> {
                 ClassType valueType = doArrayStore(instruction);
-                if (!(valueType instanceof ObjectType))
+                if (!(valueType instanceof ObjectType) && valueType != null)
                     warn(instruction, "Value to store in array is not a reference");
             }
             case IASTORE, FASTORE , BASTORE, CASTORE, SASTORE -> {
