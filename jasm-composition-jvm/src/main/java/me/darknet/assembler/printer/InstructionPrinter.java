@@ -113,18 +113,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     @Override
     public void execute(VarInstruction instruction) {
         int opcode = instruction.opcode();
-        String varName = variables.computeName(instruction.variableIndex(), currentIndex + 1, i -> {
-            Type assumedType = switch (opcode) {
-                case JavaOpcodes.ALOAD, JavaOpcodes.ASTORE -> Types.OBJECT;
-                case JavaOpcodes.ILOAD, JavaOpcodes.ISTORE -> Types.INT;
-                case JavaOpcodes.FLOAD, JavaOpcodes.FSTORE -> Types.FLOAT;
-                case JavaOpcodes.DLOAD, JavaOpcodes.DSTORE -> Types.DOUBLE;
-                case JavaOpcodes.LLOAD, JavaOpcodes.LSTORE -> Types.LONG;
-                default -> Types.VOID; // Should never happen
-            };
-            return generateVarName(i, assumedType);
-        });
-
+        String varName = computeName(opcode, instruction.variableIndex(), currentIndex + 1);
         ctx.instruction(OPCODES[opcode]).literal(varName).next();
     }
 
@@ -240,12 +229,6 @@ public class InstructionPrinter implements IndexedExecutionEngine {
                 .literal(Integer.toString(instruction.incrementBy())).next();
     }
 
-    private @NotNull String generateVarName(int index, Type type) {
-        if (type instanceof PrimitiveType prim)
-            return prim.descriptor().toLowerCase() + index;
-        return "v" + index;
-    }
-
     @Override
     public void execute(PrimitiveConversionInstruction primitiveConversionInstruction) {
         primitiveConversionInstruction.accept(new PrimitiveConversion() {
@@ -331,4 +314,37 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     public void execute(Instruction instruction) {
 
     }
+
+    private @NotNull String computeName(int opcode, int variableIndex, int codeOffset) {
+        Type assumedType = switch (opcode) {
+            case JavaOpcodes.ALOAD, JavaOpcodes.ASTORE -> Types.OBJECT;
+            case JavaOpcodes.FLOAD, JavaOpcodes.FSTORE -> Types.FLOAT;
+            case JavaOpcodes.DLOAD, JavaOpcodes.DSTORE -> Types.DOUBLE;
+            case JavaOpcodes.LLOAD, JavaOpcodes.LSTORE -> Types.LONG;
+            case JavaOpcodes.ILOAD, JavaOpcodes.ISTORE, JavaOpcodes.IINC -> Types.INT;
+            default -> Types.VOID; // Should never happen
+        };
+
+        var local = variables.getLocal(variableIndex, codeOffset);
+        if (local != null)
+            if (local.isPrimitive() != assumedType instanceof PrimitiveType)
+                return generateVarName(variableIndex, assumedType);
+            else
+                return local.name();
+
+        var param = variables.getParameter(variableIndex);
+        if (param == null)
+            return generateVarName(variableIndex, assumedType);
+        else if (param.isPrimitive() != assumedType instanceof PrimitiveType)
+            return generateVarName(variableIndex, assumedType);
+
+        return param.name();
+    }
+
+    private @NotNull String generateVarName(int index, Type type) {
+        if (type instanceof PrimitiveType prim)
+            return prim.descriptor().toLowerCase() + index;
+        return "v" + index;
+    }
+
 }

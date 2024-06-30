@@ -33,7 +33,19 @@ import java.util.function.IntFunction;
  * @param locals
  *                   A full list of all locals in the method
  */
-public record Variables(@NotNull NavigableMap<Integer, String> parameters, @NotNull List<Local> locals) {
+public record Variables(@NotNull NavigableMap<Integer, Parameter> parameters, @NotNull List<Local> locals) {
+
+    /**
+     * Gets a parameter by index.
+     *
+     * @param index
+     *                 the index of the local var
+     *
+     * @return the parameter, or {@code null} if no parameter matches the index.
+     */
+    public @Nullable Parameter getParameter(int index) {
+        return parameters.get(index);
+    }
 
     /**
      * Gets a local var name based on the index and position.
@@ -46,7 +58,10 @@ public record Variables(@NotNull NavigableMap<Integer, String> parameters, @NotN
     public @Nullable String getParameterName(int index) {
         if (parameters.isEmpty() || index > parameters.lastKey())
             return null;
-        return parameters.get(index);
+        Parameter parameter = parameters.get(index);
+        if (parameter == null)
+            return null;
+        return parameter.name();
     }
 
     /**
@@ -131,4 +146,10 @@ public record Variables(@NotNull NavigableMap<Integer, String> parameters, @NotN
         }
     }
 
+    public record Parameter(int index, String name, String descriptor) {
+        public boolean isPrimitive() {
+            // Unintelligent check but will suffice
+            return descriptor.length() == 1;
+        }
+    }
 }

@@ -71,19 +71,21 @@ public class JvmMethodPrinter implements MethodPrinter {
                 nameToType.put(name, varType);
             }
         }
-        NavigableMap<Integer, String> parameterNames = new TreeMap<>();
+        NavigableMap<Integer, Variables.Parameter> parameterNames = new TreeMap<>();
         int offset = isStatic ? 0 : 1;
         if (!isStatic) {
-            parameterNames.put(0, "this");
+            // TODO: May want to pass the declaring class's type so we don't just use object here
+            parameterNames.put(0, new Variables.Parameter(0, "this", "Ljava/lang/Object;"));
         }
         List<ClassType> types = method.type().parameterTypes();
         for (int i = 0; i < types.size(); i++) {
             int varSlot = i + offset;
             String name = getName(locals, varSlot);
-            parameterNames.put(varSlot, name);
+            ClassType type = types.get(i);
+            parameterNames.put(varSlot, new Variables.Parameter(0, name, type.descriptor()));
 
             // Skip creating parameters for reserved slots
-            if (Types.category(types.get(i)) > 1)
+            if (Types.category(type) > 1)
                 i++;
         }
         return new Variables(parameterNames, locals);
@@ -126,7 +128,7 @@ public class JvmMethodPrinter implements MethodPrinter {
         boolean hasParameters = !variables.parameters().isEmpty();
         if (hasParameters) {
             var arr = obj.value("parameters").array();
-            arr.print(variables.parameters().values(), PrintContext::print);
+            arr.print(variables.parameters().values(), (arrayCtx, parameter) -> arr.print(parameter.name()));
             arr.end();
         }
         var methodCode = method.code();
