@@ -676,8 +676,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     public void execute(InvokeDynamicInstruction instruction) {
         MethodType type = (MethodType) instruction.type();
         List<ClassType> types = type.parameterTypes();
-        for (ClassType classType : types)
-            frame.pop(classType);
+        for (int i = types.size(); i > 0; i--) {
+            ClassType paramType = types.get(i - 1);
+            frame.pop(paramType);
+        }
         if (type.returnType() != Types.VOID)
             frame.pushType(type.returnType());
     }
