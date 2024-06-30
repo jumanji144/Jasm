@@ -1,6 +1,7 @@
 package me.darknet.assembler.printer;
 
 import dev.xdark.blw.code.Code;
+import dev.xdark.blw.code.generic.GenericLabel;
 import dev.xdark.blw.type.Type;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
@@ -132,8 +133,20 @@ public class JvmMethodPrinter implements MethodPrinter {
         }
         var methodCode = method.code();
         if (methodCode != null) {
+            // Ensure there are labels at the absolute start/end of the method so variable ranges won't be wonky.
+            List<CodeElement> elements = methodCode.elements();
+            if (!elements.isEmpty() && !(elements.get(0) instanceof Label))
+                elements.add(0, new GenericLabel());
+            if (!elements.isEmpty() && !(elements.get(elements.size() - 1) instanceof Label))
+                elements.add(new GenericLabel());
+
+            // Separator between code and parameters element
             if (hasParameters) obj.next();
-            Map<Integer, String> labelNames = getLabelNames(methodCode.elements());
+
+            // Populate label names
+            Map<Integer, String> labelNames = getLabelNames(elements);
+
+            // Print exception ranges
             if (!methodCode.tryCatchBlocks().isEmpty()) {
                 var arr = obj.value("exceptions").array();
                 arr.print(methodCode.tryCatchBlocks(), (print, tcb) -> {
@@ -152,6 +165,8 @@ public class JvmMethodPrinter implements MethodPrinter {
                 arr.end();
                 obj.next();
             }
+
+            // Print instructions
             var code = obj.value("code").code();
             InstructionPrinter printer = new InstructionPrinter(code, methodCode, names, labelNames);
             IndexedStraightforwardSimulation simulation = new IndexedStraightforwardSimulation();
