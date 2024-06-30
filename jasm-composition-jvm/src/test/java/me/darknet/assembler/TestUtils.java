@@ -87,6 +87,7 @@ public class TestUtils {
 							new PrintWriter(System.out)
 					);
 				} catch (Throwable e) {
+					// TODO: Some errors in ASMs analyzer don't properly get rethrown...
 					fail("Generated class was not verifiable", e);
 				}
 

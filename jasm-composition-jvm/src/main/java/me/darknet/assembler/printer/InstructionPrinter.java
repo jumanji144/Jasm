@@ -1,7 +1,7 @@
 package me.darknet.assembler.printer;
 
 import me.darknet.assembler.compile.analysis.jvm.IndexedExecutionEngine;
-import me.darknet.assembler.helper.Names;
+import me.darknet.assembler.helper.Variables;
 
 import dev.xdark.blw.code.Code;
 import dev.xdark.blw.code.Instruction;
@@ -9,8 +9,8 @@ import dev.xdark.blw.code.JavaOpcodes;
 import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.type.*;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,13 +31,13 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     protected PrintContext.CodePrint ctx;
     protected Code code;
     protected Map<Integer, String> labelNames;
-    protected Names names;
+    protected Variables variables;
     private int currentIndex = 0;
 
-    public InstructionPrinter(PrintContext.CodePrint ctx, Code code, Names names, Map<Integer, String> labelNames) {
+    public InstructionPrinter(PrintContext.CodePrint ctx, Code code, Variables variables, Map<Integer, String> labelNames) {
         this.ctx = ctx;
         this.code = code;
-        this.names = names;
+        this.variables = variables;
         this.labelNames = labelNames;
     }
 
@@ -112,8 +112,20 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
     @Override
     public void execute(VarInstruction instruction) {
-        ctx.instruction(OPCODES[instruction.opcode()])
-                .literal(names.getName(instruction.variableIndex(), currentIndex + 1)).next();
+        int opcode = instruction.opcode();
+        String varName = variables.computeName(instruction.variableIndex(), currentIndex + 1, i -> {
+            Type assumedType = switch (opcode) {
+                case JavaOpcodes.ALOAD, JavaOpcodes.ASTORE -> Types.OBJECT;
+                case JavaOpcodes.ILOAD, JavaOpcodes.ISTORE -> Types.INT;
+                case JavaOpcodes.FLOAD, JavaOpcodes.FSTORE -> Types.FLOAT;
+                case JavaOpcodes.DLOAD, JavaOpcodes.DSTORE -> Types.DOUBLE;
+                case JavaOpcodes.LLOAD, JavaOpcodes.LSTORE -> Types.LONG;
+                default -> Types.VOID; // Should never happen
+            };
+            return generateVarName(i, assumedType);
+        });
+
+        ctx.instruction(OPCODES[opcode]).literal(varName).next();
     }
 
     @Override
@@ -224,8 +236,14 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     @Override
     public void execute(VariableIncrementInstruction instruction) {
         ctx.instruction(OPCODES[instruction.opcode()])
-                .literal(names.getName(instruction.variableIndex(), currentIndex + 1)).arg()
+                .literal(variables.computeName(instruction.variableIndex(), currentIndex + 1, i -> generateVarName(i, Types.INT))).arg()
                 .literal(Integer.toString(instruction.incrementBy())).next();
+    }
+
+    private @NotNull String generateVarName(int index, Type type) {
+        if (type instanceof PrimitiveType prim)
+            return prim.descriptor().toLowerCase() + index;
+        return "v" + index;
     }
 
     @Override

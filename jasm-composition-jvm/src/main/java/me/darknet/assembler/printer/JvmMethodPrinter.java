@@ -5,7 +5,7 @@ import dev.xdark.blw.code.generic.GenericLabel;
 import dev.xdark.blw.type.Type;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
-import me.darknet.assembler.helper.Names;
+import me.darknet.assembler.helper.Variables;
 import me.darknet.assembler.util.EscapeUtil;
 import me.darknet.assembler.util.LabelUtil;
 
@@ -17,10 +17,7 @@ import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.type.ClassType;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class JvmMethodPrinter implements MethodPrinter {
 
@@ -40,13 +37,14 @@ public class JvmMethodPrinter implements MethodPrinter {
             return EscapeUtil.escapeLiteral(name);
     }
 
+    @SuppressWarnings("unused")
     public void setLabelPrefix(String labelPrefix) {
         this.labelPrefix = labelPrefix;
     }
 
-    public Names localNames() {
+    public @NotNull Variables buildVariables() {
         Map<String, Type> nameToType = new HashMap<>();
-        List<Names.Local> locals = new ArrayList<>();
+        List<Variables.Local> locals = new ArrayList<>();
         boolean isStatic = (method.accessFlags() & AccessFlag.ACC_STATIC) != 0;
         Code code = method.code();
         if (code != null) {
@@ -69,11 +67,11 @@ public class JvmMethodPrinter implements MethodPrinter {
                         name = prefix + (i++);
                 }
 
-                locals.add(new Names.Local(index, local.start().getIndex(), local.end().getIndex(), name, descriptor));
+                locals.add(new Variables.Local(index, local.start().getIndex(), local.end().getIndex(), name, descriptor));
                 nameToType.put(name, varType);
             }
         }
-        Map<Integer, String> parameterNames = new HashMap<>();
+        NavigableMap<Integer, String> parameterNames = new TreeMap<>();
         int offset = isStatic ? 0 : 1;
         if (!isStatic) {
             parameterNames.put(0, "this");
@@ -88,14 +86,14 @@ public class JvmMethodPrinter implements MethodPrinter {
             if (Types.category(types.get(i)) > 1)
                 i++;
         }
-        return new Names(parameterNames, locals);
+        return new Variables(parameterNames, locals);
     }
 
     @NotNull
-    private static String getName(List<Names.Local> locals, int i) {
+    private static String getName(List<Variables.Local> locals, int i) {
         String name = null;
         // search for parameter name in local variables, first reference of the index which matches the type
-        for (Names.Local local : locals) {
+        for (Variables.Local local : locals) {
             if (local.index() == i) {
                 name = local.name();
                 break;
@@ -124,11 +122,11 @@ public class JvmMethodPrinter implements MethodPrinter {
         memberPrinter.printAttributes(ctx);
         var obj = memberPrinter.printDeclaration(ctx).literal(method.name()).print(" ")
                 .literal(method.type().descriptor()).print(" ").object();
-        Names names = localNames();
-        boolean hasParameters = !names.parameters().isEmpty();
+        Variables variables = buildVariables();
+        boolean hasParameters = !variables.parameters().isEmpty();
         if (hasParameters) {
             var arr = obj.value("parameters").array();
-            arr.print(names.parameters().values(), PrintContext::print);
+            arr.print(variables.parameters().values(), PrintContext::print);
             arr.end();
         }
         var methodCode = method.code();
@@ -168,7 +166,7 @@ public class JvmMethodPrinter implements MethodPrinter {
 
             // Print instructions
             var code = obj.value("code").code();
-            InstructionPrinter printer = new InstructionPrinter(code, methodCode, names, labelNames);
+            InstructionPrinter printer = new InstructionPrinter(code, methodCode, variables, labelNames);
             IndexedStraightforwardSimulation simulation = new IndexedStraightforwardSimulation();
             simulation.execute(printer, method);
             code.end();

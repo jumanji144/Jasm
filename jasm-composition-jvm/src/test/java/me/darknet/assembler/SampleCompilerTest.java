@@ -13,9 +13,13 @@ import me.darknet.assembler.compile.analysis.jvm.MethodValueLookup;
 import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
+import me.darknet.assembler.error.Error;
+import me.darknet.assembler.error.Result;
 import me.darknet.assembler.printer.JvmClassPrinter;
+import me.darknet.assembler.printer.JvmMethodPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
+import me.darknet.assembler.printer.Printer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Nested;
@@ -30,6 +34,7 @@ import org.objectweb.asm.tree.ClassNode;
 import static me.darknet.assembler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,10 +45,12 @@ import java.util.NavigableMap;
 import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class SampleCompilerTest {
     private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";
+    private static final String PATH_BIN_PREFIX = "src/test/resources/samples/binary/";
     private static final String PATH_ILLEGAL_PREFIX = "src/test/resources/samples/jasm-illegal/";
 
     /**
@@ -351,6 +358,47 @@ public class SampleCompilerTest {
      */
     @Nested
     class Regresssion {
+        @Test
+        void varDifferentiationWithoutDebugSymbols() throws Throwable {
+            byte[] buf = Files.readAllBytes(Path.of(PATH_BIN_PREFIX + "same-var-slot-diff-types.class"));
+            JvmClassPrinter classPrinter = new JvmClassPrinter(new ByteArrayInputStream(buf));
+            PrintContext<PrintContext<?>> ctx = new PrintContext<>("  ");
+            classPrinter.print(ctx);
+            String source = ctx.toString();
+
+            // Assert the constructor printed OK
+            assertTrue(Pattern.compile("aload this\\n\\s+invokespecial java\\/lang\\/Object\\.<init> \\(\\)V").matcher(source).find(),
+                    "Constructor did not properly emit 'aload this' + 'invokespecial super'");
+
+            // Assert the primitive 'consume(T)' calls printed OK
+            char[] prims = new char[]{'I', 'F', 'D', 'J'};
+            for (char prim : prims) {
+                char lowerPrim = Character.toLowerCase(prim);
+                char insnPrim = lowerPrim;
+                if (insnPrim == 'j') insnPrim = 'l'; // Edge case for longs
+                assertTrue(Pattern.compile(insnPrim + "store " + lowerPrim + "0\\n\\s+" + insnPrim +
+                                "load " + lowerPrim + "0\\n\\s+invokestatic Vars\\.consume \\(" + prim + "\\)V").matcher(source).find(),
+                        "Did not properly emit 'const_T' + 'tstore 0', 'tload 0', 'invoke consume(T)' for T=" + prim);
+            }
+
+            // Assert the object 'consume(T)' printed OK
+            assertTrue(Pattern.compile("astore v0\\n\\s+aload v0\\n\\s+invokestatic Vars\\.consume \\(Ljava\\/lang\\/Object;\\)V").matcher(source).find(),
+                    "Did not properly emit 'aload 0' + 'invoke consume(A)'");
+
+            // The bug before was any variable slot would fall back to 'vN' for N being the var slot.
+            // This would lead 'astore N' and 'istore N' in classes without variable symbols to emit
+            // in JASM 'astore vN' and 'istore vN' which would cause frame merge errors since two incompatible
+            // types were occupying the same space.
+            //
+            // The fix is to differentiate generated names based on type.
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            });
+        }
+
         @Test
         void newArrayPopsSizeOffStack() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-anewarray.jasm");
