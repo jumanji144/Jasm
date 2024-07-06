@@ -17,6 +17,7 @@ import java.util.List;
 public class ASTClass extends ASTMember {
     private final @NotNull List<ASTElement> contents;
     private @NotNull List<ASTIdentifier> interfaces = Collections.emptyList();
+    private @NotNull List<ASTIdentifier> permittedSubclasses = Collections.emptyList();
     private @NotNull List<ASTInner> inners = Collections.emptyList();
     private @Nullable ASTIdentifier superName;
     private @Nullable ASTString sourceFile;
@@ -56,6 +57,15 @@ public class ASTClass extends ASTMember {
         this.interfaces = interfaces;
     }
 
+    public void setPermittedSubclasses(@NotNull List<ASTIdentifier> permittedSubclasses) {
+        this.permittedSubclasses = permittedSubclasses;
+    }
+
+    @NotNull
+    public List<ASTIdentifier> getPermittedSubclasses() {
+        return permittedSubclasses;
+    }
+
     @NotNull
     public List<ASTInner> getInners() {
         return inners;
@@ -84,6 +94,10 @@ public class ASTClass extends ASTMember {
         visitor.visitSuperClass(superName);
         for (ASTIdentifier anInterface : interfaces) {
             visitor.visitInterface(anInterface);
+        }
+
+        for (ASTIdentifier permittedSubclass : permittedSubclasses) {
+            visitor.visitPermittedSubclass(permittedSubclass);
         }
 
         for (ASTInner inner : inners) {

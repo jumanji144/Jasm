@@ -19,6 +19,7 @@ public class ProcessorAttributes {
     public ASTString sourceFile;
     public final List<ASTIdentifier> interfaces = new ArrayList<>();
     public final List<ASTInner> inners = new ArrayList<>();
+    public final List<ASTIdentifier> permittedSubclasses = new ArrayList<>();
     public final List<ASTIdentifier> nestMembers = new ArrayList<>();
     public final List<ASTIdentifier> nestHosts = new ArrayList<>();
 
@@ -41,6 +42,8 @@ public class ProcessorAttributes {
                 clazz.setSuperName(superName);
             if (!interfaces.isEmpty())
                 clazz.setInterfaces(interfaces);
+            if (!permittedSubclasses.isEmpty())
+                clazz.setPermittedSubclasses(permittedSubclasses);
             if (!inners.isEmpty())
                 clazz.setInnerClasses(inners);
         }

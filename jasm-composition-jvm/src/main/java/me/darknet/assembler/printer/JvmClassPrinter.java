@@ -16,6 +16,9 @@ import org.objectweb.asm.ClassWriter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.function.BiConsumer;
 
 public class JvmClassPrinter implements ClassPrinter {
 
@@ -55,6 +58,12 @@ public class JvmClassPrinter implements ClassPrinter {
             obj.end();
             ctx.end();
         }
+
+        List<InstanceType> permittededSubclasses = view.permittedSubclasses();
+        if (permittededSubclasses != null && !permittededSubclasses.isEmpty()) {
+            permittededSubclasses.forEach(t -> ctx.begin().element(".permitted-subclass").element(t.internalName()).end());
+        }
+
         var superClass = view.superClass();
         if (superClass != null)
             ctx.begin().element(".super").literal(superClass.internalName()).end();

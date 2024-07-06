@@ -14,6 +14,8 @@ public interface ASTClassVisitor extends ASTDeclarationVisitor {
 
     void visitSourceFile(@Nullable ASTString sourceFile);
 
+    void visitPermittedSubclass(@NotNull ASTIdentifier subclass);
+
     void visitInnerClass(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
             ASTIdentifier innerClass);
 

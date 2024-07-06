@@ -44,6 +44,11 @@ public class BlwClassVisitor implements ASTClassVisitor {
     }
 
     @Override
+    public void visitPermittedSubclass(@NotNull ASTIdentifier subclass) {
+        builder.addPermittedSubclass(Types.instanceTypeFromInternalName(subclass.literal()));
+    }
+
+    @Override
     public void visitInnerClass(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
             ASTIdentifier innerClass) {
         int accessFlags = BlwModifiers.getClassModifiers(modifiers);

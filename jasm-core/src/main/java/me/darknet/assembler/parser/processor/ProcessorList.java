@@ -58,6 +58,11 @@ public class ProcessorList {
         addAttribute(superName);
     }
 
+    public void addPermittedSubclass(ASTIdentifier subclassName) {
+        this.attributes.permittedSubclasses.add(subclassName);
+        addAttribute(subclassName);
+    }
+
     public void addInner(ASTInner inner) {
         this.attributes.inners.add(inner);
         addAttribute(inner);

@@ -63,6 +63,12 @@ public class ASTProcessor {
             ctx.result.addInterface(interfaceName);
             return interfaceName;
         });
+        ParserRegistry.register("permitted-subclass", (ctx, decl) -> {
+            ASTIdentifier subclassName = ctx
+                    .validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "interface name", decl);
+            ctx.result.addPermittedSubclass(subclassName);
+            return subclassName;
+        });
     }
 
     private final BytecodeFormat format;

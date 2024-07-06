@@ -524,7 +524,9 @@ public class SampleCompilerTest {
             });
         }
 
+        /**
          * Infinity should remain as a printed constant across re-assembles
+         */
         @Test
         void supportInfinity() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-infinity.jasm");
@@ -572,7 +574,46 @@ public class SampleCompilerTest {
         }
     }
 
-    private record TestArgument(Path path, String name, ThrowingSupplier<String> source) {
+    @Nested
+    class Misc {
+        @Test
+        void permittedSubclasses() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("SubclassTest.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert it has the permitted subclass attribute
+            assertTrue(source.contains(".permitted-subclass foo/ImplA"));
+            assertTrue(source.contains(".permitted-subclass foo/ImplB"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        private static void roundTrip(String source, BinaryTestArgument arg) {
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                String newPrinted = dissassemble(result.representation().classFile());
+
+                assertEquals(
+                        normalize(source), normalize(newPrinted),
+                        "There was an unexpected difference in unmodified class: " + arg.name
+                );
+            });
+        }
+    }
+
+    private static String dissassemble(byte[] raw) throws IOException {
+        JvmClassPrinter initPrinter = new JvmClassPrinter(raw);
+        PrintContext<?> initCtx = new PrintContext<>("    ");
+        initPrinter.print(initCtx);
+        String source = initCtx.toString();
+        return source;
+    }
+
+
+    record TestArgument(Path path, String name, ThrowingSupplier<String> source) {
         public static TestArgument fromName(String name) {
             Path path = Paths.get(System.getProperty("user.dir")).resolve(PATH_PREFIX).resolve(name);
             if (!Files.exists(path))
@@ -582,6 +623,22 @@ public class SampleCompilerTest {
 
         public static TestArgument from(Path path) {
             return new TestArgument(path, path.getFileName().toString(), () -> Files.readString(path));
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
+    record BinaryTestArgument(Path path, String name, ThrowingSupplier<byte[]> source) {
+        public static BinaryTestArgument fromName(String name) {
+            Path path = Paths.get(System.getProperty("user.dir")).resolve(PATH_BIN_PREFIX).resolve(name);
+            return from(path);
+        }
+
+        public static BinaryTestArgument from(Path path) {
+            return new BinaryTestArgument(path, path.getFileName().toString(), () -> Files.readAllBytes(path));
         }
 
         @Override
