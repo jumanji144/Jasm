@@ -360,7 +360,7 @@ public class SampleCompilerTest {
     class Regresssion {
         @Test
         void varDifferentiationWithoutDebugSymbols() throws Throwable {
-            byte[] buf = Files.readAllBytes(Path.of(PATH_BIN_PREFIX + "same-var-slot-diff-types.class"));
+            byte[] buf = Files.readAllBytes(Path.of(PATH_BIN_PREFIX + "same-var-slot-diff-types.sample"));
             JvmClassPrinter classPrinter = new JvmClassPrinter(new ByteArrayInputStream(buf));
             PrintContext<PrintContext<?>> ctx = new PrintContext<>("  ");
             classPrinter.print(ctx);
@@ -515,10 +515,7 @@ public class SampleCompilerTest {
                 if (source.contains("SKIP-ROUND-TRIP-EQUALITY"))
                     return;
 
-                JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
-                PrintContext<?> newCtx = new PrintContext<>("    ");
-                newPrinter.print(newCtx);
-                String newPrinted = newCtx.toString();
+                String newPrinted = dissassemble(result.representation().classFile());
 
                 assertEquals(
                         normalize(source), normalize(newPrinted),
@@ -527,6 +524,7 @@ public class SampleCompilerTest {
             });
         }
 
+         * Infinity should remain as a printed constant across re-assembles
         @Test
         void supportInfinity() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-infinity.jasm");
@@ -534,15 +532,15 @@ public class SampleCompilerTest {
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
             options.engineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
-                JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
-                PrintContext<?> newCtx = new PrintContext<>("    ");
-                newPrinter.print(newCtx);
-                String newPrinted = newCtx.toString();
+                String newPrinted = dissassemble(result.representation().classFile());
 
                 assertEquals(normalize(source.replace("InfinityD", "Infinity").replace("+", "")), normalize(newPrinted));
             });
         }
 
+        /**
+         * NaN should remain as a printed constant across re-assembles
+         */
         @Test
         void supportNan() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-nan.jasm");
@@ -550,10 +548,7 @@ public class SampleCompilerTest {
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
             options.engineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
-                JvmClassPrinter newPrinter = new JvmClassPrinter(result.representation().classFile());
-                PrintContext<?> newCtx = new PrintContext<>("    ");
-                newPrinter.print(newCtx);
-                String newPrinted = newCtx.toString();
+                String newPrinted = dissassemble(result.representation().classFile());
 
                 assertEquals(normalize(source.replace("NaND", "NaN")), normalize(newPrinted));
             });
@@ -571,9 +566,9 @@ public class SampleCompilerTest {
         }
 
         public static List<TestArgument> getValidSources() {
-           return getSources().stream()
-                   .filter(a -> !a.path().toString().contains("illegal"))
-                   .toList();
+            return getSources().stream()
+                    .filter(a -> !a.path().toString().contains("illegal"))
+                    .toList();
         }
     }
 
