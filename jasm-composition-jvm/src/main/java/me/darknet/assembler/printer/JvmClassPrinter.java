@@ -59,6 +59,11 @@ public class JvmClassPrinter implements ClassPrinter {
             ctx.end();
         }
 
+        String sourceFile = view.sourceFile();
+        if (sourceFile != null) {
+            ctx.begin().element(".sourcefile").string(sourceFile).end();
+        }
+
         List<InstanceType> permittededSubclasses = view.permittedSubclasses();
         if (permittededSubclasses != null && !permittededSubclasses.isEmpty()) {
             permittededSubclasses.forEach(t -> ctx.begin().element(".permitted-subclass").element(t.internalName()).end());
