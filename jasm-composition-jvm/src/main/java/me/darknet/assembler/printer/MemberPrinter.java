@@ -26,8 +26,8 @@ public record MemberPrinter(
                 printer.print(ctx);
                 ctx.next();
             }
-            for (Annotation invisibleTypeAnnotation : annotated.visibleRuntimeAnnotations()) {
-                JvmAnnotationPrinter printer = new JvmAnnotationPrinter(invisibleTypeAnnotation);
+            for (Annotation visibleRuntimeAnnotation : annotated.visibleRuntimeAnnotations()) {
+                JvmAnnotationPrinter printer = new JvmAnnotationPrinter(visibleRuntimeAnnotation);
                 printer.print(ctx);
                 ctx.next();
             }

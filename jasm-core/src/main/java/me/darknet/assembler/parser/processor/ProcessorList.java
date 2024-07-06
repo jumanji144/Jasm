@@ -5,9 +5,11 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTInner;
+import me.darknet.assembler.ast.specific.ASTRecordComponent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class ProcessorList {
 
@@ -23,6 +25,21 @@ public class ProcessorList {
         return result;
     }
 
+    /**
+     * Clears the generic attributes <i>(signature + annotations)</i> after use.
+     *
+     * @param attributesConsumer Consumer to accept the current attributes.
+     */
+    public void clearGeneric(Consumer<ProcessorAttributes> attributesConsumer) {
+        attributesConsumer.accept(attributes);
+        attributes.clearGenericAttributes();
+    }
+
+    /**
+     * Yields a copy of the currently tracked attributes before clearing the internal state.
+     *
+     * @return Current attributes.
+     */
     public ProcessorAttributes collectAttributes() {
         ProcessorAttributes attributes = this.attributes;
         this.attributes = new ProcessorAttributes();
@@ -63,6 +80,12 @@ public class ProcessorList {
         addAttribute(subclassName);
     }
 
+
+    public void addRecordComponent(ASTRecordComponent recordComponent) {
+        this.attributes.recordComponents.add(recordComponent);
+        addAttribute(recordComponent);
+    }
+
     public void addInner(ASTInner inner) {
         this.attributes.inners.add(inner);
         addAttribute(inner);
@@ -87,5 +110,4 @@ public class ProcessorList {
         this.attributes.annotations.remove(value);
         this.attributes.attributes.remove(value);
     }
-
 }

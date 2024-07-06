@@ -3,8 +3,11 @@ package me.darknet.assembler.visitor;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 
+import me.darknet.assembler.ast.specific.ASTAnnotation;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 public interface ASTClassVisitor extends ASTDeclarationVisitor {
 
@@ -16,11 +19,13 @@ public interface ASTClassVisitor extends ASTDeclarationVisitor {
 
     void visitPermittedSubclass(@NotNull ASTIdentifier subclass);
 
-    void visitInnerClass(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
-            ASTIdentifier innerClass);
+    ASTRecordComponentVisitor visitRecordComponent(@NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor, @Nullable ASTString signature);
 
-    ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor);
+    void visitInnerClass(@NotNull Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
+                         @Nullable ASTIdentifier innerClass);
 
-    ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor);
+    ASTFieldVisitor visitField(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor);
+
+    ASTMethodVisitor visitMethod(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name,@NotNull  ASTIdentifier descriptor);
 
 }

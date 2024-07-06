@@ -69,6 +69,17 @@ public class ASTProcessor {
             ctx.result.addPermittedSubclass(subclassName);
             return subclassName;
         });
+        ParserRegistry.register("record-component", (ctx, decl) -> {
+            ASTIdentifier name = ctx
+                    .validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "record component name", decl);
+            ASTIdentifier desc = ctx
+                    .validateElement(decl.elements().get(1), ElementType.IDENTIFIER, "record component desc", decl);
+
+            ASTRecordComponent recordComponent = new ASTRecordComponent(name, desc);
+            ctx.result.clearGeneric(recordComponent::accept);
+            ctx.result.addRecordComponent(recordComponent);
+            return recordComponent;
+        });
     }
 
     private final BytecodeFormat format;

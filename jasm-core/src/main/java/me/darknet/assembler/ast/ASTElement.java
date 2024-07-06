@@ -64,14 +64,15 @@ public class ASTElement {
         children.removeAll(elements);
     }
 
-    protected void replaceChild(@Nullable ASTElement element, @NotNull ASTElement replacement) {
+    protected void replaceChild(@Nullable ASTElement element, @Nullable ASTElement replacement) {
         if (element != null) removeChild(element);
-        addChild(replacement);
+        if (replacement != null) addChild(replacement);
     }
 
-    protected void replaceChildren(@Nullable Collection<? extends ASTElement> elements, @NotNull List<? extends ASTElement> replacements) {
+    protected void replaceChildren(@Nullable Collection<? extends ASTElement> elements,
+                                   @Nullable List<? extends ASTElement> replacements) {
         if (elements != null) removeChildren(elements);
-        addChildren(replacements);
+        if (replacements != null) addChildren(replacements);
     }
 
     /**

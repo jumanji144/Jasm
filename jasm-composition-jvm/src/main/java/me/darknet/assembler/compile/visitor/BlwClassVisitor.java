@@ -1,21 +1,20 @@
 package me.darknet.assembler.compile.visitor;
 
+import dev.xdark.blw.classfile.AccessFlag;
+import dev.xdark.blw.classfile.attribute.generic.GenericInnerClass;
+import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
+import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.util.BlwModifiers;
 import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.*;
-
-import dev.xdark.blw.classfile.AccessFlag;
-import dev.xdark.blw.classfile.attribute.generic.GenericInnerClass;
-import dev.xdark.blw.type.InstanceType;
-import dev.xdark.blw.type.MethodType;
-import dev.xdark.blw.type.TypeReader;
-import dev.xdark.blw.type.Types;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 public class BlwClassVisitor implements ASTClassVisitor {
     private final BlwReplaceClassBuilder builder;
@@ -49,8 +48,19 @@ public class BlwClassVisitor implements ASTClassVisitor {
     }
 
     @Override
-    public void visitInnerClass(Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
-            ASTIdentifier innerClass) {
+    public ASTRecordComponentVisitor visitRecordComponent(@NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor, @Nullable ASTString signature) {
+	    String componentDesc = descriptor.literal();
+	    Type type = Types.typeFromDescriptor(componentDesc);
+        if (type instanceof ClassType descClassType) {
+            var component = builder.putRecordComponent(name.content(), descClassType, signature == null ? null : signature.content()).child();
+            return new BlwRecordComponentVisitor(component);
+        }
+		throw new IllegalStateException("Illegal record component type: " + componentDesc);
+    }
+
+    @Override
+    public void visitInnerClass(@NotNull Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
+                                @Nullable ASTIdentifier innerClass) {
         int accessFlags = BlwModifiers.getClassModifiers(modifiers);
         InstanceType type = innerClass == null ? null : Types.instanceTypeFromInternalName(innerClass.literal());
         InstanceType outerType = outerClass == null ? null : Types.instanceTypeFromInternalName(outerClass.literal());
@@ -59,7 +69,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
     }
 
     @Override
-    public ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
+    public ASTFieldVisitor visitField(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor) {
         int accessFlags = BlwModifiers.getFieldModifiers(modifiers);
         return new BlwFieldVisitor(
                 builder.putField(accessFlags, name.literal(), new TypeReader(descriptor.literal()).requireClassType())
@@ -68,7 +78,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
     }
 
     @Override
-    public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
+    public ASTMethodVisitor visitMethod(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor) {
         int accessFlags = BlwModifiers.getMethodModifiers(modifiers);
         MethodType type = Types.methodType(descriptor.literal());
         return new BlwMethodVisitor(
@@ -79,7 +89,7 @@ public class BlwClassVisitor implements ASTClassVisitor {
     }
 
     @Override
-    public ASTAnnotationVisitor visitAnnotation(ASTIdentifier classType) {
+    public ASTAnnotationVisitor visitAnnotation(@NotNull ASTIdentifier classType) {
         InstanceType type = Types.instanceTypeFromInternalName(classType.literal());
         return new BlwAnnotationVisitor(builder.addVisibleRuntimeAnnotation(type).child());
     }

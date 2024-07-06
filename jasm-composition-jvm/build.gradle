@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    api 'com.github.jumanji144:blw:7a749bdfbd'
+    api 'com.github.jumanji144:blw:49b43c9282'
     implementation 'org.ow2.asm:asm:9.7'
     implementation 'org.ow2.asm:asm-util:9.7'
 

@@ -13,13 +13,9 @@ import me.darknet.assembler.compile.analysis.jvm.MethodValueLookup;
 import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
-import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.Result;
 import me.darknet.assembler.printer.JvmClassPrinter;
-import me.darknet.assembler.printer.JvmMethodPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
-import me.darknet.assembler.printer.Printer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Nested;
@@ -575,7 +571,7 @@ public class SampleCompilerTest {
     }
 
     @Nested
-    class Misc {
+    class AttributeSupport {
         @Test
         void permittedSubclasses() throws Throwable {
             BinaryTestArgument arg = BinaryTestArgument.fromName("SubclassTest.sample");
@@ -587,6 +583,65 @@ public class SampleCompilerTest {
             // Assert it has the permitted subclass attribute
             assertTrue(source.contains(".permitted-subclass foo/ImplA"));
             assertTrue(source.contains(".permitted-subclass foo/ImplB"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void recordComponents() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("ExampleRecord.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert it has the permitted subclass attribute
+            assertTrue(source.contains(".record-component foo I"));
+            assertTrue(source.contains(".record-component bar J"));
+            assertTrue(source.contains(".record-component s Ljava/lang/String;"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void recordComponentWithGenerics() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("GenericRecord.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert it has the permitted subclass attribute and the generic attribute before it.
+            assertTrue(source.contains(".signature \"Ljava/util/Map<TK;TV;>;\""));
+            assertTrue(source.contains(".record-component map Ljava/util/Map;"));
+
+            // The class should keep its overall signature as well.
+            assertTrue(source.contains(".signature \"<K::Ljava/lang/Comparable<*>;V:Ljava/lang/Object;>Ljava/lang/Record;\""));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void recordComponentWithAnnos() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("AnnotatedRecord.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert both annotations on the record component AND the class are kept.
+            assertTrue(source.contains("""
+                    .annotation Marked {
+                        value: "class"
+                    }"""));
+            assertTrue(source.contains("""
+                    .annotation Marked {
+                        value: "param"
+                    }"""));
+            assertTrue(source.contains(".record-component s Ljava/lang/String; "));
 
             // Round-trip it
             roundTrip(source, arg);

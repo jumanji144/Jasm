@@ -1,5 +1,6 @@
 package me.darknet.assembler.printer;
 
+import dev.xdark.blw.classfile.RecordComponent;
 import me.darknet.assembler.util.BlwModifiers;
 
 import dev.xdark.blw.BytecodeLibrary;
@@ -16,9 +17,7 @@ import org.objectweb.asm.ClassWriter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.util.List;
-import java.util.function.BiConsumer;
 
 public class JvmClassPrinter implements ClassPrinter {
 
@@ -41,7 +40,6 @@ public class JvmClassPrinter implements ClassPrinter {
 
     @Override
     public void print(PrintContext<?> ctx) {
-        memberPrinter.printAttributes(ctx);
         for (InnerClass innerClass : view.innerClasses()) {
             var obj = ctx.begin().element(".inner")
                     .print(BlwModifiers.modifiers(innerClass.accessFlags(), BlwModifiers.CLASS)).object();
@@ -64,10 +62,28 @@ public class JvmClassPrinter implements ClassPrinter {
             ctx.begin().element(".sourcefile").string(sourceFile).end();
         }
 
-        List<InstanceType> permittededSubclasses = view.permittedSubclasses();
-        if (permittededSubclasses != null && !permittededSubclasses.isEmpty()) {
-            permittededSubclasses.forEach(t -> ctx.begin().element(".permitted-subclass").element(t.internalName()).end());
+        List<InstanceType> permittedSubclasses = view.permittedSubclasses();
+        if (permittedSubclasses != null && !permittedSubclasses.isEmpty()) {
+            permittedSubclasses.forEach(t -> ctx.begin().element(".permitted-subclass").element(t.internalName()).end());
         }
+
+        // Record components in JASM consume attributes like Signatures and Annotations.
+        // So we cannot put either of those things before we print these.
+        List<RecordComponent> recordComponents = view.recordComponents();
+        if (recordComponents != null && !recordComponents.isEmpty()) {
+            recordComponents.forEach(r -> {
+                // Dirty hack to print the records signature/annotations without too much copy-pasting
+                var compAttrPrinter = new MemberPrinter(r, r, view, MemberPrinter.Type.CLASS);
+                compAttrPrinter.printAttributes(ctx);
+                ctx.begin().element(".record-component").element(r.name()).element(r.type().descriptor()).end();
+            });
+        }
+
+        // This prints attributes that are held mutually by classes and members, so:
+        //  - Signature
+        //  - Annotations
+        // NOTE: This must be called AFTER record-components are printed
+        memberPrinter.printAttributes(ctx);
 
         var superClass = view.superClass();
         if (superClass != null)
@@ -75,7 +91,8 @@ public class JvmClassPrinter implements ClassPrinter {
         for (InstanceType anInterface : view.interfaces()) {
             ctx.begin().element(".implements").literal(anInterface.internalName()).end();
         }
-        var obj = memberPrinter.printDeclaration(ctx).literal(view.type().internalName()).print(" ").declObject()
+        var obj = memberPrinter.printDeclaration(ctx)
+                .literal(view.type().internalName()).print(" ").declObject()
                 .newline();
         for (Field field : view.fields()) {
             JvmFieldPrinter printer = new JvmFieldPrinter(field);

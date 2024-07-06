@@ -5,9 +5,7 @@ import me.darknet.assembler.ast.primitive.ASTString;
 
 import org.jetbrains.annotations.Nullable;
 
-public interface ASTDeclarationVisitor {
-
-    ASTAnnotationVisitor visitAnnotation(ASTIdentifier classType);
+public interface ASTDeclarationVisitor extends ASTAnnotatedVisitor {
 
     void visitSignature(@Nullable ASTString signature);
 

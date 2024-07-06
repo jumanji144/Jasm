@@ -20,18 +20,28 @@ public class ProcessorAttributes {
     public final List<ASTIdentifier> interfaces = new ArrayList<>();
     public final List<ASTInner> inners = new ArrayList<>();
     public final List<ASTIdentifier> permittedSubclasses = new ArrayList<>();
+    public final List<ASTRecordComponent> recordComponents = new ArrayList<>();
     public final List<ASTIdentifier> nestMembers = new ArrayList<>();
     public final List<ASTIdentifier> nestHosts = new ArrayList<>();
 
     // all attributes
     List<ASTElement> attributes = new ArrayList<>();
 
+    public ProcessorAttributes clearGenericAttributes() {
+        signature = null;
+        annotations.clear();
+        return this;
+    }
+
     public void fill(ASTElement element) {
         if (!annotations.isEmpty() && element instanceof ASTAnnotated annotated) {
-            annotated.setAnnotations(annotations);
+            // Pass along a copy of the annotations so that we can clear our list reference and not affect
+            // the annotated consumer.
+            annotated.setAnnotations(new ArrayList<>(annotations));
         }
 
         if (signature != null && element instanceof ASTSigned signed) {
+            // Same idea as annotations above
             signed.setSignature(signature);
         }
 
@@ -44,6 +54,8 @@ public class ProcessorAttributes {
                 clazz.setInterfaces(interfaces);
             if (!permittedSubclasses.isEmpty())
                 clazz.setPermittedSubclasses(permittedSubclasses);
+            if (!recordComponents.isEmpty())
+                clazz.setRecordComponents(recordComponents);
             if (!inners.isEmpty())
                 clazz.setInnerClasses(inners);
         }

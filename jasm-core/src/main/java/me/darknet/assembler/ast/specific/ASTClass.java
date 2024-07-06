@@ -5,7 +5,9 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.util.Triple;
 import me.darknet.assembler.visitor.ASTClassVisitor;
+import me.darknet.assembler.visitor.ASTRecordComponentVisitor;
 import me.darknet.assembler.visitor.Modifiers;
 
 import org.jetbrains.annotations.NotNull;
@@ -18,6 +20,7 @@ public class ASTClass extends ASTMember {
     private final @NotNull List<ASTElement> contents;
     private @NotNull List<ASTIdentifier> interfaces = Collections.emptyList();
     private @NotNull List<ASTIdentifier> permittedSubclasses = Collections.emptyList();
+    private @NotNull List<ASTRecordComponent> recordComponents = Collections.emptyList();
     private @NotNull List<ASTInner> inners = Collections.emptyList();
     private @Nullable ASTIdentifier superName;
     private @Nullable ASTString sourceFile;
@@ -62,6 +65,15 @@ public class ASTClass extends ASTMember {
     }
 
     @NotNull
+    public List<ASTRecordComponent> getRecordComponents() {
+        return recordComponents;
+    }
+
+    public void setRecordComponents(@NotNull List<ASTRecordComponent> recordComponents) {
+        this.recordComponents = recordComponents;
+    }
+
+    @NotNull
     public List<ASTIdentifier> getPermittedSubclasses() {
         return permittedSubclasses;
     }
@@ -98,6 +110,14 @@ public class ASTClass extends ASTMember {
 
         for (ASTIdentifier permittedSubclass : permittedSubclasses) {
             visitor.visitPermittedSubclass(permittedSubclass);
+        }
+
+        for (ASTRecordComponent recordComponent : recordComponents) {
+            ASTRecordComponentVisitor componentVisitor = visitor.visitRecordComponent(recordComponent.getComponentType(),
+                    recordComponent.getComponentDescriptor(), recordComponent.getSignature());
+            for (ASTAnnotation annotation : recordComponent.getAnnotations()) {
+                annotation.accept(collector, componentVisitor.visitAnnotation(annotation.classType()));
+            }
         }
 
         for (ASTInner inner : inners) {

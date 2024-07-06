@@ -15,6 +15,10 @@ public class CollectionUtil {
         return Arrays.stream(array).filter(Objects::nonNull).toList();
     }
 
+    public static <T> List<T> fromVarArrayNonNull(@Nullable T... array) {
+        return fromArrayNonNull(array);
+    }
+
     public static <T> List<T> merge(final Collection<? extends @Nullable T> a,
             final Collection<? extends @Nullable T> b) {
         if (a == null) {
