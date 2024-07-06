@@ -86,7 +86,7 @@ public class JvmMethodPrinter implements MethodPrinter {
 
             // Skip creating parameters for reserved slots
             if (Types.category(type) > 1)
-                i++;
+                offset++;
         }
         return new Variables(parameterNames, locals);
     }
