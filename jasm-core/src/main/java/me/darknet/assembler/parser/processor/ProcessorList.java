@@ -112,8 +112,8 @@ public class ProcessorList {
         addAttribute(nestMember);
     }
 
-    public void addNestHost(ASTIdentifier nestHost) {
-        this.attributes.nestHosts.add(nestHost);
+    public void setNestHost(ASTIdentifier nestHost) {
+        this.attributes.nestHost = nestHost;
         addAttribute(nestHost);
     }
 

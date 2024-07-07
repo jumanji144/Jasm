@@ -19,12 +19,12 @@ public class ProcessorAttributes {
     public ASTString sourceFile;
     public ASTOuterMethod outerMethod;
     public ASTElement outerClass;
+    public ASTIdentifier nestHost;
+    public final List<ASTIdentifier> nestMembers = new ArrayList<>();
     public final List<ASTIdentifier> interfaces = new ArrayList<>();
     public final List<ASTInner> inners = new ArrayList<>();
     public final List<ASTIdentifier> permittedSubclasses = new ArrayList<>();
     public final List<ASTRecordComponent> recordComponents = new ArrayList<>();
-    public final List<ASTIdentifier> nestMembers = new ArrayList<>();
-    public final List<ASTIdentifier> nestHosts = new ArrayList<>();
 
     // all attributes
     List<ASTElement> attributes = new ArrayList<>();
@@ -56,6 +56,10 @@ public class ProcessorAttributes {
                 clazz.setOuterClass(outerClass);
             if (outerMethod != null)
                 clazz.setOuterMethod(outerMethod);
+            if (nestHost != null)
+                clazz.setNestHost(nestHost);
+            if (!nestMembers.isEmpty())
+                clazz.setNestMembers(nestMembers);
             if (!interfaces.isEmpty())
                 clazz.setInterfaces(interfaces);
             if (!permittedSubclasses.isEmpty())

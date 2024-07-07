@@ -25,6 +25,8 @@ public class ASTClass extends ASTMember {
     private @Nullable ASTString sourceFile;
     private @Nullable ASTElement outerClass;
     private @Nullable ASTOuterMethod outerMethod;
+    private @Nullable ASTIdentifier nestHost;
+    private @NotNull List<ASTIdentifier> nestMembers = Collections.emptyList();
 
     public ASTClass(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull List<ASTElement> contents) {
         super(ElementType.CLASS, modifiers, name, name);
@@ -69,6 +71,16 @@ public class ASTClass extends ASTMember {
     public void setOuterMethod(@Nullable ASTOuterMethod outerMethod) {
         replaceChild(this.outerMethod, outerMethod);
         this.outerMethod = outerMethod;
+    }
+
+    public void setNestHost(@Nullable ASTIdentifier nestHost) {
+        replaceChild(this.nestHost, nestHost);
+        this.nestHost = nestHost;
+    }
+
+    public void setNestMembers(@NotNull List<ASTIdentifier> nestMembers) {
+        replaceChildren(this.nestMembers, nestMembers);
+        this.nestMembers = nestMembers;
     }
 
     @NotNull
@@ -127,6 +139,10 @@ public class ASTClass extends ASTMember {
         visitor.visitSuperClass(superName);
         visitor.visitOuterClass(outerClass);
         visitor.visitOuterMethod(outerMethod);
+        visitor.visitNestHost(nestHost);
+        for (ASTIdentifier nestMember : nestMembers) {
+            visitor.visitNestMember(nestMember);
+        }
         for (ASTIdentifier anInterface : interfaces) {
             visitor.visitInterface(anInterface);
         }

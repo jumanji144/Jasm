@@ -7,7 +7,6 @@ import me.darknet.assembler.ast.specific.*;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.error.Result;
-import me.darknet.assembler.helper.Handle;
 import me.darknet.assembler.instructions.Instruction;
 import me.darknet.assembler.instructions.Instructions;
 import me.darknet.assembler.parser.BytecodeFormat;
@@ -91,6 +90,16 @@ public class ASTProcessor {
             ASTOuterMethod outer = new ASTOuterMethod(methodName, methodDesc);
             ctx.result.setOuterMethod(outer);
             return outer;
+        });
+        ParserRegistry.register("nest-host", (ctx, decl) -> {
+            ASTIdentifier nestHost = ctx.validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "nest host", decl);
+            ctx.result.setNestHost(nestHost);
+            return nestHost;
+        });
+        ParserRegistry.register("nest-member", (ctx, decl) -> {
+            ASTIdentifier nestMember = ctx.validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "nest member", decl);
+            ctx.result.addNestMember(nestMember);
+            return nestMember;
         });
     }
 

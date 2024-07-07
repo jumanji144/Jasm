@@ -74,6 +74,15 @@ public class JvmClassPrinter implements ClassPrinter {
                     .element(outerMethodName).element(outerMethodDesc).end();
         }
 
+        InstanceType nestHost = view.nestHost();
+        if (nestHost != null)
+            ctx.begin().element(".nest-host").element(nestHost.internalName()).end();
+        List<InstanceType> nestMembers = view.nestMembers();
+        if (nestMembers != null && !nestMembers.isEmpty()) {
+            for (InstanceType nestMember : nestMembers)
+                ctx.begin().element(".nest-member").element(nestMember.internalName()).end();
+        }
+
         List<InstanceType> permittedSubclasses = view.permittedSubclasses();
         if (permittedSubclasses != null && !permittedSubclasses.isEmpty()) {
             permittedSubclasses.forEach(t -> ctx.begin().element(".permitted-subclass").element(t.internalName()).end());

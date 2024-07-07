@@ -580,9 +580,29 @@ public class SampleCompilerTest {
             // Print the initial raw
             String source = dissassemble(raw);
 
-            // Assert it has the permitted subclass attribute
+            // Assert it has the expected outside class attribute information (including nest-host)
+            assertTrue(source.contains(".nest-host Outside"));
             assertTrue(source.contains(".outer-class Outside"));
             assertTrue(source.contains(".outer-method run ()V "));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void innerClassInfo() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("Outside.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert it has the expected inner class attribute information (including nest-member)
+            assertTrue(source.contains("""
+                    .inner {
+                        inner: Outside$1
+                    }"""));
+            assertTrue(source.contains(".nest-member Outside$1"));
 
             // Round-trip it
             roundTrip(source, arg);
@@ -612,7 +632,7 @@ public class SampleCompilerTest {
             // Print the initial raw
             String source = dissassemble(raw);
 
-            // Assert it has the permitted subclass attribute
+            // Assert it has the record component attributes
             assertTrue(source.contains(".record-component foo I"));
             assertTrue(source.contains(".record-component bar J"));
             assertTrue(source.contains(".record-component s Ljava/lang/String;"));
@@ -629,7 +649,7 @@ public class SampleCompilerTest {
             // Print the initial raw
             String source = dissassemble(raw);
 
-            // Assert it has the permitted subclass attribute and the generic attribute before it.
+            // Assert it has the record component attributes and the generic attribute before it.
             assertTrue(source.contains(".signature \"Ljava/util/Map<TK;TV;>;\""));
             assertTrue(source.contains(".record-component map Ljava/util/Map;"));
 
@@ -679,8 +699,7 @@ public class SampleCompilerTest {
         JvmClassPrinter initPrinter = new JvmClassPrinter(raw);
         PrintContext<?> initCtx = new PrintContext<>("    ");
         initPrinter.print(initCtx);
-        String source = initCtx.toString();
-        return source;
+        return initCtx.toString();
     }
 
 

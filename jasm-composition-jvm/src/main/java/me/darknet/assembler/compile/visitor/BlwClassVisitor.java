@@ -63,6 +63,16 @@ public class BlwClassVisitor implements ASTClassVisitor {
     }
 
     @Override
+    public void visitNestHost(@Nullable ASTIdentifier nestHost) {
+        builder.setNestHost(nestHost == null ? null : Types.instanceTypeFromInternalName(nestHost.literal()));
+    }
+
+    @Override
+    public void visitNestMember(@NotNull ASTIdentifier nestMember) {
+        builder.addNestMember(Types.instanceTypeFromInternalName(nestMember.literal()));
+    }
+
+    @Override
     public ASTRecordComponentVisitor visitRecordComponent(@NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor, @Nullable ASTString signature) {
 	    String componentDesc = descriptor.literal();
 	    Type type = Types.typeFromDescriptor(componentDesc);
