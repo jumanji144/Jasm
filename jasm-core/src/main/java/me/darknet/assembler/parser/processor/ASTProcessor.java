@@ -80,6 +80,18 @@ public class ASTProcessor {
             ctx.result.addRecordComponent(recordComponent);
             return recordComponent;
         });
+        ParserRegistry.register("outer-class", (ctx, decl) -> {
+            ASTIdentifier className = ctx.validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "outer class", decl);
+            ctx.result.setOuterClass(className);
+            return className;
+        });
+        ParserRegistry.register("outer-method", (ctx, decl) -> {
+            ASTIdentifier methodName = ctx.validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "outer method name", decl);
+            ASTIdentifier methodDesc = ctx.validateElement(decl.elements().get(1), ElementType.IDENTIFIER, "outer method desc", decl);
+            ASTOuterMethod outer = new ASTOuterMethod(methodName, methodDesc);
+            ctx.result.setOuterMethod(outer);
+            return outer;
+        });
     }
 
     private final BytecodeFormat format;

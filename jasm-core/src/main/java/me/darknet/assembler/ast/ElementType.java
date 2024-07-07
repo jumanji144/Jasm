@@ -23,6 +23,8 @@ public enum ElementType {
     ENUM,
     INNER_CLASS,
     SIGNATURE,
+    RECORD_COMPONENT,
+    OUTER_METHOD,
     CLASS_TYPE,
     METHOD_TYPE,
     EXCEPTION

@@ -62,6 +62,18 @@ public class JvmClassPrinter implements ClassPrinter {
             ctx.begin().element(".sourcefile").string(sourceFile).end();
         }
 
+        String outerClass = view.outerClass();
+        if (outerClass != null) {
+            ctx.begin().element(".outer-class").element(outerClass).end();
+        }
+
+        String outerMethodName = view.outerMethodName();
+        String outerMethodDesc = view.outerMethodDescriptor();
+        if (outerMethodName != null && outerMethodDesc != null) {
+            ctx.begin().element(".outer-method")
+                    .element(outerMethodName).element(outerMethodDesc).end();
+        }
+
         List<InstanceType> permittedSubclasses = view.permittedSubclasses();
         if (permittedSubclasses != null && !permittedSubclasses.isEmpty()) {
             permittedSubclasses.forEach(t -> ctx.begin().element(".permitted-subclass").element(t.internalName()).end());

@@ -5,7 +5,6 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.error.ErrorCollector;
-import me.darknet.assembler.util.Triple;
 import me.darknet.assembler.visitor.ASTClassVisitor;
 import me.darknet.assembler.visitor.ASTRecordComponentVisitor;
 import me.darknet.assembler.visitor.Modifiers;
@@ -24,6 +23,8 @@ public class ASTClass extends ASTMember {
     private @NotNull List<ASTInner> inners = Collections.emptyList();
     private @Nullable ASTIdentifier superName;
     private @Nullable ASTString sourceFile;
+    private @Nullable ASTElement outerClass;
+    private @Nullable ASTOuterMethod outerMethod;
 
     public ASTClass(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull List<ASTElement> contents) {
         super(ElementType.CLASS, modifiers, name, name);
@@ -48,6 +49,26 @@ public class ASTClass extends ASTMember {
     public void setSuperName(@Nullable ASTIdentifier superName) {
         replaceChild(this.superName, superName);
         this.superName = superName;
+    }
+
+    @Nullable
+    public ASTElement getOuterClass() {
+        return outerClass;
+    }
+
+    public void setOuterClass(@Nullable ASTElement outerClass) {
+        replaceChild(this.outerClass, outerClass);
+        this.outerClass = outerClass;
+    }
+
+    @Nullable
+    public ASTOuterMethod getOuterMethod() {
+        return outerMethod;
+    }
+
+    public void setOuterMethod(@Nullable ASTOuterMethod outerMethod) {
+        replaceChild(this.outerMethod, outerMethod);
+        this.outerMethod = outerMethod;
     }
 
     @NotNull
@@ -104,6 +125,8 @@ public class ASTClass extends ASTMember {
 
         visitor.visitSourceFile(sourceFile);
         visitor.visitSuperClass(superName);
+        visitor.visitOuterClass(outerClass);
+        visitor.visitOuterMethod(outerMethod);
         for (ASTIdentifier anInterface : interfaces) {
             visitor.visitInterface(anInterface);
         }

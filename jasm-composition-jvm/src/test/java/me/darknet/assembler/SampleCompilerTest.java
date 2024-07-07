@@ -573,6 +573,22 @@ public class SampleCompilerTest {
     @Nested
     class AttributeSupport {
         @Test
+        void outerClassInfo() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("Outside$1.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert it has the permitted subclass attribute
+            assertTrue(source.contains(".outer-class Outside"));
+            assertTrue(source.contains(".outer-method run ()V "));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
         void permittedSubclasses() throws Throwable {
             BinaryTestArgument arg = BinaryTestArgument.fromName("SubclassTest.sample");
             byte[] raw = arg.source.get();

@@ -17,6 +17,8 @@ public class ProcessorAttributes {
     // class attributes
     public ASTIdentifier superName;
     public ASTString sourceFile;
+    public ASTOuterMethod outerMethod;
+    public ASTElement outerClass;
     public final List<ASTIdentifier> interfaces = new ArrayList<>();
     public final List<ASTInner> inners = new ArrayList<>();
     public final List<ASTIdentifier> permittedSubclasses = new ArrayList<>();
@@ -50,6 +52,10 @@ public class ProcessorAttributes {
                 clazz.setSourceFile(sourceFile);
             if (superName != null)
                 clazz.setSuperName(superName);
+            if (outerClass != null)
+                clazz.setOuterClass(outerClass);
+            if (outerMethod != null)
+                clazz.setOuterMethod(outerMethod);
             if (!interfaces.isEmpty())
                 clazz.setInterfaces(interfaces);
             if (!permittedSubclasses.isEmpty())

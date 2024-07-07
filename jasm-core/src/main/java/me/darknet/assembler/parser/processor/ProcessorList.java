@@ -5,6 +5,7 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTInner;
+import me.darknet.assembler.ast.specific.ASTOuterMethod;
 import me.darknet.assembler.ast.specific.ASTRecordComponent;
 
 import java.util.ArrayList;
@@ -73,6 +74,16 @@ public class ProcessorList {
     public void setSuperName(ASTIdentifier superName) {
         this.attributes.superName = superName;
         addAttribute(superName);
+    }
+
+    public void setOuterClass(ASTElement className) {
+        this.attributes.outerClass = className;
+        addAttribute(className);
+    }
+
+    public void setOuterMethod(ASTOuterMethod outerMethod) {
+        this.attributes.outerMethod = outerMethod;
+        addAttribute(outerMethod);
     }
 
     public void addPermittedSubclass(ASTIdentifier subclassName) {

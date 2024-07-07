@@ -18,7 +18,7 @@ public class ASTRecordComponent extends ASTElement implements ASTAnnotated, ASTS
     private ASTString signature;
 
     public ASTRecordComponent(@NotNull ASTIdentifier componentType, @NotNull ASTIdentifier componentDescriptor) {
-        super(ElementType.ANNOTATION, CollectionUtil.fromVarArrayNonNull(componentType, componentDescriptor));
+        super(ElementType.RECORD_COMPONENT, CollectionUtil.fromVarArrayNonNull(componentType, componentDescriptor));
         this.componentType = componentType;
         this.componentDescriptor = componentDescriptor;
     }

@@ -3,9 +3,11 @@ package me.darknet.assembler.compile.visitor;
 import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.classfile.attribute.generic.GenericInnerClass;
 import dev.xdark.blw.type.*;
+import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
+import me.darknet.assembler.ast.specific.ASTOuterMethod;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
 import me.darknet.assembler.util.BlwModifiers;
@@ -40,6 +42,19 @@ public class BlwClassVisitor implements ASTClassVisitor {
     @Override
     public void visitSourceFile(@Nullable ASTString sourceFile) {
         builder.setSourceFile(sourceFile == null ? null : sourceFile.content());
+    }
+
+    @Override
+    public void visitOuterClass(@Nullable ASTElement outerClass) {
+        builder.setOuterClass(outerClass == null ? null : outerClass.content());
+    }
+
+    @Override
+    public void visitOuterMethod(@Nullable ASTOuterMethod outerMethod) {
+        if (outerMethod == null) return;
+        String outerClass = builder.getOuterClass();
+        if (outerClass == null) throw new IllegalStateException("Must visit outer class attribute before visiting outer method");
+        builder.setOuterMethod(outerClass, outerMethod.getMethodName().content(), outerMethod.getMethodDesc().content());
     }
 
     @Override

@@ -1,9 +1,11 @@
 package me.darknet.assembler.visitor;
 
+import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 
 import me.darknet.assembler.ast.specific.ASTAnnotation;
+import me.darknet.assembler.ast.specific.ASTOuterMethod;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -16,6 +18,8 @@ public interface ASTClassVisitor extends ASTDeclarationVisitor {
     void visitInterface(@NotNull ASTIdentifier interfaceName);
 
     void visitSourceFile(@Nullable ASTString sourceFile);
+    void visitOuterClass(@Nullable ASTElement outerClass);
+    void visitOuterMethod(@Nullable ASTOuterMethod outerMethod);
 
     void visitPermittedSubclass(@NotNull ASTIdentifier subclass);
 
