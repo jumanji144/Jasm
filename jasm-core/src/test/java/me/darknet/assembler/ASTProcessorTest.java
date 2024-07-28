@@ -1,8 +1,7 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.ast.primitive.ASTArray;
-import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.ast.specific.*;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.Result;

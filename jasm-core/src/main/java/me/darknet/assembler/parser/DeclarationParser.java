@@ -357,7 +357,7 @@ public class DeclarationParser {
             ctx.throwEofError("instruction argument or label");
             return null;
         }
-        if (peek.content().equals(":")) {
+        if (peek.type() == TokenType.OPERATOR && peek.content().equals(":")) {
             ctx.leaveState(State.IN_INSTRUCTION);
             ctx.take(":");
             return new ASTLabel(new ASTIdentifier(instruction));

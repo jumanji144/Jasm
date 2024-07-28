@@ -168,4 +168,16 @@ public class InstructionsTest {
         );
     }
 
+    @Test
+    public void testWeirdStrings() {
+        assertCode(
+                new String[] { "ldc \":\"" }, BytecodeFormat.JVM, (code) -> {
+                    List<ASTInstruction> instructions = code.instructions();
+                    assertEquals(1, instructions.size());
+                    assertEquals("ldc", instructions.get(0).identifier().content());
+                    assertEquals(":", instructions.get(0).arguments().get(0).content());
+                }
+        );
+    }
+
 }
