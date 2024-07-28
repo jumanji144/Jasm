@@ -114,6 +114,7 @@ public class DeclarationParser {
         // it is an object if they there will be a : after the identifier
         Token peek = ctx.peek(2);
         if (peek == null) {
+            ctx.takeAny();
             ctx.throwEofError(":, } or ,");
             return null;
         }
