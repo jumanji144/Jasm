@@ -358,6 +358,33 @@ public sealed interface Value {
         }
     }
 
+    record KnownLengthArrayValue(@NotNull ArrayType arrayType, int length) implements ObjectValue {
+        @Override
+        public @NotNull ObjectType type() {
+            return arrayType();
+        }
+
+        @Override
+        public boolean isKnown() {
+            return true;
+        }
+
+        @Override
+        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other)
+                throws ValueMergeException {
+            if (equals(other))
+                return this;
+            if (other instanceof ObjectValue)
+                return Values.OBJECT_VALUE;
+            throw new ValueMergeException("Invalid array merge with non-object value");
+        }
+
+        @Override
+        public @NotNull String valueAsString() {
+            return "Length: " + length;
+        }
+    }
+
     /**
      * Value of {@link String} content.
      *

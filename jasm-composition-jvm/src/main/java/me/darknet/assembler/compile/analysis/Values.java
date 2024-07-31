@@ -165,6 +165,10 @@ public class Values {
         return new Value.ArrayValue(arrayType);
     }
 
+    public static @NotNull Value.KnownLengthArrayValue valueOfArray(@NotNull ArrayType arrayType, int length) {
+        return new Value.KnownLengthArrayValue(arrayType, length);
+    }
+
     public static @NotNull Value.ObjectValue valueOfInstance(@NotNull InstanceType instanceType) {
         String name = instanceType.internalName();
         Value.ObjectValue value = INSTANCE_VALUES.get(name);

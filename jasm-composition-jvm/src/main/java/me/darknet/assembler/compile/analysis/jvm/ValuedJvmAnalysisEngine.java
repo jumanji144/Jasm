@@ -402,14 +402,19 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 }
             }
             case ARRAYLENGTH -> {
-                ClassType stackType = frame.pop().type();
+                Value arrayRef = frame.pop();
+                ClassType stackType = arrayRef.type();
                 if (stackType == null)
                     warn(instruction, "Cannot get array length of 'null'");
                 else if (stackType instanceof PrimitiveType)
                     warn(instruction, "Cannot get array length of primitive");
                 else if (stackType instanceof InstanceType)
                     warn(instruction, "Cannot get array length of non-array reference");
-                frame.pushType(Types.INT);
+                if (arrayRef instanceof Value.KnownLengthArrayValue arrayValue) {
+                    frame.push(Values.valueOf(arrayValue.length()));
+                } else {
+                    frame.pushType(Types.INT);
+                }
             }
             case NOP -> {}
             default -> throw new IllegalStateException("Unhandled simple insn: " + opcode);
@@ -452,6 +457,21 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             else if (type instanceof MethodType mt)
                 // push java/lang/invoke/MethodType
                 frame.pushType(METHOD_TYPE);
+        }
+    }
+
+    @Override
+    public void execute(AllocateInstruction instruction) {
+        ObjectType type = instruction.type();
+        if (type instanceof ArrayType at) {
+            Value size = frame.pop();
+            if (size instanceof Value.KnownIntValue intValue) {
+                frame.push(Values.valueOfArray(at, intValue.value()));
+            } else {
+                frame.pushType(at);
+            }
+        } else {
+            frame.pushType(type);
         }
     }
 
