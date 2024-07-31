@@ -255,9 +255,10 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         if (opcode == NEW) {
             add(new AllocateInstruction(Types.instanceTypeFromInternalName(type.literal())));
         } else if (opcode == ANEWARRAY) {
-            InstanceType elementType = Types.instanceTypeFromDescriptor(type.literal());
-            ArrayType arrayType = Types.arrayType(elementType);
-            add(new AllocateInstruction(arrayType));
+            ClassType arrayType = new TypeReader(type.literal()).requireClassType();
+            if (arrayType instanceof PrimitiveType)
+                throw new IllegalStateException("Cannot create primitive array: " + arrayType.descriptor());
+            add(new AllocateInstruction(Types.arrayType(arrayType)));
         } else {
             TypeReader reader = new TypeReader(type.literal());
             ObjectType objectType = Objects.requireNonNullElse((ObjectType) reader.read(), Types.OBJECT);
