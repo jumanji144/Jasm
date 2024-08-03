@@ -20,7 +20,7 @@ import java.util.concurrent.*;
 public class Values {
     private static final int NUM_INT_VALS = 128;
     private static final int NUM_LONG_VALS = 128;
-    private static final Map<String, Value.ArrayValue> ARRAY_VALUES = new HashMap<>();
+    private static final Map<String, Value.UnknownLengthArrayValue> ARRAY_VALUES = new HashMap<>();
     private static final Map<String, Value.ObjectValue> INSTANCE_VALUES = new HashMap<>();
     private static final Map<String, Value.KnownStringValue> STRING_VALUES = new HashMap<>();
     public static final Value.KnownIntValue INT_M1 = new Value.KnownIntValue(-1);
@@ -157,12 +157,12 @@ public class Values {
         };
     }
 
-    public static @NotNull Value.ArrayValue valueOfArray(@NotNull ArrayType arrayType) {
+    public static @NotNull Value.UnknownLengthArrayValue valueOfArray(@NotNull ArrayType arrayType) {
         String desc = arrayType.descriptor();
-        Value.ArrayValue value = ARRAY_VALUES.get(desc);
+        Value.UnknownLengthArrayValue value = ARRAY_VALUES.get(desc);
         if (value != null)
             return value;
-        return new Value.ArrayValue(arrayType);
+        return new Value.UnknownLengthArrayValue(arrayType);
     }
 
     public static @NotNull Value.KnownLengthArrayValue valueOfArray(@NotNull ArrayType arrayType, int length) {
@@ -203,8 +203,8 @@ public class Values {
         for (String prim : prims) {
             String desc1 = "[" + prim;
             String desc2 = "[[" + prim;
-            ARRAY_VALUES.put(desc1, new Value.ArrayValue(Types.arrayTypeFromDescriptor(desc1)));
-            ARRAY_VALUES.put(desc2, new Value.ArrayValue(Types.arrayTypeFromDescriptor(desc2)));
+            ARRAY_VALUES.put(desc1, new Value.UnknownLengthArrayValue(Types.arrayTypeFromDescriptor(desc1)));
+            ARRAY_VALUES.put(desc2, new Value.UnknownLengthArrayValue(Types.arrayTypeFromDescriptor(desc2)));
         }
 
         // Instance types

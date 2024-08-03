@@ -336,20 +336,17 @@ public sealed interface Value {
         }
     }
 
-    /**
-     * Value of T[] content.
-     *
-     * @param arrayType
-     *                  More specific declared type than {@link ObjectValue#type()}.
-     */
-    record ArrayValue(@NotNull ArrayType arrayType) implements ObjectValue {
+    /** Value of T[] content. */
+    interface ArrayValue extends ObjectValue {
+        @NotNull ArrayType arrayType();
+
         @Override
-        public @NotNull ObjectType type() {
+        default @NotNull ObjectType type() {
             return arrayType();
         }
 
         @Override
-        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
+        default @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
             if (equals(other))
                 return this;
             if (other instanceof ObjectValue)
@@ -358,25 +355,27 @@ public sealed interface Value {
         }
     }
 
-    record KnownLengthArrayValue(@NotNull ArrayType arrayType, int length) implements ObjectValue {
-        @Override
-        public @NotNull ObjectType type() {
-            return arrayType();
-        }
+    /**
+     * Value of T[] content with an unknown length.
+     *
+     * @param arrayType
+     *                  More specific declared type than {@link ObjectValue#type()}.
+     */
+    record UnknownLengthArrayValue(@NotNull ArrayType arrayType) implements ArrayValue {
+    }
 
+    /**
+     * Value of T[] content with a known length.
+     *
+     * @param arrayType
+     *              More specific declared type than {@link ObjectValue#type()}.
+     * @param length
+     *              Length of array.
+     */
+    record KnownLengthArrayValue(@NotNull ArrayType arrayType, int length) implements ArrayValue {
         @Override
         public boolean isKnown() {
             return true;
-        }
-
-        @Override
-        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other)
-                throws ValueMergeException {
-            if (equals(other))
-                return this;
-            if (other instanceof ObjectValue)
-                return Values.OBJECT_VALUE;
-            throw new ValueMergeException("Invalid array merge with non-object value");
         }
 
         @Override
