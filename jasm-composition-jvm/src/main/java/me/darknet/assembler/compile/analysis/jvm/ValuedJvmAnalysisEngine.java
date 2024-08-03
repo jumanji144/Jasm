@@ -232,7 +232,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     if (Float.isNaN(a) || Float.isNaN(b))
                         frame.push(Values.valueOf(-1));
                     else
-                        frame.push(Values.valueOf(Double.compare(a, b)));
+                        frame.push(Values.valueOf(Float.compare(a, b)));
                 } else {
                     if (!(value1.type() instanceof PrimitiveType))
                         warn(instruction, "Top value to compare is not a primitive");
@@ -250,7 +250,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     if (Float.isNaN(a) || Float.isNaN(b))
                         frame.push(Values.valueOf(1));
                     else
-                        frame.push(Values.valueOf(Double.compare(a, b)));
+                        frame.push(Values.valueOf(Float.compare(a, b)));
                 } else {
                     if (!(value1.type() instanceof PrimitiveType))
                         warn(instruction, "Top value to compare is not a primitive");
@@ -516,6 +516,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 ValuedLocal valuedLocal = frame.getLocals().get(index);
                 Value value;
                 if (valuedLocal == null) {
+                    error(instruction, "Loading from variable not initialized");
                     value = switch (opcode) {
                         case ILOAD -> Values.INT_VALUE;
                         case LLOAD -> Values.LONG_VALUE;
