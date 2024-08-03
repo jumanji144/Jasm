@@ -163,14 +163,14 @@ public class DeclarationParser {
         return new ASTEmpty(begin);
     }
 
-    private ASTArray parseArray() {
+    private @Nullable ASTArray parseArray() {
         if (ctx.take("{") == null)
             return null;
         List<ASTElement> elements = new ArrayList<>();
         return parseHalfArray(elements);
     }
 
-    private ASTArray parseHalfArray(List<ASTElement> elements) {
+    private @Nullable ASTArray parseHalfArray(List<ASTElement> elements) {
         ctx.enterState(State.IN_ARRAY);
         Token peek = ctx.peek();
         while (!peek.content().equals("}")) {
@@ -192,7 +192,7 @@ public class DeclarationParser {
         return new ASTArray(elements);
     }
 
-    private ASTObject parseObject() {
+    private @Nullable ASTObject parseObject() {
         ctx.enterState(State.IN_OBJECT);
         if (ctx.take("{") == null)
             return null;
@@ -226,7 +226,7 @@ public class DeclarationParser {
         return new ASTObject(elements);
     }
 
-    private ASTDeclaration parseDeclaration() {
+    private @Nullable ASTDeclaration parseDeclaration() {
         ASTIdentifier identifier = new ASTIdentifier(ctx.takeAny());
         if (identifier.content().charAt(0) != '.') {
             ctx.throwExpectedError("identifier starting with '.'", identifier.content());
@@ -272,7 +272,7 @@ public class DeclarationParser {
         return new ASTDeclaration(identifier, elements);
     }
 
-    private ASTElement parseArrayOrNestedDeclaration() {
+    private @Nullable ASTElement parseArrayOrNestedDeclaration() {
         if (ctx.take("{") == null)
             return null;
         ctx.enterState(State.IN_NESTED_DECLARATION_OR_ARRAY);
@@ -298,13 +298,13 @@ public class DeclarationParser {
         return parseHalfNestedDeclaration(elements);
     }
 
-    private ASTDeclaration parseNestedDeclaration() {
+    private @Nullable ASTDeclaration parseNestedDeclaration() {
         if (ctx.take("{") == null)
             return null;
         return parseHalfNestedDeclaration(new ArrayList<>());
     }
 
-    private ASTDeclaration parseHalfNestedDeclaration(List<ASTElement> elements) {
+    private @Nullable ASTDeclaration parseHalfNestedDeclaration(List<ASTElement> elements) {
         ctx.enterState(State.IN_NESTED_DECLARATION);
         Token peek = ctx.peek();
         while (!peek.content().equals("}")) {
@@ -321,7 +321,7 @@ public class DeclarationParser {
         return new ASTDeclaration(null, elements);
     }
 
-    private ASTCode parseCode() {
+    private @Nullable ASTCode parseCode() {
         ctx.enterState(State.IN_CODE);
         if (ctx.take("{") == null)
             return null;
@@ -344,7 +344,7 @@ public class DeclarationParser {
         return new ASTCode(instructions);
     }
 
-    private ASTInstruction parseInstruction() {
+    private @Nullable ASTInstruction parseInstruction() {
         ctx.enterState(State.IN_INSTRUCTION);
         Token instruction = ctx.takeAny();
         if (instruction == null)
