@@ -519,6 +519,14 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     public void execute(VarInstruction instruction) {
         final int index = instruction.variableIndex();
         final int opcode = instruction.opcode();
+        final ClassType expectedVarType = switch (opcode) {
+            case ILOAD, ISTORE -> Types.INT;
+            case LLOAD, LSTORE -> Types.LONG;
+            case FLOAD, FSTORE -> Types.FLOAT;
+            case DLOAD, DSTORE -> Types.DOUBLE;
+            case ALOAD, ASTORE -> Types.OBJECT;
+            default -> throw new IllegalStateException("Unexpected opcode: " + opcode);
+        };
         switch (opcode) {
             case ILOAD, LLOAD, FLOAD, DLOAD, ALOAD -> {
                 ValuedLocal valuedLocal = frame.getLocals().get(index);
@@ -536,29 +544,34 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 } else {
                     value = valuedLocal.value();
                 }
+                ClassType actualVarType = value.type();
+                if (expectedVarType instanceof PrimitiveType) {
+                    if (actualVarType == null)
+                        warn(instruction, "Loading 'null' as " + expectedVarType.descriptor());
+                    else if (expectedVarType != actualVarType)
+                        warn(instruction, "Loading " + actualVarType.descriptor() + " as " + expectedVarType.descriptor());
+                } else if (!(actualVarType instanceof ObjectType) && actualVarType != null)
+                    warn(instruction, "Loading non-object as object");
                 frame.push(value);
             }
             case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> {
                 String name = variableNameLookup.getVarName(index);
                 Value value = opcode == LSTORE || opcode == DSTORE ? frame.pop2() : frame.pop();
 
-                ClassType stackType = value.type();
-                ClassType assumedType = switch (opcode) {
-                    case ISTORE -> Types.INT;
-                    case LSTORE -> Types.LONG;
-                    case FSTORE -> Types.FLOAT;
-                    case DSTORE -> Types.DOUBLE;
-                    case ASTORE -> Types.OBJECT;
-                    default -> throw new IllegalStateException("Unexpected opcode: " + opcode);
-                };
-                if (assumedType == Types.OBJECT) {
-                    if (stackType instanceof PrimitiveType)
-                        warn(instruction, "Incorrect var assignment, " + stackType.descriptor() + " into reference");
-                } else if (stackType == null || assumedType.getClass() != stackType.getClass()) {
-                    String stackName = stackType == null ? "'null'" : stackType.descriptor();
-                    warn(instruction, "Incorrect var assignment, " + stackName + " into " + assumedType.descriptor());
+                ClassType actualStackType = value.type();
+                if (expectedVarType instanceof PrimitiveType) {
+                    if (actualStackType == null)
+                        warn(instruction, "Incorrect var assignment, 'null' into " + expectedVarType.descriptor());
+                    else if (expectedVarType != actualStackType)
+                        warn(instruction, "Incorrect var assignment, " + actualStackType.descriptor() + " into " + expectedVarType.descriptor());
+                } else if (!(actualStackType instanceof ObjectType) && actualStackType != null) {
+                    warn(instruction, "Incorrect var assignment, " + actualStackType.descriptor() + " into object");
                 }
 
+                if (name == null) {
+                    warn(instruction, "Failed resolving variable name for generated index " + index);
+                    name = "?";
+                }
                 frame.setLocal(index, new ValuedLocal(index, name, value));
             }
         }
@@ -704,7 +717,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 }
             }
             case GETSTATIC -> {
-	            if (fieldValueLookup != null) {
+                if (fieldValueLookup != null) {
                     // 3rd parties can register values for known fields
                     Value value = fieldValueLookup.accept(instruction, null);
                     if (value != null) {
