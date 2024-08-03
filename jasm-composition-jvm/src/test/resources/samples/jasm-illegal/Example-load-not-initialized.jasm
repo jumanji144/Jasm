@@ -1,0 +1,13 @@
+.super java/lang/Object
+.class public super Example {
+    .method private final init ()V {
+        parameters: { this },
+        code: {
+        A:
+            aload neverInitialized
+            astore neverInitialized
+            return
+        Z:
+        }
+    }
+}

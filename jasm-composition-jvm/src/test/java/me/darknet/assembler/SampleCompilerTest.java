@@ -248,6 +248,16 @@ public class SampleCompilerTest {
             options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
             processAnalysisFailJvm(source, options);
         }
+
+        @Test
+        void loadUninitializedVariable() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-load-not-initialized.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processAnalysisFailJvm(source, options);
+        }
     }
 
     /**
