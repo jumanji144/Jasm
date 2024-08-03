@@ -445,18 +445,50 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             frame.push(Values.valueOf(cDouble.value()));
         } else if (constant instanceof OfString cString) {
             frame.push(Values.valueOfString(cString.value()));
-        } else if (constant instanceof OfMethodHandle mh) {
+        } else if (constant instanceof OfMethodHandle) {
             // push java/lang/invoke/MethodHandle
             frame.pushType(METHOD_HANDLE);
         } else if (constant instanceof OfDynamic dyn) {
             frame.pushType(dyn.value().type());
         } else if (constant instanceof OfType tp) {
             Type type = tp.value();
-            if (type instanceof ClassType ct)
+            if (type instanceof ClassType)
                 frame.pushType(CLASS);
-            else if (type instanceof MethodType mt)
+            else if (type instanceof MethodType)
                 // push java/lang/invoke/MethodType
                 frame.pushType(METHOD_TYPE);
+        }
+    }
+
+    @Override
+    public void execute(ConditionalJumpInstruction instruction) {
+        switch (instruction.opcode()) {
+            case IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE -> {
+                Value value = frame.pop();
+                if (!(value instanceof Value.IntValue))
+                    warn(instruction, "Top value is not an int");
+            }
+            case IFNULL, IFNONNULL -> {
+                Value value = frame.pop();
+                if (!(value instanceof Value.ObjectValue))
+                    warn(instruction, "Top value is not an object");
+            }
+            case IF_ICMPEQ, IF_ICMPNE, IF_ICMPLT, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE -> {
+                Value value1 = frame.pop();
+                Value value2 = frame.pop();
+                if (!(value1 instanceof Value.IntValue))
+                    warn(instruction, "Top value is not an int");
+                if (!(value2 instanceof Value.IntValue))
+                    warn(instruction, "Top-1 value is not an int");
+            }
+            case IF_ACMPEQ, IF_ACMPNE -> {
+                Value value1 = frame.pop();
+                Value value2 = frame.pop();
+                if (!(value1 instanceof Value.ObjectValue))
+                    warn(instruction, "Top value is not an object");
+                if (!(value2 instanceof Value.ObjectValue))
+                    warn(instruction, "Top-1 value is not an object");
+            }
         }
     }
 

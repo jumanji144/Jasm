@@ -194,7 +194,7 @@ public class Values {
             LONG_VALUES[i] = new Value.KnownLongValue(i);
 
         // Common strings
-        List<String> strings = List.of("", " ", "  ", "   ", "    ", "\n", "\t", "\0");
+        List<String> strings = List.of("", " ", "  ", "   ", "    ", "\n", "\t", "\0", ",", ":", "-", "=");
         for (String string : strings)
             STRING_VALUES.put(string, new Value.KnownStringValue(string));
 
