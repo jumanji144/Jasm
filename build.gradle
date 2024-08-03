@@ -1,6 +1,6 @@
 allprojects {
     group 'me.darknet'
-    version '2.5.0'
+    version '2.6.0'
 }
 
 subprojects {
@@ -61,6 +61,4 @@ subprojects {
             testImplementation 'org.junit.jupiter:junit-jupiter'
         }
     }
-
-
 }
