@@ -28,6 +28,16 @@ public sealed interface Value {
         @NotNull
         PrimitiveType type();
 
+        default boolean isWide() {
+            int kind = type().kind();
+            return kind == PrimitiveKind.T_LONG || kind == PrimitiveKind.T_DOUBLE;
+        }
+
+        default boolean isReserved() {
+            int kind = type().kind();
+            return kind == PrimitiveKind.T_VOID;
+        }
+
         @Override
         @NotNull
         default Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
@@ -40,6 +50,7 @@ public sealed interface Value {
 
         @NotNull
         default PrimitiveValue cast(PrimitiveType type) {
+            if (type().equals(type)) return this;
             return Values.valueOfPrimitive(type);
         }
 

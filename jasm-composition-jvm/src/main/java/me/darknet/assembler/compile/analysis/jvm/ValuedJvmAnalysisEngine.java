@@ -92,18 +92,26 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             }
             case INEG, FNEG -> {
                 Value value = frame.pop();
-                if (value instanceof Value.PrimitiveValue primitiveValue)
+                if (value instanceof Value.PrimitiveValue primitiveValue) {
+                    if (primitiveValue.isWide())
+                        warn(instruction, "Value negated is wide");
+                    else if (primitiveValue.isReserved())
+                        warn(instruction, "Value negated is top");
                     frame.push(primitiveValue.negate());
-                else {
+                } else {
                     frame.pushType(value.type());
                     warn(instruction, "Value to negate is not a primitive");
                 }
             }
             case LNEG, DNEG -> {
                 Value value = frame.pop2();
-                if (value instanceof Value.PrimitiveValue primitiveValue)
+                if (value instanceof Value.PrimitiveValue primitiveValue) {
+                    if (!primitiveValue.isWide())
+                        warn(instruction, "Value negated is not wide");
+                    else if (primitiveValue.isReserved())
+                        warn(instruction, "Value negated is top");
                     frame.push(primitiveValue.negate());
-                else {
+                } else {
                     frame.pushType(value.type());
                     warn(instruction, "Value to negate is not a primitive");
                 }
