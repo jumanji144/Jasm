@@ -387,6 +387,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
     @Override
     public void execute(FieldInstruction instruction) {
         int opcode = instruction.opcode();
+        final ClassType fieldType = instruction.type();
         switch (opcode) {
             case GETFIELD -> {
                 ClassType contextType = frame.pop();
@@ -396,34 +397,41 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                     warn(instruction, "Cannot get field of primitive");
                 else if (contextType instanceof ArrayType)
                     warn(instruction, "Cannot get field of array");
-                frame.pushType(instruction.type());
+                frame.pushType(fieldType);
             }
-            case GETSTATIC -> frame.pushType(instruction.type());
-            case PUTFIELD -> {
-                frame.pop(instruction.type());
-                ClassType contextType = frame.pop();
-                if (contextType == null)
-                    warn(instruction, "Cannot put field on 'null' reference");
-                else if (contextType instanceof PrimitiveType)
-                    warn(instruction, "Cannot put field on primitive");
-                else if (contextType instanceof ArrayType)
-                    warn(instruction, "Cannot put field on array");
+            case GETSTATIC -> frame.pushType(fieldType);
+            case PUTFIELD, PUTSTATIC -> {
+                ClassType valueType = frame.pop(fieldType);
+
+                // Validate field context value
+                if (opcode == PUTFIELD) {
+                    ClassType contextType = frame.pop();
+                    if (contextType == null)
+                        warn(instruction, "Cannot put field on 'null' reference");
+                    else if (contextType instanceof PrimitiveType)
+                        warn(instruction, "Cannot put field on primitive");
+                    else if (contextType instanceof ArrayType)
+                        warn(instruction, "Cannot put field on array");
+                }
+
+                // Value --> Field type checks
+                validateTypeUse(instruction, valueType, fieldType, "store", "field");
             }
-            case PUTSTATIC -> frame.pop(instruction.type());
             default -> throw new IllegalStateException("Unknown field insn: " + opcode);
         }
     }
 
     @Override
     public void execute(InvokeDynamicInstruction instruction) {
-        MethodType type = (MethodType) instruction.type();
-        List<ClassType> types = type.parameterTypes();
+        MethodType methodType = (MethodType) instruction.type();
+        List<ClassType> types = methodType.parameterTypes();
         for (int i = types.size(); i > 0; i--) {
             ClassType paramType = types.get(i - 1);
-            frame.pop(paramType);
+            ClassType valueType = frame.pop(paramType);
+            validateTypeUse(instruction, valueType, paramType, "use", "parameter");
         }
-        if (type.returnType() != Types.VOID)
-            frame.pushType(type.returnType());
+        if (methodType.returnType() != Types.VOID)
+            frame.pushType(methodType.returnType());
     }
 
     @Override

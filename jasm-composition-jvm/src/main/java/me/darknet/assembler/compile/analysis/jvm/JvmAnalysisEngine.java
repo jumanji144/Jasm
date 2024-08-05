@@ -71,7 +71,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
 
     /**
      * @param errorCollector
-     * 		Collector to dump error/warnings into.
+     *         Collector to dump error/warnings into.
      */
     public void setErrorCollector(ErrorCollector errorCollector) {
         this.errorCollector = errorCollector;
@@ -79,9 +79,9 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
 
     /**
      * @param element
-     * 		Origin of the warning.
+     *         Origin of the warning.
      * @param message
-     * 		Warning message content.
+     *         Warning message content.
      */
     protected void warn(@NotNull CodeElement element, @NotNull String message) {
         if (errorCollector == null) return;
@@ -91,9 +91,9 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
 
     /**
      * @param element
-     * 		Origin of the warning.
+     *         Origin of the warning.
      * @param message
-     * 		Error message content.
+     *         Error message content.
      */
     protected void error(@NotNull CodeElement element, @NotNull String message) {
         if (errorCollector == null) return;
@@ -239,5 +239,37 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     @Override
     public void label(Label label) {
         //no-op
+    }
+
+    /**
+     * @param element Element being validated.
+     * @param inputType Type use as input.
+     * @param destinationType Type use as destination. Example cases being a field or method parameter.
+     * @param verb Type use action.
+     * @param noun Destination name.
+     */
+    protected void validateTypeUse(@NotNull CodeElement element, @Nullable ClassType inputType,
+                                   @NotNull ClassType destinationType, @NotNull String verb, @NotNull String noun) {
+        if (inputType instanceof PrimitiveType) {
+            if (destinationType instanceof InstanceType)
+                warn(element, "Cannot " + verb + " primitive value into instance " + noun);
+            else if (destinationType instanceof ArrayType)
+                warn(element, "Cannot " + verb + " primitive value into array " + noun);
+        } else if (inputType instanceof ArrayType arrayValueType) {
+            if (destinationType instanceof InstanceType instanceDestinationType && !Types.OBJECT.equals(instanceDestinationType))
+                warn(element, "Cannot " + verb + " array value into " + noun + " that is not 'java/lang/Object'");
+            else if (destinationType instanceof PrimitiveType)
+                warn(element, "Cannot " + verb + " array value into primitive " + noun);
+            else if (destinationType instanceof ArrayType arrayDestinationType && !arrayDestinationType.equals(arrayValueType))
+                warn(element, "Cannot " + verb + " array value into array " + noun + " of different component type or dimension");
+        }  else if (inputType instanceof InstanceType) {
+            if (destinationType instanceof PrimitiveType)
+                warn(element, "Cannot " + verb + " instance value into primitive " + noun);
+            else if (destinationType instanceof ArrayType)
+                warn(element, "Cannot " + verb + " instance value into array " + noun);
+        } else if (inputType == null) {
+            if (destinationType instanceof PrimitiveType)
+                warn(element, "Cannot " + verb + " null value into primitive " + noun);
+        }
     }
 }

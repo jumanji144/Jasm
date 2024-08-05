@@ -230,6 +230,16 @@ public class SampleCompilerTest {
     @Nested
     class Error {
         @Test
+        void putfieldWithoutContext() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-putfield-no-context.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processAnalysisFailJvm(source, options);
+        }
+
+        @Test
         void intAndObjectStackMerge() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-object-int-stack-merge.jasm");
             String source = arg.source.get();
@@ -302,8 +312,22 @@ public class SampleCompilerTest {
 
         @Test
         void putField() throws Throwable {
+            // Field contexts
             warnOnBothEngines(TestArgument.fromName("Example-putfield-null.jasm"));
             warnOnBothEngines(TestArgument.fromName("Example-putfield-prim.jasm"));
+
+            // Array stack values
+            warnOnBothEngines(TestArgument.fromName("Example-putstatic-array-to-prim.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-putstatic-array-to-wrong-component-type.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-putstatic-array-to-wrong-dim-array.jasm"));
+
+            // Primitive stack values
+            warnOnBothEngines(TestArgument.fromName("Example-putstatic-prim-to-array.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-putstatic-prim-to-obj.jasm"));
+
+            // Instance stack values
+            warnOnBothEngines(TestArgument.fromName("Example-putstatic-obj-to-prim.jasm"));
+            warnOnBothEngines(TestArgument.fromName("Example-putstatic-obj-to-array.jasm"));
         }
 
         @Test

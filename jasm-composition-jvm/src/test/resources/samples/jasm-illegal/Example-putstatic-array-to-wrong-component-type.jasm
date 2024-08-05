@@ -1,0 +1,14 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            iconst_1
+            newarray byte
+            putstatic Example.ia [I
+            return
+        B:
+        }
+    }
+}

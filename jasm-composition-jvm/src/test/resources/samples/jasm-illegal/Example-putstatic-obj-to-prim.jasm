@@ -1,0 +1,13 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            aconst_null
+            putstatic Example.foo I
+            return
+        B:
+        }
+    }
+}

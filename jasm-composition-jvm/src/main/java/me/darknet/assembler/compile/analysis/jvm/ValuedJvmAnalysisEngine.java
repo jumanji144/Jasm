@@ -652,6 +652,8 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             canLookup &= value.isKnown();
             if (value instanceof Value.VoidValue)
                 warn(instruction, "Cannot pass 'void' as method argument");
+            else
+                validateTypeUse(instruction, value.type(), type, "use", "parameter");
         }
 
         Value.ObjectValue contextObject = null;
@@ -691,7 +693,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     @Override
     public void execute(FieldInstruction instruction) {
         final int opcode = instruction.opcode();
-        final ClassType type = instruction.type();
+        final ClassType fieldType = instruction.type();
         switch (opcode) {
             case GETFIELD -> {
                 Value contextValue = frame.pop();
@@ -710,10 +712,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                         frame.push(value);
                     } else {
                         // No value from lookup, use generic value of field type
-                        frame.pushType(type);
+                        frame.pushType(fieldType);
                     }
                 } else {
-                    frame.pushType(type);
+                    frame.pushType(fieldType);
                 }
             }
             case GETSTATIC -> {
@@ -724,38 +726,45 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                         frame.push(value);
                     } else {
                         // No value from lookup, use generic value of field type
-                        frame.pushType(type);
+                        frame.pushType(fieldType);
                     }
                 } else {
-                    frame.pushType(type);
+                    frame.pushType(fieldType);
                 }
             }
-            case PUTFIELD -> {
-                frame.pop(type);
-                Value contextValue = frame.pop();
-                ClassType contextType = contextValue.type();
-                if (contextType == null)
-                    warn(instruction, "Cannot put field on 'null' reference");
-                else if (contextType instanceof PrimitiveType)
-                    warn(instruction, "Cannot put field on primitive");
-                else if (contextType instanceof ArrayType)
-                    warn(instruction, "Cannot put field on array");
+            case PUTFIELD, PUTSTATIC -> {
+                Value value = frame.pop(fieldType);
+                ClassType valueType = value.type();
+
+                // Validate field context value
+                if (opcode == PUTFIELD) {
+                    Value contextValue = frame.pop();
+                    ClassType contextType = contextValue.type();
+                    if (contextType == null)
+                        warn(instruction, "Cannot put field on 'null' reference");
+                    else if (contextType instanceof PrimitiveType)
+                        warn(instruction, "Cannot put field on primitive");
+                    else if (contextType instanceof ArrayType)
+                        warn(instruction, "Cannot put field on array");
+                }
+
+                // Value --> Field type checks
+                validateTypeUse(instruction, valueType, fieldType, "store", "field");
             }
-            case PUTSTATIC -> frame.pop(type);
             default -> throw new IllegalStateException("Unknown field insn: " + opcode);
         }
     }
-
-    @Override
+        @Override
     public void execute(InvokeDynamicInstruction instruction) {
-        MethodType type = (MethodType) instruction.type();
-        List<ClassType> types = type.parameterTypes();
+        MethodType methodType = (MethodType) instruction.type();
+        List<ClassType> types = methodType.parameterTypes();
         for (int i = types.size(); i > 0; i--) {
             ClassType paramType = types.get(i - 1);
-            frame.pop(paramType);
+                Value value = frame.pop(paramType);
+                validateTypeUse(instruction, value.type(), paramType, "use", "parameter");
         }
-        if (type.returnType() != Types.VOID)
-            frame.pushType(type.returnType());
+        if (methodType.returnType() != Types.VOID)
+            frame.pushType(methodType.returnType());
     }
 
     @Override
