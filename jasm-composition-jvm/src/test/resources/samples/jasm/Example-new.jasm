@@ -1,0 +1,17 @@
+// SKIP-ROUND-TRIP-EQUALITY
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            new java/lang/String
+            pop
+            // Desc format will be mapped to proper internal name
+            new Ljava/lang/String;
+            pop
+            return
+        B:
+        }
+    }
+}

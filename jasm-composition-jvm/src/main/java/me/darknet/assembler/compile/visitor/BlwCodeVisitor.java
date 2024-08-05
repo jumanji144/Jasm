@@ -252,15 +252,21 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitTypeInsn(ASTIdentifier type) {
+        String literal = type.literal();
         if (opcode == NEW) {
-            add(new AllocateInstruction(Types.instanceTypeFromInternalName(type.literal())));
+            char first = literal.charAt(0);
+            if (first == 'L' && literal.charAt(literal.length()-1) == ';')
+                literal = literal.substring(1, literal.length()-1); // Adapt if user put in desc format accidentally
+            else if (first == '[')
+                throw new IllegalStateException("Cannot use 'new' to allocate an array type");
+            add(new AllocateInstruction(Types.instanceTypeFromInternalName(literal)));
         } else if (opcode == ANEWARRAY) {
-            ClassType arrayType = new TypeReader(type.literal()).requireClassType();
+            ClassType arrayType = new TypeReader(literal).requireClassType();
             if (arrayType instanceof PrimitiveType)
                 throw new IllegalStateException("Cannot create primitive array: " + arrayType.descriptor());
             add(new AllocateInstruction(Types.arrayType(arrayType)));
         } else {
-            TypeReader reader = new TypeReader(type.literal());
+            TypeReader reader = new TypeReader(literal);
             ObjectType objectType = Objects.requireNonNullElse((ObjectType) reader.read(), Types.OBJECT);
             Instruction instruction = switch (opcode) {
                 case CHECKCAST -> new CheckCastInstruction(objectType);
