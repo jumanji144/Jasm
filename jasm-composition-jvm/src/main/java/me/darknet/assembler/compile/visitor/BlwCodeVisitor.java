@@ -254,26 +254,24 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     public void visitTypeInsn(ASTIdentifier type) {
         String literal = type.literal();
         if (opcode == NEW) {
-            char first = literal.charAt(0);
-            if (first == 'L' && literal.charAt(literal.length()-1) == ';')
-                literal = literal.substring(1, literal.length()-1); // Adapt if user put in desc format accidentally
-            else if (first == '[')
-                throw new IllegalStateException("Cannot use 'new' to allocate an array type");
-            add(new AllocateInstruction(Types.instanceTypeFromInternalName(literal)));
-        } else if (opcode == ANEWARRAY) {
-            ClassType arrayType = new TypeReader(literal).requireClassType();
-            if (arrayType instanceof PrimitiveType)
-                throw new IllegalStateException("Cannot create primitive array: " + arrayType.descriptor());
-            add(new AllocateInstruction(Types.arrayType(arrayType)));
-        } else {
-            TypeReader reader = new TypeReader(literal);
-            ObjectType objectType = Objects.requireNonNullElse((ObjectType) reader.read(), Types.OBJECT);
+            literal = adaptDescToInternalName("new", literal);
+            ObjectType objectType = Types.instanceTypeFromInternalName(literal);
+            add(new AllocateInstruction(objectType));
+        } else if (opcode == CHECKCAST || opcode == INSTANCEOF) {
+            literal = adaptDescToInternalName("checkcast/instanceof", literal);
+            ObjectType objectType = Types.instanceTypeFromInternalName(literal);
             Instruction instruction = switch (opcode) {
                 case CHECKCAST -> new CheckCastInstruction(objectType);
                 case INSTANCEOF -> new InstanceofInstruction(objectType);
                 default -> throw new IllegalStateException("Unexpected value: " + opcode);
             };
             add(instruction);
+        } else if (opcode == ANEWARRAY) {
+            literal = adaptDescToInternalName("anewarray", literal);
+            ObjectType objectType = Types.instanceTypeFromInternalName(literal);
+            add(new AllocateInstruction(Types.arrayType(objectType)));
+        } else {
+            throw new IllegalStateException("Unexpected value: " + opcode);
         }
     }
 
@@ -517,5 +515,14 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             return ap.widen(bp);
         }
         throw new ValueMergeException("Cannot find common type between " + a.descriptor() + " and " + b.descriptor());
+    }
+
+    private static @NotNull String adaptDescToInternalName(@NotNull String op, @NotNull String desc) {
+        char first = desc.charAt(0);
+        if (first == 'L' && desc.charAt(desc.length()-1) == ';')
+            desc = desc.substring(1, desc.length()-1); // Adapt if user put in desc format accidentally
+        else if (first == '[')
+            throw new IllegalStateException("Cannot use '" + op + "' to allocate an array type");
+        return desc;
     }
 }

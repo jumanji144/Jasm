@@ -23,7 +23,7 @@
                 getstatic Example.log Ljava/util/logging/Logger;
                 ldc "foo"
                 iconst_1
-                anewarray Ljava/lang/Object;
+                anewarray java/lang/Object
                 dup
                 iconst_0
                 aload this

@@ -1,12 +1,12 @@
 .super java/lang/Object
 .class public super Example {
-    .method public exampleMethod ()Ljava/lang/Object; {
+    .method public exampleMethod ()Z {
         parameters: { this },
         code: {
         A:
             getstatic Dummy.dummy Ljava/util/Collection;
-            checkcast java/util/List
-            areturn
+            instanceof java/util/List
+            ireturn
         B:
         }
     }

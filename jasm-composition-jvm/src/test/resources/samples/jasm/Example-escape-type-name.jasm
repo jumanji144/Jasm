@@ -1,0 +1,14 @@
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            new \u0000
+            checkcast \u0000
+            instanceof \u0000
+            ireturn
+        B:
+        }
+    }
+}

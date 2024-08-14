@@ -4,8 +4,8 @@
         parameters: { this },
         code: {
         A:
-            bipush 42
-            checkcast java/util/List
+            getstatic Dummy.dummy Ljava/util/Collection;
+            checkcast L
             areturn
         B:
         }

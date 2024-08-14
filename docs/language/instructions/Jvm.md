@@ -79,7 +79,7 @@ Format:
     }
 }
 ```
-A lookupswitch is a way to jump to a label based on a integer value, it takes an integer and jumps to the label at the
+A `lookupswitch` is a way to jump to a label based on a integer value, it takes an integer and jumps to the label at the
 key in the cases array, if the integer is not present in the cases array it jumps to the default label.
 
 ### Array Type

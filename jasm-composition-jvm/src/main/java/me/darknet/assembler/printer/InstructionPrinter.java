@@ -152,12 +152,12 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
     @Override
     public void execute(InstanceofInstruction instruction) {
-        ctx.instruction("instanceof").literal(instruction.type().descriptor()).next();
+        ctx.instruction("instanceof").literal(instruction.type().internalName()).next();
     }
 
     @Override
     public void execute(CheckCastInstruction instruction) {
-        ctx.instruction("checkcast").literal(instruction.type().descriptor()).next();
+        ctx.instruction("checkcast").literal(instruction.type().internalName()).next();
     }
 
     @Override
@@ -169,8 +169,8 @@ public class InstructionPrinter implements IndexedExecutionEngine {
             ArrayType arrayType = (ArrayType) type;
             ClassType component = arrayType.componentType();
             if (component instanceof ObjectType objectComponent) {
-                String componentDesc = objectComponent.descriptor();
-                ctx.instruction("anewarray").literal(componentDesc).next();
+                String typeName = objectComponent.internalName();
+                ctx.instruction("anewarray").literal(typeName).next();
             } else if (component instanceof PrimitiveType primitiveComponent) {
                 ctx.instruction("newarray").print(primitiveComponent.name()).next();
             }
