@@ -222,7 +222,10 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
 
     @Override
     public void execute(AllocateMultiDimArrayInstruction instruction) {
-        frame.pop(instruction.dimensions()); // pop n values off the stack that fill in the dimension sizes
+        int dimensions = instruction.dimensions();
+        if (dimensions <= 0)
+            warn(instruction, "multianewarray must have > 0 dimensions");
+        frame.pop(dimensions); // pop n values off the stack that fill in the dimension sizes
         frame.pushType(instruction.type());
     }
 
