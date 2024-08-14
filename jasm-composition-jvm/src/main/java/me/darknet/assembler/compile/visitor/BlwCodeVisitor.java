@@ -360,9 +360,17 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitMultiANewArrayInsn(ASTIdentifier descriptor, ASTNumber numDimensions) {
-        ArrayType arrayType = Types.arrayTypeFromDescriptor(descriptor.literal());
         int dimSize = numDimensions.asInt();
-        add(new AllocateMultiDimArrayInstruction(arrayType, dimSize));
+        String literal = descriptor.literal();
+        Type literalType = Types.typeFromDescriptor(literal);
+        if (literalType instanceof ArrayType literalArrayType) {
+            add(new AllocateMultiDimArrayInstruction(literalArrayType, dimSize));
+        } else {
+            ArrayType arrayType = Types.arrayType((ClassType) literalType);
+            var insn = new AllocateMultiDimArrayInstruction(arrayType, dimSize);
+            add(insn);
+            analysisEngine.warn(insn, "Expected array type, got class name");
+        }
     }
 
     @Override

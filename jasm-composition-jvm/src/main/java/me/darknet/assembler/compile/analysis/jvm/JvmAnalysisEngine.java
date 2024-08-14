@@ -83,7 +83,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
      * @param message
      *         Warning message content.
      */
-    protected void warn(@NotNull CodeElement element, @NotNull String message) {
+    public void warn(@NotNull CodeElement element, @NotNull String message) {
         if (errorCollector == null) return;
         ASTInstruction ast = getCodeToAstMap().get(element);
         if (ast != null) errorCollector.addWarn(message, ast.location());
