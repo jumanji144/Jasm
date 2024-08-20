@@ -1,0 +1,23 @@
+.super java/lang/Object
+.class public super Example {
+    .method private exampleMethod ()V {
+    parameters: { this },
+    code: {
+    A:
+        line 3
+        iconst_1
+        iconst_1
+        multianewarray [[I 2
+        astore a
+    B:
+        line 4
+        iconst_1
+        anewarray [Ljava/lang/Object;
+        astore b
+    C:
+        line 5
+        return
+    D:
+    }
+    }
+}

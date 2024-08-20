@@ -267,9 +267,9 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             };
             add(instruction);
         } else if (opcode == ANEWARRAY) {
-            literal = adaptDescToInternalName("anewarray", literal);
-            ObjectType objectType = Types.instanceTypeFromInternalName(literal);
-            add(new AllocateInstruction(Types.arrayType(objectType)));
+            literal = adaptDescToInternalNameOrArray(literal);
+            ObjectType componentType = Types.objectTypeFromInternalName(literal);
+            add(new AllocateInstruction(Types.arrayType(componentType)));
         } else {
             throw new IllegalStateException("Unexpected value: " + opcode);
         }
@@ -531,6 +531,15 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             desc = desc.substring(1, desc.length()-1); // Adapt if user put in desc format accidentally
         else if (first == '[')
             throw new IllegalStateException("Cannot use '" + op + "' to allocate an array type");
+        return desc;
+    }
+
+    private static @NotNull String adaptDescToInternalNameOrArray(@NotNull String desc) {
+        char first = desc.charAt(0);
+        if (first == 'L' && desc.charAt(desc.length()-1) == ';')
+            desc = desc.substring(1, desc.length()-1); // Adapt if user put in desc format accidentally
+        else if (first == '[')
+            return desc;
         return desc;
     }
 }
