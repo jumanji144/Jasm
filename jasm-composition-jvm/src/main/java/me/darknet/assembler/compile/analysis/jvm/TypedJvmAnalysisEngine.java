@@ -377,8 +377,6 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                 warn(instruction, "Cannot invoke method of 'null' reference");
             else if (contextType instanceof PrimitiveType)
                 warn(instruction, "Cannot invoke method on primitive");
-            else if (contextType instanceof ArrayType)
-                warn(instruction, "Cannot invoke method on array");
         }
         if (methodType.returnType() != Types.VOID)
             frame.pushType(methodType.returnType());

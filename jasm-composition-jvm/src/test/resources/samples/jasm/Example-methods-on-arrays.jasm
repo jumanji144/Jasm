@@ -1,0 +1,16 @@
+.super java/lang/Object
+.class public super Example {
+    .method callArrayMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            iconst_1
+            anewarray java/lang/String
+            // as a edge case, arrays are allowed to access all methods from Object
+            invokevirtual [Ljava/lang/String;.clone ()Ljava/lang/Object;
+            pop
+            return
+        B:
+        }
+    }
+}

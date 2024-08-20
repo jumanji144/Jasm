@@ -670,8 +670,6 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 warn(instruction, "Cannot invoke method of 'null' reference");
             else if (contextType instanceof PrimitiveType)
                 warn(instruction, "Cannot invoke method on primitive");
-            else if (contextType instanceof ArrayType)
-                warn(instruction, "Cannot invoke method on array");
         }
 
         if (methodType.returnType() != Types.VOID) {
