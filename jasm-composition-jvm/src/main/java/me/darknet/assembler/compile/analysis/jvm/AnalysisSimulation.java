@@ -100,6 +100,8 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
             while (index < elementCount) {
                 Frame oldFrame = frame.copy();
                 frame = frame.copy();
+                if (index < 0)
+                    throw new AnalysisException("Analysis jumped to invalid range: " + index);
                 CodeElement element = elements.get(index);
 
                 Frame existingFrame = engine.getFrame(index);
