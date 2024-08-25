@@ -167,9 +167,15 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     }
 
     @Override
-    public void recordInstructionMapping(@NotNull ASTInstruction instruction, @NotNull CodeElement element) {
+    public void recordInstructionMapping(@Nullable ASTInstruction instruction, @NotNull CodeElement element) {
+        // Map code element to AST it originates from.
         elementToAst.put(element, instruction);
-        astToElement.put(instruction, element);
+
+        // Not all code elements have an associated AST.
+        // In some cases we will insert things like additional labels.
+        // We do not want to have nay null keys.
+        if (instruction != null)
+            astToElement.put(instruction, element);
     }
 
     @Override
