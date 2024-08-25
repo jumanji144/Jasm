@@ -2,7 +2,9 @@
 .class public super Example {
     .method public exampleMethod ()V {
         parameters: { this },
-        exceptions: { { C, D, E, Ljava/lang/Exception; } },
+        exceptions: {
+            { C, D, E, Ljava/lang/Exception; }
+        },
         code: {
             A:
                 aload this

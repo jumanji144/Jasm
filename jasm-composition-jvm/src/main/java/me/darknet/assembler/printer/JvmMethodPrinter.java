@@ -149,7 +149,7 @@ public class JvmMethodPrinter implements MethodPrinter {
             // Print exception ranges
             if (!methodCode.tryCatchBlocks().isEmpty()) {
                 var arr = obj.value("exceptions").array();
-                arr.print(methodCode.tryCatchBlocks(), (print, tcb) -> {
+                arr.printIndented(methodCode.tryCatchBlocks(), (print, tcb) -> {
                     var exception = print.array();
                     String start = labelNames.get(tcb.start().getIndex());
                     String end = labelNames.get(tcb.end().getIndex());
@@ -157,7 +157,10 @@ public class JvmMethodPrinter implements MethodPrinter {
 
                     String type = tcb.type() == null ? "*" : tcb.type().descriptor();
 
-                    exception.print(start).arg().print(end).arg().print(handler).arg().print(type);
+                    exception.print(start).arg()
+                            .print(end).arg()
+                            .print(handler).arg()
+                            .print(type);
 
                     exception.end();
                 });

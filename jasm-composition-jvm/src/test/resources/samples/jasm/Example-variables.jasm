@@ -2,7 +2,9 @@
 .class public super Example {
     .method public exampleMethod (LExample;)LExample; {
         parameters: { this, other },
-        exceptions: { { A, B, C, * } },
+        exceptions: {
+            { A, B, C, * }
+        },
         code: {
         A:
             ldc 100.0F

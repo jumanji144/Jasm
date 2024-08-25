@@ -236,6 +236,21 @@ public class PrintContext<T extends PrintContext<?>> {
             return this;
         }
 
+        public <E> ArrayPrint printIndented(Iterable<E> iterable, BiConsumer<ArrayPrint, E> printer) {
+            Iterator<E> iterator = iterable.iterator();
+            if (iterator.hasNext()) {
+                indent();
+                newline();
+                printer.accept(this, iterator.next());
+                while (iterator.hasNext()) {
+                    printer.accept(arg().newline(), iterator.next());
+                }
+                unindent();
+            }
+            newline();
+            return this;
+        }
+
         @Override
         public void end() {
             this.print(" }");

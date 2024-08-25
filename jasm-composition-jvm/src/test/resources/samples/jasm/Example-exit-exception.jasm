@@ -2,7 +2,9 @@
 .class public super Example {
     .method public exampleMethod ()V {
         parameters: { this },
-        exceptions: { { A, B, B, * } },
+        exceptions: {
+            { A, B, B, * }
+        },
         code: {
         A:
             goto C
