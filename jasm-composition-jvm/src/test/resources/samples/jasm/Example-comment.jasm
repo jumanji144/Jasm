@@ -1,0 +1,41 @@
+// SKIP-ROUND-TRIP-EQUALITY
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            // Long multi-line-comment
+            // a
+            // a
+            // a
+            // a
+            // a
+            // a
+            iconst_0
+            // Another comment
+            // a
+            // a
+            // a
+            // a
+            // a
+            // a
+            istore foo
+
+
+
+            //
+            //
+            //
+            // space
+            //
+            //
+
+
+
+            iload foo
+            ireturn
+        B:
+        }
+    }
+}

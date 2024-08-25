@@ -37,8 +37,8 @@ public class Tokenizer {
 
     private void handleComment(TokenizerContext ctx, char currentChar) {
         while (currentChar != '\n') {
-            ctx.forward();
             currentChar = ctx.peek();
+            ctx.forward();
         }
         ctx.collectToken();
         ctx.leaveComment();

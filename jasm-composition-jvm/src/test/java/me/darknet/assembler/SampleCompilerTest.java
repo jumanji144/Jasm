@@ -2,6 +2,7 @@ package me.darknet.assembler;
 
 import dev.xdark.blw.code.instruction.MethodInstruction;
 import dev.xdark.blw.type.Types;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.Value;
@@ -16,6 +17,7 @@ import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
+import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Nested;
@@ -426,6 +428,32 @@ public class SampleCompilerTest {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
                 assertFalse(results.terminalFrames().isEmpty());
+            });
+        }
+
+        @Test
+        void spacesAndCommentsDoNotBreakAstReportedLocations() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-comment.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults methodAnalysis = result.analysisLookup().results("exampleMethod", "()I");
+                assertNotNull(methodAnalysis);
+                Set<ASTInstruction> instructionAstNodes = methodAnalysis.getAstToCodeMap().keySet();
+                for (ASTInstruction astNode : instructionAstNodes) {
+                    if ("istore".equals(astNode.identifier().content()) ) {
+                        // The istore should appear on line 23
+                        Location location = astNode.location();
+                        assertNotNull(location);
+                        assertEquals(23, location.line());
+                    } else  if ("iload".equals(astNode.identifier().content()) ) {
+                        // The istore should appear on line 36
+                        Location location = astNode.location();
+                        assertNotNull(location);
+                        assertEquals(36, location.line());
+                    }
+                }
             });
         }
 
