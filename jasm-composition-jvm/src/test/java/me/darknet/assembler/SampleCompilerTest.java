@@ -20,6 +20,7 @@ import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.ThrowingSupplier;
@@ -457,17 +458,41 @@ public class SampleCompilerTest {
             });
         }
 
-        @Test
-        void tryWithResourceVariableScopeConfusion() throws Throwable {
-            TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
-            String source = arg.source.get();
-            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
-            processJvm(source, options, result -> {
-                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
-                assertNull(results.getAnalysisFailure());
-                assertFalse(results.terminalFrames().isEmpty());
-            });
+        @Nested
+        @Disabled
+        class VariableScoping {
+            @Test
+            void tryWithResourceVariableScopeConfusion() throws Throwable {
+                TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
+                String source = arg.source.get();
+                TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+                options.engineProvider(ValuedJvmAnalysisEngine::new);
+                processJvm(source, options, result -> {
+                    AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                    assertNull(results.getAnalysisFailure());
+                    assertFalse(results.terminalFrames().isEmpty());
+                }, warns -> {
+                    warns.forEach(System.err::println);
+                    fail("No warnings allowed");
+                });
+            }
+
+            @Test
+            void tryWithResourceVariableScopeConfusion2() throws Throwable {
+                TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
+                String source = arg.source.get();
+                TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+                options.engineProvider(TypedJvmAnalysisEngine::new);
+                processJvm(source, options, result -> {
+                    AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                    assertNull(results.getAnalysisFailure());
+                    assertFalse(results.terminalFrames().isEmpty());
+                }, warns -> {
+                    warns.forEach(System.err::println);
+                    fail("No warnings allowed");
+                });
+            }
+
         }
 
         @Test

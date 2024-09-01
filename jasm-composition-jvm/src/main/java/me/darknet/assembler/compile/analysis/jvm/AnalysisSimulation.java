@@ -267,6 +267,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
 
             // Pull expected variable scopes for the given index.
             insertCachedVarInfo(engine, frame, index);
+            // TODO: Improve upon before uncommenting
 
             // Add the fork key to the queue.
             forkQueue.add(new ForkKey(index, frame, priority));
