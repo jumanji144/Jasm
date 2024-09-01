@@ -84,6 +84,11 @@ public class TypedFrameImpl implements TypedFrame {
 				// Our frame doesn't have the local variable.
 				// Copy it if we know the type.
 				setLocal(index, otherLocal);
+
+				// If we are learning the type of the variable where it was previously 'null'
+				// then we will mark the frame as being changed. But if the other frame also has 'null'
+				// as the type then we don't want to be marked as changed (will cause an infinite loop).
+				changed = otherType != null;
 			} else if (otherLocal.isNull()) {
 				// Our frame can be updated to fill in 'null' with a known type.
 				setLocal(index, otherLocal.adaptType(ourType));
