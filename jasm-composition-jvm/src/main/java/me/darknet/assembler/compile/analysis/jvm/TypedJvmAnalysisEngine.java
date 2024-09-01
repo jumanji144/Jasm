@@ -2,7 +2,7 @@ package me.darknet.assembler.compile.analysis.jvm;
 
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.compile.analysis.Local;
-import me.darknet.assembler.compile.analysis.VariableNameLookup;
+import me.darknet.assembler.compile.analysis.VarCache;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
 import me.darknet.assembler.compile.analysis.frame.TypedFrame;
 import me.darknet.assembler.compile.analysis.frame.TypedFrameOps;
@@ -17,8 +17,8 @@ import java.util.List;
  * JVM engine which tracks types of items in the stack/locals.
  */
 public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
-    public TypedJvmAnalysisEngine(@NotNull VariableNameLookup variableNameLookup) {
-        super(variableNameLookup);
+    public TypedJvmAnalysisEngine(@NotNull VarCache varCache) {
+        super(varCache);
     }
 
     @Override
@@ -326,7 +326,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                 frame.pushType(type);
             }
             case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> {
-                String name = variableNameLookup.getVarName(index);
+                String name = varCache.getVarName(index);
                 ClassType stackType = opcode == LSTORE || opcode == DSTORE ? frame.pop2() : frame.pop();
                 ClassType assumedType = switch (opcode) {
                     case ISTORE -> Types.INT;
@@ -465,7 +465,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
         Local local = frame.getLocal(instruction.variableIndex());
         if (local == null) {
             // Invalid iinc target
-            String name = variableNameLookup.getVarName(instruction.variableIndex());
+            String name = varCache.getVarName(instruction.variableIndex());
             if (name == null) {
                 error(instruction, "Invalid iinc target, not a recognized variable");
                 return;

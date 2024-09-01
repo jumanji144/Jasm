@@ -5,7 +5,7 @@ import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.VariableNameLookup;
+import me.darknet.assembler.compile.analysis.VarCache;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
@@ -40,18 +40,23 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     protected final NavigableMap<Integer, F> terminalFrames = new TreeMap<>();
     private final Map<ASTInstruction, CodeElement> astToElement = new IdentityHashMap<>();
     private final Map<CodeElement, ASTInstruction> elementToAst = new IdentityHashMap<>();
-    protected final VariableNameLookup variableNameLookup;
+    protected final VarCache varCache;
     protected InheritanceChecker checker;
     protected ErrorCollector errorCollector;
 
     protected AnalysisException analysisFailure;
     protected F frame;
 
-    public JvmAnalysisEngine(@NotNull VariableNameLookup variableNameLookup) {
-        this.variableNameLookup = variableNameLookup;
+    public JvmAnalysisEngine(@NotNull VarCache varCache) {
+        this.varCache = varCache;
     }
 
     public abstract FrameOps<?> newFrameOps();
+
+    @NotNull
+    public VarCache getVarCache() {
+        return varCache;
+    }
 
     /**
      * @param checker
@@ -84,9 +89,11 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
      *         Warning message content.
      */
     public void warn(@NotNull CodeElement element, @NotNull String message) {
-        if (errorCollector == null) return;
+        if (errorCollector == null)
+            return;
         ASTInstruction ast = getCodeToAstMap().get(element);
-        if (ast != null) errorCollector.addWarn(message, ast.location());
+        if (ast != null)
+            errorCollector.addWarn(message, ast.location());
     }
 
     /**
@@ -96,9 +103,11 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
      *         Error message content.
      */
     protected void error(@NotNull CodeElement element, @NotNull String message) {
-        if (errorCollector == null) return;
+        if (errorCollector == null)
+            return;
         ASTInstruction ast = getCodeToAstMap().get(element);
-        if (ast != null) errorCollector.addError(message, ast.location());
+        if (ast != null)
+            errorCollector.addError(message + " @ " + ast.content(), ast.location());
     }
 
     /**

@@ -221,7 +221,7 @@ public class SampleCompilerTest {
                         .filter(l -> l.name().equals("c"))
                         .findFirst().orElse(null);
                  assertNotNull(local, "The 'c' local was not found");
-                 assertEquals(local.type(), Types.instanceType(List.class), "Expected 'c' == List.class");
+                 assertEquals(Types.instanceType(List.class), local.type(), "Expected 'c' == List.class");
             });
         }
     }
@@ -454,6 +454,19 @@ public class SampleCompilerTest {
                         assertEquals(36, location.line());
                     }
                 }
+            });
+        }
+
+        @Test
+        void tryWithResourceVariableScopeConfusion() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
             });
         }
 

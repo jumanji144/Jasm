@@ -1,6 +1,6 @@
 package me.darknet.assembler.compile;
 
-import me.darknet.assembler.compile.analysis.VariableNameLookup;
+import me.darknet.assembler.compile.analysis.VarCache;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngineFactory;
 import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
@@ -55,8 +55,8 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
         return this;
     }
 
-    public @NotNull JvmAnalysisEngine<?> createEngine(@NotNull VariableNameLookup lookup) {
-        JvmAnalysisEngine<?> engine = engineProvider.create(lookup);
+    public @NotNull JvmAnalysisEngine<?> createEngine(@NotNull VarCache varCache) {
+        JvmAnalysisEngine<?> engine = engineProvider.create(varCache);
         engine.setChecker(inheritanceChecker());
         return engine;
     }

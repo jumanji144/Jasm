@@ -1,18 +1,19 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import me.darknet.assembler.compile.analysis.AnalysisException;
-import me.darknet.assembler.compile.analysis.Local;
-import me.darknet.assembler.compile.analysis.frame.Frame;
-import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
-import me.darknet.assembler.compile.analysis.frame.FrameOps;
-import me.darknet.assembler.compiler.InheritanceChecker;
-
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.instruction.BranchInstruction;
 import dev.xdark.blw.simulation.ExecutionEngines;
 import dev.xdark.blw.simulation.Simulation;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.Types;
+import me.darknet.assembler.compile.analysis.AnalysisException;
+import me.darknet.assembler.compile.analysis.Local;
+import me.darknet.assembler.compile.analysis.VarCache;
+import me.darknet.assembler.compile.analysis.VarCacheUpdater;
+import me.darknet.assembler.compile.analysis.frame.Frame;
+import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
+import me.darknet.assembler.compile.analysis.frame.FrameOps;
+import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -46,7 +47,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                 frameOps.setFrameLocal(initialFrame, idx, param);
             }
             try {
-                forkQueue.add(new ForkKey(0, initialFrame));
+                forkQueue.add(engine, 0, initialFrame, -1);
             } catch (FrameMergeException e) {
                 throw new AnalysisException(e, "Failed allocating initial frame");
             }
@@ -54,7 +55,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
 
         // Next we'll queue the catch blocks as fork-points.
         // We know the stack will only contain a throwable type.
-        final List<CodeElement> elements = method.method();
+        final List<CodeElement> elements = method.codeElements();
         final int elementCount = elements.size();
         for (TryCatchBlock handler : method.exceptionHandlers()) {
             Label handlerLabel = handler.handler();
@@ -66,7 +67,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
             Frame frame = initialFrame.copy();
             frame.pushType(type);
             try {
-                forkQueue.add(new ForkKey(handlerIndex, frame));
+                forkQueue.add(engine, handlerIndex, frame);
             } catch (FrameMergeException ex) {
                 throw new AnalysisException(ex, "Failed allocating handler frame");
             }
@@ -174,7 +175,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
 
                                 // Queue the fork-point if needed.
                                 if (shouldVisitTarget) {
-                                    forkQueue.add(new ForkKey(targetIndex, frame));
+                                    forkQueue.add(engine, targetIndex, frame);
                                     visited.clear(targetIndex);
                                 }
                             } catch (FrameMergeException ex) {
@@ -201,23 +202,74 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
         }
     }
 
+    /**
+     * The way we handle propagating variable scope, combined with the order in which we visit blocks, occasionally
+     * leads to circumstances where later blocks will not know about variables defined earlier in the method.
+     * <p>
+     * As a work-around, we have a separate pass via {@link VarCacheUpdater} to record what variables should be
+     * available at given code offsets. Then in this pass <i>({@link AnalysisSimulation})</i> we pull in data from
+     * the prior pass whenever we create control flow fork-points
+     * <i>({@link ForkQueue#add(JvmAnalysisEngine, int, Frame, int)})</i>.
+     *
+     * @param engine
+     * 		Engine to pull the {@link VarCache} from.
+     * @param frame
+     * 		Frame to populate with variable information.
+     * @param offset
+     * 		Current code offset, used to determine which variables are in-scope.
+     *
+     * @return Passed in frame.
+     */
+    @NotNull
+    @SuppressWarnings("unchecked")
+    private static Frame insertCachedVarInfo(@NotNull JvmAnalysisEngine<Frame> engine, @NotNull Frame frame, int offset) {
+        VarCache varCache = engine.getVarCache();
+        FrameOps<Frame> frameOps = (FrameOps<Frame>) engine.newFrameOps();
+        varCache.varsAtOffset(offset).forEach(v -> {
+            int varIndex = v.getIndex();
+            if (frame.getLocalType(varIndex) == null) {
+                Local local = new Local(varIndex, v.getName(), v.getTypeHint());
+                if (local.isNull())
+                    frameOps.setFrameLocalNull(frame, varIndex, local);
+                else
+                    frameOps.setFrameLocal(frame, varIndex, local);
+            }
+        });
+        return frame;
+    }
+
+    /**
+     * Queue for control flow visitation.
+     */
     private static class ForkQueue implements Iterable<ForkKey> {
-        private final NavigableMap<Integer, ForkKey> forkQueue = new TreeMap<>();
+        private final NavigableSet<ForkKey> forkQueue = new TreeSet<>();
         private final InheritanceChecker checker;
 
         public ForkQueue(@NotNull InheritanceChecker checker) {
             this.checker = checker;
         }
 
-        public void add(@NotNull ForkKey key) throws FrameMergeException {
-            ForkKey oldForkKey = forkQueue.get(key.index);
-            if (oldForkKey != null) {
-                Frame frameA = key.frame().copy();
-                Frame frameB = oldForkKey.frame();
-                frameA.merge(checker, frameB);
-                key = new ForkKey(key.index, frameA);
+        public void add(@NotNull JvmAnalysisEngine<Frame> engine, int index, @NotNull Frame frame) throws FrameMergeException {
+			add(engine, index, frame, 0);
+        }
+
+        public void add(@NotNull JvmAnalysisEngine<Frame> engine, int index, @NotNull Frame frame, int priority) throws FrameMergeException {
+            // Merge the given frame with an existing one's key if there's a match
+            for (ForkKey existingKey : forkQueue) {
+                if (index == existingKey.index) {
+                    Frame frameA = frame.copy();
+                    Frame frameB = existingKey.frame();
+                    frameA.merge(checker, frameB);
+                    frame = frameA;
+                    break;
+                }
             }
-            forkQueue.put(key.index, key);
+
+            // Pull expected variable scopes for the given index.
+            insertCachedVarInfo(engine, frame, index);
+
+            // Add the fork key to the queue.
+            forkQueue.add(new ForkKey(index, frame, priority));
         }
 
         public int size() {
@@ -226,29 +278,47 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
 
         @Nullable
         public ForkKey next() {
-            var entry = forkQueue.pollLastEntry();
-            if (entry == null)
+            if (forkQueue.isEmpty())
                 return null;
-            return entry.getValue();
+            return forkQueue.pollLast();
         }
 
         @NotNull
         @Override
         public Iterator<ForkKey> iterator() {
-            return forkQueue.values().iterator();
+            return forkQueue.iterator();
         }
     }
 
-    private record ForkKey(int index, @NotNull Frame frame) implements Comparable<ForkKey> {
+    /**
+     * Entry model for {@link ForkQueue}.
+     *
+     * @param index
+     * 		Code offset/index.
+     * @param frame
+     * 		Frame state at the index.
+     * @param priority
+     * 		Priority of the fork. Lower values will be visited first. Default value is {@code 0}.
+     */
+    private record ForkKey(int index, @NotNull Frame frame, int priority) implements Comparable<ForkKey> {
         @Override
         public int compareTo(@NotNull AnalysisSimulation.ForkKey other) {
+            int cmp = Integer.compare(priority, other.priority);
+            if (cmp != 0)
+                return cmp;
             return Integer.compare(index, other.index);
         }
     }
 
-    public record Info(
-            InheritanceChecker checker, List<Local> params, List<CodeElement> method,
-            List<TryCatchBlock> exceptionHandlers
-    ) {
+    /**
+     * Method state wrapper.
+     *
+     * @param checker Inheritance resolution for frame merging of different class types.
+     * @param params Method parameters.
+     * @param codeElements Method code.
+     * @param exceptionHandlers Method try-catch blocks.
+     */
+    public record Info(@NotNull InheritanceChecker checker, @NotNull List<Local> params,
+                       @NotNull List<CodeElement> codeElements, @NotNull List<TryCatchBlock> exceptionHandlers) {
     }
 }

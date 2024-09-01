@@ -1,0 +1,68 @@
+// SKIP-ROUND-TRIP-EQUALITY
+.super java/lang/Object
+.class public super Example {
+  .method public static example (Ljava/lang/Throwable;)Ljava/lang/String; {
+      parameters: { t },
+  exceptions: {
+      {  B,  C,  E, Ljava/lang/Throwable; },
+      {  F,  G,  H, Ljava/lang/Throwable; },
+      {  A,  D,  J, Ljava/lang/Throwable; },
+      {  E,  J,  J, Ljava/lang/Throwable; }
+  },
+  code: {
+  // try (ByteArrayOutputStream out = new ByteArrayOutputStream(1024)) {
+  //   return "ret";
+  // } catch (Throwable x) {
+  //   return "err";
+  // }
+  A:
+     // try-start:   range=[A-D] handler=J:java/lang/Throwable
+     new java/io/ByteArrayOutputStream
+     dup
+     sipush 1024
+     invokespecial java/io/ByteArrayOutputStream.<init> (I)V
+     astore out
+  B:
+     // try-start:   range=[B-C] handler=E:java/lang/Throwable
+     ldc "ret"
+     astore retVal
+  C:
+     // try-end:     range=[B-C] handler=E:java/lang/Throwable
+     aload out
+     invokevirtual java/io/ByteArrayOutputStream.close ()V
+  D:
+     // try-end:     range=[A-D] handler=J:java/lang/Throwable
+     aload retVal
+     areturn
+  E:
+     // try-handler: range=[B-C] handler=E:java/lang/Throwable
+     // try-start:   range=[E-J] handler=J:java/lang/Throwable
+     astore xx
+  F:
+     // try-start:   range=[F-G] handler=H:java/lang/Throwable
+     aload out
+     invokevirtual java/io/ByteArrayOutputStream.close ()V
+  G:
+     // try-end:     range=[F-G] handler=H:java/lang/Throwable
+     goto I
+  H:
+     // try-handler: range=[F-G] handler=H:java/lang/Throwable
+     astore xxx
+     aload xx
+     aload xxx
+     invokevirtual java/lang/Throwable.addSuppressed (Ljava/lang/Throwable;)V
+  I:
+     aload xx
+     athrow
+  J:
+     // try-handler: range=[A-D] handler=J:java/lang/Throwable
+     // try-end:     range=[E-J] handler=J:java/lang/Throwable
+     // try-handler: range=[E-J] handler=J:java/lang/Throwable
+     astore x
+  K:
+     ldc "err"
+     areturn
+  L:
+  }
+}
+}

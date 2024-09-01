@@ -1,6 +1,6 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import me.darknet.assembler.compile.analysis.VariableNameLookup;
+import me.darknet.assembler.compile.analysis.VarCache;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -9,11 +9,11 @@ import org.jetbrains.annotations.NotNull;
  */
 public interface JvmAnalysisEngineFactory {
     /**
-     * @param lookup
-     *               Variable name lookup to use in the engine.
+     * @param varCache
+     *               Variable cache for name/index lookup within the engine.
      *
      * @return New analysis engine instance.
      */
     @NotNull
-    JvmAnalysisEngine<?> create(@NotNull VariableNameLookup lookup);
+    JvmAnalysisEngine<?> create(@NotNull VarCache varCache);
 }

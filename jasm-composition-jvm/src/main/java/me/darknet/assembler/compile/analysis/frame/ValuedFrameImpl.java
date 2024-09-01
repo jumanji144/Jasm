@@ -95,9 +95,8 @@ public class ValuedFrameImpl implements ValuedFrame {
         Deque<Value> otherStack = other.getStack();
         Deque<Value> thisStack = stack;
         if (thisStack.size() != otherStack.size())
-            throw new FrameMergeException(
-                    this, other, "Stack size mismatch, " + thisStack.size() + " != " + otherStack.size()
-            );
+            throw new FrameMergeException(this, other,
+                    "Stack size mismatch, " + thisStack.size() + " != " + otherStack.size());
 
         Deque<Value> newStack = new ArrayDeque<>();
         Iterator<Value> it1 = thisStack.iterator();

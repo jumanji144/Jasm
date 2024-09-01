@@ -11,7 +11,14 @@ public class TypedFrameOps implements FrameOps<TypedFrame> {
     }
 
     @Override
-    public void setFrameLocal(@NotNull TypedFrame frame, int idx, @NotNull Local param) {
-        frame.setLocal(idx, param);
+    public void setFrameLocal(@NotNull TypedFrame frame, int idx, @NotNull Local local) {
+        frame.setLocal(idx, local);
+    }
+
+    @Override
+    public void setFrameLocalNull(@NotNull TypedFrame frame, int idx, @NotNull Local local) {
+        if (!local.isNull())
+            throw new IllegalStateException("Usage of 'setFrameLocalNull' requires passing a valid 'null' local");
+        frame.setLocal(idx, local);
     }
 }

@@ -95,6 +95,9 @@ public class TestUtils {
 			}).ifErr(errors -> {
 				for (Error error : errors) {
 					System.err.println(error);
+					Throwable trace = new Throwable();
+					trace.setStackTrace(error.getInCodeSource());
+					trace.printStackTrace();
 				}
 				fail("Failed to analyze/compile class, errors were reported");
 			}).ifWarn(warns -> {

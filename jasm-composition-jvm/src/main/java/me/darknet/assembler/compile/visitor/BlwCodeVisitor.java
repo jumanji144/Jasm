@@ -3,12 +3,10 @@ package me.darknet.assembler.compile.visitor;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.compile.JvmCompilerOptions;
-import me.darknet.assembler.compile.analysis.AnalysisException;
-import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.Local;
-import me.darknet.assembler.compile.analysis.ValueMergeException;
+import me.darknet.assembler.compile.analysis.*;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
+import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.error.ErrorCollector;
@@ -28,7 +26,6 @@ import dev.xdark.blw.constant.OfInt;
 import dev.xdark.blw.constant.OfLong;
 import dev.xdark.blw.type.*;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
@@ -39,11 +36,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final ErrorCollector errorCollector;
     private final Map<String, GenericLabel> nameToLabel = new HashMap<>();
     private final List<Local> parameters;
-    /**
-     * We only track local names since the stack analysis will provide us more
-     * detail later. See {@link #visitEnd()}
-     */
-    private final List<String> localNames = new ArrayList<>();
+    private final VarCache varCache = new VarCache();
     private final List<ASTInstruction> visitedInstructions = new ArrayList<>();
     private final JvmAnalysisEngine<Frame> analysisEngine;
     private ASTInstruction currentInstructionAst;
@@ -65,13 +58,13 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         this.codeBuilderList = builder.codeList().child();
         this.checker = options.inheritanceChecker();
         this.errorCollector = errorCollector;
-        this.analysisEngine = (JvmAnalysisEngine<Frame>) options.createEngine(this::getLocalName);
+        this.analysisEngine = (JvmAnalysisEngine<Frame>) options.createEngine(varCache);
         this.parameters = parameters;
 
         analysisEngine.setErrorCollector(errorCollector);
 
         // Populate variables from params.
-        parameters.stream().filter(Objects::nonNull).forEach(param -> getOrCreateLocal(param.name(), param.size() > 1));
+        parameters.stream().filter(Objects::nonNull).forEach(param -> varCache.getOrCreate(param.name(), param.size() > 1));
     }
 
     /**
@@ -80,53 +73,6 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @NotNull
     public AnalysisResults getAnalysisResults() {
         return analysisEngine;
-    }
-
-    /**
-     * @param index
-     *              Index of variable.
-     *
-     * @return Name of variable, or {@code null} if not found.
-     */
-    @Nullable
-    private String getLocalName(int index) {
-        if (index < 0 || index >= localNames.size())
-            return null;
-        return localNames.get(index);
-    }
-
-    /**
-     * @param name
-     *             Name of variable.
-     * @param wide
-     *             {@code true} for {@code long}/{@code double} types.
-     *
-     * @return Index of variable.
-     */
-    private int getOrCreateLocal(String name, boolean wide) {
-        int index = localNames.indexOf(name);
-        if (index > -1)
-            return index;
-        index = localNames.size();
-        localNames.add(name);
-        if (wide)
-            localNames.add(null);
-        return index;
-    }
-
-    /**
-     * @param name
-     *               Name of variable.
-     * @param opcode
-     *               Instruction responsible for accessing the variable.
-     *
-     * @return Index of variable.
-     */
-    private int getOrCreateLocalVar(String name, int opcode) {
-        if (opcode == LSTORE || opcode == DSTORE || opcode == LLOAD || opcode == DLOAD) {
-            return getOrCreateLocal(name, true);
-        }
-        return getOrCreateLocal(name, false);
     }
 
     /**
@@ -231,12 +177,15 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitVarInsn(ASTIdentifier var) {
-        add(new VarInstruction(opcode, getOrCreateLocalVar(var.literal(), opcode)));
+        String name = var.literal();
+        int index = varCache.getOrCreate(name, opcode == LSTORE || opcode == DSTORE ||
+                opcode == LLOAD || opcode == DLOAD);
+        add(new VarInstruction(opcode, index));
     }
 
     @Override
     public void visitIincInsn(ASTIdentifier var, ASTNumber increment) {
-        add(new VariableIncrementInstruction(getOrCreateLocal(var.literal(), false), increment.asInt()));
+        add(new VariableIncrementInstruction(varCache.getOrCreate(var.literal(), false), increment.asInt()));
     }
 
     @Override
@@ -410,19 +359,29 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         for (Local parameter : parameters) {
             if (parameter == null)
                 continue; // wide parameter
-            codeBuilder.localVariable(
-                    new GenericLocal(begin, end, parameter.index(), parameter.name(), parameter.safeType(), null)
-            );
+
+            int index = parameter.index();
+            String name = parameter.name();
+            ClassType type = parameter.safeType();
+            codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
+
+            // Mark parameter variable as being assigned before the code
+            var parameterVar = varCache.getFirstByIndex(index);
+            if (parameterVar != null)
+                parameterVar.updateFirstAssignedOffset(-1);
         }
 
         // Analyze stack for local variable information.
-        AnalysisSimulation simulation = new AnalysisSimulation(analysisEngine.newFrameOps());
         Code code = codeBuilder.build();
+        AnalysisSimulation.Info method = new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks());
         try {
-            simulation.execute(
-                    analysisEngine,
-                    new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks())
-            );
+            // Variable analysis
+            new IndexedStraightforwardSimulation()
+                    .execute(new VarCacheUpdater(varCache), code);
+
+            // Code analysis
+            AnalysisSimulation simulation = new AnalysisSimulation(analysisEngine.newFrameOps());
+            simulation.execute(analysisEngine, method);
         } catch (AnalysisException ex) {
             analysisEngine.setAnalysisFailure(ex);
 

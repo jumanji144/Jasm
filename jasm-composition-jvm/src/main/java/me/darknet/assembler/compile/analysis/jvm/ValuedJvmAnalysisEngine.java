@@ -22,8 +22,8 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     private MethodValueLookup methodValueLookup;
     private FieldValueLookup fieldValueLookup;
 
-    public ValuedJvmAnalysisEngine(@NotNull VariableNameLookup variableNameLookup) {
-        super(variableNameLookup);
+    public ValuedJvmAnalysisEngine(@NotNull VarCache varCache) {
+        super(varCache);
     }
 
     @Override
@@ -555,7 +555,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                 frame.push(value);
             }
             case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> {
-                String name = variableNameLookup.getVarName(index);
+                String name = varCache.getVarName(index);
                 Value value = opcode == LSTORE || opcode == DSTORE ? frame.pop2() : frame.pop();
 
                 ClassType actualStackType = value.type();
@@ -582,7 +582,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         ValuedLocal local = frame.getLocal(instruction.variableIndex());
         if (local == null) {
             // create a new local with the increment value
-            String name = variableNameLookup.getVarName(instruction.variableIndex());
+            String name = varCache.getVarName(instruction.variableIndex());
             if (name == null) {
                 error(instruction, "Invalid iinc target, not a recognized variable");
                 return;

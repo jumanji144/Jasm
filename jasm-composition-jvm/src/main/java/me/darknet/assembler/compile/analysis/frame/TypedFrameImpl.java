@@ -75,13 +75,17 @@ public class TypedFrameImpl implements TypedFrame {
 			Local otherLocal = entry.getValue();
 			ClassType otherType = otherLocal.type();
 			ClassType ourType = getLocalType(index);
-			if (otherType == Types.VOID || ourType == Types.VOID) {
+
+			// Skip top-type entries
+			if (otherType == Types.VOID || ourType == Types.VOID)
 				continue;
-			}
+
 			if (ourType == null) {
-				if (changed = (otherType != null))
-					setLocal(index, otherLocal);
+				// Our frame doesn't have the local variable.
+				// Copy it if we know the type.
+				setLocal(index, otherLocal);
 			} else if (otherLocal.isNull()) {
+				// Our frame can be updated to fill in 'null' with a known type.
 				setLocal(index, otherLocal.adaptType(ourType));
 			} else {
 				ClassType merged = AnalysisUtils.commonType(checker, ourType, otherType);
@@ -94,9 +98,8 @@ public class TypedFrameImpl implements TypedFrame {
 
 		Deque<ClassType> otherStack = other.getStack();
 		if (stack.size() != otherStack.size())
-			throw new FrameMergeException(
-					this, other, "Stack size mismatch, " + stack.size() + " != " + otherStack.size()
-			);
+			throw new FrameMergeException(this, other,
+					"Stack size mismatch, " + stack.size() + " != " + otherStack.size());
 
 		Deque<ClassType> newStack = new ArrayDeque<>();
 		Iterator<ClassType> it1 = stack.iterator();
