@@ -19,6 +19,7 @@ public class PrintContext<T extends PrintContext<?>> {
     protected String indent = "";
     protected String indentStep;
     protected Writer writer;
+    protected boolean debugTryCatchRanges;
 
     public PrintContext(String indentStep, Writer writer) {
         this.indentStep = indentStep;
@@ -37,6 +38,10 @@ public class PrintContext<T extends PrintContext<?>> {
 
     public void setIndentStep(String indent) {
         this.indentStep = indent;
+    }
+
+    public void setDebugTryCatchRanges(boolean debugTryCatchRanges) {
+        this.debugTryCatchRanges = debugTryCatchRanges;
     }
 
     T append(String s) {

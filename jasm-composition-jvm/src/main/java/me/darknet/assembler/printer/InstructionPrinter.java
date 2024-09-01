@@ -1,12 +1,9 @@
 package me.darknet.assembler.printer;
 
+import dev.xdark.blw.code.*;
 import me.darknet.assembler.compile.analysis.jvm.IndexedExecutionEngine;
 import me.darknet.assembler.helper.Variables;
 
-import dev.xdark.blw.code.Code;
-import dev.xdark.blw.code.Instruction;
-import dev.xdark.blw.code.JavaOpcodes;
-import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.type.*;
 import org.jetbrains.annotations.NotNull;
@@ -50,7 +47,27 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     public void label(Label label) {
         String name = labelNames.get(label.getIndex());
         ctx.label(name).next();
-        if(label.getLineNumber() != Label.UNSET) {
+        if (ctx.debugTryCatchRanges) {
+            for (TryCatchBlock block : code.tryCatchBlocks()) {
+                Label start = block.start();
+                Label end = block.end();
+                Label handler = block.handler();
+                InstanceType type = block.type();
+                String typeName = type == null ? "*" : type.internalName();
+                String range = "range=[" + labelNames.get(start.getIndex()) + "-" + labelNames.get(end.getIndex()) + "]";
+                String endName = labelNames.get(handler.getIndex());
+                if (label == start) {
+                    ctx.instruction("// try-start:   " + range + " handler=" + endName + ":" + typeName).next();
+                }
+                if (label == end) {
+                    ctx.instruction("// try-end:     " + range + " handler=" + endName + ":" + typeName).next();
+                }
+                if (label == handler) {
+                    ctx.instruction("// try-handler: " + range + " handler=" + endName + ":" + typeName).next();
+                }
+            }
+        }
+        if (label.getLineNumber() != Label.UNSET) {
             ctx.instruction("line").print(Integer.toString(label.getLineNumber())).next();
         }
     }
