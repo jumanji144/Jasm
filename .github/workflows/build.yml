@@ -36,7 +36,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Event File
+          name: Test results/logs
           retention-days: 21
           path: |
             **/TEST-*
