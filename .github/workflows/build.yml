@@ -37,7 +37,7 @@ jobs:
         if: always()
         with:
           name: Test results
-          retention-days: 21
+          retention-days: 20
           path: |
             **/TEST-*
             **/hs_err_pid*
