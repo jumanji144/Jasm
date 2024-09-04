@@ -33,6 +33,13 @@ public sealed interface Frame permits TypedFrame, ValuedFrame {
     ClassType getLocalType(int index);
 
     /**
+     * @param index
+     *              Index of variable to check.
+     * @return {@code true} when a local at the given index exists.
+     */
+    boolean hasLocal(int index);
+
+    /**
      * @return Stream of locals in the current frame.
      */
     @NotNull

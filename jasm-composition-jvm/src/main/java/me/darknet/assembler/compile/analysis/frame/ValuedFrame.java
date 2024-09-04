@@ -45,10 +45,15 @@ public non-sealed interface ValuedFrame extends Frame {
         return getLocals().get(index);
     }
 
+    @Override
+    default boolean hasLocal(int index) {
+        return getLocal(index) != null;
+    }
+
     @Nullable
     @Override
     default ClassType getLocalType(int index) {
-        Local local = getLocals().get(index);
+        Local local = getLocal(index);
         if (local == null)
             return null;
         return local.type();
