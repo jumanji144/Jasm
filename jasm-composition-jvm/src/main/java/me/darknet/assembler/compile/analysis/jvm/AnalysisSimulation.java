@@ -6,6 +6,7 @@ import dev.xdark.blw.simulation.ExecutionEngines;
 import dev.xdark.blw.simulation.Simulation;
 import dev.xdark.blw.type.InstanceType;
 import dev.xdark.blw.type.Types;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.VarCache;
@@ -47,7 +48,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                 frameOps.setFrameLocal(initialFrame, idx, param);
             }
             try {
-                forkQueue.add(engine, 0, initialFrame, -1);
+                forkQueue.add(0, initialFrame, -1);
             } catch (FrameMergeException e) {
                 throw new AnalysisException(e, "Failed allocating initial frame");
             }
@@ -67,7 +68,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
             Frame frame = initialFrame.copy();
             frame.pushType(type);
             try {
-                forkQueue.add(engine, handlerIndex, frame);
+                forkQueue.add(handlerIndex, frame, handlerIndex - Integer.MAX_VALUE);
             } catch (FrameMergeException ex) {
                 throw new AnalysisException(ex, "Failed allocating handler frame");
             }
@@ -135,7 +136,6 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                 // Handle execution of the instruction.
                 if (element instanceof Instruction insn) {
                     try {
-                        engine.setActiveFrame(frame);
                         engine.setActiveFrame(elementIndex, frame);
                         engine.clearErrorsAt(element);
                         ExecutionEngines.execute(engine, insn);
@@ -178,7 +178,7 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
 
                                 // Queue the fork-point if needed.
                                 if (shouldVisitTarget) {
-                                    forkQueue.add(engine, targetIndex, frame);
+                                    forkQueue.add(targetIndex, frame);
                                     visited.clear(targetIndex);
                                 }
                             } catch (FrameMergeException ex) {
@@ -206,42 +206,6 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
     }
 
     /**
-     * The way we handle propagating variable scope, combined with the order in which we visit blocks, occasionally
-     * leads to circumstances where later blocks will not know about variables defined earlier in the method.
-     * <p>
-     * As a work-around, we have a separate pass via {@link VarCacheUpdater} to record what variables should be
-     * available at given code offsets. Then in this pass <i>({@link AnalysisSimulation})</i> we pull in data from
-     * the prior pass whenever we create control flow fork-points
-     * <i>({@link ForkQueue#add(JvmAnalysisEngine, int, Frame, int)})</i>.
-     *
-     * @param engine
-     * 		Engine to pull the {@link VarCache} from.
-     * @param frame
-     * 		Frame to populate with variable information.
-     * @param offset
-     * 		Current code offset, used to determine which variables are in-scope.
-     *
-     * @return Passed in frame.
-     */
-    @NotNull
-    @SuppressWarnings("unchecked")
-    private static Frame insertCachedVarInfo(@NotNull JvmAnalysisEngine<Frame> engine, @NotNull Frame frame, int offset) {
-        VarCache varCache = engine.getVarCache();
-        FrameOps<Frame> frameOps = (FrameOps<Frame>) engine.newFrameOps();
-        varCache.varsAtOffset(offset).forEach(v -> {
-            int varIndex = v.getIndex();
-            if (frame.getLocalType(varIndex) == null) {
-                Local local = new Local(varIndex, v.getName(), v.getTypeHint());
-                if (local.isNull())
-                    frameOps.setFrameLocalNull(frame, varIndex, local);
-                else
-                    frameOps.setFrameLocal(frame, varIndex, local);
-            }
-        });
-        return frame;
-    }
-
-    /**
      * Queue for control flow visitation.
      */
     private static class ForkQueue implements Iterable<ForkKey> {
@@ -252,11 +216,11 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
             this.checker = checker;
         }
 
-        public void add(@NotNull JvmAnalysisEngine<Frame> engine, int index, @NotNull Frame frame) throws FrameMergeException {
-			add(engine, index, frame, 0);
+        public void add(int index, @NotNull Frame frame) throws FrameMergeException {
+			add( index, frame, 0);
         }
 
-        public void add(@NotNull JvmAnalysisEngine<Frame> engine, int index, @NotNull Frame frame, int priority) throws FrameMergeException {
+        public void add( int index, @NotNull Frame frame, int priority) throws FrameMergeException {
             // Merge the given frame with an existing one's key if there's a match
             for (ForkKey existingKey : forkQueue) {
                 if (index == existingKey.index) {
@@ -267,10 +231,6 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                     break;
                 }
             }
-
-            // Pull expected variable scopes for the given index.
-            insertCachedVarInfo(engine, frame, index);
-            // TODO: Improve upon before uncommenting
 
             // Add the fork key to the queue.
             forkQueue.add(new ForkKey(index, frame, priority));
