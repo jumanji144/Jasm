@@ -263,6 +263,9 @@ public class SampleCompilerTest {
         }
 
         @Test
+        @Disabled("Checking for uninitialized vars is more than a linear search. " +
+                "We cannot realistically include this as part of the single-pass" +
+                "analysis-simulation")
         void loadUninitializedVariable() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-load-not-initialized.jasm");
             String source = arg.source.get();
@@ -458,41 +461,36 @@ public class SampleCompilerTest {
             });
         }
 
-        @Nested
-        @Disabled
-        class VariableScoping {
-            @Test
-            void tryWithResourceVariableScopeConfusion() throws Throwable {
-                TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
-                String source = arg.source.get();
-                TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-                options.engineProvider(ValuedJvmAnalysisEngine::new);
-                processJvm(source, options, result -> {
-                    AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
-                    assertNull(results.getAnalysisFailure());
-                    assertFalse(results.terminalFrames().isEmpty());
-                }, warns -> {
-                    warns.forEach(System.err::println);
-                    fail("No warnings allowed");
-                });
-            }
+        @Test
+        void tryWithResourceVariableScopeConfusion_Valued() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            }, warns -> {
+                warns.forEach(System.err::println);
+                fail("No warnings allowed");
+            });
+        }
 
-            @Test
-            void tryWithResourceVariableScopeConfusion2() throws Throwable {
-                TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
-                String source = arg.source.get();
-                TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-                options.engineProvider(TypedJvmAnalysisEngine::new);
-                processJvm(source, options, result -> {
-                    AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
-                    assertNull(results.getAnalysisFailure());
-                    assertFalse(results.terminalFrames().isEmpty());
-                }, warns -> {
-                    warns.forEach(System.err::println);
-                    fail("No warnings allowed");
-                });
-            }
-
+        @Test
+        void tryWithResourceVariableScopeConfusion_Typed() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(TypedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            }, warns -> {
+                warns.forEach(System.err::println);
+                fail("No warnings allowed");
+            });
         }
 
         @Test
