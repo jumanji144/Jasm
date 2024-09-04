@@ -102,11 +102,12 @@ public class TypedFrameImpl implements TypedFrame {
 		}
 
 		Deque<ClassType> otherStack = other.getStack();
-		if (stack.size() != otherStack.size())
+		int stackSize = stack.size();
+		if (stackSize != otherStack.size())
 			throw new FrameMergeException(this, other,
-					"Stack size mismatch, " + stack.size() + " != " + otherStack.size());
+					"Stack size mismatch, " + stackSize + " != " + otherStack.size());
 
-		Deque<ClassType> newStack = new ArrayDeque<>();
+		Deque<ClassType> newStack = new ArrayDeque<>(stackSize);
 		Iterator<ClassType> it1 = stack.iterator();
 		Iterator<ClassType> it2 = otherStack.iterator();
 		while (it1.hasNext() && it2.hasNext()) {
