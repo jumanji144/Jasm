@@ -67,7 +67,6 @@ public class TypedFrameImpl implements TypedFrame {
 	 * @throws FrameMergeException
 	 * 		When the stack sizes do not match.
 	 */
-	@SuppressWarnings("AssignmentUsedAsCondition")
 	public boolean merge(@NotNull InheritanceChecker checker, @NotNull TypedFrame other) throws FrameMergeException {
 		boolean changed = false;
 		for (Map.Entry<Integer, Local> entry : other.getLocals().entrySet()) {
@@ -80,23 +79,23 @@ public class TypedFrameImpl implements TypedFrame {
 			if (otherType == Types.VOID || ourType == Types.VOID)
 				continue;
 
-			if (ourType == null) {
-				// Our frame doesn't have the local variable.
-				// Copy it if we know the type.
+			if (!hasLocal(index)) {
+				// If we don't have the local, copy it from the other frame.
+				// We do not set 'changed' since expanding local variable scope is not going to change
+				// behavior of frames that previously passed analysis.
 				setLocal(index, otherLocal);
-
-				// If we are learning the type of the variable where it was previously 'null'
-				// then we will mark the frame as being changed. But if the other frame also has 'null'
-				// as the type then we don't want to be marked as changed (will cause an infinite loop).
-				changed = otherType != null;
-			} else if (otherLocal.isNull()) {
-				// Our frame can be updated to fill in 'null' with a known type.
-				setLocal(index, otherLocal.adaptType(ourType));
 			} else {
 				ClassType merged = AnalysisUtils.commonType(checker, ourType, otherType);
 				if (!Objects.equals(merged, ourType)) {
+					if (merged == null) {
+						// Value is explicitly 'null'
+						setLocal(index, new Local(index, otherLocal.name(), null));
+					} else {
+						// Value is some known type (we don't care if it *can* be null or not,
+						// just not provably null)
+						setLocal(index, otherLocal.adaptType(merged));
+					}
 					changed = true;
-					setLocal(index, otherLocal.adaptType(Objects.requireNonNullElse(merged, Types.OBJECT)));
 				}
 			}
 		}
