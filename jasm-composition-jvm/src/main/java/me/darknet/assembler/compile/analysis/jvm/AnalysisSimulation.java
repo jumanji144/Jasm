@@ -267,9 +267,11 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
     private record ForkKey(int index, @NotNull Frame frame, int priority) implements Comparable<ForkKey> {
         @Override
         public int compareTo(@NotNull AnalysisSimulation.ForkKey other) {
+            /*
             int cmp = Integer.compare(priority, other.priority);
             if (cmp != 0)
                 return cmp;
+             */
             return Integer.compare(index, other.index);
         }
     }
