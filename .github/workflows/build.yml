@@ -33,7 +33,7 @@ jobs:
           java-version: ${{ matrix.java-version }}
       - run: ./gradlew --info build
       - name: Upload Test Results
-        uses: actions/upload-artifact@v2.3.1
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Event File
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Upload
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: Event File
           path: ${{ github.event_path }}
