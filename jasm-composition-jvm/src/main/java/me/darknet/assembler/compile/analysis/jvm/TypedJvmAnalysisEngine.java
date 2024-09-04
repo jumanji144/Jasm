@@ -311,7 +311,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
             case ILOAD, LLOAD, FLOAD, DLOAD, ALOAD -> {
                 // Check if the index is a known null value, or actually a non-existent local.
                 ClassType type = frame.getLocalType(index);
-                if (type == null && frame.getLocal(index) == null) {
+                if (!frame.hasLocal(index)) {
                     // We only adapt these loads if the value is a truly unknown local.
                     // If the local is known to be null, we keep it as-is.
                     type = switch (opcode) {

@@ -1,6 +1,6 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import dev.xdark.blw.code.CodeElement;
+import dev.xdark.blw.code.*;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisException;
@@ -10,9 +10,6 @@ import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
 
-import dev.xdark.blw.code.Instruction;
-import dev.xdark.blw.code.JavaOpcodes;
-import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.simulation.ExecutionEngine;
 import me.darknet.assembler.compiler.InheritanceChecker;
@@ -46,6 +43,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
 
     protected AnalysisException analysisFailure;
     protected F frame;
+    protected int frameIndex;
 
     public JvmAnalysisEngine(@NotNull VarCache varCache) {
         this.varCache = varCache;
@@ -80,6 +78,22 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
      */
     public void setErrorCollector(ErrorCollector errorCollector) {
         this.errorCollector = errorCollector;
+    }
+
+    /**
+     * Clears errors and warnings at the location of the given code element.
+     * When we revisit code after frame merges, we want to clear old problems that
+     * may no longer be relevant with the new frame state.
+     *
+     * @param element
+     *         Element with a location to clear errors/warnings at.
+     */
+    public void clearErrorsAt(@NotNull CodeElement element) {
+        if (errorCollector == null)
+            return;
+        ASTInstruction ast = getCodeToAstMap().get(element);
+        if (ast != null)
+            errorCollector.removeAt(ast.location());
     }
 
     /**
@@ -122,10 +136,13 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     }
 
     /**
+     * @param frameIndex
+     *              Offset into {@link Code#elements()} where the frame.
      * @param frame
      *              Frame to set.
      */
-    public void setActiveFrame(@NotNull F frame) {
+    public void setActiveFrame(int frameIndex, @NotNull F frame) {
+        this.frameIndex = frameIndex;
         this.frame = frame;
     }
 

@@ -38,6 +38,11 @@ public class ErrorCollector {
         this.warns.addAll(warns);
     }
 
+    public void removeAt(Location location) {
+        errors.removeIf(e -> e.getLocation().line() == location.line());
+        warns.removeIf(e -> e.getLocation().line() == location.line());
+    }
+
     public boolean hasErr() {
         return !errors.isEmpty();
     }

@@ -529,10 +529,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
         };
         switch (opcode) {
             case ILOAD, LLOAD, FLOAD, DLOAD, ALOAD -> {
-                ValuedLocal valuedLocal = frame.getLocals().get(index);
+                ValuedLocal valuedLocal = frame.getLocal(index);
                 Value value;
                 if (valuedLocal == null) {
-                    error(instruction, "Loading from variable not initialized");
                     value = switch (opcode) {
                         case ILOAD -> Values.INT_VALUE;
                         case LLOAD -> Values.LONG_VALUE;

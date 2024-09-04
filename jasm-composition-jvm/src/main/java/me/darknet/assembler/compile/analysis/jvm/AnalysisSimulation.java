@@ -129,12 +129,15 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                 // We will record the frame at the incremented index further below.
                 // We do not do it immediately since there are some cases with control flow where we will skip putting
                 // it at the 'next' frame as denoted by 'index++'.
+                int elementIndex = index;
                 visited.set(index++);
 
                 // Handle execution of the instruction.
                 if (element instanceof Instruction insn) {
                     try {
                         engine.setActiveFrame(frame);
+                        engine.setActiveFrame(elementIndex, frame);
+                        engine.clearErrorsAt(element);
                         ExecutionEngines.execute(engine, insn);
                     } catch (Throwable t) {
                         // Will cover cases like popping off empty stack and implementation bugs in the engine.
