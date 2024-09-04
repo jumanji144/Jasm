@@ -31,6 +31,7 @@ public class PrintContext<T extends PrintContext<?>> {
     }
 
     public PrintContext(PrintContext<?> ctx) {
+        this.debugTryCatchRanges = ctx.debugTryCatchRanges;
         this.indentStep = ctx.indentStep;
         this.writer = ctx.writer;
         this.indent = ctx.indent;
