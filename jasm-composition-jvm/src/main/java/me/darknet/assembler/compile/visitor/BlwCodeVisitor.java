@@ -207,8 +207,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             ObjectType objectType = Types.instanceTypeFromInternalName(literal);
             add(new AllocateInstruction(objectType));
         } else if (opcode == CHECKCAST || opcode == INSTANCEOF) {
-            literal = adaptDescToInternalName("checkcast/instanceof", literal);
-            ObjectType objectType = Types.instanceTypeFromInternalName(literal);
+            literal = adaptDescToInternalNameOrArray(literal);
+            ObjectType objectType = Types.objectTypeFromInternalName(literal);
             Instruction instruction = switch (opcode) {
                 case CHECKCAST -> new CheckCastInstruction(objectType);
                 case INSTANCEOF -> new InstanceofInstruction(objectType);

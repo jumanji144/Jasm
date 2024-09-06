@@ -10,10 +10,45 @@
       {  E,  J,  J, Ljava/lang/Throwable; }
   },
   code: {
+  // Source code:
+  //
   // try (ByteArrayOutputStream out = new ByteArrayOutputStream(1024)) {
   //   return "ret";
   // } catch (Throwable x) {
   //   return "err";
+  // }
+  //
+  // Compiled code semantics:
+  //
+  // public static String foo(int i) {
+  //   String string;
+  //   ByteArrayOutputStream out = new ByteArrayOutputStream(i);
+  //   try {
+  //     // B
+  //     string = "ret";
+  //   }
+  //   catch (Throwable xx) {
+  //     // E
+  //     try {
+  //       // F
+  //       try {
+  //         out.close(); // G
+  //       }
+  //       catch (Throwable xxx) {
+  //         // H
+  //         xx.addSuppressed(xxx);
+  //       }
+  //       // I
+  //       throw xx;
+  //     }
+  //     catch (Throwable x) {
+  //       // K
+  //       return "error";
+  //     }
+  //   }
+  //   // C
+  //   out.close();
+  //   return string;
   // }
   A:
      // try-start:   range=[A-D] handler=J:java/lang/Throwable
