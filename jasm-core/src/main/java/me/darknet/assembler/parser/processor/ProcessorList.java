@@ -56,8 +56,13 @@ public class ProcessorList {
 
     // mutators
 
-    public void addAnnotation(ASTAnnotation annotation) {
-        this.attributes.annotations.add(annotation);
+    public void addVisibleAnnotation(ASTAnnotation annotation) {
+        this.attributes.visibleAnnotations.add(annotation);
+        addAttribute(annotation);
+    }
+
+    public void addInvisibleAnnotation(ASTAnnotation annotation) {
+        this.attributes.invisibleAnnotations.add(annotation);
         addAttribute(annotation);
     }
 
@@ -118,7 +123,7 @@ public class ProcessorList {
     }
 
     public void removeAnnotation(ASTAnnotation value) {
-        this.attributes.annotations.remove(value);
+        this.attributes.visibleAnnotations.remove(value);
         this.attributes.attributes.remove(value);
     }
 }

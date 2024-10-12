@@ -21,13 +21,13 @@ public record MemberPrinter(
 
     public void printAttributes(PrintContext<?> ctx) {
         if (annotated != null) {
-            for (Annotation invisibleRuntimeAnnotation : annotated.invisibleRuntimeAnnotations()) {
-                JvmAnnotationPrinter printer = new JvmAnnotationPrinter(invisibleRuntimeAnnotation);
+            for (Annotation visibleRuntimeAnnotation : annotated.visibleRuntimeAnnotations()) {
+                JvmAnnotationPrinter printer = new JvmAnnotationPrinter(visibleRuntimeAnnotation, true);
                 printer.print(ctx);
                 ctx.next();
             }
-            for (Annotation visibleRuntimeAnnotation : annotated.visibleRuntimeAnnotations()) {
-                JvmAnnotationPrinter printer = new JvmAnnotationPrinter(visibleRuntimeAnnotation);
+            for (Annotation invisibleRuntimeAnnotation :  annotated.invisibleRuntimeAnnotations()) {
+                JvmAnnotationPrinter printer = new JvmAnnotationPrinter(invisibleRuntimeAnnotation, false);
                 printer.print(ctx);
                 ctx.next();
             }
@@ -65,13 +65,13 @@ public record MemberPrinter(
             List<Annotation> visibleAnnos = annotated.visibleRuntimeAnnotations();
             int runtimeAnnotationCount = visibleAnnos.size();
             if (index < runtimeAnnotationCount)
-                return new JvmAnnotationPrinter(visibleAnnos.get(index));
+                return new JvmAnnotationPrinter(visibleAnnos.get(index), true);
 
             // Next check invisible annotations, offsetting the index by the number of visible annotations.
             List<Annotation> invisibleAnnos = annotated.invisibleRuntimeAnnotations();
             int targetInvisibleIndex = index - runtimeAnnotationCount;
             if (targetInvisibleIndex < invisibleAnnos.size())
-                return new JvmAnnotationPrinter(invisibleAnnos.get(targetInvisibleIndex));
+                return new JvmAnnotationPrinter(invisibleAnnos.get(targetInvisibleIndex), false);
         }
         return null;
     }

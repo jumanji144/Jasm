@@ -7,9 +7,13 @@ import java.util.List;
 
 public interface ASTAnnotated {
     @NotNull
-    List<ASTAnnotation> getAnnotations();
+    List<ASTAnnotation> getVisibleAnnotations();
+    @NotNull
+    List<ASTAnnotation> getInvisibleAnnotations();
 
-    void setAnnotations(@Nullable List<ASTAnnotation> annotations);
+    void setVisibleAnnotations(@Nullable List<ASTAnnotation> annotations);
+    void setInvisibleAnnotations(@Nullable List<ASTAnnotation> annotations);
 
-    void addAnnotation(@NotNull ASTAnnotation annotation);
+    void addVisibleAnnotation(@NotNull ASTAnnotation annotation);
+    void addInvisibleAnnotation(@NotNull ASTAnnotation annotation);
 }

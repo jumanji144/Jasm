@@ -4,6 +4,7 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.ast.specific.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,7 +12,8 @@ import java.util.List;
 public class ProcessorAttributes {
 
     // generic attributes
-    public final List<ASTAnnotation> annotations = new ArrayList<>();
+    public final List<ASTAnnotation> visibleAnnotations = new ArrayList<>();
+    public final List<ASTAnnotation> invisibleAnnotations = new ArrayList<>();
     public ASTString signature;
 
     // class attributes
@@ -29,23 +31,24 @@ public class ProcessorAttributes {
     // all attributes
     List<ASTElement> attributes = new ArrayList<>();
 
-    public ProcessorAttributes clearGenericAttributes() {
+    public @NotNull ProcessorAttributes clearGenericAttributes() {
         signature = null;
-        annotations.clear();
+        visibleAnnotations.clear();
+        invisibleAnnotations.clear();
         return this;
     }
 
-    public void fill(ASTElement element) {
-        if (!annotations.isEmpty() && element instanceof ASTAnnotated annotated) {
-            // Pass along a copy of the annotations so that we can clear our list reference and not affect
-            // the annotated consumer.
-            annotated.setAnnotations(new ArrayList<>(annotations));
-        }
+    public void fill(@NotNull ASTElement element) {
+        // Pass along a copy of the annotations so that we can clear our list reference and not affect
+        // the annotated consumer.
+        if (!visibleAnnotations.isEmpty() && element instanceof ASTAnnotated annotated)
+            annotated.setVisibleAnnotations(new ArrayList<>(visibleAnnotations));
+        if (!invisibleAnnotations.isEmpty() && element instanceof ASTAnnotated annotated)
+            annotated.setInvisibleAnnotations(new ArrayList<>(invisibleAnnotations));
 
-        if (signature != null && element instanceof ASTSigned signed) {
-            // Same idea as annotations above
+        // Same idea as annotations above
+        if (signature != null && element instanceof ASTSigned signed)
             signed.setSignature(signature);
-        }
 
         if (element instanceof ASTClass clazz) {
             if (sourceFile != null)

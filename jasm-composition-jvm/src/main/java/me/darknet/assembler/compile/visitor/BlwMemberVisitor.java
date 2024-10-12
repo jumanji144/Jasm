@@ -19,9 +19,16 @@ public class BlwMemberVisitor<T extends Type, M extends Member<T>> implements AS
     }
 
     @Override
-    public ASTAnnotationVisitor visitAnnotation(ASTIdentifier classType) {
+    public ASTAnnotationVisitor visitVisibleAnnotation(ASTIdentifier classType) {
         return new BlwAnnotationVisitor(
                 builder.addVisibleRuntimeAnnotation(Types.instanceTypeFromInternalName(classType.literal())).child()
+        );
+    }
+
+    @Override
+    public ASTAnnotationVisitor visitInvisibleAnnotation(ASTIdentifier classType) {
+        return new BlwAnnotationVisitor(
+                builder.addInvisibleRuntimeAnnotation(Types.instanceTypeFromInternalName(classType.literal())).child()
         );
     }
 

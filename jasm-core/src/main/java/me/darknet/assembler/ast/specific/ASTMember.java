@@ -20,7 +20,8 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
     private final @NotNull ASTIdentifier descriptor;
     private final @NotNull Modifiers modifiers;
     private @Nullable ASTString signature;
-    private List<ASTAnnotation> annotations = Collections.emptyList();
+    private List<ASTAnnotation> visibleAnnotations = Collections.emptyList();
+    private List<ASTAnnotation> invisibleAnnotations = Collections.emptyList();
 
     public ASTMember(@NotNull ElementType type, @NotNull Modifiers modifiers, @NotNull ASTIdentifier name,
             @NotNull ASTIdentifier descriptor) {
@@ -53,23 +54,39 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
     @Override
     public void setSignature(@Nullable ASTString signature) {
         replaceChild(this.signature, signature);
-        this.signature = signature;
+	    this.signature = signature;
     }
 
-    @Override
-    public @NotNull List<ASTAnnotation> getAnnotations() {
-        return annotations;
-    }
+	@Override
+	public @NotNull List<ASTAnnotation> getVisibleAnnotations() {
+		return visibleAnnotations;
+	}
 
-    @Override
-    public void setAnnotations(@Nullable List<ASTAnnotation> annotations) {
-        replaceChildren(this.annotations, annotations);
-        this.annotations = annotations;
-    }
+	@Override
+	public @NotNull List<ASTAnnotation> getInvisibleAnnotations() {
+		return invisibleAnnotations;
+	}
 
-    @Override
-    public void addAnnotation(@NotNull ASTAnnotation annotation) {
-        setAnnotations(CollectionUtil.merge(annotations, annotation));
+	@Override
+	public void setVisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
+		replaceChildren(this.visibleAnnotations, annotations);
+		this.visibleAnnotations = annotations;
+	}
+
+	@Override
+	public void setInvisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
+		replaceChildren(this.invisibleAnnotations, annotations);
+		this.invisibleAnnotations = annotations;
+	}
+
+	@Override
+	public void addVisibleAnnotation(@NotNull ASTAnnotation annotation) {
+		setVisibleAnnotations(CollectionUtil.merge(visibleAnnotations, annotation));
+	}
+
+	@Override
+    public void addInvisibleAnnotation(@NotNull ASTAnnotation annotation) {
+        setInvisibleAnnotations(CollectionUtil.merge(invisibleAnnotations, annotation));
     }
 
     protected void accept(ErrorCollector collector, ASTDeclarationVisitor visitor) {
@@ -77,9 +94,10 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
             collector.addError("Unable to process member", null);
             return;
         }
-        for (ASTAnnotation annotation : annotations) {
-            annotation.accept(collector, visitor.visitAnnotation(annotation.classType()));
-        }
+	    for (ASTAnnotation annotation : visibleAnnotations)
+		    annotation.accept(collector, visitor.visitVisibleAnnotation(annotation.classType()));
+	    for (ASTAnnotation annotation : invisibleAnnotations)
+		    annotation.accept(collector, visitor.visitInvisibleAnnotation(annotation.classType()));
         if (signature != null)
             visitor.visitSignature(signature);
     }

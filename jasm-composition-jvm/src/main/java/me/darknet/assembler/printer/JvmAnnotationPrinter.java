@@ -8,9 +8,17 @@ import java.util.Map;
 public class JvmAnnotationPrinter implements AnnotationPrinter {
 
     private final Annotation annotation;
+    private final Boolean visible;
 
-    public JvmAnnotationPrinter(Annotation annotation) {
+    public JvmAnnotationPrinter(Annotation annotation, boolean visible) {
         this.annotation = annotation;
+        this.visible = visible;
+    }
+
+    /** Used internally to denote an embedded annotation */
+    private JvmAnnotationPrinter(Annotation annotation) {
+        this.annotation = annotation;
+        this.visible = null;
     }
 
     void printElement(PrintContext<?> ctx, Element element) {
@@ -56,8 +64,13 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
 
     @Override
     public void print(PrintContext<?> ctx) {
+        // For embedded annotations (an annotation inside another) we do not have any concept
+        // of 'visible' vs 'invisible' annotations, so we'll shorten the name.
+        String token = visible == null ? ".annotation" :
+                visible ? ".visible-annotation" : ".invisible-annotation";
+
         Annotation annotation = this.annotation;
-        ctx.begin().element(".annotation").literal(annotation.type().internalName()).print(" ");
+        ctx.begin().element(token).literal(annotation.type().internalName()).print(" ");
         if (annotation.names().isEmpty()) {
             ctx.print("{}");
             return;

@@ -18,11 +18,17 @@ public class ASTAnnotation extends ASTElement {
 
     private final ASTIdentifier classType;
     private final ElementMap<ASTIdentifier, ASTElement> values;
+    private final boolean visible;
 
-    public ASTAnnotation(ASTIdentifier classType, ElementMap<ASTIdentifier, ASTElement> values) {
+    public ASTAnnotation(boolean visible, ASTIdentifier classType, ElementMap<ASTIdentifier, ASTElement> values) {
         super(ElementType.ANNOTATION, CollectionUtil.mergeNonNull(values.elements(), classType));
+        this.visible = visible;
         this.classType = classType;
         this.values = values;
+    }
+
+    public boolean isVisible() {
+        return visible;
     }
 
     public ASTIdentifier classType() {

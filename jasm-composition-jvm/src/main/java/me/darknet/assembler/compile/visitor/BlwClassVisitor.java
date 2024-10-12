@@ -114,9 +114,15 @@ public class BlwClassVisitor implements ASTClassVisitor {
     }
 
     @Override
-    public ASTAnnotationVisitor visitAnnotation(@NotNull ASTIdentifier classType) {
+    public ASTAnnotationVisitor visitVisibleAnnotation(@NotNull ASTIdentifier classType) {
         InstanceType type = Types.instanceTypeFromInternalName(classType.literal());
         return new BlwAnnotationVisitor(builder.addVisibleRuntimeAnnotation(type).child());
+    }
+
+    @Override
+    public ASTAnnotationVisitor visitInvisibleAnnotation(@NotNull ASTIdentifier classType) {
+        InstanceType type = Types.instanceTypeFromInternalName(classType.literal());
+        return new BlwAnnotationVisitor(builder.addInvisibleRuntimeAnnotation(type).child());
     }
 
     @Override

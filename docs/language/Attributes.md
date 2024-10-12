@@ -5,11 +5,43 @@ Certain top level declarations can have attributes declared immediately before t
 ## Members (Class, Method, Field)
 
 ### Annotation
+
+Annotation with `RetentionPolicy.RUNTIME`
 ```
-.annotation name {
+.visible-annotation name {
     key: element
 }
 ```
+
+Annotation with `RetentionPolicy.CLASS`
+```
+.invisible-annotation name {
+    key: element
+}
+```
+
+Annotations that are embedded in others do not have a concept of being visible or not.
+For instance:
+```java
+@Foo(bar = @Bar(fizz = "buzz"))
+```
+Could be represented as either:
+```
+.visible-annotation Foo {
+    bar: .annotation Bar {
+        fizz: "Buzz"
+    }
+}
+```
+or
+```
+.invisible-annotation Foo {
+    bar: .annotation Bar {
+        fizz: "Buzz"
+    }
+}
+```
+It would depend on how `@Foo` uses `@RetentionPolicy`, but the important note is that the internal `@Bar` usage is just a `.annotation`.
 
 #### Element
 An element can be one of the following, with following interpretation:

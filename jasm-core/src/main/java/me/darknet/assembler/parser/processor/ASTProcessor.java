@@ -26,7 +26,11 @@ public class ASTProcessor {
         ParserRegistry.register("class", ASTProcessor::parseClass);
         ParserRegistry.register("field", ASTProcessor::parseField);
         ParserRegistry.register("method", ASTProcessor::parseMethod);
-        ParserRegistry.register("annotation", ASTProcessor::parseAnnotation);
+        ParserRegistry.register("annotation", (ctx, decl) -> parseAnnotation(ctx, true, decl));
+        ParserRegistry.register("visible-annotation", (ctx, decl) -> parseAnnotation(ctx, true, decl));
+        ParserRegistry.register("invisible-annotation", (ctx, decl) -> parseAnnotation(ctx, false, decl));
+        // ParserRegistry.register("type-visible-annotation", ASTProcessor::parseAnnotation);
+        // ParserRegistry.register("type-invisible-annotation", ASTProcessor::parseAnnotation);
         ParserRegistry.register("inner", ASTProcessor::parseInner);
         ParserRegistry.register("enum", (ctx, decl) -> {
             if (!ctx.isInState(State.IN_ANNOTATION)) {
@@ -328,7 +332,7 @@ public class ASTProcessor {
         return value;
     }
 
-    public static ASTAnnotation parseAnnotation(ParserContext ctx, ASTDeclaration declaration) {
+    public static ASTAnnotation parseAnnotation(ParserContext ctx, boolean visible, ASTDeclaration declaration) {
         // verify that we have exactly 2 elements
         if (declaration.elements().size() != 2) {
             ctx.throwError("Expected annotation type and values", declaration.location());
@@ -347,9 +351,10 @@ public class ASTProcessor {
             map.put(key, value);
         }
         ctx.leaveState();
-        ASTAnnotation annotation = new ASTAnnotation(type, map);
+        ASTAnnotation annotation = new ASTAnnotation(visible, type, map);
         if (!ctx.isInState(State.IN_ANNOTATION)) // if not inside annotation, add it as an attribute
-            ctx.result.addAnnotation(annotation);
+            if (visible) ctx.result.addVisibleAnnotation(annotation);
+            else ctx.result.addInvisibleAnnotation(annotation);
         return annotation;
     }
 

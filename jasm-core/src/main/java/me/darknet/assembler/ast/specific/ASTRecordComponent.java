@@ -12,7 +12,8 @@ import java.util.Collections;
 import java.util.List;
 
 public class ASTRecordComponent extends ASTElement implements ASTAnnotated, ASTSigned {
-    private List<ASTAnnotation> annotations = Collections.emptyList();
+    private List<ASTAnnotation> visibleAnnotations = Collections.emptyList();
+    private List<ASTAnnotation> invisibleAnnotations = Collections.emptyList();
     private final ASTIdentifier componentType;
     private final ASTIdentifier componentDescriptor;
     private ASTString signature;
@@ -45,18 +46,34 @@ public class ASTRecordComponent extends ASTElement implements ASTAnnotated, ASTS
     }
 
     @Override
-    public @NotNull List<ASTAnnotation> getAnnotations() {
-        return annotations;
+    public @NotNull List<ASTAnnotation> getVisibleAnnotations() {
+        return visibleAnnotations;
     }
 
     @Override
-    public void setAnnotations(@Nullable List<ASTAnnotation> annotations) {
-        replaceChildren(this.annotations, annotations);
-        this.annotations = annotations;
+    public @NotNull List<ASTAnnotation> getInvisibleAnnotations() {
+        return invisibleAnnotations;
     }
 
     @Override
-    public void addAnnotation(@NotNull ASTAnnotation annotation) {
-        setAnnotations(CollectionUtil.merge(annotations, annotation));
+    public void setVisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
+        replaceChildren(this.visibleAnnotations, annotations);
+        this.visibleAnnotations = annotations;
+    }
+
+    @Override
+    public void setInvisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
+        replaceChildren(this.invisibleAnnotations, annotations);
+        this.invisibleAnnotations = annotations;
+    }
+
+    @Override
+    public void addVisibleAnnotation(@NotNull ASTAnnotation annotation) {
+        setVisibleAnnotations(CollectionUtil.merge(visibleAnnotations, annotation));
+    }
+
+    @Override
+    public void addInvisibleAnnotation(@NotNull ASTAnnotation annotation) {
+        setInvisibleAnnotations(CollectionUtil.merge(invisibleAnnotations, annotation));
     }
 }

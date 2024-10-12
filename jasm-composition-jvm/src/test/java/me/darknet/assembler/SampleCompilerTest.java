@@ -768,11 +768,11 @@ public class SampleCompilerTest {
 
             // Assert both annotations on the record component AND the class are kept.
             assertTrue(source.contains("""
-                    .annotation Marked {
+                    .visible-annotation Marked {
                         value: "class"
                     }"""));
             assertTrue(source.contains("""
-                    .annotation Marked {
+                    .visible-annotation Marked {
                         value: "param"
                     }"""));
             assertTrue(source.contains(".record-component s Ljava/lang/String; "));

@@ -1,4 +1,4 @@
-.annotation TestAnnotation {
+.visible-annotation TestAnnotation {
     number: 15,
     bogusNumber: NaN,
     charValue: 'c',
@@ -12,6 +12,9 @@
         value: { java/lang/String }
     },
     stringArray: { "one", "two", "three" }
+}
+.invisible-annotation TestAnnotation {
+    stringValue: "I also exist, but invisibly"
 }
 .super java/lang/Object
 .class public super Example {
