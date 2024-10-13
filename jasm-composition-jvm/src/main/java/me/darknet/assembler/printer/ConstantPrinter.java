@@ -66,7 +66,7 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
         ctx.print(content);
 
         // Skip 'D' suffix for things like 'NaN' where it is implied
-        if (!content.matches("[\\D]+"))
+        if (!content.matches("\\D+"))
             ctx.print("D");
     }
 

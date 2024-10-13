@@ -671,6 +671,27 @@ public class SampleCompilerTest {
     @Nested
     class AttributeSupport {
         @Test
+        void defaultAnnotationValue() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("AnnoDefaultValues.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert all the default values are there
+            assertTrue(source.contains("default-value: 0"));
+            assertTrue(source.contains("default-value: 'c'"));
+            assertTrue(source.contains("default-value: \"hello\""));
+            assertTrue(source.contains("default-value: { 0, 1, 2 }"));
+            assertTrue(source.contains("default-value: .enum java/lang/annotation/ElementType FIELD"));
+            assertTrue(source.contains("default-value: .annotation java/lang/annotation/Retention {"));
+            assertTrue(source.contains("    value: .enum java/lang/annotation/RetentionPolicy CLASS"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
         void outerClassInfo() throws Throwable {
             BinaryTestArgument arg = BinaryTestArgument.fromName("Outside$1.sample");
             byte[] raw = arg.source.get();

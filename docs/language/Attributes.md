@@ -122,3 +122,43 @@ Appends an internal type to the list of members this class is a nest host for.
 .record-component name descriptor
 ```
 Appends an entry the list of the record class's components.
+
+## Method
+
+### AnnotationDefault
+
+In a method declaration inside an annotation class, default values are provided via the `AnnotationDefault` attribute.
+
+Example with an `int`
+```
+.method public abstract number ()I {
+    parameters: { this },
+    default-value: 0
+}
+```
+
+Example with an `int[]`
+```
+.method public abstract array ()[I {
+    parameters: { this },
+    default-value: { 0, 1, 2 }
+}
+```
+
+Example with an `ElementType.FIELD` enum value reference
+```
+.method public abstract enumeration ()Ljava/lang/annotation/ElementType; {
+    parameters: { this },
+    default-value: .enum java/lang/annotation/ElementType FIELD
+}
+```
+
+Example with a `@Retention(value = RetentionPolicy.CLASS)` annotation value declaration
+```
+.method public abstract subanno ()Ljava/lang/annotation/Retention; {
+    parameters: { this },
+    default-value: .annotation java/lang/annotation/Retention {
+        value: .enum java/lang/annotation/RetentionPolicy CLASS
+    }
+}
+```

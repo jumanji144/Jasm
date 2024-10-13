@@ -223,6 +223,15 @@ public class ASTProcessor {
             if (array != null)
                 parameters = ctx.validateArray(array, ElementType.IDENTIFIER, "method parameter", declaration);
         }
+        ASTElement defaultValueElement = null;
+        if (body.values().containsKey("default-value")) {
+            defaultValueElement = body.values().get("default-value");
+
+            // We treat the default-value contents as being in an annotation as the potential contents are the same.
+            ctx.enterState(State.IN_ANNOTATION);
+            validateElementValue(ctx, defaultValueElement);
+            ctx.leaveState(State.IN_ANNOTATION);
+        }
         List<ASTException> exceptions = new ArrayList<>();
         if (body.values().containsKey("exceptions")) {
             ASTArray array = ctx.validateEmptyableElement(
@@ -268,7 +277,7 @@ public class ASTProcessor {
         ASTIdentifier desc = ctx.validateIdentifier(elements.get(descIndex), "method descriptor", declaration);
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
         ProcessorAttributes attributes = ctx.result.collectAttributes();
-        return new ASTMethod(modifiers, name, desc, parameters, exceptions, code, instructions, ctx.format)
+        return new ASTMethod(modifiers, name, desc, parameters, defaultValueElement, exceptions, code, instructions, ctx.format)
                 .accept(attributes);
     }
 

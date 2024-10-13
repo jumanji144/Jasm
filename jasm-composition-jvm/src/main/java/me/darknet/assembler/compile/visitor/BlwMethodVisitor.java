@@ -1,12 +1,24 @@
 package me.darknet.assembler.compile.visitor;
 
+import dev.xdark.blw.annotation.Element;
+import dev.xdark.blw.annotation.ElementByte;
+import dev.xdark.blw.annotation.generic.GenericAnnotationBuilder;
+import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.primitive.ASTArray;
+import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.specific.ASTType;
+import me.darknet.assembler.ast.specific.ASTValue;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.builder.BlwReplaceMethodBuilder;
+import me.darknet.assembler.error.ErrorCollectionException;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CastUtil;
+import me.darknet.assembler.util.Pair;
+import me.darknet.assembler.visitor.ASTAnnotatedVisitor;
+import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
 
@@ -20,10 +32,11 @@ import dev.xdark.blw.type.Types;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> implements ASTMethodVisitor {
+public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> implements BlwElementAdapter, ASTMethodVisitor {
     private final BlwReplaceMethodBuilder builder;
     private final JvmCompilerOptions options;
     private final Consumer<AnalysisResults> analysisResultsConsumer;
@@ -49,6 +62,20 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
         String literal = name.literal();
         parameters.add(new GenericParameter(0, literal));
         parameterNames.add(literal);
+    }
+
+    @Override
+    public void visitAnnotationDefaultValue(ASTElement defaultValue) {
+        // Create a dummy annotation visitor and extract the first element to get our value to pass along
+        GenericAnnotationBuilder elementBuilder = new GenericAnnotationBuilder(Types.OBJECT);
+        ErrorCollector collector = new ErrorCollector();
+        ASTAnnotationVisitor.accept(new BlwAnnotationVisitor(elementBuilder),
+                Collections.singleton(new Pair<>(ASTIdentifier.STUB, defaultValue)),
+                collector);
+        if (collector.hasErr())
+            throw new ErrorCollectionException("Failed building array element from ast", collector);
+        Element element = elementBuilder.elements().values().iterator().next().reflectAs();
+        builder.annotationDefault(element);
     }
 
     @Override

@@ -6,10 +6,7 @@ import me.darknet.assembler.visitor.ASTAnnotationArrayVisitor;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 
 import dev.xdark.blw.annotation.AnnotationBuilder;
-import dev.xdark.blw.annotation.ElementEnum;
-import dev.xdark.blw.annotation.ElementType;
 import dev.xdark.blw.type.InstanceType;
-import dev.xdark.blw.type.ObjectType;
 import dev.xdark.blw.type.Types;
 
 public class BlwAnnotationVisitor implements ASTAnnotationVisitor, BlwElementAdapter {
@@ -28,14 +25,12 @@ public class BlwAnnotationVisitor implements ASTAnnotationVisitor, BlwElementAda
     @Override
     public void visitTypeValue(ASTIdentifier name, ASTIdentifier className) {
         String nameLiteral = name.literal();
-        ObjectType type = Types.objectTypeFromInternalName(className.literal());
-        builder.element(nameLiteral, new ElementType(type));
+        builder.element(nameLiteral, elementFromTypeIdentifier(className));
     }
 
     @Override
     public void visitEnumValue(ASTIdentifier name, ASTIdentifier className, ASTIdentifier enumName) {
-        InstanceType type = Types.instanceTypeFromInternalName(className.literal());
-        builder.element(name.literal(), new ElementEnum(type, enumName.literal()));
+        builder.element(name.literal(), elementFromEnum(className, enumName));
     }
 
     @Override

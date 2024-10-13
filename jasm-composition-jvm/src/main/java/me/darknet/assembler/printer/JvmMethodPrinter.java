@@ -1,5 +1,6 @@
 package me.darknet.assembler.printer;
 
+import dev.xdark.blw.annotation.Element;
 import dev.xdark.blw.code.Code;
 import dev.xdark.blw.code.generic.GenericLabel;
 import dev.xdark.blw.type.Type;
@@ -125,11 +126,18 @@ public class JvmMethodPrinter implements MethodPrinter {
         var obj = memberPrinter.printDeclaration(ctx).literal(method.name()).print(" ")
                 .literal(method.type().descriptor()).print(" ").object();
         Variables variables = buildVariables();
-        boolean hasParameters = !variables.parameters().isEmpty();
-        if (hasParameters) {
+        boolean hasPrior = !variables.parameters().isEmpty();
+        if (hasPrior) {
             var arr = obj.value("parameters").array();
             arr.print(variables.parameters().values(), (arrayCtx, parameter) -> arr.print(parameter.name()));
             arr.end();
+        }
+        Element annotationDefault = method.annotationDefault();
+        if (annotationDefault != null) {
+            if (hasPrior) obj.next();
+            obj.value("default-value");
+            JvmAnnotationPrinter.forEmbeddedAnno(null).printElement(obj, annotationDefault);
+            hasPrior = true;
         }
         var methodCode = method.code();
         if (methodCode != null) {
@@ -141,7 +149,7 @@ public class JvmMethodPrinter implements MethodPrinter {
                 elements.add(new GenericLabel());
 
             // Separator between code and parameters element
-            if (hasParameters) obj.next();
+            if (hasPrior) obj.next();
 
             // Populate label names
             Map<Integer, String> labelNames = getLabelNames(elements);

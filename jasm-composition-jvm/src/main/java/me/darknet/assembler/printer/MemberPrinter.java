@@ -22,12 +22,12 @@ public record MemberPrinter(
     public void printAttributes(PrintContext<?> ctx) {
         if (annotated != null) {
             for (Annotation visibleRuntimeAnnotation : annotated.visibleRuntimeAnnotations()) {
-                JvmAnnotationPrinter printer = new JvmAnnotationPrinter(visibleRuntimeAnnotation, true);
+                JvmAnnotationPrinter printer = JvmAnnotationPrinter.forTopLevelAnno(visibleRuntimeAnnotation, true);
                 printer.print(ctx);
                 ctx.next();
             }
-            for (Annotation invisibleRuntimeAnnotation :  annotated.invisibleRuntimeAnnotations()) {
-                JvmAnnotationPrinter printer = new JvmAnnotationPrinter(invisibleRuntimeAnnotation, false);
+            for (Annotation invisibleRuntimeAnnotation : annotated.invisibleRuntimeAnnotations()) {
+                JvmAnnotationPrinter printer = JvmAnnotationPrinter.forTopLevelAnno(invisibleRuntimeAnnotation, false);
                 printer.print(ctx);
                 ctx.next();
             }

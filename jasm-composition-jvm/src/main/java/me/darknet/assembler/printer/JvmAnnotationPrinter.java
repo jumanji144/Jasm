@@ -2,6 +2,7 @@ package me.darknet.assembler.printer;
 
 import dev.xdark.blw.annotation.*;
 import me.darknet.assembler.util.EscapeUtil;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
@@ -10,18 +11,52 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
     private final Annotation annotation;
     private final Boolean visible;
 
-    public JvmAnnotationPrinter(Annotation annotation, boolean visible) {
+    protected JvmAnnotationPrinter(Annotation annotation, boolean visible) {
         this.annotation = annotation;
         this.visible = visible;
     }
 
-    /** Used internally to denote an embedded annotation */
-    private JvmAnnotationPrinter(Annotation annotation) {
+    protected JvmAnnotationPrinter(Annotation annotation) {
         this.annotation = annotation;
         this.visible = null;
     }
 
-    void printElement(PrintContext<?> ctx, Element element) {
+    public static JvmAnnotationPrinter forTopLevelAnno(Annotation annotation, boolean visible) {
+        return new JvmAnnotationPrinter(annotation, visible);
+    }
+
+    public static JvmAnnotationPrinter forEmbeddedAnno(Annotation annotation) {
+        return new JvmAnnotationPrinter(annotation);
+    }
+
+    @Override
+    public void print(PrintContext<?> ctx) {
+        // For embedded annotations (an annotation inside another) we do not have any concept
+        // of 'visible' vs 'invisible' annotations, so we'll shorten the name.
+        String token = visible == null ? ".annotation" :
+                visible ? ".visible-annotation" : ".invisible-annotation";
+
+        Annotation annotation = this.annotation;
+        ctx.begin().element(token).literal(annotation.type().internalName()).print(" ");
+        if (annotation.names().isEmpty()) {
+            ctx.print("{}");
+            return;
+        }
+        var obj = ctx.object();
+        obj.print(annotation, this::printEntry);
+        obj.end();
+    }
+
+    public void printAnnotation(@NotNull PrintContext<?> ctx, @NotNull Annotation annotation) {
+        forEmbeddedAnno(annotation).print(ctx);
+    }
+
+    private void printEntry(@NotNull PrintContext.ObjectPrint ctx, @NotNull Map.Entry<String, Element> entry) {
+        ctx.literalValue(entry.getKey());
+        printElement(ctx, entry.getValue());
+    }
+
+    public void printElement(@NotNull PrintContext<?> ctx, @NotNull Element element) {
         if (element instanceof ElementInt ei) {
             ctx.print(Integer.toString(ei.value()));
         } else if (element instanceof ElementLong el) {
@@ -51,8 +86,7 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
         } else if (element instanceof ElementType et) {
             ctx.literal(et.value().internalName());
         } else if (element instanceof Annotation ea) {
-            JvmAnnotationPrinter printer = new JvmAnnotationPrinter(ea);
-            printer.print(ctx);
+            printAnnotation(ctx, ea);
         } else if (element instanceof ElementArray ea) {
             var array = ctx.array();
             array.print(ea, this::printElement);
@@ -60,28 +94,5 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
         } else {
             throw new IllegalStateException("Unexpected value: " + element);
         }
-    }
-
-    @Override
-    public void print(PrintContext<?> ctx) {
-        // For embedded annotations (an annotation inside another) we do not have any concept
-        // of 'visible' vs 'invisible' annotations, so we'll shorten the name.
-        String token = visible == null ? ".annotation" :
-                visible ? ".visible-annotation" : ".invisible-annotation";
-
-        Annotation annotation = this.annotation;
-        ctx.begin().element(token).literal(annotation.type().internalName()).print(" ");
-        if (annotation.names().isEmpty()) {
-            ctx.print("{}");
-            return;
-        }
-        var obj = ctx.object();
-        obj.print(annotation, this::printEntry);
-        obj.end();
-    }
-
-    private void printEntry(PrintContext.ObjectPrint ctx, Map.Entry<String, Element> entry) {
-        ctx.literalValue(entry.getKey());
-        printElement(ctx, entry.getValue());
     }
 }
