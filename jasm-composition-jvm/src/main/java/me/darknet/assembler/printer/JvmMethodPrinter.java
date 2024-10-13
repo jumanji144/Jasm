@@ -17,6 +17,7 @@ import dev.xdark.blw.code.Label;
 import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.type.ClassType;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
@@ -189,7 +190,17 @@ public class JvmMethodPrinter implements MethodPrinter {
     }
 
     @Override
-    public AnnotationPrinter annotation(int index) {
+    public @Nullable AnnotationPrinter annotation(int index) {
         return memberPrinter.printAnnotation(index);
+    }
+
+    @Override
+    public @Nullable AnnotationPrinter visibleAnnotation(int index) {
+        return memberPrinter.printVisibleAnnotation(index);
+    }
+
+    @Override
+    public @Nullable AnnotationPrinter invisibleAnnotation(int index) {
+        return memberPrinter.printInvisibleAnnotation(index);
     }
 }

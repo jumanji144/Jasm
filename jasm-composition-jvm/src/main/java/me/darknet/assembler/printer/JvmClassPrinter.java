@@ -12,6 +12,7 @@ import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.classfile.attribute.InnerClass;
 import dev.xdark.blw.classfile.generic.GenericClassBuilder;
 import dev.xdark.blw.type.InstanceType;
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassWriter;
 
 import java.io.ByteArrayInputStream;
@@ -130,8 +131,18 @@ public class JvmClassPrinter implements ClassPrinter {
     }
 
     @Override
-    public AnnotationPrinter annotation(int index) {
+    public @Nullable AnnotationPrinter annotation(int index) {
         return memberPrinter.printAnnotation(index);
+    }
+
+    @Override
+    public @Nullable AnnotationPrinter visibleAnnotation(int index) {
+        return memberPrinter.printVisibleAnnotation(index);
+    }
+
+    @Override
+    public @Nullable AnnotationPrinter invisibleAnnotation(int index) {
+        return memberPrinter.printInvisibleAnnotation(index);
     }
 
     @Override

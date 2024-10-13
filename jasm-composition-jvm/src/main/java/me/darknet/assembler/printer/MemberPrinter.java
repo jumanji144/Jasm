@@ -56,8 +56,11 @@ public record MemberPrinter(
     }
 
     /**
-     * @param index Index into <i>all</i> annotations, where indices are based on the combined list of annotations.
-     * @return Printer for the annotation. {@code null} if the index does not point to a known annotation.
+     * @param index
+     *         Index into <i>all</i> annotations,
+     *         where the list is formed by {@code RuntimeVisibleAnnotations + RuntimeInvisibleAnnotations}.
+     *
+     * @return Printer for annotation. {@code null} if the index does not point to a known annotation.
      */
     public @Nullable AnnotationPrinter printAnnotation(int index) {
         if (annotated != null) {
@@ -72,6 +75,36 @@ public record MemberPrinter(
             int targetInvisibleIndex = index - runtimeAnnotationCount;
             if (targetInvisibleIndex < invisibleAnnos.size())
                 return new JvmAnnotationPrinter(invisibleAnnos.get(targetInvisibleIndex), false);
+        }
+        return null;
+    }
+
+    /**
+     * @param index
+     *         Index into the {@code RuntimeVisibleAnnotations} attribute.
+     *
+     * @return Printer for annotation. {@code null} if the index does not point to a known annotation.
+     */
+    public @Nullable AnnotationPrinter printVisibleAnnotation(int index) {
+        if (annotated != null) {
+            List<Annotation> annotations = annotated.visibleRuntimeAnnotations();
+            if (index < annotations.size())
+                return new JvmAnnotationPrinter(annotations.get(index), true);
+        }
+        return null;
+    }
+
+    /**
+     * @param index
+     *         Index into the {@code RuntimeInvisibleAnnotations} attribute.
+     *
+     * @return Printer for annotation. {@code null} if the index does not point to a known annotation.
+     */
+    public @Nullable AnnotationPrinter printInvisibleAnnotation(int index) {
+        if (annotated != null) {
+            List<Annotation> annotations = annotated.invisibleRuntimeAnnotations();
+            if (index < annotations.size())
+                return new JvmAnnotationPrinter(annotations.get(index), true);
         }
         return null;
     }

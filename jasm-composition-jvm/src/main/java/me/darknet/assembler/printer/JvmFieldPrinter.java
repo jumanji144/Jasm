@@ -2,6 +2,7 @@ package me.darknet.assembler.printer;
 
 import dev.xdark.blw.classfile.Field;
 import dev.xdark.blw.constant.Constant;
+import org.jetbrains.annotations.Nullable;
 
 public class JvmFieldPrinter implements FieldPrinter {
 
@@ -27,7 +28,17 @@ public class JvmFieldPrinter implements FieldPrinter {
     }
 
     @Override
-    public AnnotationPrinter annotation(int index) {
+    public @Nullable AnnotationPrinter annotation(int index) {
         return memberPrinter.printAnnotation(index);
+    }
+
+    @Override
+    public @Nullable AnnotationPrinter visibleAnnotation(int index) {
+        return memberPrinter.printVisibleAnnotation(index);
+    }
+
+    @Override
+    public @Nullable AnnotationPrinter invisibleAnnotation(int index) {
+        return memberPrinter.printInvisibleAnnotation(index);
     }
 }
