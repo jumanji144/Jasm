@@ -16,12 +16,13 @@ public class EscapeTest {
 
     @ParameterizedTest
     @ValueSource(
-            strings = { "\\n", "\\r", "\\t", "\\b", "\\f", "\\\"", "\t", "\u0020", "\u002C", "\\u0031\\\\\\\\\\\\\\",
+            strings = { "\\n", "\\r", "\\t", "\\b", "\\f", "\\\"", "\t", "\u0020", "\u002C", "\u2000", "\\u0031\\\\\\\\\\\\\\",
                     "\"{ \\\"Hello World\\\", type: \\\"java/lang/HelloWorld\\\" }\",", "\n\n\n\n\n\n\n" }
     )
     public void testStringEscape(String input) {
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", "\"" + EscapeUtil.escapeString(input) + "\"").get();
+        String escaped = EscapeUtil.escapeString(input);
+        List<Token> tokens = tokenizer.tokenize("<stdin>", "\"" + escaped + "\"").get();
         assertNotNull(tokens);
         assertEquals(1, tokens.size());
         assertEquals(input, tokens.get(0).content());

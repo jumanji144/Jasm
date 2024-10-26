@@ -618,6 +618,32 @@ public class SampleCompilerTest {
             });
         }
 
+	    @ParameterizedTest
+	    @ValueSource(strings = {
+			    "u000d.sample", "u000a.sample", "u0009.sample", "u2028.sample",
+			    "u002c.sample", "u002e.sample", "u0000.sample", "u0001.sample",
+			    "u0002.sample", "u0003.sample", "u0004.sample", "u0005.sample",
+			    "u0006.sample", "u0007.sample", "u0008.sample", "u0009.sample",
+			    "u000a.sample", "u000b.sample", "u000c.sample", "u000d.sample",
+			    "u000e.sample", "u000f.sample", "u0010.sample", "u0011.sample",
+			    "u0012.sample", "u0013.sample", "u0014.sample", "u2000.sample",
+			    "u2001.sample", "u2002.sample", "u2003.sample", "u2004.sample",
+			    "u2005.sample", "u2006.sample", "u2007.sample", "u2008.sample",
+			    "u2009.sample", "u200a.sample",
+	    })
+	    void unicodeEscapeRoundTrip(String name) throws Throwable {
+		    BinaryTestArgument arg = BinaryTestArgument.fromName(name);
+		    byte[] raw = arg.source.get();
+		    String source = dissassemble(raw);
+		    processJvm(source, new TestJvmCompilerOptions(), result -> {
+			    String newPrinted = dissassemble(result.representation().classFile());
+			    assertEquals(
+					    normalize(source), normalize(newPrinted),
+					    "There was an unexpected difference in unmodified class: " + arg.name
+			    );
+		    });
+	    }
+
         /**
          * Infinity should remain as a printed constant across re-assembles
          */
