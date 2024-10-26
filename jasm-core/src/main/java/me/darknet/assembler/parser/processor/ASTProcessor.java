@@ -152,11 +152,12 @@ public class ASTProcessor {
             return null;
         int nameIndex = bodyIndex - 1;
 
-        // name is a explicit identifier
+        // name is an explicit identifier
         ASTIdentifier name = ctx.validateIdentifier(elements.get(nameIndex), "class name", declaration);
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
         List<ASTElement> classBody = ctx.parseDeclarations(
                 body.elements(), "class member or member attribute", body.location(), "field", "method", "annotation",
+                "visible-annotation", "invisible-annotation", "type-visible-annotation", "type-invisible-annotation",
                 "signature"
         );
 

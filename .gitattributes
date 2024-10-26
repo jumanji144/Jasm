@@ -3,6 +3,7 @@
 
 # Java sources
 *.java          text diff=java eol=lf
+*.jasm          text diff=java eol=lf
 *.gradle        text diff=java eol=lf
 
 # These files are text and should be normalized (Convert crlf => lf)

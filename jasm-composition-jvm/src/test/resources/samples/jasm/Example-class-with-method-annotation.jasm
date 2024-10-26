@@ -1,0 +1,30 @@
+.super java/lang/Object
+.class public super Example {
+    .visible-annotation TestAnnotation {
+        number: 15,
+        bogusNumber: NaN,
+        charValue: 'c',
+        subWithString: .annotation org/jetbrains/annotations/NotNull {
+            value: "Hello, world!"
+        },
+        subWithEnum: .annotation EnumHolder {
+            value: .enum net/fabricmc/api/EnvType CLIENT
+        },
+        subWithClass: .annotation ClassHolder {
+            value: { java/lang/String }
+        },
+        stringArray: { "one", "two", "three" }
+    }
+    .invisible-annotation TestAnnotation {
+        stringValue: "I also exist, but invisibly"
+    }
+    .method public exampleMethod ()I {
+        parameters: { this },
+        code: {
+        A:
+            iconst_0
+            ireturn
+        B:
+        }
+    }
+}
