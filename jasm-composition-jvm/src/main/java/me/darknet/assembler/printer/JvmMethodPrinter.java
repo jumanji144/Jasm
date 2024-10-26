@@ -3,6 +3,7 @@ package me.darknet.assembler.printer;
 import dev.xdark.blw.annotation.Element;
 import dev.xdark.blw.code.Code;
 import dev.xdark.blw.code.generic.GenericLabel;
+import dev.xdark.blw.type.PrimitiveType;
 import dev.xdark.blw.type.Type;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
@@ -62,7 +63,10 @@ public class JvmMethodPrinter implements MethodPrinter {
                 //    String foo = ""   ---> foo2
                 //    byte[] foo = ...  ---> foo3
                 Type existingVarType = nameToType.get(name);
-                if (existingVarType != null && varType.getClass() != existingVarType.getClass()) {
+                if (existingVarType != null &&
+                        (varType.getClass() != existingVarType.getClass() || (varType instanceof PrimitiveType varPrim
+                                && existingVarType instanceof PrimitiveType existingPrim
+                                && varPrim.kind() != existingPrim.kind()))) {
                     int i = 2;
                     String prefix = name;
                     while (nameToType.get(name) != null)
