@@ -54,9 +54,11 @@ public class JvmMethodPrinter implements MethodPrinter {
             for (Local local : code.localVariables()) {
                 // Transform local name to be legal
                 int index = local.index();
-                String name = escapeName(local.name(), index, isStatic);
+                String baseName = local.name();
+                String name = escapeName(baseName, index, isStatic);
                 String descriptor = local.type().descriptor();
                 Type varType = Types.typeFromDescriptor(descriptor);
+                boolean escaped = !baseName.equals(name);
 
                 // De-conflict variable names if two names of incompatible types occupy the same name.
                 //    int foo = 0       ---> foo
@@ -67,6 +69,11 @@ public class JvmMethodPrinter implements MethodPrinter {
                         (varType.getClass() != existingVarType.getClass() || (varType instanceof PrimitiveType varPrim
                                 && existingVarType instanceof PrimitiveType existingPrim
                                 && varPrim.kind() != existingPrim.kind()))) {
+                    // If we have an escaped name like "\\u0000" we cannot just append a number to it and call it a day.
+                    // In these cases we will revert the name back to an auto-generated value based on its index.
+                    if (escaped)
+                        name = "v" + local.index();
+
                     int i = 2;
                     String prefix = name;
                     while (nameToType.get(name) != null)
