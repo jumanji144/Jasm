@@ -29,6 +29,7 @@ public class EscapeUtil {
         LITERAL_ESCAPE_MAP.putAll(BASE_ESCAPE_MAP);
         LITERAL_ESCAPE_MAP.put(' ', "\\u0020");
         LITERAL_ESCAPE_MAP.put(',', "\\u002C");
+        LITERAL_ESCAPE_MAP.put('.', "\\u002E");
         LITERAL_ESCAPE_MAP.put(':', "\\u003A");
         LITERAL_ESCAPE_MAP.put('{', "\\u007B");
         LITERAL_ESCAPE_MAP.put('}', "\\u007D");
