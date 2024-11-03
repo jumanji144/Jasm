@@ -54,8 +54,9 @@ public class JvmMethodPrinter implements MethodPrinter {
             for (Local local : code.localVariables()) {
                 // Transform local name to be legal
                 int index = local.index();
-                String baseName = local.name();
-                String name = escapeName(baseName, index, isStatic);
+                boolean isThis = !isStatic && index == 0;
+                String baseName = isThis ? "this" : local.name();
+                String name = isThis ? "this" : escapeName(baseName, index, isStatic);
                 String descriptor = local.type().descriptor();
                 Type varType = Types.typeFromDescriptor(descriptor);
                 boolean escaped = !baseName.equals(name);
