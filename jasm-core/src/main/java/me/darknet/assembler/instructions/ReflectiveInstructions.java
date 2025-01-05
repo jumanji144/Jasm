@@ -47,7 +47,7 @@ public abstract class ReflectiveInstructions<V extends ASTInstructionVisitor> ex
                 lookupCache.put(translatorName, method);
             }
             List<Object> arguments = new ArrayList<>(instruction.arguments());
-            arguments.add(0, instance);
+            arguments.addFirst(instance);
             method.invokeWithArguments(arguments);
         } catch (Throwable e) {
             throw new TransformationException("Failed to invoke translator method", e);

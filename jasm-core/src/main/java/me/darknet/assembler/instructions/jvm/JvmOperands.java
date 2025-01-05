@@ -153,7 +153,7 @@ public enum JvmOperands implements Operands {
             }
             case ARRAY -> {
                 ASTArray array = (ASTArray) element;
-                ASTElement last = array.values().get(array.values().size() - 1);
+                ASTElement last = array.values().getLast();
                 if (last == null) {
                     context.throwUnexpectedElementError("constant", element);
                     return;
@@ -229,7 +229,7 @@ public enum JvmOperands implements Operands {
         Handle.Kind kind = Handle.Kind.from(values.get(0).content());
 
         if (kind == null) {
-            context.throwUnexpectedElementError("kind", values.get(0));
+            context.throwUnexpectedElementError("kind", values.getFirst());
             return true;
         }
 

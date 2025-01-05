@@ -16,7 +16,7 @@ public interface I2CStaticFunc extends StaticFunc {
     @Override
     @Nullable
     default Value apply(@NotNull List<Value> params) {
-        if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue a)
+        if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue a)
             return Values.valueOf(apply((char) a.value()));
         return Values.INT_VALUE;
     }

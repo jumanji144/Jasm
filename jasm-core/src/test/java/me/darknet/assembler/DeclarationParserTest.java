@@ -31,7 +31,7 @@ public class DeclarationParserTest {
     public static <T extends ASTElement> void assertOne(String input, Class<T> clazz, Consumer<T> consumer) {
         parseString(input, (result) -> {
             assertEquals(1, result.size());
-            ASTElement element = result.get(0);
+            ASTElement element = result.getFirst();
             assertNotNull(element);
             assertInstanceOf(clazz, element);
             consumer.accept((T) element);
@@ -64,13 +64,13 @@ public class DeclarationParserTest {
     public void testBasicPrimitives() {
         parseString("test", (result) -> {
             assertEquals(1, result.size());
-            ASTElement element = result.get(0);
+            ASTElement element = result.getFirst();
             assertEquals("test", element.content());
             assertInstanceOf(ASTIdentifier.class, element);
         });
         parseString("10 0x10 test \"test\"", (result) -> {
             assertEquals(4, result.size());
-            ASTElement element = result.get(0);
+            ASTElement element = result.getFirst();
             assertEquals("10", element.content());
             assertInstanceOf(ASTNumber.class, element);
             element = result.get(1);
@@ -89,12 +89,12 @@ public class DeclarationParserTest {
     public void testObject() {
         parseString("{}", (result) -> { // empty object
             assertEquals(1, result.size());
-            ASTElement element = result.get(0);
+            ASTElement element = result.getFirst();
             assertInstanceOf(ASTEmpty.class, element);
         });
         parseString("{test: 10}", (result) -> {
             assertEquals(1, result.size());
-            ASTElement element = result.get(0);
+            ASTElement element = result.getFirst();
             assertInstanceOf(ASTObject.class, element);
             ASTObject object = (ASTObject) element;
             assertEquals(1, object.values().size());

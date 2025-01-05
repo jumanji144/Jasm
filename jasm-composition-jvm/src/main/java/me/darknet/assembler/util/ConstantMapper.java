@@ -12,7 +12,7 @@ import java.util.List;
 public class ConstantMapper {
 
     public static MethodHandle methodHandleFromArray(ASTArray array) {
-        Handle.Kind kind = Handle.Kind.from(array.values().get(0).content());
+        Handle.Kind kind = Handle.Kind.from(array.values().getFirst().content());
         String name = array.<ASTIdentifier>value(1).literal();
         String descriptor = array.<ASTIdentifier>value(2).literal();
 
@@ -128,7 +128,7 @@ public class ConstantMapper {
             }
             case ARRAY -> {
                 ASTArray array = (ASTArray) element;
-                ASTElement last = array.values().get(array.values().size() - 1);
+                ASTElement last = array.values().getLast();
                 assert last != null;
                 yield switch (last.type()) {
                     case ARRAY, EMPTY -> new OfDynamic(constantDynamicFromArray(array));

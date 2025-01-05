@@ -16,7 +16,7 @@ public interface D2IStaticFunc extends StaticFunc {
     @Override
     @Nullable
     default Value apply(@NotNull List<Value> params) {
-        if (params.size() == 1 && params.get(0) instanceof Value.KnownDoubleValue a)
+        if (params.size() == 1 && params.getFirst() instanceof Value.KnownDoubleValue a)
             return Values.valueOf(apply(a.value()));
         return Values.INT_VALUE;
     }

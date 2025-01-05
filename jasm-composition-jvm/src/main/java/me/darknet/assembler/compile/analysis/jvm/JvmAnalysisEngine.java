@@ -285,26 +285,37 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
      */
     protected void validateTypeUse(@NotNull CodeElement element, @Nullable ClassType inputType,
                                    @NotNull ClassType destinationType, @NotNull String verb, @NotNull String noun) {
-        if (inputType instanceof PrimitiveType) {
-            if (destinationType instanceof InstanceType)
-                warn(element, "Cannot " + verb + " primitive value into instance " + noun);
-            else if (destinationType instanceof ArrayType)
-                warn(element, "Cannot " + verb + " primitive value into array " + noun);
-        } else if (inputType instanceof ArrayType arrayValueType) {
-            if (destinationType instanceof InstanceType instanceDestinationType && !Types.OBJECT.equals(instanceDestinationType))
-                warn(element, "Cannot " + verb + " array value into " + noun + " that is not 'java/lang/Object'");
-            else if (destinationType instanceof PrimitiveType)
-                warn(element, "Cannot " + verb + " array value into primitive " + noun);
-            else if (destinationType instanceof ArrayType arrayDestinationType && !arrayDestinationType.equals(arrayValueType))
-                warn(element, "Cannot " + verb + " array value into array " + noun + " of different component type or dimension");
-        }  else if (inputType instanceof InstanceType) {
-            if (destinationType instanceof PrimitiveType)
-                warn(element, "Cannot " + verb + " instance value into primitive " + noun);
-            else if (destinationType instanceof ArrayType)
-                warn(element, "Cannot " + verb + " instance value into array " + noun);
-        } else if (inputType == null) {
-            if (destinationType instanceof PrimitiveType)
-                warn(element, "Cannot " + verb + " null value into primitive " + noun);
+        switch (inputType) {
+            case PrimitiveType ignored -> {
+                if (destinationType instanceof InstanceType)
+                    warn(element, "Cannot " + verb + " primitive value into instance " + noun);
+                else if (destinationType instanceof ArrayType)
+                    warn(element, "Cannot " + verb + " primitive value into array " + noun);
+            }
+            case ArrayType arrayValueType -> {
+                switch (destinationType) {
+                    case InstanceType instanceDestinationType when !Types.OBJECT.equals(instanceDestinationType) ->
+                            warn(element, "Cannot " + verb + " array value into " + noun + " that is not 'java/lang/Object'");
+                    case PrimitiveType ignored ->
+                            warn(element, "Cannot " + verb + " array value into primitive " + noun);
+                    case ArrayType arrayDestinationType when !arrayDestinationType.equals(arrayValueType) ->
+                            warn(element, "Cannot " + verb + " array value into array " + noun + " of different component type or dimension");
+                    default -> {
+                    }
+                }
+            }
+            case InstanceType ignored -> {
+                if (destinationType instanceof PrimitiveType)
+                    warn(element, "Cannot " + verb + " instance value into primitive " + noun);
+                else if (destinationType instanceof ArrayType)
+                    warn(element, "Cannot " + verb + " instance value into array " + noun);
+            }
+            case null -> {
+                if (destinationType instanceof PrimitiveType)
+                    warn(element, "Cannot " + verb + " null value into primitive " + noun);
+            }
+            default -> {
+            }
         }
     }
 }

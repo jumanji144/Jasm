@@ -24,22 +24,28 @@ public class AnalysisUtils {
     public static ClassType commonType(@NotNull InheritanceChecker checker, @Nullable ClassType a, @Nullable ClassType b) {
         if (a == null && b == null) return null;
         if (a != null && b == null) return a;
-        if (a == null) return b; // "b != null" will always be 'true' in this case
+        switch (a) {
+            case null -> {
+                return b; // "b != null" will always be 'true' in this case
+            }
+            case PrimitiveType ap when b instanceof PrimitiveType bp -> {
+                return bp.widen(ap.widen(bp));
+            }
+            case ObjectType ao when b instanceof ObjectType bo -> {
+                if (ao.equals(bo))
+                    return ao;
 
-        if (a instanceof PrimitiveType ap && b instanceof PrimitiveType bp) {
-            return bp.widen(ap.widen(bp));
-        } else if (a instanceof ObjectType ao && b instanceof ObjectType bo) {
-            if (ao.equals(bo))
-                return ao;
+                String commonType = checker.getCommonSuperclass(ao.internalName(), bo.internalName());
 
-            String commonType = checker.getCommonSuperclass(ao.internalName(), bo.internalName());
-
-            if (commonType == null)
+                if (commonType == null)
+                    return Types.OBJECT;
+                else
+                    return Types.objectTypeFromInternalName(commonType);
+            }
+            default -> {
                 return Types.OBJECT;
-            else
-                return Types.objectTypeFromInternalName(commonType);
-        } else {
-            return Types.OBJECT;
+            }
         }
+
     }
 }

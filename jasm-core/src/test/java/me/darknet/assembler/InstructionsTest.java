@@ -49,7 +49,7 @@ public class InstructionsTest {
             }
             List<ASTElement> results = result.get();
             assertEquals(1, results.size());
-            ASTElement element = results.get(0);
+            ASTElement element = results.getFirst();
             assertNotNull(element);
             assertInstanceOf(clazz, element);
             consumer.accept((T) element);
@@ -89,7 +89,7 @@ public class InstructionsTest {
                     List<ASTInstruction> instructions = code.instructions();
                     assertEquals(5, instructions.size());
                     assertEquals("ldc", instructions.get(0).identifier().content());
-                    assertEquals("Hello World", instructions.get(0).arguments().get(0).content());
+                    assertEquals("Hello World", instructions.get(0).arguments().getFirst().content());
                     assertEquals("getstatic", instructions.get(1).identifier().content());
                     assertEquals("java/lang/System.out", instructions.get(1).arguments().get(0).content());
                     assertEquals("Ljava/io/PrintStream;", instructions.get(1).arguments().get(1).content());
@@ -138,8 +138,8 @@ public class InstructionsTest {
         assertCode(new String[] { "ldc Ljava/lang/String;", }, BytecodeFormat.JVM, (code) -> {
             List<ASTInstruction> instructions = code.instructions();
             assertEquals(1, instructions.size());
-            assertEquals("ldc", instructions.get(0).identifier().content());
-            assertEquals("Ljava/lang/String;", instructions.get(0).arguments().get(0).content());
+            assertEquals("ldc", instructions.getFirst().identifier().content());
+            assertEquals("Ljava/lang/String;", instructions.getFirst().arguments().getFirst().content());
         });
     }
 
@@ -151,7 +151,7 @@ public class InstructionsTest {
                 BytecodeFormat.JVM, (code) -> {
                     List<ASTInstruction> instructions = code.instructions();
                     assertEquals(1, instructions.size());
-                    assertEquals("tableswitch", instructions.get(0).identifier().content());
+                    assertEquals("tableswitch", instructions.getFirst().identifier().content());
                 }
         );
     }
@@ -163,7 +163,7 @@ public class InstructionsTest {
                 BytecodeFormat.JVM, (code) -> {
                     List<ASTInstruction> instructions = code.instructions();
                     assertEquals(1, instructions.size());
-                    assertEquals("lookupswitch", instructions.get(0).identifier().content());
+                    assertEquals("lookupswitch", instructions.getFirst().identifier().content());
                 }
         );
     }
@@ -174,8 +174,8 @@ public class InstructionsTest {
                 new String[] { "ldc \":\"" }, BytecodeFormat.JVM, (code) -> {
                     List<ASTInstruction> instructions = code.instructions();
                     assertEquals(1, instructions.size());
-                    assertEquals("ldc", instructions.get(0).identifier().content());
-                    assertEquals(":", instructions.get(0).arguments().get(0).content());
+                    assertEquals("ldc", instructions.getFirst().identifier().content());
+                    assertEquals(":", instructions.getFirst().arguments().getFirst().content());
                 }
         );
     }

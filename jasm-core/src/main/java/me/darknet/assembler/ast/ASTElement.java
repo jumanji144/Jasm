@@ -124,11 +124,11 @@ public class ASTElement {
             if (localChildren.isEmpty()) // no possible range usable
                 return Range.EMPTY;
 
-            Range first = localChildren.get(0).range();
+            Range first = localChildren.getFirst().range();
             if (localChildren.size() == 1)
                 return createRange(first.start(), first.end());
 
-            Range last = localChildren.get(localChildren.size() - 1).range();
+            Range last = localChildren.getLast().range();
             return cachedRange = createRange(first.start(), last.end());
         }
         Range range = value.range();

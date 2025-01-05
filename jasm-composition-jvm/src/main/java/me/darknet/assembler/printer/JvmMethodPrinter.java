@@ -25,12 +25,12 @@ import java.util.*;
 public class JvmMethodPrinter implements MethodPrinter {
 
     protected final Method method;
-    protected final MemberPrinter memberPrinter;
+    protected final JvmMemberPrinter memberPrinter;
     protected String labelPrefix;
 
     public JvmMethodPrinter(Method method) {
         this.method = method;
-        this.memberPrinter = new MemberPrinter(method, MemberPrinter.Type.METHOD);
+        this.memberPrinter = new JvmMemberPrinter(method, JvmMemberPrinter.Type.METHOD);
     }
 
     static String escapeName(String name, int index, boolean isStatic) {
@@ -156,9 +156,9 @@ public class JvmMethodPrinter implements MethodPrinter {
         if (methodCode != null) {
             // Ensure there are labels at the absolute start/end of the method so variable ranges won't be wonky.
             List<CodeElement> elements = methodCode.elements();
-            if (!elements.isEmpty() && !(elements.get(0) instanceof Label))
-                elements.add(0, new GenericLabel());
-            if (!elements.isEmpty() && !(elements.get(elements.size() - 1) instanceof Label))
+            if (!elements.isEmpty() && !(elements.getFirst() instanceof Label))
+                elements.addFirst(new GenericLabel());
+            if (!elements.isEmpty() && !(elements.getLast() instanceof Label))
                 elements.add(new GenericLabel());
 
             // Separator between code and parameters element

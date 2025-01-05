@@ -7,11 +7,11 @@ import org.jetbrains.annotations.Nullable;
 public class JvmFieldPrinter implements FieldPrinter {
 
     protected Field field;
-    protected MemberPrinter memberPrinter;
+    protected JvmMemberPrinter memberPrinter;
 
     public JvmFieldPrinter(Field field) {
         this.field = field;
-        this.memberPrinter = new MemberPrinter(field, MemberPrinter.Type.FIELD);
+        this.memberPrinter = new JvmMemberPrinter(field, JvmMemberPrinter.Type.FIELD);
     }
 
     @Override

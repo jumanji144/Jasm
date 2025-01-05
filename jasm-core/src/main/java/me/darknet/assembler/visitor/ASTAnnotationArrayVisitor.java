@@ -28,27 +28,29 @@ public interface ASTAnnotationArrayVisitor {
         //  But this is not a problem for now until xxDark notices this code, which i hope
         //  he does not.
         for (ASTElement arrayValue : array.values()) {
-            if (arrayValue instanceof ASTValue val) {
-                visitor.visitValue(val);
-            } else if (arrayValue instanceof ASTIdentifier identifier) {
-                visitor.visitTypeValue(identifier);
-            } else if (arrayValue instanceof ASTEnum astEnum) {
-                visitor.visitEnumValue(astEnum.enumType(), astEnum.enumValue());
-            } else if (arrayValue instanceof ASTAnnotation annotation) {
-                ASTAnnotationVisitor anno = visitor.visitAnnotationValue(annotation.classType());
-                annotation.accept(collector, anno);
-            } else if (arrayValue instanceof ASTArray astArray) {
-                ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue();
-                accept(arrayVisitor, astArray, collector);
-            } else if (arrayValue instanceof ASTEmpty) {
-                ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue();
-                accept(arrayVisitor, ASTEmpty.EMPTY_ARRAY, collector);
-            } else {
-                if (arrayValue == null) {
-                    collector.addError("Unprocessable value in array", array.location());
-                    continue;
+            switch (arrayValue) {
+                case ASTValue val -> visitor.visitValue(val);
+                case ASTIdentifier identifier -> visitor.visitTypeValue(identifier);
+                case ASTEnum astEnum -> visitor.visitEnumValue(astEnum.enumType(), astEnum.enumValue());
+                case ASTAnnotation annotation -> {
+                    ASTAnnotationVisitor anno = visitor.visitAnnotationValue(annotation.classType());
+                    annotation.accept(collector, anno);
                 }
-                collector.addError("Don't know how to process: " + arrayValue.type(), arrayValue.location());
+                case ASTArray astArray -> {
+                    ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue();
+                    accept(arrayVisitor, astArray, collector);
+                }
+                case ASTEmpty ignored -> {
+                    ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue();
+                    accept(arrayVisitor, ASTEmpty.EMPTY_ARRAY, collector);
+                }
+                case null, default -> {
+                    if (arrayValue == null) {
+                        collector.addError("Unprocessable value in array", array.location());
+                        continue;
+                    }
+                    collector.addError("Don't know how to process: " + arrayValue.type(), arrayValue.location());
+                }
             }
         }
 

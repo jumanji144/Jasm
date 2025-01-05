@@ -55,7 +55,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
     private static void initCharacterStaticFuncs() {
         // Since we don't track array contents, a number of methods interacting with those are not here.
         STATIC_FUNCS.put("java/lang/Character.codePointOf(Ljava/lang/CharSequence;I)I", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue text)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue text)
                 return Values.valueOf(Character.codePointOf(text.value()));
             return Values.INT_VALUE;
         });
@@ -157,7 +157,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
      */
     private static void initDoubleStaticFuncs() {
         STATIC_FUNCS.put("java/lang/Double.parseDouble(Ljava/lang/String;)D", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue text)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue text)
                 try {
                     return Values.valueOf(Double.parseDouble(text.value()));
                 } catch (NumberFormatException ignored) {
@@ -165,12 +165,12 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.DOUBLE_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Double.toString(D)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownDoubleValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownDoubleValue value)
                 return Values.valueOfString(Double.toString(value.value()));
             return Values.DOUBLE_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Double.toHexString(D)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownDoubleValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownDoubleValue value)
                 return Values.valueOfString(Double.toHexString(value.value()));
             return Values.DOUBLE_VALUE;
         });
@@ -192,7 +192,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
      */
     private static void initFloatStaticFuncs() {
         STATIC_FUNCS.put("java/lang/Float.parseFloat(Ljava/lang/String;)F", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue text)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue text)
                 try {
                     return Values.valueOf(Float.parseFloat(text.value()));
                 } catch (NumberFormatException ignored) {
@@ -200,12 +200,12 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.FLOAT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Float.toHexString(F)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownFloatValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownFloatValue value)
                 return Values.valueOfString(Float.toHexString(value.value()));
             return Values.FLOAT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Float.toString(F)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownFloatValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownFloatValue value)
                 return Values.valueOfString(Float.toString(value.value()));
             return Values.FLOAT_VALUE;
         });
@@ -227,7 +227,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
      */
     private static void initShortStaticFuncs() {
         STATIC_FUNCS.put("java/lang/Short.parseShort(Ljava/lang/String;)I", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue text)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue text)
                 try {
                     return Values.valueOf(Short.parseShort(text.value()));
                 } catch (NumberFormatException ignored) {
@@ -245,28 +245,28 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.INT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Short.toString(S)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue value)
                 return Values.valueOfString(Short.toString((short) value.value()));
             return Values.INT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Short.toUnsignedInt(S)I", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue value)
                 return Values.valueOf(Short.toUnsignedInt((short) value.value()));
             return Values.INT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Short.toUnsignedLong(S)J", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue value)
                 return Values.valueOf(Short.toUnsignedLong((short) value.value()));
             return Values.LONG_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Short.reverseBytes(S)S", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue value)
                 return Values.valueOf(Short.reverseBytes((short) value.value()));
             return Values.INT_VALUE;
         });
 
         STATIC_FUNCS.put("java/lang/Short.hashCode(S)I", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue value)
                 return Values.valueOf(Short.hashCode((short) value.value()));
             return Values.INT_VALUE;
         });
@@ -291,7 +291,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
      */
     private static void initByteStaticFuncs() {
         STATIC_FUNCS.put("java/lang/Byte.parseByte(Ljava/lang/String;)I", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue text)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue text)
                 try {
                     return Values.valueOf(Byte.parseByte(text.value()));
                 } catch (NumberFormatException ignored) {
@@ -309,7 +309,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.INT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Byte.decode(Ljava/lang/String;)I", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue text)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue text)
                 try {
                     return Values.valueOf(Byte.decode(text.value()));
                 } catch (NumberFormatException ignored) {
@@ -339,7 +339,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         });
          */
         STATIC_FUNCS.put("java/lang/Long.parseLong(Ljava/lang/String;)J", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue text)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue text)
                 try {
                     return Values.valueOf(Long.parseLong(text.value()));
                 } catch (NumberFormatException ignored) {
@@ -369,7 +369,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.LONG_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Long.toString(J)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownLongValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownLongValue value)
                 return Values.valueOfString(Long.toString(value.value()));
             return Values.STRING_VALUE;
         });
@@ -381,7 +381,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Long.toUnsignedString(J)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownLongValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownLongValue value)
                 return Values.valueOfString(Long.toUnsignedString(value.value()));
             return Values.STRING_VALUE;
         });
@@ -393,12 +393,12 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Long.toHexString(J)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownLongValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownLongValue value)
                 return Values.valueOfString(Long.toHexString(value.value()));
             return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Long.toOctalString(J)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownLongValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownLongValue value)
                 return Values.valueOfString(Long.toOctalString(value.value()));
             return Values.STRING_VALUE;
         });
@@ -423,7 +423,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
      */
     private static void initIntegerStaticFuncs() {
         STATIC_FUNCS.put("java/lang/Integer.parseInt(Ljava/lang/String;)I", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue text)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue text)
                 try {
                     return Values.valueOf(Integer.parseInt(text.value()));
                 } catch (NumberFormatException ignored) {
@@ -441,7 +441,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.INT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Integer.parseUnsignedInt(Ljava/lang/String;)I", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue text)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue text)
                 try {
                     return Values.valueOf(Integer.parseUnsignedInt(text.value()));
                 } catch (NumberFormatException ignored) {
@@ -504,12 +504,12 @@ public class BasicMethodValueLookup implements MethodValueLookup {
      */
     private static void initBooleanStaticFuncs() {
         STATIC_FUNCS.put("java/lang/Boolean.parseBoolean(Ljava/lang/String;)Z", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue value)
                 return Values.valueOf(Boolean.parseBoolean(value.value()));
             return Values.INT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Boolean.getBoolean(Ljava/lang/String;)Z", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue value)
                 return Values.valueOf(Boolean.getBoolean(value.value()));
             return Values.INT_VALUE;
         });
@@ -542,12 +542,12 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.INT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Boolean.toString(Z)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue value)
                 return Values.valueOfString(Boolean.toString(value.value() != 0));
             return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/Boolean.hashCode(Z)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue value)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue value)
                 return Values.valueOf(Boolean.hashCode(value.value() != 0));
             return Values.INT_VALUE;
         });
@@ -711,7 +711,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         // STATIC_FUNCS.put("java/lang/System.nanoTime()J", params -> Values.valueOf(System.nanoTime()));
         STATIC_FUNCS.put("java/lang/System.lineSeparator()Ljava/lang/String;", params -> Values.valueOfString(System.lineSeparator()));
         STATIC_FUNCS.put("java/lang/System.getProperty(Ljava/lang/String;)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue key) {
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue key) {
                 try {
                     String property = System.getProperty(key.value());
                     if (property != null)
@@ -757,39 +757,39 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         INSTANCE_STRING_FUNCS.put("isBlank()Z", (value, params) -> Values.valueOf(value.isBlank()));
         INSTANCE_STRING_FUNCS.put("isEmpty()Z", (value, params) -> Values.valueOf(value.isEmpty()));
         INSTANCE_STRING_FUNCS.put("repeat(I)Ljava/lang/String;", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue count && count.value() > 0)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue count && count.value() > 0)
                 return Values.valueOfString(value.repeat(count.value()));
             return Values.STRING_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("equals(Ljava/lang/Object;)Z", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue strParam)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue strParam)
                 return Values.valueOf(value.equals(strParam.value()));
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("equalsIgnoreCase(Ljava/lang/String;)Z", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue strParam)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue strParam)
                 return Values.valueOf(value.equalsIgnoreCase(strParam.value()));
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("contentEquals(Ljava/lang/CharSequence;)Z", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue strParam)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue strParam)
                 return Values.valueOf(value.contentEquals(strParam.value()));
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("contains(Ljava/lang/Object;)Z", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue strParam)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue strParam)
                 return Values.valueOf(value.contains(strParam.value()));
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("charAt(I)C", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue index &&
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue index &&
                     index.value() >= 0 &&
                     index.value() < value.length())
                 return Values.valueOf(value.charAt(index.value()));
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("indexOf(I)I", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue ch)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue ch)
                 return Values.valueOf(value.indexOf(ch.value()));
             return Values.INT_VALUE;
         });
@@ -801,7 +801,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("indexOf(Ljava/lang/String;)I", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue ch)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue ch)
                 return Values.valueOf(value.indexOf(ch.value()));
             return Values.INT_VALUE;
         });
@@ -820,27 +820,27 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("startsWith(Ljava/lang/String;)Z", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue prefix)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue prefix)
                 return Values.valueOf(value.startsWith(prefix.value()));
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("endsWith(Ljava/lang/String;)Z", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue suffix)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue suffix)
                 return Values.valueOf(value.endsWith(suffix.value()));
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("compareTo(Ljava/lang/String;)I", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue other)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue other)
                 return Values.valueOf(value.compareTo(other.value()));
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("compareToIgnoreCase(Ljava/lang/String;)I", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue other)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue other)
                 return Values.valueOf(value.compareToIgnoreCase(other.value()));
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("substring(I)Ljava/lang/String;", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue begin &&
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue begin &&
                     begin.value() >= 0 &&
                     begin.value() < value.length())
                 return Values.valueOfString(value.substring(begin.value()));
@@ -857,13 +857,13 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.STRING_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("codePointAt(I)I", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue index &&
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue index &&
                     index.value() >= 0 && index.value() < value.length())
                 return Values.valueOf(value.codePointAt(index.value()));
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("codePointBefore(I)I", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue index &&
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue index &&
                     index.value() >= 0 && index.value() < value.length())
                 return Values.valueOf(value.codePointBefore(index.value()));
             return Values.INT_VALUE;
@@ -887,32 +887,32 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             return Values.INT_VALUE;
         });
         INSTANCE_STRING_FUNCS.put("regex(Ljava/lang/String;)Z", (value, params) -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownStringValue regex)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue regex)
                 return Values.valueOf(value.matches(regex.value()));
             return Values.INT_VALUE;
         });
         STATIC_FUNCS.put("java/lang/String.valueOf(I)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue param)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue param)
                 return Values.valueOfString(String.valueOf(param.value()));
             return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/String.valueOf(F)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownFloatValue param)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownFloatValue param)
                 return Values.valueOfString(String.valueOf(param.value()));
             return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/String.valueOf(D)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownDoubleValue param)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownDoubleValue param)
                 return Values.valueOfString(String.valueOf(param.value()));
             return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/String.valueOf(J)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownLongValue param)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownLongValue param)
                 return Values.valueOfString(String.valueOf(param.value()));
             return Values.STRING_VALUE;
         });
         STATIC_FUNCS.put("java/lang/String.valueOf(Z)Ljava/lang/String;", params -> {
-            if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue param)
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue param)
                 return Values.valueOfString(String.valueOf(param.value() != 0));
             return Values.STRING_VALUE;
         });

@@ -57,42 +57,35 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
     }
 
     public void printElement(@NotNull PrintContext<?> ctx, @NotNull Element element) {
-        if (element instanceof ElementInt ei) {
-            ctx.print(Integer.toString(ei.value()));
-        } else if (element instanceof ElementLong el) {
-            ctx.print(el.value() + "L");
-        } else if (element instanceof ElementFloat ef) {
-            ctx.print(ef.value() + "F");
-        } else if (element instanceof ElementDouble ed) {
-            String content = Double.toString(ed.value());
-            ctx.print(content);
+        switch (element) {
+            case ElementInt ei -> ctx.print(Integer.toString(ei.value()));
+            case ElementLong el -> ctx.print(el.value() + "L");
+            case ElementFloat ef -> ctx.print(ef.value() + "F");
+            case ElementDouble ed -> {
+                String content = Double.toString(ed.value());
+                ctx.print(content);
 
-            // Skip 'D' suffix for things like 'NaN' where it is implied
-            if (!content.matches("\\D+"))
-                ctx.print( "D");
-        } else if (element instanceof ElementString es) {
-            ctx.string(es.value());
-        } else if (element instanceof ElementBoolean eb) {
-            ctx.print(Boolean.toString(eb.value()));
-        } else if (element instanceof ElementByte eb) {
-            ctx.print(Byte.toString(eb.value()));
-        } else if (element instanceof ElementChar ec) {
-            String str = String.valueOf(ec.value());
-            ctx.print("'").print(EscapeUtil.escapeString(str)).print("'");
-        } else if (element instanceof ElementShort es) {
-            ctx.print(Short.toString(es.value()));
-        } else if (element instanceof ElementEnum ee) {
-            ctx.element(".enum").literal(ee.type().internalName()).print(" ").literal(ee.name());
-        } else if (element instanceof ElementType et) {
-            ctx.literal(et.value().internalName());
-        } else if (element instanceof Annotation ea) {
-            printAnnotation(ctx, ea);
-        } else if (element instanceof ElementArray ea) {
-            var array = ctx.array();
-            array.print(ea, this::printElement);
-            array.end();
-        } else {
-            throw new IllegalStateException("Unexpected value: " + element);
+                // Skip 'D' suffix for things like 'NaN' where it is implied
+                if (!content.matches("\\D+"))
+                    ctx.print("D");
+            }
+            case ElementString es -> ctx.string(es.value());
+            case ElementBoolean eb -> ctx.print(Boolean.toString(eb.value()));
+            case ElementByte eb -> ctx.print(Byte.toString(eb.value()));
+            case ElementChar ec -> {
+                String str = String.valueOf(ec.value());
+                ctx.print("'").print(EscapeUtil.escapeString(str)).print("'");
+            }
+            case ElementShort es -> ctx.print(Short.toString(es.value()));
+            case ElementEnum ee -> ctx.element(".enum").literal(ee.type().internalName()).print(" ").literal(ee.name());
+            case ElementType et -> ctx.literal(et.value().internalName());
+            case Annotation ea -> printAnnotation(ctx, ea);
+            case ElementArray ea -> {
+                var array = ctx.array();
+                array.print(ea, this::printElement);
+                array.end();
+            }
+            default -> throw new IllegalStateException("Unexpected value: " + element);
         }
     }
 }

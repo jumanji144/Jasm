@@ -16,7 +16,7 @@ public interface B2IStaticFunc extends StaticFunc {
     @Override
     @Nullable
     default Value apply(@NotNull List<Value> params) {
-        if (params.size() == 1 && params.get(0) instanceof Value.KnownIntValue a)
+        if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue a)
             return Values.valueOf(apply((byte) a.value()));
         return Values.INT_VALUE;
     }

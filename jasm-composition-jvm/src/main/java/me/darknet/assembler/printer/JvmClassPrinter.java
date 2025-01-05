@@ -23,7 +23,7 @@ import java.util.List;
 public class JvmClassPrinter implements ClassPrinter {
 
     protected ClassFileView view;
-    protected MemberPrinter memberPrinter;
+    protected JvmMemberPrinter memberPrinter;
     private static final BytecodeLibrary library = new AsmBytecodeLibrary(
             ClassWriterProvider.flags(ClassWriter.COMPUTE_FRAMES)
     );
@@ -36,7 +36,7 @@ public class JvmClassPrinter implements ClassPrinter {
         var builder = new GenericClassBuilder();
         library.read(stream, builder);
         view = builder.build();
-        this.memberPrinter = new MemberPrinter(view, view, view, MemberPrinter.Type.CLASS);
+        this.memberPrinter = new JvmMemberPrinter(view, view, view, JvmMemberPrinter.Type.CLASS);
     }
 
     @Override
@@ -95,7 +95,7 @@ public class JvmClassPrinter implements ClassPrinter {
         if (recordComponents != null && !recordComponents.isEmpty()) {
             recordComponents.forEach(r -> {
                 // Dirty hack to print the records signature/annotations without too much copy-pasting
-                var compAttrPrinter = new MemberPrinter(r, r, view, MemberPrinter.Type.CLASS);
+                var compAttrPrinter = new JvmMemberPrinter(r, r, view, JvmMemberPrinter.Type.CLASS);
                 compAttrPrinter.printAttributes(ctx);
                 ctx.begin().element(".record-component").element(r.name()).element(r.type().descriptor()).end();
             });

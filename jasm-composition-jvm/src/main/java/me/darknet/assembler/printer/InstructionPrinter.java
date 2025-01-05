@@ -80,47 +80,51 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     @Override
     public void execute(ConstantInstruction<?> instruction) {
         String opcode;
-        if (instruction instanceof ConstantInstruction.Int i) {
-            int val = i.constant().value();
-            if (val == -1) {
-                ctx.instruction("iconst_m1").next();
-                return;
-            } else if (val >= 0 && val <= 5) {
-                ctx.instruction("iconst_" + val).next();
-                return;
-            } else if (val >= -128 && val <= 127) {
-                opcode = "bipush";
-            } else if (val >= -32768 && val <= 32767) {
-                opcode = "sipush";
-            } else {
-                opcode = "ldc";
+        switch (instruction) {
+            case ConstantInstruction.Int i -> {
+                int val = i.constant().value();
+                if (val == -1) {
+                    ctx.instruction("iconst_m1").next();
+                    return;
+                } else if (val >= 0 && val <= 5) {
+                    ctx.instruction("iconst_" + val).next();
+                    return;
+                } else if (val >= -128 && val <= 127) {
+                    opcode = "bipush";
+                } else if (val >= -32768 && val <= 32767) {
+                    opcode = "sipush";
+                } else {
+                    opcode = "ldc";
+                }
             }
-        } else if (instruction instanceof ConstantInstruction.Long i) {
-            long val = i.constant().value();
-            if (val == 0 || val == 1) {
-                ctx.instruction("lconst_" + val).next();
-                return;
-            } else {
-                opcode = "ldc"; // ldc2_w
+            case ConstantInstruction.Long i -> {
+                long val = i.constant().value();
+                if (val == 0 || val == 1) {
+                    ctx.instruction("lconst_" + val).next();
+                    return;
+                } else {
+                    opcode = "ldc"; // ldc2_w
+                }
             }
-        } else if (instruction instanceof ConstantInstruction.Float i) {
-            float val = i.constant().value();
-            if (val == 0 || val == 1 || val == 2) {
-                ctx.instruction("fconst_" + (int) val).next();
-                return;
-            } else {
-                opcode = "ldc";
+            case ConstantInstruction.Float i -> {
+                float val = i.constant().value();
+                if (val == 0 || val == 1 || val == 2) {
+                    ctx.instruction("fconst_" + (int) val).next();
+                    return;
+                } else {
+                    opcode = "ldc";
+                }
             }
-        } else if (instruction instanceof ConstantInstruction.Double i) {
-            double val = i.constant().value();
-            if (val == 0 || val == 1) {
-                ctx.instruction("dconst_" + (int) val).next();
-                return;
-            } else {
-                opcode = "ldc"; // ldc2_w
+            case ConstantInstruction.Double i -> {
+                double val = i.constant().value();
+                if (val == 0 || val == 1) {
+                    ctx.instruction("dconst_" + (int) val).next();
+                    return;
+                } else {
+                    opcode = "ldc"; // ldc2_w
+                }
             }
-        } else {
-            opcode = "ldc";
+            case null, default -> opcode = "ldc";
         }
         ctx.instruction(opcode);
         instruction.constant().accept(new ConstantPrinter(ctx));

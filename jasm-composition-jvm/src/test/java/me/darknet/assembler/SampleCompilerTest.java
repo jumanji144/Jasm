@@ -1,6 +1,7 @@
 package me.darknet.assembler;
 
 import dev.xdark.blw.code.instruction.MethodInstruction;
+import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
@@ -35,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.lang.runtime.SwitchBootstraps;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -592,6 +594,26 @@ public class SampleCompilerTest {
                 } else {
                     fail("Wrong return value");
                 }
+            });
+        }
+
+        @Test
+        void arrayObjectMergeOnParameter() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-array-object-merge-on-parameter.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                // should not fail or produce warning and p0 should be of type Object
+                assertNull(results.getAnalysisFailure());
+
+                ClassType p0Type = results.frames().lastEntry().getValue().getLocalType(0);
+                assertEquals(Types.OBJECT, p0Type);
+            }, warns -> {
+                // Void type usage in the engine for method parameters should emit a warning.
+                // If this occurs we've broken something.
+                fail("Expected no warnings, found: " + warns);
             });
         }
     }

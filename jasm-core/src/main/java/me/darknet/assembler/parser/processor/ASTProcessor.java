@@ -45,30 +45,30 @@ public class ASTProcessor {
             return new ASTEnum(type, name);
         });
         ParserRegistry.register("signature", (ctx, decl) -> {
-            ASTString signature = ctx.validateElement(decl.elements().get(0), ElementType.STRING, "signature", decl);
+            ASTString signature = ctx.validateElement(decl.elements().getFirst(), ElementType.STRING, "signature", decl);
             ctx.result.setSignature(signature);
             return signature;
         });
         ParserRegistry.register("sourcefile", (ctx, decl) -> {
-            ASTString sourceFile = ctx.validateElement(decl.elements().get(0), ElementType.STRING, "source file", decl);
+            ASTString sourceFile = ctx.validateElement(decl.elements().getFirst(), ElementType.STRING, "source file", decl);
             ctx.result.setSourceFile(sourceFile);
             return sourceFile;
         });
         ParserRegistry.register("super", (ctx, decl) -> {
             ASTIdentifier superName = ctx
-                    .validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "super name", decl);
+                    .validateElement(decl.elements().getFirst(), ElementType.IDENTIFIER, "super name", decl);
             ctx.result.setSuperName(superName);
             return superName;
         });
         ParserRegistry.register("implements", (ctx, decl) -> {
             ASTIdentifier interfaceName = ctx
-                    .validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "interface name", decl);
+                    .validateElement(decl.elements().getFirst(), ElementType.IDENTIFIER, "interface name", decl);
             ctx.result.addInterface(interfaceName);
             return interfaceName;
         });
         ParserRegistry.register("permitted-subclass", (ctx, decl) -> {
             ASTIdentifier subclassName = ctx
-                    .validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "interface name", decl);
+                    .validateElement(decl.elements().getFirst(), ElementType.IDENTIFIER, "interface name", decl);
             ctx.result.addPermittedSubclass(subclassName);
             return subclassName;
         });
@@ -84,7 +84,7 @@ public class ASTProcessor {
             return recordComponent;
         });
         ParserRegistry.register("outer-class", (ctx, decl) -> {
-            ASTIdentifier className = ctx.validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "outer class", decl);
+            ASTIdentifier className = ctx.validateElement(decl.elements().getFirst(), ElementType.IDENTIFIER, "outer class", decl);
             ctx.result.setOuterClass(className);
             return className;
         });
@@ -96,12 +96,12 @@ public class ASTProcessor {
             return outer;
         });
         ParserRegistry.register("nest-host", (ctx, decl) -> {
-            ASTIdentifier nestHost = ctx.validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "nest host", decl);
+            ASTIdentifier nestHost = ctx.validateElement(decl.elements().getFirst(), ElementType.IDENTIFIER, "nest host", decl);
             ctx.result.setNestHost(nestHost);
             return nestHost;
         });
         ParserRegistry.register("nest-member", (ctx, decl) -> {
-            ASTIdentifier nestMember = ctx.validateElement(decl.elements().get(0), ElementType.IDENTIFIER, "nest member", decl);
+            ASTIdentifier nestMember = ctx.validateElement(decl.elements().getFirst(), ElementType.IDENTIFIER, "nest member", decl);
             ctx.result.addNestMember(nestMember);
             return nestMember;
         });
@@ -321,7 +321,7 @@ public class ASTProcessor {
                         ctx.throwUnexpectedElementError("annotation value", value);
                         return null;
                     }
-                    value = new ASTArray(Collections.singletonList(validateElementValue(ctx, decl.elements().get(0))));
+                    value = new ASTArray(Collections.singletonList(validateElementValue(ctx, decl.elements().getFirst())));
                 }
             }
             case ARRAY -> {

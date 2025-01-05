@@ -33,50 +33,51 @@ public interface ASTAnnotationVisitor {
         for (Pair<ASTIdentifier, ASTElement> pair : pairs) {
             ASTElement value = pair.second();
             ASTIdentifier key = pair.first();
-            if (value instanceof ASTValue val) {
-                visitor.visitValue(key, val);
-            } else if (value instanceof ASTIdentifier identifier) {
-                visitor.visitTypeValue(key, identifier);
-            } else if (value instanceof ASTEnum astEnum) {
-                visitor.visitEnumValue(key, astEnum.enumType(), astEnum.enumValue());
-            } else if (value instanceof ASTArray array) {
-                ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue(key);
-                if (arrayVisitor == null) {
-                    continue;
-                }
-                ASTAnnotationArrayVisitor.accept(arrayVisitor, array, collector);
-            } else if (value instanceof ASTAnnotation annotation) {
-                ASTAnnotationVisitor anno = visitor.visitAnnotationValue(key, annotation.classType());
-                annotation.accept(collector, anno);
-            } else {
-                if (value instanceof ASTDeclaration declaration) {
-                    try {
-                        // Attempt to parse declaration as an enum/annotation
-                        if (declaration.elements().size() == 2) {
-                            String keyword = declaration.keyword().content();
-                            if (keyword.equals(".enum")) {
-                                visitor.visitEnumValue(key, (ASTIdentifier) declaration.element(0), (ASTIdentifier) declaration.element(1));
-                                continue;
-                            } else if (keyword.equals(".annotation")) {
-                                ASTIdentifier annoType = (ASTIdentifier) declaration.element(0);
-                                ASTObject annoObject = (ASTObject) declaration.element(1);
-                                ASTAnnotationVisitor anno = visitor.visitAnnotationValue(key, annoType);
-                                ElementMap<ASTIdentifier, ASTElement> map = new ElementMap<>();
-                                for (var subPair : annoObject.values().pairs())
-                                    map.put(subPair.first(), subPair.second());
-                                ASTAnnotationVisitor.accept(anno, map.pairs(), collector);
-                                continue;
-                            }
-                        }
-                    } catch (Exception ex) {
-                        collector.addError("Unprocessable declaration (enum?) in annotation", key.location());
+            switch (value) {
+                case ASTValue val -> visitor.visitValue(key, val);
+                case ASTIdentifier identifier -> visitor.visitTypeValue(key, identifier);
+                case ASTEnum astEnum -> visitor.visitEnumValue(key, astEnum.enumType(), astEnum.enumValue());
+                case ASTArray array -> {
+                    ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue(key);
+                    if (arrayVisitor == null) {
                         continue;
                     }
-                } else if (value == null) {
-                    collector.addError("Unprocessable value in annotation", key.location());
-                    continue;
+                    ASTAnnotationArrayVisitor.accept(arrayVisitor, array, collector);
                 }
-                collector.addError("Don't know how to process: " + value.type(), value.location());
+                case ASTAnnotation annotation -> {
+                    ASTAnnotationVisitor anno = visitor.visitAnnotationValue(key, annotation.classType());
+                    annotation.accept(collector, anno);
+                }
+                case null, default -> {
+                    if (value instanceof ASTDeclaration declaration) {
+                        try {
+                            // Attempt to parse declaration as an enum/annotation
+                            if (declaration.elements().size() == 2) {
+                                String keyword = declaration.keyword().content();
+                                if (keyword.equals(".enum")) {
+                                    visitor.visitEnumValue(key, (ASTIdentifier) declaration.element(0), (ASTIdentifier) declaration.element(1));
+                                    continue;
+                                } else if (keyword.equals(".annotation")) {
+                                    ASTIdentifier annoType = (ASTIdentifier) declaration.element(0);
+                                    ASTObject annoObject = (ASTObject) declaration.element(1);
+                                    ASTAnnotationVisitor anno = visitor.visitAnnotationValue(key, annoType);
+                                    ElementMap<ASTIdentifier, ASTElement> map = new ElementMap<>();
+                                    for (var subPair : annoObject.values().pairs())
+                                        map.put(subPair.first(), subPair.second());
+                                    ASTAnnotationVisitor.accept(anno, map.pairs(), collector);
+                                    continue;
+                                }
+                            }
+                        } catch (Exception ex) {
+                            collector.addError("Unprocessable declaration (enum?) in annotation", key.location());
+                            continue;
+                        }
+                    } else if (value == null) {
+                        collector.addError("Unprocessable value in annotation", key.location());
+                        continue;
+                    }
+                    collector.addError("Don't know how to process: " + value.type(), value.location());
+                }
             }
         }
 

@@ -33,16 +33,19 @@ public class Transformer {
         ErrorCollector collector = new ErrorCollector();
         ASTRootVisitor localVisitor = visitor;
         for (ASTElement declaration : declarations) {
-            if (declaration instanceof ASTField field) {
-                ASTFieldVisitor fieldVisitor = localVisitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor());
-                field.accept(collector, fieldVisitor);
-            } else if (declaration instanceof ASTMethod method) {
-                ASTMethodVisitor methodVisitor = localVisitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor());
-                method.accept(collector, methodVisitor);
-            } else if (declaration instanceof ASTClass clazz) {
-                clazz.accept(collector, localVisitor.visitClass(clazz.getModifiers(), clazz.getName()));
-            } else {
-                collector.addError("Don't know how to process: " + declaration.type(), declaration.location());
+            switch (declaration) {
+                case ASTField field -> {
+                    ASTFieldVisitor fieldVisitor = localVisitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor());
+                    field.accept(collector, fieldVisitor);
+                }
+                case ASTMethod method -> {
+                    ASTMethodVisitor methodVisitor = localVisitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor());
+                    method.accept(collector, methodVisitor);
+                }
+                case ASTClass clazz ->
+                        clazz.accept(collector, localVisitor.visitClass(clazz.getModifiers(), clazz.getName()));
+                case null, default ->
+                        collector.addError("Don't know how to process: " + declaration.type(), declaration.location());
             }
         }
         return new Result<>(null, collector.getErrors(), collector.getWarns());

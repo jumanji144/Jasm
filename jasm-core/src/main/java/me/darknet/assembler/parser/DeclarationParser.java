@@ -400,7 +400,7 @@ public class DeclarationParser {
         private ParserContext(DeclarationParser parser, List<Token> tokens) {
             this.parser = parser;
             this.tokens = Collections.unmodifiableList(tokens);
-            this.latest = tokens.get(0);
+            this.latest = tokens.getFirst();
         }
 
         private boolean done() {

@@ -113,7 +113,7 @@ public class CompileCommand implements Runnable {
             System.exit(1);
         }
 
-        switch (ast.get(0).type()) {
+        switch (ast.getFirst().type()) {
             case CLASS -> {
             }
             case METHOD, FIELD -> {

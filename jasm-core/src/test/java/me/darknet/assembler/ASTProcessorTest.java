@@ -36,7 +36,7 @@ public class ASTProcessorTest {
             }
             List<ASTElement> results = result.get();
             assertEquals(1, results.size());
-            ASTElement element = results.get(0);
+            ASTElement element = results.getFirst();
             assertNotNull(element);
             assertInstanceOf(clazz, element);
             consumer.accept((T) element);
@@ -142,7 +142,7 @@ public class ASTProcessorTest {
                     assertEquals("([Ljava/lang/String;)V", method.getDescriptor().content());
                     assertNotNull(method.parameters());
                     assertEquals(1, method.parameters().size());
-                    assertEquals("args", method.parameters().get(0).content());
+                    assertEquals("args", method.parameters().getFirst().content());
                 }
         );
     }

@@ -11,11 +11,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public record MemberPrinter(
+public record JvmMemberPrinter(
         @Nullable Annotated annotated, @Nullable Signed signed, @Nullable Accessible accessible, Type type
 ) {
 
-    public MemberPrinter(Member member, Type type) {
+    public JvmMemberPrinter(Member member, Type type) {
         this(member, member, member, type);
     }
 

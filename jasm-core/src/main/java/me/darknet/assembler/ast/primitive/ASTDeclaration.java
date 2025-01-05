@@ -22,7 +22,7 @@ public class ASTDeclaration extends ASTElement {
     public ASTDeclaration(@Nullable ASTIdentifier keyword, List<@Nullable ASTElement> elements) {
         super(ElementType.DECLARATION, CollectionUtil.mergeNonNull(elements, keyword));
         if (keyword == null) {
-            this.value = elements.isEmpty() ? null : elements.get(0).value();
+            this.value = elements.isEmpty() ? null : elements.getFirst().value();
         } else {
             this.value = keyword.value();
         }

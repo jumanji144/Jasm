@@ -34,7 +34,7 @@ public class TokenizerTest {
         List<Token> tokens = tokenizer.tokenize("<stdin>", "\"Hello \\u0020World\\\"\\\\").get();
         Assertions.assertNotNull(tokens);
         Assertions.assertEquals(1, tokens.size());
-        Assertions.assertEquals("Hello  World\"\\", tokens.get(0).content());
+        Assertions.assertEquals("Hello  World\"\\", tokens.getFirst().content());
     }
 
     @Test
@@ -55,7 +55,7 @@ public class TokenizerTest {
         Assertions.assertEquals("0.3e10f", tokens.get(8).content());
         Assertions.assertEquals("6.02214076e23", tokens.get(9).content());
         for (Token token : tokens) {
-            Assertions.assertSame(token.type(), TokenType.NUMBER);
+            Assertions.assertSame(TokenType.NUMBER, token.type());
         }
     }
 
