@@ -76,8 +76,10 @@ public class JvmMethodPrinter implements MethodPrinter {
 					// where the variable is first assigned (by several instructions). So the code assigning the value
 					// is outside the variable scope, and usage of the then assigned variable is in-scope.
 					//
-					// We'll just do a blunt check if the variable is assigned between the last label and the supposed start.
-					// If so we'll say that this cope is not valid. This result in some valid label ranges being discarded,
+					// We'll just do a blunt check to see if the variable is assigned between the last label and
+					// the supposed starting offset of this local. If we find that the variable is used before the start
+					// of the local we will just not acknowledge this variable as a valid candidate to use when picking
+					// variable names. This will result in some valid label ranges being discarded,
 					// but it is safer to more aggressively discard than to fall into the trap mentioned above.
 					int priorLabelOffset = findPriorLabelOffset(code, start);
 					if (isVarUsedInRange(code, index, priorLabelOffset, start))
