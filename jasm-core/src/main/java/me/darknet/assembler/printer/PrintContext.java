@@ -19,7 +19,10 @@ public class PrintContext<T extends PrintContext<?>> {
     protected String indent = "";
     protected String indentStep;
     protected Writer writer;
+    protected String labelPrefix;
     protected boolean debugTryCatchRanges;
+    protected boolean aggressivelyDropVars;
+    protected boolean ignoreExistingVariableNames;
 
     public PrintContext(String indentStep, Writer writer) {
         this.indentStep = indentStep;
@@ -41,8 +44,20 @@ public class PrintContext<T extends PrintContext<?>> {
         this.indentStep = indent;
     }
 
+    public void setAggressivelyDropVars(boolean aggressivelyDropVars) {
+        this.aggressivelyDropVars = aggressivelyDropVars;
+    }
+
     public void setDebugTryCatchRanges(boolean debugTryCatchRanges) {
         this.debugTryCatchRanges = debugTryCatchRanges;
+    }
+
+    public void setLabelPrefix(String labelPrefix) {
+        this.labelPrefix = labelPrefix;
+    }
+
+    public void setIgnoreExistingVariableNames(boolean ignoreExistingVariableNames) {
+        this.ignoreExistingVariableNames = ignoreExistingVariableNames;
     }
 
     T append(String s) {

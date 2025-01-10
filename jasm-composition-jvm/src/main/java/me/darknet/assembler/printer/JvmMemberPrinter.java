@@ -7,15 +7,14 @@ import dev.xdark.blw.classfile.Accessible;
 import dev.xdark.blw.classfile.Annotated;
 import dev.xdark.blw.classfile.Member;
 import dev.xdark.blw.classfile.Signed;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public record JvmMemberPrinter(
-        @Nullable Annotated annotated, @Nullable Signed signed, @Nullable Accessible accessible, Type type
-) {
+public record JvmMemberPrinter(@Nullable Annotated annotated, @Nullable Signed signed, @Nullable Accessible accessible, @NotNull Type type) {
 
-    public JvmMemberPrinter(Member member, Type type) {
+    public JvmMemberPrinter(@Nullable Member<?> member, @NotNull Type type) {
         this(member, member, member, type);
     }
 
@@ -109,7 +108,7 @@ public record JvmMemberPrinter(
         return null;
     }
 
-    enum Type {
+    public enum Type {
         CLASS,
         FIELD,
         METHOD

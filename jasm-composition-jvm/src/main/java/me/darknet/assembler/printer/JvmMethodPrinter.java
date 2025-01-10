@@ -3,6 +3,7 @@ package me.darknet.assembler.printer;
 import dev.xdark.blw.annotation.Element;
 import dev.xdark.blw.code.Code;
 import dev.xdark.blw.code.generic.GenericLabel;
+import dev.xdark.blw.code.instruction.VarInstruction;
 import dev.xdark.blw.type.PrimitiveType;
 import dev.xdark.blw.type.Type;
 import dev.xdark.blw.type.Types;
@@ -26,31 +27,18 @@ public class JvmMethodPrinter implements MethodPrinter {
 
     protected final Method method;
     protected final JvmMemberPrinter memberPrinter;
-    protected String labelPrefix;
 
     public JvmMethodPrinter(Method method) {
         this.method = method;
         this.memberPrinter = new JvmMemberPrinter(method, JvmMemberPrinter.Type.METHOD);
     }
 
-    static String escapeName(String name, int index, boolean isStatic) {
-        if (name.equals("this") && !(index == 0 && !isStatic))
-            return "p" + index;
-        else
-            return EscapeUtil.escapeLiteral(name);
-    }
-
-    @SuppressWarnings("unused")
-    public void setLabelPrefix(String labelPrefix) {
-        this.labelPrefix = labelPrefix;
-    }
-
-    public @NotNull Variables buildVariables() {
+    public @NotNull Variables buildVariables(PrintContext<?> ctx) {
         Map<String, Type> nameToType = new HashMap<>();
         List<Variables.Local> locals = new ArrayList<>();
         boolean isStatic = (method.accessFlags() & AccessFlag.ACC_STATIC) != 0;
         Code code = method.code();
-        if (code != null) {
+        if (code != null && !ctx.ignoreExistingVariableNames) {
             for (Local local : code.localVariables()) {
                 // Transform local name to be legal
                 int index = local.index();
@@ -66,10 +54,7 @@ public class JvmMethodPrinter implements MethodPrinter {
                 //    String foo = ""   ---> foo2
                 //    byte[] foo = ...  ---> foo3
                 Type existingVarType = nameToType.get(name);
-                if (existingVarType != null &&
-                        (varType.getClass() != existingVarType.getClass() || (varType instanceof PrimitiveType varPrim
-                                && existingVarType instanceof PrimitiveType existingPrim
-                                && varPrim.kind() != existingPrim.kind()))) {
+                if (requiresDeconfliction(varType, existingVarType)) {
                     // If we have an escaped name like "\\u0000" we cannot just append a number to it and call it a day.
                     // In these cases we will revert the name back to an auto-generated value based on its index.
                     if (escaped)
@@ -81,7 +66,25 @@ public class JvmMethodPrinter implements MethodPrinter {
                         name = prefix + (i++);
                 }
 
-                locals.add(new Variables.Local(index, local.start().getIndex(), local.end().getIndex(), name, descriptor));
+	            int start = local.start().getIndex();
+	            int end = local.end().getIndex();
+
+				if (ctx.aggressivelyDropVars) {
+					// Validate that the variable scope isn't busted.
+					//
+					// Kotlin is stupid for example, because it will say the variable begins at an offset beyond
+					// where the variable is first assigned (by several instructions). So the code assigning the value
+					// is outside the variable scope, and usage of the then assigned variable is in-scope.
+					//
+					// We'll just do a blunt check if the variable is assigned between the last label and the supposed start.
+					// If so we'll say that this cope is not valid. This result in some valid label ranges being discarded,
+					// but it is safer to more aggressively discard than to fall into the trap mentioned above.
+					int priorLabelOffset = findPriorLabelOffset(code, start);
+					if (isVarUsedInRange(code, index, priorLabelOffset, start))
+						continue;
+				}
+
+	            locals.add(new Variables.Local(index, start, end, name, descriptor));
                 nameToType.put(name, varType);
             }
         }
@@ -102,43 +105,32 @@ public class JvmMethodPrinter implements MethodPrinter {
             if (Types.category(type) > 1)
                 offset++;
         }
-        return new Variables(parameterNames, locals);
+	    return new Variables(parameterNames, locals);
     }
 
-    @NotNull
-    private static String getName(List<Variables.Local> locals, int i) {
-        String name = null;
-        // search for parameter name in local variables, first reference of the index which matches the type
-        for (Variables.Local local : locals) {
-            if (local.index() == i) {
-                name = local.name();
-                break;
-            }
-        }
-        if (name == null)
-            name = "p" + i;
-        return name;
-    }
+	private static boolean isVarUsedInRange(Code code, int variableIndex, int start, int end) {
+		List<CodeElement> elements = code.elements();
+		for (int i = start; i < end; i++)
+			if (elements.get(i) instanceof VarInstruction varInsn && varInsn.variableIndex() == variableIndex)
+				return true;
+		return false;
+	}
 
-    public Map<Integer, String> getLabelNames(List<CodeElement> elements) {
-        Map<Integer, String> labelNames = new HashMap<>();
-        int labelIndex = 0;
-        for (CodeElement element : elements) {
-            if (element instanceof Label label) {
-                String labelName = LabelUtil.getLabelName(labelIndex++);
-                if (labelPrefix != null) labelName = labelPrefix + labelName;
-                labelNames.put(label.getIndex(), labelName);
-            }
-        }
-        return labelNames;
-    }
+	private static int findPriorLabelOffset(Code code, int start) {
+		List<CodeElement> elements = code.elements();
+		for (int i = start - 1; i >= 0; i--) {
+			if (elements.get(i) instanceof Label)
+				return i;
+		}
+		return 0;
+	}
 
-    @Override
+	@Override
     public void print(PrintContext<?> ctx) {
         memberPrinter.printAttributes(ctx);
         var obj = memberPrinter.printDeclaration(ctx).literal(method.name()).print(" ")
                 .literal(method.type().descriptor()).print(" ").object();
-        Variables variables = buildVariables();
+        Variables variables = buildVariables(ctx);
         boolean hasPrior = !variables.parameters().isEmpty();
         if (hasPrior) {
             var arr = obj.value("parameters").array();
@@ -165,7 +157,7 @@ public class JvmMethodPrinter implements MethodPrinter {
             if (hasPrior) obj.next();
 
             // Populate label names
-            Map<Integer, String> labelNames = getLabelNames(elements);
+            Map<Integer, String> labelNames = getLabelNames(ctx, elements);
 
             // Print exception ranges
             if (!methodCode.tryCatchBlocks().isEmpty()) {
@@ -215,4 +207,60 @@ public class JvmMethodPrinter implements MethodPrinter {
     public @Nullable AnnotationPrinter invisibleAnnotation(int index) {
         return memberPrinter.printInvisibleAnnotation(index);
     }
+
+    private static @NotNull String getName(List<Variables.Local> locals, int i) {
+        String name = null;
+
+		// search for parameter name in local variables, first reference of the index which matches the type
+        for (Variables.Local local : locals) {
+            if (local.index() == i) {
+                name = local.name();
+                break;
+            }
+        }
+
+        if (name == null)
+            name = "p" + i;
+        return name;
+    }
+
+    private static Map<Integer, String> getLabelNames(PrintContext<?> ctx, List<CodeElement> elements) {
+        Map<Integer, String> labelNames = new HashMap<>();
+        int labelIndex = 0;
+        for (CodeElement element : elements) {
+            if (element instanceof Label label) {
+                String labelName = LabelUtil.getLabelName(labelIndex++);
+                if (ctx.labelPrefix != null) labelName = ctx.labelPrefix + labelName;
+                labelNames.put(label.getIndex(), labelName);
+            }
+        }
+        return labelNames;
+    }
+
+	private static boolean requiresDeconfliction(@NotNull Type varType, @Nullable Type existingVarType) {
+		// If there is no existing type, no conflicts are possible.
+		if (existingVarType == null)
+			return false;
+
+		// If the var types are different (primitive vs class type) then we MUST deconflict.
+		if (varType.getClass() != existingVarType.getClass())
+			return true;
+
+		// If the class types do not match we MUST deconflict.
+		if (varType instanceof ClassType varClass
+				&& existingVarType instanceof ClassType existingClass
+				&& !varClass.descriptor().equals(existingClass.descriptor()))
+			return true;
+
+		// If the primitive types do not match we MUST deconflict.
+		return varType instanceof PrimitiveType varPrim
+				&& existingVarType instanceof PrimitiveType existingPrim
+				&& varPrim.kind() != existingPrim.kind();
+	}
+
+	private static @NotNull String escapeName(@NotNull String name, int index, boolean isStatic) {
+		if (name.equals("this") && !(index == 0 && !isStatic))
+			return "p" + index;
+		return EscapeUtil.escapeLiteral(name);
+	}
 }
