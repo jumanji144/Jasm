@@ -1,27 +1,32 @@
 package me.darknet.assembler.printer;
 
 import dev.xdark.blw.annotation.Element;
+import dev.xdark.blw.classfile.AccessFlag;
+import dev.xdark.blw.classfile.Method;
 import dev.xdark.blw.code.Code;
+import dev.xdark.blw.code.CodeElement;
+import dev.xdark.blw.code.Label;
+import dev.xdark.blw.code.attribute.Local;
 import dev.xdark.blw.code.generic.GenericLabel;
 import dev.xdark.blw.code.instruction.VarInstruction;
+import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.PrimitiveType;
 import dev.xdark.blw.type.Type;
 import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
 import me.darknet.assembler.helper.Variables;
+import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.EscapeUtil;
 import me.darknet.assembler.util.LabelUtil;
-
-import dev.xdark.blw.classfile.AccessFlag;
-import dev.xdark.blw.classfile.Method;
-import dev.xdark.blw.code.CodeElement;
-import dev.xdark.blw.code.Label;
-import dev.xdark.blw.code.attribute.Local;
-import dev.xdark.blw.type.ClassType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 
 public class JvmMethodPrinter implements MethodPrinter {
 
@@ -66,27 +71,24 @@ public class JvmMethodPrinter implements MethodPrinter {
                         name = prefix + (i++);
                 }
 
-	            int start = local.start().getIndex();
-	            int end = local.end().getIndex();
+                int start = local.start().getIndex();
+                int end = local.end().getIndex();
 
-				if (ctx.aggressivelyDropVars) {
-					// Validate that the variable scope isn't busted.
-					//
-					// Kotlin is stupid for example, because it will say the variable begins at an offset beyond
-					// where the variable is first assigned (by several instructions). So the code assigning the value
-					// is outside the variable scope, and usage of the then assigned variable is in-scope.
-					//
-					// We'll just do a blunt check to see if the variable is assigned between the last label and
-					// the supposed starting offset of this local. If we find that the variable is used before the start
-					// of the local we will just not acknowledge this variable as a valid candidate to use when picking
-					// variable names. This will result in some valid label ranges being discarded,
-					// but it is safer to more aggressively discard than to fall into the trap mentioned above.
-					int priorLabelOffset = findPriorLabelOffset(code, start);
-					if (isVarUsedInRange(code, index, priorLabelOffset, start))
-						continue;
-				}
+                // Expand the range of the variable if necessary.
+                // In many cases the range of the variable follows this example:
+                //
+                //  Variable[start=x, end=...]
+                //   - astore foo
+                //   - label x
+                //   - aload foo
+                //
+                // Thus we will want to move the 'start' backwards to reach to the first write.
+                int priorLabelOffset = findPriorLabelOffset(code, start);
+                int variableWriteInRange = getVariableWriteInRange(code, index, priorLabelOffset, start);
+                if (variableWriteInRange >= 0 && !isVariableInstructionInOtherScope(variableWriteInRange, code, local))
+                    start = variableWriteInRange;
 
-	            locals.add(new Variables.Local(index, start, end, name, descriptor));
+                locals.add(new Variables.Local(index, start, end, name, descriptor));
                 nameToType.put(name, varType);
             }
         }
@@ -107,27 +109,75 @@ public class JvmMethodPrinter implements MethodPrinter {
             if (Types.category(type) > 1)
                 offset++;
         }
-	    return new Variables(parameterNames, locals);
+        return new Variables(parameterNames, locals);
     }
 
-	private static boolean isVarUsedInRange(Code code, int variableIndex, int start, int end) {
-		List<CodeElement> elements = code.elements();
-		for (int i = start; i < end; i++)
-			if (elements.get(i) instanceof VarInstruction varInsn && varInsn.variableIndex() == variableIndex)
-				return true;
-		return false;
-	}
+    /**
+     * Used to check if an instruction <i>(xload/xstore)</i> is covered by a variable scope over than the given one.
+     *
+     * @param variableInstructionIndex
+     *         Index of variable instruction in {@link Code#elements()}.
+     * @param code
+     *         Code to check for other variable scopes.
+     * @param scope
+     *         The current variable scope.
+     *
+     * @return {@code true} when the given instruction index is covered by a different {@link Local} scope other than the given one.
+     * {@code false} when the given instruction index is not covered by a variable scope other than the given one.
+     */
+    private boolean isVariableInstructionInOtherScope(int variableInstructionIndex, @NotNull Code code, @NotNull Local scope) {
+        for (Local local : code.localVariables()) {
+            if (local == scope)
+                continue;
+            if (scope.index() == local.index()
+                    && variableInstructionIndex >= local.start().getIndex()
+                    && variableInstructionIndex <= local.end().getIndex())
+                return true;
+        }
+        return false;
+    }
 
-	private static int findPriorLabelOffset(Code code, int start) {
-		List<CodeElement> elements = code.elements();
-		for (int i = start - 1; i >= 0; i--) {
-			if (elements.get(i) instanceof Label)
-				return i;
-		}
-		return 0;
-	}
+    /**
+     * @param code
+     *         Code to check for other variable instructions in.
+     * @param variableIndex
+     *         Local variable index to filter variable instructions by.
+     * @param start
+     *         Start range in {@link Code#elements()}.
+     * @param end
+     *         End range in {@link Code#elements()}.
+     *
+     * @return Latest instruction index in {@link Code#elements()} of a variable instruction
+     * writing to the given variable index within the given range. Otherwise, {@code -1}.
+     */
+    private static int getVariableWriteInRange(@NotNull Code code, int variableIndex, int start, int end) {
+        List<CodeElement> elements = code.elements();
+        for (int i = end; i >= start; i--)
+            if (elements.get(i) instanceof VarInstruction varInsn
+                    && varInsn.variableIndex() == variableIndex
+                    && BlwOpcodes.isVarStore(varInsn.opcode()))
+                return i;
+        return -1;
+    }
 
-	@Override
+    /**
+     * @param code
+     *         Code to check for labels.
+     * @param start
+     *         Start index of search.
+     *
+     * @return Latest index of a label before the given start
+     */
+    private static int findPriorLabelOffset(@NotNull Code code, int start) {
+        List<CodeElement> elements = code.elements();
+        for (int i = start - 1; i >= 0; i--) {
+            if (elements.get(i) instanceof Label)
+                return i;
+        }
+        return 0;
+    }
+
+    @Override
     public void print(PrintContext<?> ctx) {
         memberPrinter.printAttributes(ctx);
         var obj = memberPrinter.printDeclaration(ctx).literal(method.name()).print(" ")
@@ -213,7 +263,7 @@ public class JvmMethodPrinter implements MethodPrinter {
     private static @NotNull String getName(List<Variables.Local> locals, int i) {
         String name = null;
 
-		// search for parameter name in local variables, first reference of the index which matches the type
+        // search for parameter name in local variables, first reference of the index which matches the type
         for (Variables.Local local : locals) {
             if (local.index() == i) {
                 name = local.name();
@@ -239,30 +289,30 @@ public class JvmMethodPrinter implements MethodPrinter {
         return labelNames;
     }
 
-	private static boolean requiresDeconfliction(@NotNull Type varType, @Nullable Type existingVarType) {
-		// If there is no existing type, no conflicts are possible.
-		if (existingVarType == null)
-			return false;
+    private static boolean requiresDeconfliction(@NotNull Type varType, @Nullable Type existingVarType) {
+        // If there is no existing type, no conflicts are possible.
+        if (existingVarType == null)
+            return false;
 
-		// If the var types are different (primitive vs class type) then we MUST deconflict.
-		if (varType.getClass() != existingVarType.getClass())
-			return true;
+        // If the var types are different (primitive vs class type) then we MUST deconflict.
+        if (varType.getClass() != existingVarType.getClass())
+            return true;
 
-		// If the class types do not match we MUST deconflict.
-		if (varType instanceof ClassType varClass
-				&& existingVarType instanceof ClassType existingClass
-				&& !varClass.descriptor().equals(existingClass.descriptor()))
-			return true;
+        // If the class types do not match we MUST deconflict.
+        if (varType instanceof ClassType varClass
+                && existingVarType instanceof ClassType existingClass
+                && !varClass.descriptor().equals(existingClass.descriptor()))
+            return true;
 
-		// If the primitive types do not match we MUST deconflict.
-		return varType instanceof PrimitiveType varPrim
-				&& existingVarType instanceof PrimitiveType existingPrim
-				&& varPrim.kind() != existingPrim.kind();
-	}
+        // If the primitive types do not match we MUST deconflict.
+        return varType instanceof PrimitiveType varPrim
+                && existingVarType instanceof PrimitiveType existingPrim
+                && varPrim.kind() != existingPrim.kind();
+    }
 
-	private static @NotNull String escapeName(@NotNull String name, int index, boolean isStatic) {
-		if (name.equals("this") && !(index == 0 && !isStatic))
-			return "p" + index;
-		return EscapeUtil.escapeLiteral(name);
-	}
+    private static @NotNull String escapeName(@NotNull String name, int index, boolean isStatic) {
+        if (name.equals("this") && !(index == 0 && !isStatic))
+            return "p" + index;
+        return EscapeUtil.escapeLiteral(name);
+    }
 }

@@ -12,6 +12,17 @@ public class BlwOpcodes {
     private static final Map<String, Integer> opcodes = new HashMap<>();
     private static final Map<String, Integer> filteredOpcodes = new HashMap<>();
 
+    public static boolean isVarStore(int opcode) {
+        return switch (opcode) {
+            case JavaOpcodes.ASTORE,
+                    JavaOpcodes.ISTORE,
+                    JavaOpcodes.FSTORE,
+                    JavaOpcodes.DSTORE,
+                    JavaOpcodes.LSTORE -> true;
+            default -> false;
+        };
+    }
+
     public static int opcode(String name) {
         if (name.endsWith("interface")) {
             String prefix = name.substring(0, name.length() - 9);

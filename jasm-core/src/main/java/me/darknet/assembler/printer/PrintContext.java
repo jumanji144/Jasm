@@ -21,7 +21,6 @@ public class PrintContext<T extends PrintContext<?>> {
     protected Writer writer;
     protected String labelPrefix;
     protected boolean debugTryCatchRanges;
-    protected boolean aggressivelyDropVars;
     protected boolean ignoreExistingVariableNames;
 
     public PrintContext(String indentStep, Writer writer) {
@@ -35,7 +34,6 @@ public class PrintContext<T extends PrintContext<?>> {
 
     public PrintContext(PrintContext<?> ctx) {
         this.debugTryCatchRanges = ctx.debugTryCatchRanges;
-        this.aggressivelyDropVars = ctx.aggressivelyDropVars;
         this.ignoreExistingVariableNames = ctx.ignoreExistingVariableNames;
         this.indentStep = ctx.indentStep;
         this.writer = ctx.writer;
@@ -44,10 +42,6 @@ public class PrintContext<T extends PrintContext<?>> {
 
     public void setIndentStep(String indent) {
         this.indentStep = indent;
-    }
-
-    public void setAggressivelyDropVars(boolean aggressivelyDropVars) {
-        this.aggressivelyDropVars = aggressivelyDropVars;
     }
 
     public void setDebugTryCatchRanges(boolean debugTryCatchRanges) {
