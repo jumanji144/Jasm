@@ -16,6 +16,7 @@ import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.visitor.Modifiers;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -113,6 +114,7 @@ public class ASTProcessor {
         this.format = format;
     }
 
+    @Nullable
     private static ASTElement parseDeclaration(ParserContext ctx, ASTDeclaration declaration) {
         String keyword = declaration.keyword().content().substring(1);
         return ParserRegistry.get(keyword).parse(ctx, declaration);
@@ -307,6 +309,10 @@ public class ASTProcessor {
                 ASTDeclaration decl = (ASTDeclaration) value;
                 if (decl.keyword() != null) {
                     value = parseDeclaration(ctx, decl);
+                    if (value == null) {
+                        ctx.throwError("declaration parse failure", decl.location());
+                        return null;
+                    }
                     switch (value.type()) {
                         case ENUM -> {
                         }
@@ -397,7 +403,9 @@ public class ASTProcessor {
         ParserContext ctx = new ParserContext(format);
         for (ASTElement astElement : ast) {
             if (astElement instanceof ASTDeclaration) {
-                ctx.add(parseDeclaration(ctx, (ASTDeclaration) astElement));
+                ASTElement parsed = parseDeclaration(ctx, (ASTDeclaration) astElement);
+                if (parsed != null)
+                    ctx.add(parsed);
             } else {
                 ctx.throwUnexpectedElementError("declaration", astElement);
             }
@@ -407,6 +415,7 @@ public class ASTProcessor {
 
     @FunctionalInterface
     private interface DeclarationParser<T extends ASTElement> {
+        @Nullable
         T parse(ParserContext ctx, ASTDeclaration declaration);
     }
 
@@ -426,7 +435,7 @@ public class ASTProcessor {
             this.instructions = format.getInstructions();
         }
 
-        public void add(ASTElement element) {
+        public void add(@NotNull ASTElement element) {
             result.add(element);
         }
 
@@ -654,7 +663,8 @@ public class ASTProcessor {
                     continue;
                 }
                 ASTElement resultDeclaration = parseDeclaration(this, declaration);
-                result.add(resultDeclaration);
+                if (resultDeclaration != null)
+                    result.add(resultDeclaration);
             }
             this.result = old;
             return result.getResult();
