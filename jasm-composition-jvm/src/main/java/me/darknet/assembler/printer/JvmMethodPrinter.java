@@ -225,7 +225,7 @@ public class JvmMethodPrinter implements MethodPrinter {
                     exception.print(start).arg()
                             .print(end).arg()
                             .print(handler).arg()
-                            .print(type);
+                            .literal(type);
 
                     exception.end();
                 });
