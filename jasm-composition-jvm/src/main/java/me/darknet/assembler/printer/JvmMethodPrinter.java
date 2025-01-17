@@ -49,7 +49,7 @@ public class JvmMethodPrinter implements MethodPrinter {
                 int index = local.index();
                 boolean isThis = !isStatic && index == 0;
                 String baseName = isThis ? "this" : local.name();
-                String name = isThis ? "this" : escapeName(baseName, index, isStatic);
+                String name = isThis ? "this" : escapeVariableName(baseName, index, isStatic);
                 String descriptor = local.type().descriptor();
                 Type varType = Types.typeFromDescriptor(descriptor);
                 boolean escaped = !baseName.equals(name);
@@ -310,9 +310,20 @@ public class JvmMethodPrinter implements MethodPrinter {
                 && varPrim.kind() != existingPrim.kind();
     }
 
-    private static @NotNull String escapeName(@NotNull String name, int index, boolean isStatic) {
-        if (name.equals("this") && !(index == 0 && !isStatic))
-            return "p" + index;
+    private static @NotNull String escapeVariableName(@NotNull String name, int index, boolean isStatic) {
+        // No fake 'this' name
+		if (name.equals("this") && !(index == 0 && !isStatic))
+            return "v" + index;
+
+		// No bs long names
+		if (name.length() > 200)
+            return "v" + index;
+
+		// No bs descriptor chars in names
+	    if (name.indexOf('/') >= 0 || name.indexOf('.') >= 0 || name.indexOf(';') >= 0 || name.indexOf('[') >= 0)
+			return "v" + index;
+
+		// Standard escaping
         return EscapeUtil.escapeLiteral(name);
     }
 }
