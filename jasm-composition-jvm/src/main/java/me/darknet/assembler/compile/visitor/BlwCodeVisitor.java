@@ -39,6 +39,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final VarCache varCache = new VarCache();
     private final List<ASTInstruction> visitedInstructions = new ArrayList<>();
     private final JvmAnalysisEngine<Frame> analysisEngine;
+    private final boolean writeVariables;
     private ASTInstruction currentInstructionAst;
     private int opcode = 0;
 
@@ -60,6 +61,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         this.errorCollector = errorCollector;
         this.analysisEngine = (JvmAnalysisEngine<Frame>) options.createEngine(varCache);
         this.parameters = parameters;
+        this.writeVariables = options.doWriteVariables();
 
         analysisEngine.setErrorCollector(errorCollector);
 
@@ -236,12 +238,11 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             keys.add(Integer.parseInt(pair.first().content()));
             labels.add(getOrCreateLabel(pair.second().content()));
         }
-        add(
-                new LookupSwitchInstruction(
-                        keys.stream().mapToInt(Integer::intValue).toArray(), getOrCreateLabel(defaultLabel.content()),
-                        labels
-                )
-        );
+        add(new LookupSwitchInstruction(
+                keys.stream().mapToInt(Integer::intValue).toArray(),
+                getOrCreateLabel(defaultLabel.content()),
+                labels
+        ));
     }
 
     @Override
@@ -286,25 +287,22 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
     @Override
     public void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTElement bsm, ASTArray bsmArgs) {
-
         Handle handle;
 
-        if(bsm instanceof ASTIdentifier identifier) {
+        if (bsm instanceof ASTIdentifier identifier) {
             handle = Handle.HANDLE_SHORTCUTS.get(identifier.content());
-        } else if(bsm instanceof ASTArray array) {
+        } else if (bsm instanceof ASTArray array) {
             handle = Handle.from(array);
         } else {
             throw new IllegalStateException("Unexpected value: " + bsm);
         }
 
-        add(
-                new InvokeDynamicInstruction(
-                        name.literal(),
-                        Objects.requireNonNullElse(new TypeReader(descriptor.literal()).read(), Types.OBJECT),
-                        ConstantMapper.methodHandleFromHandle(handle),
-                        bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
-                )
-        );
+        add(new InvokeDynamicInstruction(
+                name.literal(),
+                Objects.requireNonNullElse(new TypeReader(descriptor.literal()).read(), Types.OBJECT),
+                ConstantMapper.methodHandleFromHandle(handle),
+                bsmArgs.values().stream().filter(Objects::nonNull).map(ConstantMapper::fromConstant).toList()
+        ));
     }
 
     @Override
@@ -363,7 +361,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             int index = parameter.index();
             String name = parameter.name();
             ClassType type = parameter.safeType();
-            codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
+            if (writeVariables)
+                codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
 
             // Mark parameter variable as being assigned before the code
             var parameterVar = varCache.getFirstByIndex(index);
@@ -392,61 +391,62 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
                 errorCollector.addError(ex.getMessage(), Location.UNKNOWN);
         }
 
-        // Populate variables
-        //  - Our variables are not scoped, so we can merge by name.
-        //  - Known 'null' locals can merge with duplicate locals which may have type info associated with them
-        Map<String, Local> localsMap = new HashMap<>();
-        int paramOffset = parameters.size();
-        analysisEngine.frames().forEach((index, frame) -> {
-            for (Local local : frame.locals().toList()) {
-                // Skip parameters
-                if (local.index() < paramOffset)
-                    continue;
+        if (writeVariables) {
+            // Populate variables
+            //  - Our variables are not scoped, so we can merge by name.
+            //  - Known 'null' locals can merge with duplicate locals which may have type info associated with them
+            Map<String, Local> localsMap = new HashMap<>();
+            int paramOffset = parameters.size();
+            analysisEngine.frames().forEach((index, frame) -> {
+                for (Local local : frame.locals().toList()) {
+                    // Skip parameters
+                    if (local.index() < paramOffset)
+                        continue;
 
-                localsMap.merge(local.name(), local, (a, b) -> {
-                    ClassType at = a.type(); // These may be 'null' for known 'null' values
-                    ClassType bt = b.type();
+                    localsMap.merge(local.name(), local, (a, b) -> {
+                        ClassType at = a.type(); // These may be 'null' for known 'null' values
+                        ClassType bt = b.type();
 
-                    // Edge cases: If we have null values use the other local (with type info hopefully)
-                    if (at == null)
-                        return b;
-                    if (bt == null)
-                        return a;
+                        // Edge cases: If we have null values use the other local (with type info hopefully)
+                        if (at == null)
+                            return b;
+                        if (bt == null)
+                            return a;
 
-                    // Edge case: If the types aren't of the same sort they cannot possibly be merged.
-                    // There is no "correct" solution at this step, so just yield object and call it a day.
-                    //
-                    // Reproduction code:
-                    //   ldc "foo"
-                    //   astore foo
-                    //   bipush 10
-                    //   istore foo <--- Foo cannot be an object and an int in our system
-                    if (at.getClass() != bt.getClass())
-                        return a.adaptType(Types.OBJECT);
-
-                    // Merge locals by type
-                    try {
-                        return a.adaptType(common(at, bt));
-                    } catch (ValueMergeException e) {
-                        // If the values could not be merged, report where the failure originated from.
-                        CodeElement element = code.elements().get(index);
-                        ASTInstruction ast = analysisEngine.getCodeToAstMap().get(element);
-                        if (ast != null) {
-                            errorCollector.addError(e.getMessage(), ast.location());
+                        // Edge case: If the types aren't of the same sort they cannot possibly be merged.
+                        // There is no "correct" solution at this step, so just yield object and call it a day.
+                        //
+                        // Reproduction code:
+                        //   ldc "foo"
+                        //   astore foo
+                        //   bipush 10
+                        //   istore foo <--- Foo cannot be an object and an int in our system
+                        if (at.getClass() != bt.getClass())
                             return a.adaptType(Types.OBJECT);
-                        } else {
-                            throw new IllegalStateException();
-                        }
-                    }
-                });
-            }
-        });
 
-        localsMap.forEach((name, local) -> {
-            int index = local.index();
-            ClassType type = local.safeType();
-            codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
-        });
+                        // Merge locals by type
+                        try {
+                            return a.adaptType(common(at, bt));
+                        } catch (ValueMergeException e) {
+                            // If the values could not be merged, report where the failure originated from.
+                            CodeElement element = code.elements().get(index);
+                            ASTInstruction ast = analysisEngine.getCodeToAstMap().get(element);
+                            if (ast != null) {
+                                errorCollector.addError(e.getMessage(), ast.location());
+                                return a.adaptType(Types.OBJECT);
+                            } else {
+                                throw new IllegalStateException();
+                            }
+                        }
+                    });
+                }
+            });
+            localsMap.forEach((name, local) -> {
+                int index = local.index();
+                ClassType type = local.safeType();
+                codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
+            });
+        }
     }
 
     private void add(@NotNull Instruction instruction) {

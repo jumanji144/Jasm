@@ -21,6 +21,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     protected String annotationPath;
     protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
     protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
+    private boolean doWriteVariables = true;
 
     public JvmCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
@@ -98,6 +99,15 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     @Override
     public JvmCompilerOptions inheritanceChecker(InheritanceChecker checker) {
         this.inheritanceChecker = checker;
+        return this;
+    }
+
+    public boolean doWriteVariables() {
+        return doWriteVariables;
+    }
+
+    public JvmCompilerOptions doWriteVariables(boolean doWriteVariables) {
+        this.doWriteVariables = doWriteVariables;
         return this;
     }
 }
