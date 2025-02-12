@@ -640,6 +640,52 @@ public class SampleCompilerTest {
             });
         }
 
+        @Test
+        @Disabled
+        void kotlinSr2c() throws Throwable {
+            String source = getValidSources().stream().filter(t -> t.name.contains("KKKSample")).findFirst().get().source().get();
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                /*
+                String newPrinted = dissassemble(result.representation().classFile());
+
+                assertEquals(
+                        normalize(source), normalize(newPrinted),
+                        "There was an unexpected difference in unmodified class: " + arg.name
+                );*/
+            });
+        }
+        @Test
+        @Disabled
+        void kotlinSrc() throws Throwable {
+            String source = getValidSources().stream().filter(t -> t.name.contains("KotlinSample")).findFirst().get().source().get();
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                /*
+                String newPrinted = dissassemble(result.representation().classFile());
+
+                assertEquals(
+                        normalize(source), normalize(newPrinted),
+                        "There was an unexpected difference in unmodified class: " + arg.name
+                );*/
+            });
+        }
+
+        @Test
+       //@Disabled
+        void kotlin() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("ExtrasConfig.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Round-trip it
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+               // String newPrinted = dissassemble(result.representation().classFile());
+
+              //  assertEquals(normalize(source), normalize(newPrinted), "There was an unexpected difference in unmodified class: " + arg.name);
+            });
+        }
+
 	    @ParameterizedTest
 	    @ValueSource(strings = {
 			    "u000d.sample", "u000a.sample", "u0009.sample", "u2028.sample",

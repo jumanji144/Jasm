@@ -18,6 +18,7 @@ import me.darknet.assembler.helper.Variables;
 import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.EscapeUtil;
 import me.darknet.assembler.util.LabelUtil;
+import me.darknet.assembler.util.VarNaming;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,10 +49,11 @@ public class JvmMethodPrinter implements MethodPrinter {
                 // Transform local name to be legal
                 int index = local.index();
                 boolean isThis = !isStatic && index == 0;
-                String baseName = isThis ? "this" : local.name();
-                String name = isThis ? "this" : escapeVariableName(baseName, index, isStatic);
                 String descriptor = local.type().descriptor();
                 Type varType = Types.typeFromDescriptor(descriptor);
+                ClassType varClassType = varType instanceof ClassType ct ? ct : Types.VOID;
+                String baseName = isThis ? "this" : local.name();
+                String name = isThis ? "this" : escapeVariableName(baseName, varClassType, index, isStatic);
                 boolean escaped = !baseName.equals(name);
 
                 // De-conflict variable names if two names of incompatible types occupy the same name.
@@ -63,7 +65,7 @@ public class JvmMethodPrinter implements MethodPrinter {
                     // If we have an escaped name like "\\u0000" we cannot just append a number to it and call it a day.
                     // In these cases we will revert the name back to an auto-generated value based on its index.
                     if (escaped)
-                        name = "v" + local.index();
+                        name = VarNaming.name(local.index(), varClassType);
 
                     int i = 2;
                     String prefix = name;
@@ -101,8 +103,8 @@ public class JvmMethodPrinter implements MethodPrinter {
         List<ClassType> types = method.type().parameterTypes();
         for (int i = 0; i < types.size(); i++) {
             int varSlot = i + offset;
-            String name = getName(locals, varSlot);
             ClassType type = types.get(i);
+            String name = getName(locals, varSlot, type);
             parameterNames.put(varSlot, new Variables.Parameter(0, name, type.descriptor()));
 
             // Skip creating parameters for reserved slots
@@ -260,20 +262,20 @@ public class JvmMethodPrinter implements MethodPrinter {
         return memberPrinter.printInvisibleAnnotation(index);
     }
 
-    private static @NotNull String getName(List<Variables.Local> locals, int i) {
+    private static @NotNull String getName(List<Variables.Local> locals, int i, ClassType type) {
         String name = null;
 
         // search for parameter name in local variables, first reference of the index which matches the type
         for (Variables.Local local : locals) {
             if (local.index() == i) {
-                name = local.name();
-                break;
+	            name = local.name();
+	            break;
             }
         }
 
-        if (name == null)
-            name = "p" + i;
-        return name;
+	    if (name == null)
+		    name = VarNaming.name(i, type);
+	    return name;
     }
 
     private static Map<Integer, String> getLabelNames(PrintContext<?> ctx, List<CodeElement> elements) {
@@ -310,18 +312,18 @@ public class JvmMethodPrinter implements MethodPrinter {
                 && varPrim.kind() != existingPrim.kind();
     }
 
-    private static @NotNull String escapeVariableName(@NotNull String name, int index, boolean isStatic) {
+    private static @NotNull String escapeVariableName(@NotNull String name, @NotNull ClassType type, int index, boolean isStatic) {
         // No fake 'this' name
-		if (name.equals("this") && !(index == 0 && !isStatic))
-            return "v" + index;
+        if (name.equals("this") && !(index == 0 && !isStatic))
+            return VarNaming.name(index, type);
 
-		// No bs long names
-		if (name.length() > 200)
-            return "v" + index;
+        // No bs long names
+        if (name.length() > 200)
+            return VarNaming.name(index, type);
 
-		// No bs descriptor chars in names
-	    if (name.indexOf('/') >= 0 || name.indexOf('.') >= 0 || name.indexOf(';') >= 0 || name.indexOf('[') >= 0)
-			return "v" + index;
+        // No bs descriptor chars in names
+        if (name.indexOf('/') >= 0 || name.indexOf('.') >= 0 || name.indexOf(';') >= 0 || name.indexOf('[') >= 0)
+            return VarNaming.name(index, type);
 
 		// Standard escaping
         return EscapeUtil.escapeLiteral(name);

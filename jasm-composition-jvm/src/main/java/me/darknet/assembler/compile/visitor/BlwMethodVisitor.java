@@ -3,6 +3,7 @@ package me.darknet.assembler.compile.visitor;
 import dev.xdark.blw.annotation.Element;
 import dev.xdark.blw.annotation.ElementByte;
 import dev.xdark.blw.annotation.generic.GenericAnnotationBuilder;
+import dev.xdark.blw.type.PrimitiveType;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTDeclaration;
@@ -17,6 +18,7 @@ import me.darknet.assembler.error.ErrorCollectionException;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.util.Pair;
+import me.darknet.assembler.util.VarNaming;
 import me.darknet.assembler.visitor.ASTAnnotatedVisitor;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
@@ -88,14 +90,15 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
         }
 
         for (int i = 0; i < type.parameterTypes().size(); i++) {
+            ClassType type = this.type.parameterTypes().get(i);
+
             String name;
             int nameIndex = i + (isStatic ? 0 : 1);
-            if (nameIndex < parameterNames.size()) {
+            if (nameIndex < parameterNames.size())
                 name = parameterNames.get(nameIndex);
-            } else {
-                name = "p" + i;
-            }
-            ClassType type = this.type.parameterTypes().get(i);
+            else
+                name = VarNaming.name(i, type);
+
             parameters.add(new Local(localIndex++, name, type));
             if (type == Types.LONG || type == Types.DOUBLE) {
                 parameters.add(null);

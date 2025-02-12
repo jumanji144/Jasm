@@ -6,6 +6,7 @@ import me.darknet.assembler.helper.Variables;
 
 import dev.xdark.blw.code.instruction.*;
 import dev.xdark.blw.type.*;
+import me.darknet.assembler.util.VarNaming;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -256,7 +257,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     @Override
     public void execute(VariableIncrementInstruction instruction) {
         ctx.instruction(OPCODES[instruction.opcode()])
-                .literal(variables.computeName(instruction.variableIndex(), currentIndex + 1, i -> generateVarName(i, Types.INT))).arg()
+                .literal(variables.computeName(instruction.variableIndex(), currentIndex + 1, i -> VarNaming.name(i, Types.INT))).arg()
                 .literal(Integer.toString(instruction.incrementBy())).next();
     }
 
@@ -347,7 +348,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     }
 
     private @NotNull String computeName(int opcode, int variableIndex, int codeOffset) {
-        Type assumedType = switch (opcode) {
+        ClassType assumedType = switch (opcode) {
             case JavaOpcodes.ALOAD, JavaOpcodes.ASTORE -> Types.OBJECT;
             case JavaOpcodes.FLOAD, JavaOpcodes.FSTORE -> Types.FLOAT;
             case JavaOpcodes.DLOAD, JavaOpcodes.DSTORE -> Types.DOUBLE;
@@ -359,23 +360,17 @@ public class InstructionPrinter implements IndexedExecutionEngine {
         var local = variables.getLocal(variableIndex, codeOffset);
         if (local != null)
             if (local.isPrimitive() != assumedType instanceof PrimitiveType)
-                return generateVarName(variableIndex, assumedType);
+                return VarNaming.name(variableIndex, assumedType);
             else
                 return local.name();
 
         var param = variables.getParameter(variableIndex);
         if (param == null)
-            return generateVarName(variableIndex, assumedType);
+            return VarNaming.name(variableIndex, assumedType);
         else if (param.isPrimitive() != assumedType instanceof PrimitiveType)
-            return generateVarName(variableIndex, assumedType);
+            return VarNaming.name(variableIndex, assumedType);
 
         return param.name();
-    }
-
-    private @NotNull String generateVarName(int index, Type type) {
-        if (type instanceof PrimitiveType prim)
-            return prim.descriptor().toLowerCase() + index;
-        return "v" + index;
     }
 
 }
