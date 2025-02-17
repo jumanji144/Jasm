@@ -256,9 +256,10 @@ public class InstructionPrinter implements IndexedExecutionEngine {
 
     @Override
     public void execute(VariableIncrementInstruction instruction) {
+        String variableName = computeName(JavaOpcodes.IINC, instruction.variableIndex(), currentIndex + 1);
         ctx.instruction(OPCODES[instruction.opcode()])
-                .literal(variables.computeName(instruction.variableIndex(), currentIndex + 1, i -> VarNaming.name(i, Types.INT))).arg()
-                .literal(Integer.toString(instruction.incrementBy())).next();
+                .literal(variableName).arg()
+                .literal(instruction.incrementBy()).next();
     }
 
     @Override
@@ -357,20 +358,14 @@ public class InstructionPrinter implements IndexedExecutionEngine {
             default -> Types.VOID; // Should never happen
         };
 
-        var local = variables.getLocal(variableIndex, codeOffset);
-        if (local != null)
-            if (local.isPrimitive() != assumedType instanceof PrimitiveType)
-                return VarNaming.name(variableIndex, assumedType);
-            else
-                return local.name();
+        var local = variables.get(variableIndex, codeOffset);
+        if (local != null &&
+                // Both must be non-primitives, or both primitives of the same type
+                ((!local.isPrimitive() && !(assumedType instanceof PrimitiveType))
+                || local.descriptor().equals(assumedType.descriptor())))
+            return local.name();
 
-        var param = variables.getParameter(variableIndex);
-        if (param == null)
-            return VarNaming.name(variableIndex, assumedType);
-        else if (param.isPrimitive() != assumedType instanceof PrimitiveType)
-            return VarNaming.name(variableIndex, assumedType);
-
-        return param.name();
+        return VarNaming.name(variableIndex, assumedType);
     }
 
 }

@@ -91,6 +91,11 @@ public class PrintContext<T extends PrintContext<?>> {
         return (T) this;
     }
 
+    public T literal(int i) {
+        append(String.valueOf(i));
+        return (T) this;
+    }
+
     public T literal(String s) {
         append(EscapeUtil.escapeLiteral(s));
         return (T) this;

@@ -105,7 +105,7 @@ public class JvmMethodPrinter implements MethodPrinter {
             int varSlot = i + offset;
             ClassType type = types.get(i);
             String name = getName(locals, varSlot, type);
-            parameterNames.put(varSlot, new Variables.Parameter(0, name, type.descriptor()));
+            parameterNames.put(varSlot, new Variables.Parameter(varSlot, name, type.descriptor()));
 
             // Skip creating parameters for reserved slots
             if (Types.category(type) > 1)

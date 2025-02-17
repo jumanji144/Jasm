@@ -11,7 +11,7 @@ public class VarNaming {
         return name(index);
     }
 
-    public static String name(int index) {
+    private static String name(int index) {
         return "v" + index;
     }
 }
