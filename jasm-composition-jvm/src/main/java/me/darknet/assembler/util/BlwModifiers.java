@@ -16,7 +16,7 @@ public class BlwModifiers {
             Map.entry(ACC_PUBLIC, "public"), Map.entry(ACC_PRIVATE, "private"), Map.entry(ACC_PROTECTED, "protected"),
             Map.entry(ACC_STATIC, "static"), Map.entry(ACC_FINAL, "final"), Map.entry(ACC_NATIVE, "native"),
             Map.entry(ACC_ABSTRACT, "abstract"), Map.entry(ACC_INTERFACE, "interface"),
-            Map.entry(ACC_SYNTHETIC, "synthetic"), Map.entry(ACC_STRICT, "strict"),
+            Map.entry(ACC_SYNTHETIC, "synthetic"), Map.entry(ACC_STRICT, "strictfp"),
             Map.entry(ACC_ANNOTATION, "annotation"), Map.entry(ACC_ENUM, "enum")
     );
 
