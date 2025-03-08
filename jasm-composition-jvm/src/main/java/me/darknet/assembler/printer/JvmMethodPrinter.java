@@ -317,6 +317,10 @@ public class JvmMethodPrinter implements MethodPrinter {
         if (name.equals("this") && !(index == 0 && !isStatic))
             return VarNaming.name(index, type);
 
+        // No bs empty names
+        if (name.isBlank())
+            return VarNaming.name(index, type);
+
         // No bs long names
         if (name.length() > 200)
             return VarNaming.name(index, type);
