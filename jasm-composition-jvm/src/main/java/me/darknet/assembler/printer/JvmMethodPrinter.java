@@ -61,7 +61,7 @@ public class JvmMethodPrinter implements MethodPrinter {
                 //    String foo = ""   ---> foo2
                 //    byte[] foo = ...  ---> foo3
                 Type existingVarType = nameToType.get(name);
-                if (requiresDeconfliction(varType, existingVarType)) {
+                if (requireTypeDeconflict(varType, existingVarType)) {
                     // If we have an escaped name like "\\u0000" we cannot just append a number to it and call it a day.
                     // In these cases we will revert the name back to an auto-generated value based on its index.
                     if (escaped)
@@ -95,21 +95,21 @@ public class JvmMethodPrinter implements MethodPrinter {
             }
         }
         NavigableMap<Integer, Variables.Parameter> parameterNames = new TreeMap<>();
-        int offset = isStatic ? 0 : 1;
+        int parameterOffset = isStatic ? 0 : 1;
         if (!isStatic) {
             // TODO: May want to pass the declaring class's type so we don't just use object here
             parameterNames.put(0, new Variables.Parameter(0, "this", "Ljava/lang/Object;"));
         }
-        List<ClassType> types = method.type().parameterTypes();
-        for (int i = 0; i < types.size(); i++) {
-            int varSlot = i + offset;
-            ClassType type = types.get(i);
-            String name = getName(locals, varSlot, type);
+        List<ClassType> parameterTypes = method.type().parameterTypes();
+        for (int i = 0; i < parameterTypes.size(); i++) {
+            int varSlot = i + parameterOffset;
+            ClassType type = parameterTypes.get(i);
+            String name = getParameterName(locals, varSlot, type);
             parameterNames.put(varSlot, new Variables.Parameter(varSlot, name, type.descriptor()));
 
             // Skip creating parameters for reserved slots
             if (Types.category(type) > 1)
-                offset++;
+                parameterOffset++;
         }
         return new Variables(parameterNames, locals);
     }
@@ -262,19 +262,19 @@ public class JvmMethodPrinter implements MethodPrinter {
         return memberPrinter.printInvisibleAnnotation(index);
     }
 
-    private static @NotNull String getName(List<Variables.Local> locals, int i, ClassType type) {
+    private static @NotNull String getParameterName(@NotNull List<Variables.Local> locals, int index, @NotNull ClassType type) {
         String name = null;
 
-        // search for parameter name in local variables, first reference of the index which matches the type
+        // Search for parameter name in local variables, first reference of the index which matches the type.
         for (Variables.Local local : locals) {
-            if (local.index() == i) {
+            if (local.index() == index && local.descriptor().equals(type.descriptor())) {
 	            name = local.name();
 	            break;
             }
         }
 
 	    if (name == null)
-		    name = VarNaming.name(i, type);
+		    name = VarNaming.name(index, type);
 	    return name;
     }
 
@@ -291,7 +291,7 @@ public class JvmMethodPrinter implements MethodPrinter {
         return labelNames;
     }
 
-    private static boolean requiresDeconfliction(@NotNull Type varType, @Nullable Type existingVarType) {
+    private static boolean requireTypeDeconflict(@NotNull Type varType, @Nullable Type existingVarType) {
         // If there is no existing type, no conflicts are possible.
         if (existingVarType == null)
             return false;

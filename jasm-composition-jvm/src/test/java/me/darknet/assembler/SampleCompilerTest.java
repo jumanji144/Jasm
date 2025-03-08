@@ -822,6 +822,28 @@ public class SampleCompilerTest {
         }
 
         @Test
+        void pickCorrectlyTypedParameterName() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("RedHerringVarEntries.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Ensure we extract the correct variable name from the table.
+            // The table has bogus in it as defined by:
+            //
+            // 0: new Variable("vWrongF", "F", start, end, 0);
+            // 1: new Variable("vWrongObject", "Ljava/lang/Object;", null, start, end, 0);
+            // 2: new Variable("vCorrect", "I", start, end, 0);
+            // 3: new Variable("vWrongD", "D", start, end, 0);
+            assertTrue(source.contains("parameters: { vCorrect }"));
+            assertTrue(source.contains("iload vCorrect"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
         void permittedSubclasses() throws Throwable {
             BinaryTestArgument arg = BinaryTestArgument.fromName("SubclassTest.sample");
             byte[] raw = arg.source.get();

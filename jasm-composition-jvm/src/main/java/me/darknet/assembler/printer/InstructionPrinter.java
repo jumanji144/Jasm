@@ -360,7 +360,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
             default -> Types.VOID; // Should never happen
         };
 
-        var local = variables.get(variableIndex, codeOffset);
+        var local = variables.get(variableIndex, codeOffset, assumedType.descriptor());
         if (local != null &&
                 // Both must be non-primitives, or both primitives of the same type
                 ((!local.isPrimitive() && !(assumedType instanceof PrimitiveType))

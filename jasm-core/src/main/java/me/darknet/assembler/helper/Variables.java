@@ -34,21 +34,43 @@ import java.util.NavigableMap;
  */
 public record Variables(@NotNull NavigableMap<Integer, Parameter> parameters, @NotNull List<Local> locals) {
     /**
-     * Gets either a local or a parameter based on the index and position.
-     * If no local or parameter exists for then
+     * Gets the variable <i>(local or parameter)</i> based on the index, code position, and assumed type.
      *
      * @param index
-     *                 the index of the local var
+     *                 The index of the variable.
      * @param position
-     *                 the position in code where it was used
+     *                 The position in code where it was used.
+     * @param assumedTypeDesc
+     *                 The assumed type descriptor of the variable to access.
+     *                 This is implied from context and not assumed to be exact.
+     *                 It is used to filter incompatible variables based on type categories.
      *
-     * @return the local or parameter matching the index and position.
+     * @return The local or parameter matching the index and position. Can be {@code null}.
      */
-    public @Nullable Variable get(int index, int position) {
+    public @Nullable Variable get(int index, int position, @NotNull String assumedTypeDesc) {
+        int assumedTypeCategory = computeCategory(assumedTypeDesc.charAt(0));
         for (var local : locals)
-            if (local.index == index && local.start <= position && local.end >= position)
+            if (local.index == index
+                    && local.start <= position && local.end >= position
+                    && assumedTypeCategory == computeCategory(local.descriptor().charAt(0)))
                 return local;
-	    return parameters.get(index);
+        return parameters.get(index);
+    }
+
+    private static int computeCategory(char c) {
+        // Maps to ASM's Type.getSort()
+        return switch (c) {
+            case 'V' -> 0;
+            case 'Z' -> 1;
+            case 'C' -> 2;
+            case 'B' -> 3;
+            case 'S' -> 4;
+            case 'I' -> 5;
+            case 'F' -> 6;
+            case 'J' -> 7;
+            case 'D' -> 8;
+            default -> -10; // Normally '[' is 9, but we want to treat arrays/objects as the same category group.
+        };
     }
 
     public record Local(int index, int start, int end, String name, String descriptor) implements Variable {}
@@ -62,22 +84,6 @@ public record Variables(@NotNull NavigableMap<Integer, Parameter> parameters, @N
 
         default boolean isPrimitive() {
             return descriptor().length() == 1;
-        }
-
-        default int getPrimitiveKind() {
-            // Maps to ASM's Type.getSort()
-            return switch (descriptor().charAt(0)) {
-                case 'V' -> 0;
-                case 'Z' -> 1;
-                case 'C' -> 2;
-                case 'B' -> 3;
-                case 'S' -> 4;
-                case 'I' -> 5;
-                case 'F' -> 6;
-                case 'J' -> 7;
-                case 'D' -> 8;
-                default -> -1;
-            };
         }
     }
 }
