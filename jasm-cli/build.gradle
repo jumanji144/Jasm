@@ -10,7 +10,7 @@ dependencies {
 
     // jvm
     // asm
-    implementation 'org.ow2.asm:asm:9.7'
+    implementation 'org.ow2.asm:asm:9.7.1'
     api project(path: ':jasm-composition-jvm')
 
     // dalvik
