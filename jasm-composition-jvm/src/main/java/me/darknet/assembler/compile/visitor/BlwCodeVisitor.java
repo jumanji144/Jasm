@@ -180,8 +180,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitVarInsn(ASTIdentifier var) {
         String name = var.literal();
-        int index = varCache.getOrCreate(name, opcode == LSTORE || opcode == DSTORE ||
-                opcode == LLOAD || opcode == DLOAD);
+        boolean wide = opcode == LSTORE || opcode == DSTORE || opcode == LLOAD || opcode == DLOAD;
+        int index = varCache.getOrCreate(name, wide);
         add(new VarInstruction(opcode, index));
     }
 

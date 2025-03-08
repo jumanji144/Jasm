@@ -11,9 +11,10 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class InstructionPrinter implements IndexedExecutionEngine {
-
+    private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u[0-9a-fA-F]{4}");
     private final static String[] OPCODES = new String[256];
 
     static {
@@ -135,13 +136,14 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     @Override
     public void execute(VarInstruction instruction) {
         int opcode = instruction.opcode();
-        String varName = computeName(opcode, instruction.variableIndex(), currentIndex + 1);
+        int index = instruction.variableIndex();
+        String varName = computeName(opcode, index, currentIndex + 1);
 
         ctx.instruction(OPCODES[opcode]);
 
         // If it has already been escaped (\\uXXXX), print the escape as-is.
         // We do not need to escape the variable name twice.
-        if (varName.matches("\\\\u[0-9a-fA-F]{4}"))
+        if (varName.charAt(0) == '\\' && UNICODE_ESCAPE.matcher(varName).matches())
             ctx.print(varName);
         else
             ctx.literal(varName);
