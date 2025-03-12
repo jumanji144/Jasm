@@ -37,7 +37,7 @@ public class VarCacheUpdater implements IndexedExecutionEngine {
         boolean write;
         ClassType hint;
         switch (opcode) {
-            case ILOAD -> {
+            case ILOAD, RET -> {
                 write = false;
                 hint = Types.INT;
             }

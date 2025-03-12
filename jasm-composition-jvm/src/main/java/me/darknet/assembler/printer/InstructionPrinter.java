@@ -356,7 +356,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
             case JavaOpcodes.FLOAD, JavaOpcodes.FSTORE -> Types.FLOAT;
             case JavaOpcodes.DLOAD, JavaOpcodes.DSTORE -> Types.DOUBLE;
             case JavaOpcodes.LLOAD, JavaOpcodes.LSTORE -> Types.LONG;
-            case JavaOpcodes.ILOAD, JavaOpcodes.ISTORE, JavaOpcodes.IINC -> Types.INT;
+            case JavaOpcodes.ILOAD, JavaOpcodes.ISTORE, JavaOpcodes.IINC, JavaOpcodes.RET -> Types.INT;
             default -> Types.VOID; // Should never happen
         };
 
