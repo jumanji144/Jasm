@@ -624,14 +624,15 @@ public class ASTProcessor {
             if (e == null)
                 return null;
 
+            if (e.type() == ElementType.NUMBER) {
+                // convert to identifier
+                return new ASTIdentifier(e.value()); // rewrap
+            }
+
             // can be NUMBER or IDENTIFIER
             if (!(e instanceof ASTLiteral)) {
                 throwUnexpectedElementError(description, e);
                 return null;
-            }
-            if (e.type() == ElementType.NUMBER) {
-                // convert to identifier
-                return new ASTIdentifier(e.value()); // rewrap
             }
             return (ASTIdentifier) e;
         }
