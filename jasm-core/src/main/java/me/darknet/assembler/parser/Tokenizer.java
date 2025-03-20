@@ -46,6 +46,26 @@ public class Tokenizer {
         ctx.next();
     }
 
+    private void handleMultiLineComment(TokenizerContext ctx, char currentChar) {
+        while (true) {
+            if (currentChar == '*' && ctx.peek() == '/') {
+                break;
+            }
+            currentChar = ctx.peek();
+            if (currentChar == '\n') {
+                ctx.nextLine();
+            }
+            ctx.forward();
+            if (currentChar == '\\') {
+                ctx.processEscape();
+            }
+        }
+        ctx.next();
+        ctx.next();
+        ctx.collectToken();
+        ctx.leaveMultilineComment();
+    }
+
     private void handleString(TokenizerContext ctx, char currentChar) {
         switch (currentChar) {
             case '"' -> {
@@ -78,10 +98,15 @@ public class Tokenizer {
     }
 
     private void handleNormal(TokenizerContext ctx, char currentChar) {
-        if (currentChar == '/' && ctx.peek() == '/') {
+        if (currentChar == '/' && (ctx.peek() == '/' || ctx.peek() == '*')) {
             ctx.next();
             ctx.next();
-            ctx.enterComment();
+            if (ctx.peek(-1) == '/') {
+                ctx.enterComment();
+            } else {
+                ctx.enterMultilineComment();
+            }
+            return;
         } else if (currentChar == '"') {
             ctx.next();
             ctx.enterString();
@@ -129,6 +154,8 @@ public class Tokenizer {
             char c = input.charAt(ctx.index);
             if (ctx.isComment()) {
                 handleComment(ctx, c);
+            } else if (ctx.isMultilineComment()) {
+                handleMultiLineComment(ctx, c);
             } else if (ctx.isString()) {
                 handleString(ctx, c);
             } else if (ctx.isCharacter()) {
@@ -152,6 +179,7 @@ public class Tokenizer {
         private int index;
         private boolean inString;
         private boolean inCharacter;
+        private boolean inMultilineComment;
         private boolean inComment;
         private StringBuffer buffer;
         private final ErrorCollector errors = new ErrorCollector();
@@ -178,8 +206,16 @@ public class Tokenizer {
             inComment = true;
         }
 
+        public void enterMultilineComment() {
+            inMultilineComment = true;
+        }
+
         public void leaveComment() {
             inComment = false;
+        }
+
+        public void leaveMultilineComment() {
+            inMultilineComment = false;
         }
 
         public void enterString() {
@@ -210,8 +246,16 @@ public class Tokenizer {
             return inComment;
         }
 
+        public boolean isMultilineComment() {
+            return inMultilineComment;
+        }
+
         public char peek() {
             return input.charAt(index + 1);
+        }
+
+        public char peek(int offset) {
+            return input.charAt(index + offset);
         }
 
         public void throwError(String message) {
@@ -249,7 +293,7 @@ public class Tokenizer {
                 tokens.add(new Token(range, location, TokenType.STRING, content));
             } else if (inCharacter) {
                 tokens.add(new Token(range, location, TokenType.CHARACTER, content));
-            } else if (inComment) {
+            } else if (inComment || inMultilineComment) {
                 tokens.add(new Token(range, location, TokenType.COMMENT, content));
             } else if (!buffer.isEmpty()) {
                 TokenType type = getType(content);

@@ -73,4 +73,24 @@ public class TokenizerTest {
         Assertions.assertFalse(tokens.isEmpty());
     }
 
+    @Test
+    public void testSingleLineComment() {
+        Tokenizer tokenizer = new Tokenizer();
+        List<Token> tokens = tokenizer.tokenize("<stdin>", "// This is a comment\n").get();
+        Assertions.assertNotNull(tokens);
+        Assertions.assertEquals(1, tokens.size());
+        Assertions.assertEquals(" This is a comment", tokens.getFirst().content());
+        Assertions.assertSame(TokenType.COMMENT, tokens.getFirst().type());
+    }
+
+    @Test
+    public void testMultiLineComment() {
+        Tokenizer tokenizer = new Tokenizer();
+        List<Token> tokens = tokenizer.tokenize("<stdin>", "/* This is a comment\n * with multiple lines\n */").get();
+        Assertions.assertNotNull(tokens);
+        Assertions.assertEquals(1, tokens.size());
+        Assertions.assertEquals(" This is a comment\n * with multiple lines\n ", tokens.getFirst().content());
+        Assertions.assertSame(TokenType.COMMENT, tokens.getFirst().type());
+    }
+
 }
