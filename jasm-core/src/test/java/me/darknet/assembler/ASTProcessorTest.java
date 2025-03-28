@@ -166,8 +166,8 @@ public class ASTProcessorTest {
                     assertNotNull(annotation.values());
                     assertEquals(1, annotation.values().size());
                     ASTEnum enumValue = assertIs(ASTEnum.class, annotation.value("value"));
-                    assertEquals("java/lang/annotation/RetentionPolicy", enumValue.enumType().content());
-                    assertEquals("RUNTIME", enumValue.enumValue().content());
+                    assertEquals("java/lang/annotation/RetentionPolicy", enumValue.enumOwner().content());
+                    assertEquals("RUNTIME", enumValue.enumFieldName().content());
                 }
         );
         assertOne(
@@ -180,11 +180,11 @@ public class ASTProcessorTest {
                     ASTArray array = assertIs(ASTArray.class, annotation.value("value"));
                     assertEquals(2, array.values().size());
                     ASTEnum enumValue = assertIs(ASTEnum.class, array.value(0));
-                    assertEquals("java/lang/annotation/ElementType", enumValue.enumType().content());
-                    assertEquals("FIELD", enumValue.enumValue().content());
+                    assertEquals("java/lang/annotation/ElementType", enumValue.enumOwner().content());
+                    assertEquals("FIELD", enumValue.enumFieldName().content());
                     enumValue = assertIs(ASTEnum.class, array.value(1));
-                    assertEquals("java/lang/annotation/ElementType", enumValue.enumType().content());
-                    assertEquals("METHOD", enumValue.enumValue().content());
+                    assertEquals("java/lang/annotation/ElementType", enumValue.enumOwner().content());
+                    assertEquals("METHOD", enumValue.enumFieldName().content());
                 }
         );
     }

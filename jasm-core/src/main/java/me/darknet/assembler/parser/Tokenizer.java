@@ -47,10 +47,7 @@ public class Tokenizer {
     }
 
     private void handleMultiLineComment(TokenizerContext ctx, char currentChar) {
-        while (true) {
-            if (currentChar == '*' && ctx.peek() == '/') {
-                break;
-            }
+        while (currentChar != '*' || ctx.peek() != '/') {
             currentChar = ctx.peek();
             if (currentChar == '\n') {
                 ctx.nextLine();

@@ -14,7 +14,6 @@ import me.darknet.assembler.util.Pair;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
-import java.util.Collections;
 
 public interface ASTAnnotationVisitor {
     void visitValue(ASTIdentifier name, ASTValue value);
@@ -36,7 +35,7 @@ public interface ASTAnnotationVisitor {
             switch (value) {
                 case ASTValue val -> visitor.visitValue(key, val);
                 case ASTIdentifier identifier -> visitor.visitTypeValue(key, identifier);
-                case ASTEnum astEnum -> visitor.visitEnumValue(key, astEnum.enumType(), astEnum.enumValue());
+                case ASTEnum astEnum -> visitor.visitEnumValue(key, astEnum.enumOwner(), astEnum.enumFieldName());
                 case ASTArray array -> {
                     ASTAnnotationArrayVisitor arrayVisitor = visitor.visitArrayValue(key);
                     if (arrayVisitor == null) {

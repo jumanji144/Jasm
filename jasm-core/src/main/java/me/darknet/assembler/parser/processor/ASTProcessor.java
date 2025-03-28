@@ -41,9 +41,15 @@ public class ASTProcessor {
             List<ASTElement> elements = decl.elements();
             ASTIdentifier type = ctx.validateElement(elements.get(0), ElementType.IDENTIFIER, "enum type", decl);
             ASTIdentifier name = ctx.validateElement(elements.get(1), ElementType.IDENTIFIER, "enum name", decl);
+
+            ASTIdentifier fieldType = null;
+            if (elements.size() == 3) {
+                fieldType = ctx.validateElement(elements.get(2), ElementType.IDENTIFIER, "enum field type", decl);
+            }
+
             if (type == null || name == null)
                 return null;
-            return new ASTEnum(type, name);
+            return new ASTEnum(type, name, fieldType);
         });
         ParserRegistry.register("signature", (ctx, decl) -> {
             ASTString signature = ctx.validateElement(decl.elements().getFirst(), ElementType.STRING, "signature", decl);

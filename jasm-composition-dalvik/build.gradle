@@ -1,0 +1,17 @@
+apply plugin: 'java-library'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = 'https://jitpack.io' }
+}
+
+dependencies {
+    api 'com.github.jumanji144:dex:434fe7950a'
+
+    api project(path: ':jasm-core')
+}
+
+test {
+    useJUnitPlatform()
+}

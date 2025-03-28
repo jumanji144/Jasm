@@ -31,7 +31,7 @@ public interface ASTAnnotationArrayVisitor {
             switch (arrayValue) {
                 case ASTValue val -> visitor.visitValue(val);
                 case ASTIdentifier identifier -> visitor.visitTypeValue(identifier);
-                case ASTEnum astEnum -> visitor.visitEnumValue(astEnum.enumType(), astEnum.enumValue());
+                case ASTEnum astEnum -> visitor.visitEnumValue(astEnum.enumOwner(), astEnum.enumFieldName());
                 case ASTAnnotation annotation -> {
                     ASTAnnotationVisitor anno = visitor.visitAnnotationValue(annotation.classType());
                     annotation.accept(collector, anno);

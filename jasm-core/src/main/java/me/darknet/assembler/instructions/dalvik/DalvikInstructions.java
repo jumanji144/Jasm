@@ -1,12 +1,13 @@
 package me.darknet.assembler.instructions.dalvik;
 
-import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.instructions.DefaultOperands;
 import me.darknet.assembler.instructions.Instructions;
 import me.darknet.assembler.visitor.ASTDalvikInstructionVisitor;
 
 public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor> {
+
+    public static final DalvikInstructions INSTANCE = new DalvikInstructions();
 
     @Override
     protected void registerInstructions() {
@@ -85,6 +86,11 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
         registerStaticFieldOperation("sget", "sget-object", "sget-boolean", "sget-byte",
                                         "sget-char", "sget-short", "sput", "sput-object",
                                         "sput-boolean", "sput-byte", "sput-char", "sput-short");
+        registerInvoke("invoke-virtual", "invoke-super", "invoke-direct", "invoke-static",
+                       "invoke-interface", "invoke-virtual/range", "invoke-super/range",
+                       "invoke-direct/range", "invoke-static/range", "invoke-interface/range");
+        registerInvokeCustom("invoke-custom", "invoke-custom/range");
+        registerInvokePolymorphic("invoke-polymorphic", "invoke-polymorphic/range");
 
 
     }
@@ -112,15 +118,40 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 
     void registerVirtualFieldOperation(String... names) {
         for (String name : names) {
-            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL, DefaultOperands.LITERAL),
-                    (inst, visitor) -> visitor.visitVirtualFieldOperation(inst.argument(0), inst.argument(1), inst.argument(2)));
+            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL, DefaultOperands.LITERAL, DefaultOperands.FIELD_DESCRIPTOR),
+                    (inst, visitor) -> visitor.visitVirtualFieldOperation(inst.argument(0), inst.argument(1), inst.argument(2), inst.argument(3)));
         }
     }
 
     void registerStaticFieldOperation(String... names) {
         for (String name : names) {
-            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL),
-                    (inst, visitor) -> visitor.visitStaticFieldOperation(inst.argument(0), inst.argument(1)));
+            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL, DefaultOperands.FIELD_DESCRIPTOR),
+                    (inst, visitor) -> visitor.visitStaticFieldOperation(inst.argument(0), inst.argument(1), inst.argument(2)));
+        }
+    }
+
+    void registerInvoke(String... names) {
+        for (String name : names) {
+            register(name, ops(DalvikOperands.REGISTER_ARRAY, DefaultOperands.LITERAL, DefaultOperands.METHOD_DESCRIPTOR),
+                    (inst, visitor) -> visitor.visitInvoke(inst.argumentArray(0), inst.argument(1), inst.argument(2)));
+        }
+    }
+
+    void registerInvokeCustom(String... names) {
+        for (String name : names) {
+            register(name,
+                    ops(DalvikOperands.REGISTER_ARRAY, DefaultOperands.LITERAL, DefaultOperands.DESCRIPTOR, DalvikOperands.HANDLE, DalvikOperands.ARGS_ARRAY),
+                    (inst, visitor) -> visitor.visitInvokeCustom(inst.argumentArray(0), inst.argument(1), inst.argument(2), inst.argumentArray(3), inst.argumentArray(4)));
+
+        }
+    }
+
+    void registerInvokePolymorphic(String... names) {
+        for (String name : names) {
+            register(name,
+                    ops(DalvikOperands.REGISTER_ARRAY, DefaultOperands.LITERAL, DefaultOperands.METHOD_DESCRIPTOR, DefaultOperands.METHOD_DESCRIPTOR),
+                    (inst, visitor) -> visitor.visitInvokePolymorphic(inst.argumentArray(0), inst.argument(1), inst.argument(2), inst.argument(3)));
+
         }
     }
 

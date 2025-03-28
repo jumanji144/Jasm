@@ -38,6 +38,16 @@ public enum DalvikOperands implements Operands {
         }
     }),
     HANDLE(JvmOperands::verifyHandle),
+    ARGS_ARRAY((context, element) -> {
+        // args array can be: register or array
+        ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "args array", element);
+        for (ASTElement value : array.values()) {
+            if (context.isNull(value, "args array element", array.location()))
+                return;
+            assert value != null;
+            DalvikOperands.verifyConstant(context, element);
+        }
+    }),
     REGISTER_ARRAY((context, element) -> {
         // register array can be: register or array
         ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "register array", element);
@@ -45,7 +55,7 @@ public enum DalvikOperands implements Operands {
             if (context.isNull(value, "register array element", array.location()))
                 return;
             assert value != null;
-            if(value.type() != ElementType.NUMBER || value.type() != ElementType.IDENTIFIER)
+            if(value.type() != ElementType.IDENTIFIER)
                 context.throwUnexpectedElementError("register", value);
         }
     }),

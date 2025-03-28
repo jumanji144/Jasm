@@ -38,8 +38,6 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
         printMethodHandle(value.value(), ctx);
     }
 
-
-
     @Override
     public void acceptType(OfType value) {
         Type t = value.value();

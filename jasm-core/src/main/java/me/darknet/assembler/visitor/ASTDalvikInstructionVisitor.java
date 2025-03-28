@@ -197,20 +197,53 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
      * Visits a virtual field operation instruction, which performs an operation on a field.
      * This is used for the following instructions: iget, iget-wide, iget-object, iget-boolean, iget-byte,
      * iget-char, iget-short, iput, iput-wide, iput-object, iput-boolean, iput-byte, iput-char, iput-short
-     * @param object the object to perform the operation on
-     * @param field the field to perform the operation on
      * @param value the value to perform the operation on
+     * @param instance the instance to perform the operation on
+     * @param path the path to the field, this is in the format of [owner].[name]
+     * @param descriptor the descriptor of the field
      */
-    void visitVirtualFieldOperation(ASTIdentifier object, ASTIdentifier field, ASTIdentifier value);
+    void visitVirtualFieldOperation(ASTIdentifier value, ASTIdentifier instance, ASTIdentifier path, ASTIdentifier descriptor);
 
 
     /**
      * Visits a static field operation instruction, which performs an operation on a field.
      * This is used for the following instructions: sget, sget-wide, sget-object, sget-boolean, sget-byte,
      * sget-char, sget-short, sput, sput-wide, sput-object, sput-boolean, sput-byte, sput-char, sput-short
-     * @param field the field to perform the operation on
      * @param value the value to perform the operation on
+     * @param path the path to the field, this is in the format of [owner].[name]
+     * @param descriptor the descriptor of the field
      */
-    void visitStaticFieldOperation(ASTIdentifier field, ASTIdentifier value);
+    void visitStaticFieldOperation(ASTIdentifier value, ASTIdentifier path, ASTIdentifier descriptor);
 
+    /**
+     * Visits a invoke instruction, which invokes a method.
+     * This is used for the following instructions: invoke-virtual, invoke-super, invoke-direct, invoke-static,
+     * invoke-interface, invoke-virtual/range, invoke-super/range, invoke-direct/range, invoke-static/range,
+     * invoke-interface/range
+     * @param registers the registers to get the arguments from
+     * @param method the method to invoke
+     * @param descriptor the descriptor of the method
+     */
+    void visitInvoke(ASTArray registers, ASTIdentifier method, ASTIdentifier descriptor);
+
+    /**
+     * Visits a invoke-custom instruction, which invokes a custom method.
+     * This is used for the following instructions: invoke-custom, invoke-custom/range
+     * @param registers the registers to get the arguments from
+     * @param name the name of the method
+     * @param type the type of the method
+     * @param handle the handle of the method
+     * @param arguments the arguments of the method
+     */
+    void visitInvokeCustom(ASTArray registers, ASTIdentifier name, ASTIdentifier type, ASTArray handle, ASTArray arguments);
+
+    /**
+     * Visits a invoke-polymorphic instruction, which invokes a polymorphic method.
+     * This is used for the following instructions: invoke-polymorphic, invoke-polymorphic/range
+     * @param registers the registers to get the arguments from
+     * @param method the method to invoke
+     * @param descriptor the descriptor of the method
+     * @param proto the proto of the method
+     */
+    void visitInvokePolymorphic(ASTArray registers, ASTIdentifier method, ASTIdentifier descriptor, ASTIdentifier proto);
 }
