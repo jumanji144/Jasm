@@ -43,8 +43,6 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
         printMethodHandle(value.value(), ctx);
     }
 
-
-
     @Override
     public void acceptType(OfType value) {
         Type t = value.value();
@@ -71,7 +69,9 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
 
     @Override
     public void acceptDouble(OfDouble value) {
-        String content = DECIMAL_FORMAT.format(value.value());
+        String content = ctx.forceWholeNumberRepresentation ?
+                DECIMAL_FORMAT.format(value.value()) :
+                String.valueOf(value.value());
         ctx.print(content);
 
         // Skip 'D' suffix for things like 'NaN' where it is implied
@@ -86,6 +86,9 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
 
     @Override
     public void acceptFloat(OfFloat value) {
-        ctx.print(DECIMAL_FORMAT.format(value.value())).print("F");
+        String content = ctx.forceWholeNumberRepresentation ?
+                DECIMAL_FORMAT.format(value.value()) :
+                String.valueOf(value.value());
+        ctx.print(content).print("F");
     }
 }
