@@ -106,7 +106,7 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
             }
         }
 
-        return new BlwCodeVisitor(options, collector, builder.code().child(), parameters) {
+        return new BlwCodeVisitor(options, collector, builder.code().child(), type, parameters) {
             @Override
             public void visitEnd() {
                 super.visitEnd();

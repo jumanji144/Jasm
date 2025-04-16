@@ -2,15 +2,14 @@ package me.darknet.assembler.compile.analysis.jvm;
 
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.code.instruction.BranchInstruction;
+import dev.xdark.blw.code.instruction.SimpleInstruction;
 import dev.xdark.blw.simulation.ExecutionEngines;
 import dev.xdark.blw.simulation.Simulation;
 import dev.xdark.blw.type.InstanceType;
+import dev.xdark.blw.type.MethodType;
 import dev.xdark.blw.type.Types;
-import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.Local;
-import me.darknet.assembler.compile.analysis.VarCache;
-import me.darknet.assembler.compile.analysis.VarCacheUpdater;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
@@ -203,6 +202,28 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
                 }
             }
         }
+
+        // Final pass
+        String ret = method.methodType.returnType().descriptor();
+        for (CodeElement element : elements) {
+            if (element instanceof SimpleInstruction instruction) {
+                int opcode = instruction.opcode();
+
+                // Warn about incorrect return instructions
+                if (opcode == IRETURN && !"ZBCSI".contains(ret))
+                    engine.warn(element, "Unexpected 'int' return instruction");
+                if (opcode == RETURN && !ret.equals("V"))
+                    engine.warn(element, "Unexpected 'void' return instruction");
+                if (opcode == FRETURN && !ret.equals("F"))
+                    engine.warn(element, "Unexpected 'float' return instruction");
+                if (opcode == DRETURN && !ret.equals("D"))
+                    engine.warn(element, "Unexpected 'float' return instruction");
+                if (opcode == LRETURN && !ret.equals("J"))
+                    engine.warn(element, "Unexpected 'long' return instruction");
+                if (opcode == ARETURN && !(ret.charAt(0) == 'L' || ret.charAt(0) == '['))
+                    engine.warn(element, "Unexpected 'object' return instruction");
+            }
+        }
     }
 
     /**
@@ -280,11 +301,12 @@ public class AnalysisSimulation implements Simulation<JvmAnalysisEngine<Frame>, 
      * Method state wrapper.
      *
      * @param checker Inheritance resolution for frame merging of different class types.
+     * @param methodType Type descriptor of the method.
      * @param params Method parameters.
      * @param codeElements Method code.
      * @param exceptionHandlers Method try-catch blocks.
      */
-    public record Info(@NotNull InheritanceChecker checker, @NotNull List<Local> params,
+    public record Info(@NotNull InheritanceChecker checker, @NotNull MethodType methodType, @NotNull List<Local> params,
                        @NotNull List<CodeElement> codeElements, @NotNull List<TryCatchBlock> exceptionHandlers) {
     }
 }

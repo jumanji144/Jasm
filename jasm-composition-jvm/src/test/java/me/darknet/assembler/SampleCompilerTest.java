@@ -284,6 +284,11 @@ public class SampleCompilerTest {
     @Nested
     class Warning {
         @Test
+        void wrongReturn() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-wrong-return.jasm"));
+        }
+
+        @Test
         void int2Object() throws Throwable {
             warnOnBothEngines(TestArgument.fromName("Example-int2obj-cast.jasm"));
             warnOnBothEngines(TestArgument.fromName("Example-int2obj-instanceof.jasm"));

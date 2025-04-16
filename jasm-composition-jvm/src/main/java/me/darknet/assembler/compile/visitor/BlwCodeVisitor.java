@@ -36,6 +36,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final ErrorCollector errorCollector;
     private final Map<String, GenericLabel> nameToLabel = new HashMap<>();
     private final List<Local> parameters;
+    private final MethodType methodType;
     private final VarCache varCache = new VarCache();
     private final List<ASTInstruction> visitedInstructions = new ArrayList<>();
     private final JvmAnalysisEngine<Frame> analysisEngine;
@@ -50,11 +51,13 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
      *                   Collector for error reporting.
      * @param builder
      *                   Builder to insert code into.
+     * @param methodType
+     *                   Type descriptor of the method.
      * @param parameters
      *                   Parameter variables.
      */
     @SuppressWarnings("unchecked")
-    public BlwCodeVisitor(JvmCompilerOptions options, ErrorCollector errorCollector, CodeBuilder<?> builder, List<Local> parameters) {
+    public BlwCodeVisitor(JvmCompilerOptions options, ErrorCollector errorCollector, CodeBuilder<?> builder, MethodType methodType, List<Local> parameters) {
         this.codeBuilder = builder;
         this.codeBuilderList = builder.codeList().child();
         this.checker = options.inheritanceChecker();
@@ -62,6 +65,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         this.analysisEngine = (JvmAnalysisEngine<Frame>) options.createEngine(varCache);
         this.parameters = parameters;
         this.writeVariables = options.doWriteVariables();
+        this.methodType = methodType;
 
         analysisEngine.setErrorCollector(errorCollector);
 
@@ -372,7 +376,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
         // Analyze stack for local variable information.
         Code code = codeBuilder.build();
-        AnalysisSimulation.Info method = new AnalysisSimulation.Info(checker, parameters, code.elements(), code.tryCatchBlocks());
+        AnalysisSimulation.Info method = new AnalysisSimulation.Info(checker, methodType, parameters, code.elements(), code.tryCatchBlocks());
         try {
             // Variable analysis
             new IndexedStraightforwardSimulation()
