@@ -48,13 +48,17 @@ public record Variables(@NotNull NavigableMap<Integer, Parameter> parameters, @N
      * @return The local or parameter matching the index and position. Can be {@code null}.
      */
     public @Nullable Variable get(int index, int position, @NotNull String assumedTypeDesc) {
-        int assumedTypeCategory = computeCategory(assumedTypeDesc.charAt(0));
-        for (var local : locals)
-            if (local.index == index
-                    && local.start <= position && local.end >= position
-                    && assumedTypeCategory == computeCategory(local.descriptor().charAt(0)))
-                return local;
-        return parameters.get(index);
+	    int assumedTypeCategory = computeCategory(assumedTypeDesc.charAt(0));
+	    for (var local : locals)
+		    if (local.index == index && local.start <= position && local.end >= position) {
+			    int localCategory = computeCategory(local.descriptor().charAt(0));
+			    if (assumedTypeCategory >= 1 /* BOOL */ && assumedTypeCategory <= 5 /* INT */
+					    && localCategory >= 1 /* BOOL */ && localCategory <= assumedTypeCategory)
+				    return local;
+			    else if (assumedTypeCategory == localCategory)
+				    return local;
+		    }
+	    return parameters.get(index);
     }
 
     private static int computeCategory(char c) {
