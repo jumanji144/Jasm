@@ -364,7 +364,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
         if (local != null &&
                 // Both must be non-primitives, or both primitives of the same type
                 ((!local.isPrimitive() && !(assumedType instanceof PrimitiveType))
-                || local.descriptor().equals(assumedType.descriptor())))
+                || variables.compatibleDescriptors(local.descriptor(), assumedType.descriptor())))
             return local.name();
 
         return VarNaming.name(variableIndex, assumedType);
