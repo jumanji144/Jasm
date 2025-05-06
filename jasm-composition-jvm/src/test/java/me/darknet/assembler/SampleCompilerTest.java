@@ -749,6 +749,31 @@ public class SampleCompilerTest {
             });
         }
 
+        /**
+         * Things like Z being allowed in I usages (like ifeq)
+         */
+        @Test
+        void handlePrimitiveWidening() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TextFormatConfig.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("iload shortenPath"));
+            assertTrue(source.contains("iload escape"));
+            assertTrue(source.contains("iload maxLength"));
+
+            // Ensure it keeps when round-tripped
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                String newPrinted = dissassemble(result.representation().classFile());
+                assertTrue(newPrinted.contains("iload shortenPath"));
+                assertTrue(newPrinted.contains("iload escape"));
+                assertTrue(newPrinted.contains("iload maxLength"));
+            });
+        }
+
         public static List<TestArgument> getSources() {
             try {
                 BiPredicate<Path, BasicFileAttributes> filter = (path, attrib) -> attrib.isRegularFile()
