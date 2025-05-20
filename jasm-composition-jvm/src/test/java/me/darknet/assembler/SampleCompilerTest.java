@@ -28,6 +28,7 @@ import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.platform.commons.util.StringUtils;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
 
@@ -601,6 +602,40 @@ public class SampleCompilerTest {
                 }
             });
         }
+
+	    @Test
+	    void floatingPointFormat() throws Throwable {
+		    TestArgument arg = TestArgument.fromName("Example-floats.jasm");
+		    String source = arg.source.get();
+		    TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		    options.engineProvider(TypedJvmAnalysisEngine::new);
+		    processJvm(source, options, result -> {
+			    // Should build
+			    AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+			    assertNull(results.getAnalysisFailure());
+			    assertFalse(results.terminalFrames().isEmpty());
+
+			    // Disassembled code should be normalized
+			    // 4x ldc 100.0F
+			    // 4x ldc 100.0D
+			    String dissassembled = dissassemble(result.representation().classFile());
+			    int last = 0;
+			    for (int i = 0; i < 4; i++) {
+				    int next = dissassembled.indexOf("ldc 100.0F", last+1);
+				    assertTrue(next > last, "Missing 'ldc float' iteration " + i);
+				    last = next;
+			    }
+			    last = 0;
+			    for (int i = 0; i < 4; i++) {
+				    int next = dissassembled.indexOf("ldc 100.0D", last+1);
+				    assertTrue(next > last, "Missing 'ldc double' iteration " + i);
+				    last = next;
+			    }
+		    }, warns -> {
+			    warns.forEach(System.err::println);
+			    fail("No warnings allowed");
+		    });
+	    }
 
         @Test
         void arrayObjectMergeOnParameter() throws Throwable {

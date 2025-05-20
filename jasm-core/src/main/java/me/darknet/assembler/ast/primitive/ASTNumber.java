@@ -69,9 +69,13 @@ public class ASTNumber extends ASTValue {
         return number().doubleValue();
     }
 
+    /**
+     * @return {@code true} when this number is a {@code float} or {@code double}.
+     */
     public boolean isFloatingPoint() {
         String value = content();
-        return value.contains(".") || value.endsWith("f") || value.endsWith("F") || isNaN() || isInfinity();
+        return value.contains(".") || value.endsWith("f") || value.endsWith("F")
+                || value.endsWith("d") || value.endsWith("D")  || isNaN() || isInfinity();
     }
 
     public boolean isNaN() {
@@ -83,5 +87,10 @@ public class ASTNumber extends ASTValue {
         String value = content().toLowerCase();
         return value.equals("infinity") || value.equals("+infinity") ||  value.equals("-infinity") ||
                 value.equals("infinityd") || value.equals("+infinityd") ||  value.equals("-infinityd");
+    }
+
+    @Override
+    public String toString() {
+        return value.content();
     }
 }
