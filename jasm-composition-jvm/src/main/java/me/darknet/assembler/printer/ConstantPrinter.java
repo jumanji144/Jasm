@@ -15,7 +15,8 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
     );
 
     static {
-        DECIMAL_FORMAT.setMaximumFractionDigits(10);
+		DECIMAL_FORMAT.setMinimumIntegerDigits(1); // Ensure leading 0 for fractions like "0.125"
+        DECIMAL_FORMAT.setMaximumFractionDigits(10); // Ensure we don't have stupid long fractions
     }
 
     public static void printMethodHandle(MethodHandle handle, PrintContext<?> ctx) {
@@ -69,7 +70,7 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
 
     @Override
     public void acceptDouble(OfDouble value) {
-        String content = ctx.forceWholeNumberRepresentation ?
+        String content = ctx.forceWholeNumberRepresentation && Double.isFinite(value.value()) ?
                 DECIMAL_FORMAT.format(value.value()) :
                 String.valueOf(value.value());
         ctx.print(content);
@@ -86,7 +87,7 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
 
     @Override
     public void acceptFloat(OfFloat value) {
-        String content = ctx.forceWholeNumberRepresentation ?
+        String content = ctx.forceWholeNumberRepresentation && Float.isFinite(value.value())?
                 DECIMAL_FORMAT.format(value.value()) :
                 String.valueOf(value.value());
         ctx.print(content).print("F");

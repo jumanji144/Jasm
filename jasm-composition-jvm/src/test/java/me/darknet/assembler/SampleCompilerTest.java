@@ -42,6 +42,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.text.DecimalFormat;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
@@ -769,6 +770,25 @@ public class SampleCompilerTest {
         }
 
         /**
+         * Infinity should remain as {@code "Infinity"} rather than being translated to the infinity unicode char
+         * when using our whole-number {@link DecimalFormat}.
+         */
+        @Test
+        void supportInfinityInWholeNumberRepresentation() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("InfinityFloat.sample");
+
+            byte[] raw = arg.source.get();
+            String source1 = dissassemble(raw, ctx -> {
+                ctx.setForceWholeNumberRepresentation(true);
+            });
+            String source2 = dissassemble(raw, ctx -> {
+                ctx.setForceWholeNumberRepresentation(false);
+            });
+
+            assertEquals(source1, source2);
+        }
+
+        /**
          * NaN should remain as a printed constant across re-assembles
          */
         @Test
@@ -996,8 +1016,13 @@ public class SampleCompilerTest {
     }
 
     private static String dissassemble(byte[] raw) throws IOException {
+        return dissassemble(raw, null);
+    }
+
+    private static String dissassemble(byte[] raw, Consumer<PrintContext<?>> contextConsumer) throws IOException {
         JvmClassPrinter initPrinter = new JvmClassPrinter(raw);
         PrintContext<?> initCtx = new PrintContext<>("    ");
+        if (contextConsumer != null) contextConsumer.accept(initCtx);
         initPrinter.print(initCtx);
         return initCtx.toString();
     }
