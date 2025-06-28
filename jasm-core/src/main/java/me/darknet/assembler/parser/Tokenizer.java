@@ -287,7 +287,7 @@ public class Tokenizer {
 
             String content = buffer.toString();
             Range range = new Range(index - content.length(), index);
-            Location location = new Location(line, column, content.length(), source);
+            Location location = new Location(line, Math.max(0, column - content.length()), content.length(), source);
 
             if (inString) {
                 tokens.add(new Token(range, location, TokenType.STRING, content));
