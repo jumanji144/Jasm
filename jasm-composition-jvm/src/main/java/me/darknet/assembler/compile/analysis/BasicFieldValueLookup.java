@@ -40,6 +40,11 @@ public class BasicFieldValueLookup implements FieldValueLookup {
         CONST_FIELDS.put("java/lang/Integer.MIN_VALUE", Values.valueOf(Integer.MIN_VALUE));
         CONST_FIELDS.put("java/lang/Integer.MAX_VALUE", Values.valueOf(Integer.MAX_VALUE));
         //
+        CONST_FIELDS.put("java/lang/Long.BYTES", Values.valueOf(Long.BYTES));
+        CONST_FIELDS.put("java/lang/Long.SIZE", Values.valueOf(Long.SIZE));
+        CONST_FIELDS.put("java/lang/Long.MIN_VALUE", Values.valueOf(Long.MIN_VALUE));
+        CONST_FIELDS.put("java/lang/Long.MAX_VALUE", Values.valueOf(Long.MAX_VALUE));
+        //
         CONST_FIELDS.put("java/lang/Float.BYTES", Values.valueOf(Float.BYTES));
         CONST_FIELDS.put("java/lang/Float.SIZE", Values.valueOf(Float.SIZE));
         CONST_FIELDS.put("java/lang/Float.MIN_VALUE", Values.valueOf(Float.MIN_VALUE));
