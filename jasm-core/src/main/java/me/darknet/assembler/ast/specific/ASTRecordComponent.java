@@ -14,6 +14,8 @@ import java.util.List;
 public class ASTRecordComponent extends ASTElement implements ASTAnnotated, ASTSigned {
     private List<ASTAnnotation> visibleAnnotations = Collections.emptyList();
     private List<ASTAnnotation> invisibleAnnotations = Collections.emptyList();
+    private List<ASTAnnotation> visibleTypeAnnotations = Collections.emptyList();
+    private List<ASTAnnotation> invisibleTypeAnnotations = Collections.emptyList();
     private final ASTIdentifier componentType;
     private final ASTIdentifier componentDescriptor;
     private ASTString signature;
@@ -56,6 +58,16 @@ public class ASTRecordComponent extends ASTElement implements ASTAnnotated, ASTS
     }
 
     @Override
+    public @NotNull List<ASTAnnotation> getVisibleTypeAnnotations() {
+        return visibleTypeAnnotations;
+    }
+
+    @Override
+    public @NotNull List<ASTAnnotation> getInvisibleTypeAnnotations() {
+        return invisibleTypeAnnotations;
+    }
+
+    @Override
     public void setVisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
         replaceChildren(this.visibleAnnotations, annotations);
         this.visibleAnnotations = annotations;
@@ -75,5 +87,27 @@ public class ASTRecordComponent extends ASTElement implements ASTAnnotated, ASTS
     @Override
     public void addInvisibleAnnotation(@NotNull ASTAnnotation annotation) {
         setInvisibleAnnotations(CollectionUtil.merge(invisibleAnnotations, annotation));
+    }
+
+    @Override
+    public void setVisibleTypeAnnotations(@NotNull List<ASTAnnotation> annotations) {
+        replaceChildren(this.visibleTypeAnnotations, annotations);
+        this.visibleTypeAnnotations = annotations;
+    }
+
+    @Override
+    public void setInvisibleTypeAnnotations(@NotNull List<ASTAnnotation> annotations) {
+        replaceChildren(this.invisibleTypeAnnotations, annotations);
+        this.invisibleTypeAnnotations = annotations;
+    }
+
+    @Override
+    public void addVisibleTypeAnnotation(@NotNull ASTAnnotation annotation) {
+        setVisibleAnnotations(CollectionUtil.merge(visibleTypeAnnotations, annotation));
+    }
+
+    @Override
+    public void addInvisibleTypeAnnotation(@NotNull ASTAnnotation annotation) {
+        setInvisibleAnnotations(CollectionUtil.merge(invisibleTypeAnnotations, annotation));
     }
 }

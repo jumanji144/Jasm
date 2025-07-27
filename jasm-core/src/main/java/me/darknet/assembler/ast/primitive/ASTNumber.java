@@ -16,6 +16,9 @@ public class ASTNumber extends ASTValue {
         if (value.startsWith("0x")) {
             radix = 16;
             value = value.substring(2);
+        } else if (value.startsWith("0b")) {
+            radix = 2;
+            value = value.substring(2);
         } else if (value.startsWith("nan")) {
             if (value.endsWith("f"))
                 return Float.NaN;

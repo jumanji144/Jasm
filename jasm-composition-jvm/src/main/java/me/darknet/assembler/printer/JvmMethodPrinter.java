@@ -1,5 +1,6 @@
 package me.darknet.assembler.printer;
 
+import dev.xdark.blw.annotation.Annotation;
 import dev.xdark.blw.annotation.Element;
 import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.classfile.Method;
@@ -190,6 +191,34 @@ public class JvmMethodPrinter implements MethodPrinter {
             var arr = obj.value("parameters").array();
             arr.print(variables.parameters().values(), (arrayCtx, parameter) -> arr.print(parameter.name()));
             arr.end();
+
+            Map<Integer, List<Annotation>> visParamAnnos = method.visibleRuntimeParameterAnnotations();
+            Map<Integer, List<Annotation>> invisParamAnnos = method.invisibleRuntimeParameterAnnotations();
+            if (!visParamAnnos.isEmpty() || !invisParamAnnos.isEmpty()) {
+                Map<Integer, List<Annotation>> mergedParamAnnos = new TreeMap<>();
+                visParamAnnos.forEach((k,v) -> mergedParamAnnos.merge(k, new ArrayList<>(v), (a, b) -> {
+                    a.addAll(b);
+                    return a;
+                }));
+                invisParamAnnos.forEach((k,v) -> mergedParamAnnos.merge(k, new ArrayList<>(v), (a, b) -> {
+                    a.addAll(b);
+                    return a;
+                }));
+
+                obj.next();
+                var pannos = obj.value("parameter-annotations").object();
+                mergedParamAnnos.forEach((idx, annos) -> {
+                    var parameter = variables.parameters().get(idx);
+                    String parameterName = parameter.name();
+                    var parr = pannos.value(parameterName).array();
+                    for (Annotation anno : annos) {
+                        boolean visible = visParamAnnos.containsKey(idx) && visParamAnnos.get(idx).contains(anno);
+                        new JvmAnnotationPrinter(anno, visible).print(parr);
+                    }
+                    parr.end();
+                });
+                pannos.end();
+            }
         }
         Element annotationDefault = method.annotationDefault();
         if (annotationDefault != null) {

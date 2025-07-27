@@ -3,13 +3,14 @@ package me.darknet.assembler.printer;
 import dev.xdark.blw.annotation.*;
 import me.darknet.assembler.util.EscapeUtil;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.tree.TypeAnnotationNode;
 
 import java.util.Map;
 
 public class JvmAnnotationPrinter implements AnnotationPrinter {
 
     private final Annotation annotation;
-    private final Boolean visible;
+    protected final Boolean visible;
 
     protected JvmAnnotationPrinter(Annotation annotation, boolean visible) {
         this.annotation = annotation;
@@ -22,11 +23,17 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
     }
 
     public static JvmAnnotationPrinter forTopLevelAnno(Annotation annotation, boolean visible) {
-        return new JvmAnnotationPrinter(annotation, visible);
+        if (annotation instanceof TypeAnnotation typeAnnotation)
+            return new JvmTypeAnnotationPrinter(typeAnnotation, visible);
+        else
+            return new JvmAnnotationPrinter(annotation, visible);
     }
 
     public static JvmAnnotationPrinter forEmbeddedAnno(Annotation annotation) {
-        return new JvmAnnotationPrinter(annotation);
+        if (annotation instanceof TypeAnnotation typeAnnotation)
+            return new JvmTypeAnnotationPrinter(typeAnnotation);
+        else
+            return new JvmAnnotationPrinter(annotation);
     }
 
     @Override
@@ -51,7 +58,7 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
         forEmbeddedAnno(annotation).print(ctx);
     }
 
-    private void printEntry(@NotNull PrintContext.ObjectPrint ctx, @NotNull Map.Entry<String, Element> entry) {
+    protected void printEntry(@NotNull PrintContext.ObjectPrint ctx, @NotNull Map.Entry<String, Element> entry) {
         ctx.literalValue(entry.getKey());
         printElement(ctx, entry.getValue());
     }

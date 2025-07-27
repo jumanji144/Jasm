@@ -1,15 +1,9 @@
 package me.darknet.assembler.compile.visitor;
 
 import dev.xdark.blw.annotation.Element;
-import dev.xdark.blw.annotation.ElementByte;
 import dev.xdark.blw.annotation.generic.GenericAnnotationBuilder;
-import dev.xdark.blw.type.PrimitiveType;
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.ast.primitive.ASTArray;
-import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.ast.specific.ASTType;
-import me.darknet.assembler.ast.specific.ASTValue;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
@@ -19,7 +13,6 @@ import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.util.Pair;
 import me.darknet.assembler.util.VarNaming;
-import me.darknet.assembler.visitor.ASTAnnotatedVisitor;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
@@ -117,6 +110,20 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
                     analysisResultsConsumer.accept(getAnalysisResults());
             }
         };
+    }
+
+    @Override
+    public ASTAnnotationVisitor visitVisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType) {
+        return new BlwAnnotationVisitor(
+                builder.addVisibleRuntimeParameterAnnotations(index, Types.instanceTypeFromInternalName(classType.literal())).child()
+        );
+    }
+
+    @Override
+    public ASTAnnotationVisitor visitInvisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType) {
+        return new BlwAnnotationVisitor(
+                builder.addInvisibleRuntimeParameterAnnotations(index, Types.instanceTypeFromInternalName(classType.literal())).child()
+        );
     }
 
     @Override

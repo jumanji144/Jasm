@@ -875,6 +875,47 @@ public class SampleCompilerTest {
         }
 
         @Test
+        void parameterAnnotation() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TypeAnnoOnMethod.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("the foo"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void typeAnnotationOnClassTypeArgument() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TypeAnnoOnClassTypeArg.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("ref: 0b0"));
+            assertTrue(source.contains("path: _")); // Top level type-anno has no path, and we use '_' as a placeholder
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void typeAnnotationInArray() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TypeAnnoInArray.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("ref: 0b10110000000000000000000000000"));
+            assertTrue(source.contains("path: [[")); // Top level type-anno has no path, and we use '_' as a placeholder
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
         void outerClassInfo() throws Throwable {
             BinaryTestArgument arg = BinaryTestArgument.fromName("Outside$1.sample");
             byte[] raw = arg.source.get();

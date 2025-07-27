@@ -1,5 +1,6 @@
 package me.darknet.assembler.printer;
 
+import dev.xdark.blw.annotation.TypeAnnotation;
 import me.darknet.assembler.util.BlwModifiers;
 
 import dev.xdark.blw.annotation.Annotation;
@@ -27,6 +28,16 @@ public record JvmMemberPrinter(@Nullable Annotated annotated, @Nullable Signed s
             }
             for (Annotation invisibleRuntimeAnnotation : annotated.invisibleRuntimeAnnotations()) {
                 JvmAnnotationPrinter printer = JvmAnnotationPrinter.forTopLevelAnno(invisibleRuntimeAnnotation, false);
+                printer.print(ctx);
+                ctx.next();
+            }
+            for (TypeAnnotation visibleRuntimeTypeAnnotation : annotated.visibleRuntimeTypeAnnotations()) {
+                JvmAnnotationPrinter printer = JvmAnnotationPrinter.forTopLevelAnno(visibleRuntimeTypeAnnotation, true);
+                printer.print(ctx);
+                ctx.next();
+            }
+            for (TypeAnnotation invisibleRuntimeTypeAnnotation : annotated.invisibleRuntimeTypeAnnotations()) {
+                JvmAnnotationPrinter printer = JvmAnnotationPrinter.forTopLevelAnno(invisibleRuntimeTypeAnnotation, false);
                 printer.print(ctx);
                 ctx.next();
             }

@@ -66,6 +66,16 @@ public class ProcessorList {
         addAttribute(annotation);
     }
 
+    public void addVisibleTypeAnnotation(ASTAnnotation annotation) {
+        this.attributes.visibleTypeAnnotations.add(annotation);
+        addAttribute(annotation);
+    }
+
+    public void addInvisibleTypeAnnotation(ASTAnnotation annotation) {
+        this.attributes.invisibleTypeAnnotations.add(annotation);
+        addAttribute(annotation);
+    }
+
     public void setSignature(ASTString signature) {
         this.attributes.signature = signature;
         addAttribute(signature);
