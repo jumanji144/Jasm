@@ -882,6 +882,7 @@ public class SampleCompilerTest {
             // Print the initial raw
             String source = dissassemble(raw);
             assertTrue(source.contains("the foo"));
+            assertTrue(source.contains("the bar"));
 
             // Round-trip it
             roundTrip(source, arg);

@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -189,7 +190,8 @@ public class JvmMethodPrinter implements MethodPrinter {
         boolean hasPrior = !variables.parameters().isEmpty();
         if (hasPrior) {
             var arr = obj.value("parameters").array();
-            arr.print(variables.parameters().values(), (arrayCtx, parameter) -> arr.print(parameter.name()));
+            List<Variables.Parameter> parameterList = new ArrayList<>(variables.parameters().values());
+            arr.print(parameterList, (arrayCtx, parameter) -> arr.print(parameter.name()));
             arr.end();
 
             Map<Integer, List<Annotation>> visParamAnnos = method.visibleRuntimeParameterAnnotations();
@@ -208,7 +210,7 @@ public class JvmMethodPrinter implements MethodPrinter {
                 obj.next();
                 var pannos = obj.value("parameter-annotations").object();
                 mergedParamAnnos.forEach((idx, annos) -> {
-                    var parameter = variables.parameters().get(idx);
+                    var parameter = parameterList.get(idx);
                     String parameterName = parameter.name();
                     var parr = pannos.value(parameterName).array();
                     for (Annotation anno : annos) {
