@@ -613,7 +613,7 @@ public class ASTProcessor {
             return object;
         }
 
-        ASTIdentifier validateIdentifier(ASTElement e, String description, ASTElement parent) {
+        public ASTIdentifier validateIdentifier(ASTElement e, String description, ASTElement parent) {
             if (isNull(e, description, parent.location()))
                 return null;
             return validateMaybeIdentifier(e, description, parent);

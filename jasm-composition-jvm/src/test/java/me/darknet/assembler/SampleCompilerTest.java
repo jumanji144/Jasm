@@ -668,7 +668,11 @@ public class SampleCompilerTest {
         @MethodSource("getValidSources")
         void all(TestArgument arg) throws Throwable {
             String source = arg.source.get();
-            processJvm(source, new TestJvmCompilerOptions(), result -> {
+
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.version(21);
+
+            processJvm(source, options, result -> {
                 if (source.contains("SKIP-ROUND-TRIP-EQUALITY"))
                     return;
 
