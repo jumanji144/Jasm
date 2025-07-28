@@ -375,7 +375,8 @@ public class JvmMethodPrinter implements MethodPrinter {
             return VarNaming.name(index, type);
 
         // No bs descriptor chars in names
-        if (name.indexOf('/') >= 0 || name.indexOf('.') >= 0 || name.indexOf(';') >= 0 || name.indexOf('[') >= 0)
+        if (name.indexOf('/') >= 0 || name.indexOf('.') >= 0 || name.indexOf(';') >= 0 || name.indexOf('[') >= 0
+                || name.indexOf('<') >= 0 || name.indexOf('>') >= 0|| name.indexOf('-') >= 0)
             return VarNaming.name(index, type);
 
 		// Standard escaping
