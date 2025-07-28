@@ -23,6 +23,10 @@ public class Modifiers {
         modifiers.add(modifier);
     }
 
+    public boolean hasModifier(String modifier) {
+        return modifiers.stream().anyMatch(i -> modifier.equals(i.content()));
+    }
+
     public List<ASTIdentifier> modifiers() {
         return modifiers;
     }

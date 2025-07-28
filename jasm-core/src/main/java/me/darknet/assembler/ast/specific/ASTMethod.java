@@ -78,6 +78,12 @@ public class ASTMethod extends ASTMember {
         }
         parameterAnnotations.forEach((id, annos) -> {
             int parameterIndex = findParameterIndex(id.content());
+
+            // We artificially bumped the parameter indices by one earlier when adding "this" as a parameter
+            // and now need to bump the index back down when writing the annotation back.
+            if (!getModifiers().hasModifier("static"))
+                parameterIndex--;
+
             if (parameterIndex < 0)
                 return;
             for (ASTAnnotation annotation : annos) {
