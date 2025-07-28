@@ -26,18 +26,16 @@ public class JvmTypeAnnotationPrinter extends JvmAnnotationPrinter {
 		TypeAnnotation annotation = this.annotation;
 		ctx.begin().element(token).literal(annotation.type().internalName()).print(" ");
 
-		var object = ctx.object();
-		object.literalValue("ref").literal("0b" + Integer.toBinaryString(annotation.typeRef())).next();
-		object.literalValue("path").literal(annotation.typePath() == null ? "_" : annotation.typePath().toString());
-		object.end();
-		ctx.append(' ');
+		var wrapper = ctx.object();
+		var location = wrapper.literalValue("location").object();
+		location.literalValue("ref").literal("0b" + Integer.toBinaryString(annotation.typeRef())).next();
+		location.literalValue("path").literal(annotation.typePath() == null ? "_" : annotation.typePath().toString());
+		location.end();
+		location.next();
 
-		if (annotation.names().isEmpty()) {
-			ctx.print("{}");
-			return;
-		}
-		var obj = ctx.object();
-		obj.print(annotation, this::printEntry);
-		obj.end();
+		var entries = wrapper.literalValue("values").object();
+		entries.print(annotation, this::printEntry);
+		entries.end();
+		wrapper.end();
 	}
 }

@@ -883,6 +883,9 @@ public class SampleCompilerTest {
             String source = dissassemble(raw);
             assertTrue(source.contains("the foo"));
             assertTrue(source.contains("the bar"));
+            assertTrue(source.contains("\"a\""));
+            assertTrue(source.contains("\"b\""));
+            assertTrue(source.contains("\"c\""));
 
             // Round-trip it
             roundTrip(source, arg);

@@ -18,7 +18,10 @@ import org.objectweb.asm.ClassWriter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 public class JvmClassPrinter implements ClassPrinter {
 
@@ -121,11 +124,11 @@ public class JvmClassPrinter implements ClassPrinter {
             printer.print(obj);
             obj.next();
         }
-        obj.line();
-        for (Method method : view.methods()) {
-            JvmMethodPrinter printer = new JvmMethodPrinter(method);
-            printer.print(obj);
-            obj.doubleNext();
+	    obj.line();
+	    for (Method method : view.methods()) {
+		    JvmMethodPrinter printer = new JvmMethodPrinter(method);
+		    printer.print(obj);
+		    obj.doubleNext();
         }
         obj.end();
     }

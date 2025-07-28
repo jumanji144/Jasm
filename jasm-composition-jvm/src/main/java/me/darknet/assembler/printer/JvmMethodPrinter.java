@@ -24,8 +24,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -208,17 +208,35 @@ public class JvmMethodPrinter implements MethodPrinter {
                 }));
 
                 obj.next();
+                boolean isVirtual = !parameterList.isEmpty() && parameterList.getFirst().name().equals("this");
                 var pannos = obj.value("parameter-annotations").object();
-                mergedParamAnnos.forEach((idx, annos) -> {
+                var pannosIt = mergedParamAnnos.entrySet().iterator();
+                while (pannosIt.hasNext()) {
+                    var entry = pannosIt.next();
+                    int idx = entry.getKey() + (isVirtual ? 1 : 0);
+                    List<Annotation> annos = entry.getValue();
+
                     var parameter = parameterList.get(idx);
                     String parameterName = parameter.name();
                     var parr = pannos.value(parameterName).array();
-                    for (Annotation anno : annos) {
+
+                    Iterator<Annotation> annosIt = annos.iterator();
+                    while (annosIt.hasNext()) {
+                        Annotation anno = annosIt.next();
                         boolean visible = visParamAnnos.containsKey(idx) && visParamAnnos.get(idx).contains(anno);
                         new JvmAnnotationPrinter(anno, visible).print(parr);
+                        if (annosIt.hasNext()) {
+                            parr.append(",");
+                            pannos.newline();
+                        }
                     }
+
                     parr.end();
-                });
+                    if (pannosIt.hasNext()) {
+                        pannos.append(",");
+                        ctx.line();
+                    }
+                }
                 pannos.end();
             }
         }
