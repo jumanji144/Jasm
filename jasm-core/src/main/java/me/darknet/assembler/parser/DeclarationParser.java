@@ -288,10 +288,12 @@ public class DeclarationParser {
         elements.add(element);
         if (peek.content().equals("}")) {
             ctx.take("}");
+            ctx.leaveState(State.IN_NESTED_DECLARATION_OR_ARRAY);
             return new ASTDeclaration(null, elements);
         }
         if (peek.content().equals(",")) {
             ctx.take(",");
+            ctx.leaveState(State.IN_NESTED_DECLARATION_OR_ARRAY);
             return parseHalfArray(elements);
         }
         ctx.leaveState(State.IN_NESTED_DECLARATION_OR_ARRAY);
