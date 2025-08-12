@@ -183,11 +183,7 @@ public class CompileCommand implements Runnable {
                            outputPath = Paths.get(classFilename);
                         }
                         try {
-                            if (!Files.exists(outputPath)) {
-                                Files.createDirectories(outputPath.getParent());
-                                Files.createFile(outputPath);
-                            }
-
+                            Files.createDirectories(outputPath.getParent());
                             Files.write(outputPath, ((JavaClassRepresentation) representation).classFile());
                         } catch (IOException e) {
                             System.err.println("Failed to write output file: " + e.getMessage());
