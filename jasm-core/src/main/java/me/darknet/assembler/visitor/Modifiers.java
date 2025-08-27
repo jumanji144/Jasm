@@ -11,7 +11,7 @@ public class Modifiers {
     private static final List<String> validModifiers = List.of(
             "public", "private", "protected", "static", "final", "abstract", "strictfp", "transient", "volatile",
             "synchronized", "native", "varargs", "bridge", "synthetic", "enum", "annotation", "module", "super",
-            "interface", "record", "sealed", "open", "non-sealed"
+            "interface", "record", "sealed", "open", "non-sealed", "constructor"
     );
     private final List<ASTIdentifier> modifiers = new ArrayList<>();
 

@@ -29,7 +29,7 @@ public enum DefaultOperands implements Operands {
            try {
                number.number();
            } catch (NumberFormatException e) {
-               context.throwUnexpectedElementError("not a valid number literal", number);
+               context.throwUnexpectedElementError("valid number literal", number);
            }
        } else if (!context.isNotType(element, ElementType.IDENTIFIER, "identifier")) {
            switch (element.content().toLowerCase()) {
@@ -39,7 +39,7 @@ public enum DefaultOperands implements Operands {
                        "infinityf", "+infinityf", "-infinityf" -> {
                    // valid
                }
-               default -> context.throwUnexpectedElementError("not a valid number literal", element);
+               default -> context.throwUnexpectedElementError("valid number literal", element);
            }
        }
     }),
@@ -57,7 +57,7 @@ public enum DefaultOperands implements Operands {
 
         boolean valid = DescriptorUtil.isValidMethodDescriptor(element.content());
         if (!valid)
-            context.throwUnexpectedElementError("not a valid method descriptor", element);
+            context.throwUnexpectedElementError("valid method descriptor", element);
 
     }),
     FIELD_DESCRIPTOR((context, element) -> {
@@ -67,7 +67,7 @@ public enum DefaultOperands implements Operands {
 
         boolean valid = DescriptorUtil.isValidFieldDescriptor(element.content());
         if (!valid)
-            context.throwUnexpectedElementError("not a valid field descriptor", element);
+            context.throwUnexpectedElementError("valid field descriptor", element);
     }),
     DESCRIPTOR((context, element) -> {
         // descriptor can be: method or field or array
@@ -79,7 +79,7 @@ public enum DefaultOperands implements Operands {
             valid = DescriptorUtil.isValidFieldDescriptor(element.content());
 
         if (!valid)
-            context.throwUnexpectedElementError("not a valid descriptor", element);
+            context.throwUnexpectedElementError("valid descriptor", element);
     });
 
     private final Operand operand;

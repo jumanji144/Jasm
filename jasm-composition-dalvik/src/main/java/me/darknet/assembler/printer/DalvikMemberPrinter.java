@@ -16,7 +16,7 @@ public record DalvikMemberPrinter(Annotated annotated, Accessible accessible, Ty
 
     public void printAttributes(PrintContext<?> ctx) {
         if (annotated != null) {
-            for (Annotation annotation : annotated.annotations()) {
+            for (Annotation annotation : annotated.getAnnotations()) {
                 new DalvikAnnotationPrinter(annotation).print(ctx);
             }
         }
@@ -35,14 +35,14 @@ public record DalvikMemberPrinter(Annotated annotated, Accessible accessible, Ty
                 case METHOD -> DalvikModifiers.METHOD;
             };
             return ctx.begin().element(elementName)
-                    .print(DalvikModifiers.modifiers(accessible.access(), modifierType));
+                    .print(DalvikModifiers.modifiers(accessible.getAccess(), modifierType));
         }
         return ctx;
     }
 
     public AnnotationPrinter printAnnotation(int index) {
         if (annotated != null) {
-            return new DalvikAnnotationPrinter(annotated.annotations().get(index));
+            return new DalvikAnnotationPrinter(annotated.getAnnotations().get(index));
         }
         return null;
     }

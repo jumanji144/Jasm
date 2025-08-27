@@ -114,10 +114,10 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 
     /**
      * Visits a `fill-array-data` instruction, which fills an array with data.
-     * @param array the array to fill
-     * @param dataLabel the label pointing to a `fill-array-data-payload` instruction
+     * @param to the array to fill
+     * @param array the array data to fill with
      */
-    void visitFillArrayData(ASTIdentifier array, ASTIdentifier dataLabel);
+    void visitFillArrayData(ASTIdentifier to, ASTArray array);
 
     /**
      * Visits a `fill-array-data-payload` instruction, which contains the data to fill an array with.
@@ -176,12 +176,21 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 
     /**
      * Visits a `if` instruction, which jumps to a label if a condition is met.
-     * This is used for the following instructions: if-eq, if-ne, if-lt, if-ge, if-gt, if-le, if-eqz, if-nez,
+     * This is used for the following instructions: if-eq, if-ne, if-lt, if-ge, if-gt, if-le,
      *
-     * @param register the register to compare
+     * @param a the first register to compare
+     * @param b the second register to compare
      * @param label the label to jump to
      */
-    void visitIf(ASTIdentifier register, ASTIdentifier label);
+    void visitIf(ASTIdentifier a, ASTIdentifier b, ASTIdentifier label);
+
+    /**
+     * Visits a `if` instruction, which jumps to a label if a condition is met compared to zero.
+     * This is used for the following instructions: if-eqz, if-nez
+     * @param a the register to compare
+     * @param label the label to jump to
+     */
+    void visitIfZero(ASTIdentifier a, ASTIdentifier label);
 
     /**
      * Visits a array operation instruction, which performs an operation on an array.
@@ -246,4 +255,16 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
      * @param proto the proto of the method
      */
     void visitInvokePolymorphic(ASTArray registers, ASTIdentifier method, ASTIdentifier descriptor, ASTIdentifier proto);
+
+    /**
+     * Visit a unary operation instruction, which performs a unary operation on a register.
+     * This is used for the following instructions: neg-int, neg-long, neg-float, neg-double,
+     * not-int, not-long, int-to-long, int-to-float, int-to-double, long-to-int, long-to-float,
+     * long-to-double, float-to-int, float-to-long, float-to-double, double-to-int,
+     * double-to-long, double-to-float, int-to-byte, int-to-char, int-to-short
+     * @param to the register to store the result in
+     * @param from the register to perform the operation on
+     */
+    void visitUnaryOperation(ASTIdentifier to, ASTIdentifier from);
+
 }

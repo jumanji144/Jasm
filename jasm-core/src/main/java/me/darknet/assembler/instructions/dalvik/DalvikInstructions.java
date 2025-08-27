@@ -35,6 +35,8 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
                 (inst, visitor) -> visitor.visitReturn(inst.argument(0)));
         register("const", ops(DefaultOperands.LITERAL, DefaultOperands.NUMBER),
                 (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1)));
+        register("const-wide", ops(DefaultOperands.LITERAL, DefaultOperands.NUMBER),
+                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1)));
         register("const-string", ops(DefaultOperands.LITERAL, DefaultOperands.STRING),
                 (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1)));
         register("const-class", ops(DefaultOperands.LITERAL, DalvikOperands.CLASS_TYPE),
@@ -61,11 +63,8 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
                         inst.argument(1), inst.argument(2)));
         register("filled-new-array", ops(DalvikOperands.REGISTER_ARRAY, DalvikOperands.CLASS_TYPE),
                 (inst, visitor) -> visitor.visitFilledNewArray(inst.argumentArray(0), inst.argument(1)));
-        register("fill-array-data", ops(DefaultOperands.LITERAL, DefaultOperands.IDENTIFIER),
-                (inst, visitor) -> visitor.visitFillArrayData(inst.argument(0), inst.argument(1)));
-        register("fill-array-data-payload", ops(DefaultOperands.INTEGER, DalvikOperands.DATA_ARRAY),
-                (inst, visitor) -> visitor.visitFillArrayDataPayload(inst.argument(0, ASTNumber.class),
-                        inst.argumentArray(1)));
+        register("fill-array-data", ops(DefaultOperands.LITERAL, DalvikOperands.DATA_ARRAY),
+                (inst, visitor) -> visitor.visitFillArrayData(inst.argument(0), inst.argumentArray(1)));
         register("throw", ops(DefaultOperands.LITERAL),
                 (inst, visitor) -> visitor.visitThrow(inst.argument(0)));
         register("goto", ops(DefaultOperands.LABEL),
@@ -75,22 +74,31 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
         register("sparse-switch", ops(DalvikOperands.SPARSE_SWITCH),
                 (inst, visitor) -> visitor.visitSparseSwitch(inst.argumentObject(0)));
         registerCmp("cmpl-float", "cmpg-float", "cmpl-double", "cmpg-double", "cmp-long");
-        registerIf("if-eq", "if-ne", "if-lt", "if-ge", "if-gt", "if-le",
-                    "if-eqz", "if-nez");
-        registerArrayOperation("aget", "aget-object", "aget-boolean", "aget-byte",
-                               "aget-char", "aget-short", "aput", "aput-object",
+        registerIf("if-eq", "if-ne", "if-lt", "if-ge", "if-gt", "if-le");
+        registerIfZero("if-eqz", "if-nez");
+        registerArrayOperation("aget", "aget-object", "aget-wide", "aget-boolean", "aget-byte",
+                               "aget-char", "aget-short", "aput", "aput-object", "aput-wide",
                                "aput-boolean", "aput-byte", "aput-char", "aput-short");
-        registerVirtualFieldOperation("iget", "iget-object", "iget-boolean", "iget-byte",
-                                      "iget-char", "iget-short", "iput", "iput-object",
+        registerVirtualFieldOperation("iget", "iget-object", "iget-wide", "iget-boolean", "iget-byte",
+                                      "iget-char", "iget-short", "iput", "iput-object", "iput-wide",
                                       "iput-boolean", "iput-byte", "iput-char", "iput-short");
-        registerStaticFieldOperation("sget", "sget-object", "sget-boolean", "sget-byte",
-                                        "sget-char", "sget-short", "sput", "sput-object",
+        registerStaticFieldOperation("sget", "sget-object", "sget-wide", "sget-boolean", "sget-byte",
+                                        "sget-char", "sget-short", "sput", "sput-object", "sput-wide",
                                         "sput-boolean", "sput-byte", "sput-char", "sput-short");
         registerInvoke("invoke-virtual", "invoke-super", "invoke-direct", "invoke-static",
                        "invoke-interface", "invoke-virtual/range", "invoke-super/range",
                        "invoke-direct/range", "invoke-static/range", "invoke-interface/range");
         registerInvokeCustom("invoke-custom", "invoke-custom/range");
         registerInvokePolymorphic("invoke-polymorphic", "invoke-polymorphic/range");
+        registerUnaryOperation(
+                "neg-int", "not-int", "neg-long", "not-long", "neg-float", "neg-double",
+                "int-to-long", "int-to-float", "int-to-double", "long-to-int", "long-to-float",
+                "long-to-double", "float-to-int", "float-to-long", "float-to-double",
+                "double-to-int", "double-to-long", "double-to-float",
+                "int-to-byte", "int-to-char", "int-to-short"
+        );
+
+        register("line", ops(DefaultOperands.INTEGER), (inst, visitor) -> visitor.visitLineNumber(inst.argument(0, ASTNumber.class)));
 
 
     }
@@ -104,8 +112,15 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 
     void registerIf(String... names) {
         for (String name : names) {
+            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL, DefaultOperands.LABEL),
+                    (inst, visitor) -> visitor.visitIf(inst.argument(0), inst.argument(1), inst.argument(2)));
+        }
+    }
+
+    void registerIfZero(String... names) {
+        for (String name : names) {
             register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LABEL),
-                    (inst, visitor) -> visitor.visitIf(inst.argument(0), inst.argument(1)));
+                    (inst, visitor) -> visitor.visitIfZero(inst.argument(0), inst.argument(1)));
         }
     }
 
@@ -152,6 +167,13 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
                     ops(DalvikOperands.REGISTER_ARRAY, DefaultOperands.LITERAL, DefaultOperands.METHOD_DESCRIPTOR, DefaultOperands.METHOD_DESCRIPTOR),
                     (inst, visitor) -> visitor.visitInvokePolymorphic(inst.argumentArray(0), inst.argument(1), inst.argument(2), inst.argument(3)));
 
+        }
+    }
+
+    void registerUnaryOperation(String... names) {
+        for (String name : names) {
+            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL),
+                    (inst, visitor) -> visitor.visitUnaryOperation(inst.argument(0), inst.argument(1)));
         }
     }
 

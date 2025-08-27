@@ -51,30 +51,30 @@ public class DalvikClassPrinter implements ClassPrinter {
 
     @Override
     public void print(PrintContext<?> ctx) {
-        String sourceFile = definition.sourceFile();
+        String sourceFile = definition.getSourceFile();
         if (sourceFile != null) {
             ctx.begin().element(".sourcefile").string(sourceFile).end();
         }
 
         memberPrinter.printAttributes(ctx);
 
-        var superClass = definition.superClass();
+        var superClass = definition.getSuperClass();
         if (superClass != null) {
             ctx.begin().element(".super").literal(superClass.internalName()).end();
         }
-        for (InstanceType anInterface : definition.interfaces()) {
+        for (InstanceType anInterface : definition.getInterfaces()) {
             ctx.begin().element(".implements").literal(anInterface.internalName()).end();
         }
         var obj = memberPrinter.printDeclaration(ctx)
-                .literal(definition.type().internalName()).print(" ").declObject()
+                .literal(definition.getType().internalName()).print(" ").declObject()
                 .newline();
-        for (var field : definition.fields().values()) {
+        for (var field : definition.getFields().values()) {
             var printer = new DalvikFieldPrinter(field);
             printer.print(obj);
             obj.next();
         }
         obj.line();
-        for (var method : definition.methods().values()) {
+        for (var method : definition.getMethods().values()) {
             var printer = new DalvikMethodPrinter(method);
             printer.print(obj);
             obj.doubleNext();
