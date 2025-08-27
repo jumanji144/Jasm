@@ -22,6 +22,7 @@ public class PrintContext<T extends PrintContext<?>> {
     protected String labelPrefix;
     protected boolean debugTryCatchRanges;
     protected boolean ignoreExistingVariableNames;
+    protected boolean forceWholeNumberRepresentation;
 
     public PrintContext(String indentStep, Writer writer) {
         this.indentStep = indentStep;
@@ -35,6 +36,7 @@ public class PrintContext<T extends PrintContext<?>> {
     public PrintContext(PrintContext<?> ctx) {
         this.debugTryCatchRanges = ctx.debugTryCatchRanges;
         this.ignoreExistingVariableNames = ctx.ignoreExistingVariableNames;
+        this.forceWholeNumberRepresentation = ctx.forceWholeNumberRepresentation;
         this.indentStep = ctx.indentStep;
         this.writer = ctx.writer;
         this.indent = ctx.indent;
@@ -54,6 +56,10 @@ public class PrintContext<T extends PrintContext<?>> {
 
     public void setIgnoreExistingVariableNames(boolean ignoreExistingVariableNames) {
         this.ignoreExistingVariableNames = ignoreExistingVariableNames;
+    }
+
+    public void setForceWholeNumberRepresentation(boolean forceWholeNumberRepresentation) {
+        this.forceWholeNumberRepresentation = forceWholeNumberRepresentation;
     }
 
     T append(String s) {

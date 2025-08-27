@@ -1,12 +1,13 @@
 package me.darknet.assembler.compile.visitor;
 
+import dev.xdark.blw.annotation.TypePath;
 import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.classfile.attribute.generic.GenericInnerClass;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
-import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTOuterMethod;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.builder.BlwReplaceClassBuilder;
@@ -15,8 +16,6 @@ import me.darknet.assembler.util.CastUtil;
 import me.darknet.assembler.visitor.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 public class BlwClassVisitor implements ASTClassVisitor {
     private final BlwReplaceClassBuilder builder;
@@ -123,6 +122,21 @@ public class BlwClassVisitor implements ASTClassVisitor {
     public ASTAnnotationVisitor visitInvisibleAnnotation(@NotNull ASTIdentifier classType) {
         InstanceType type = Types.instanceTypeFromInternalName(classType.literal());
         return new BlwAnnotationVisitor(builder.addInvisibleRuntimeAnnotation(type).child());
+    }
+
+    @Override
+    public ASTAnnotationVisitor visitVisibleTypeAnnotation(@NotNull ASTIdentifier classType, @NotNull ASTNumber typeRef, @Nullable ASTIdentifier typePath) {
+        InstanceType type = Types.instanceTypeFromInternalName(classType.literal());
+        return new BlwAnnotationVisitor(builder.addVisibleRuntimeTypeAnnotation(type, typeRef.asInt(),
+                typePath == null ? null : TypePath.fromString(typePath.content())).child());
+    }
+
+    @Override
+    public ASTAnnotationVisitor visitInvisibleTypeAnnotation(@NotNull ASTIdentifier classType, @NotNull ASTNumber typeRef, @Nullable ASTIdentifier typePath) {
+        InstanceType type = Types.instanceTypeFromInternalName(classType.literal());
+        return new BlwAnnotationVisitor(builder.addInvisibleRuntimeTypeAnnotation(type, typeRef.asInt(),
+                typePath == null ? null : TypePath.fromString(typePath.content())).child());
+
     }
 
     @Override

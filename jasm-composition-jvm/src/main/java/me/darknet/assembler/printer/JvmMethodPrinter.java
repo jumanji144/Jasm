@@ -1,5 +1,6 @@
 package me.darknet.assembler.printer;
 
+import dev.xdark.blw.annotation.Annotation;
 import dev.xdark.blw.annotation.Element;
 import dev.xdark.blw.classfile.AccessFlag;
 import dev.xdark.blw.classfile.Method;
@@ -24,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -188,8 +190,55 @@ public class JvmMethodPrinter implements MethodPrinter {
         boolean hasPrior = !variables.parameters().isEmpty();
         if (hasPrior) {
             var arr = obj.value("parameters").array();
-            arr.print(variables.parameters().values(), (arrayCtx, parameter) -> arr.print(parameter.name()));
+            List<Variables.Parameter> parameterList = new ArrayList<>(variables.parameters().values());
+            arr.print(parameterList, (arrayCtx, parameter) -> arr.print(parameter.name()));
             arr.end();
+
+            Map<Integer, List<Annotation>> visParamAnnos = method.visibleRuntimeParameterAnnotations();
+            Map<Integer, List<Annotation>> invisParamAnnos = method.invisibleRuntimeParameterAnnotations();
+            if (!visParamAnnos.isEmpty() || !invisParamAnnos.isEmpty()) {
+                Map<Integer, List<Annotation>> mergedParamAnnos = new TreeMap<>();
+                visParamAnnos.forEach((k,v) -> mergedParamAnnos.merge(k, new ArrayList<>(v), (a, b) -> {
+                    a.addAll(b);
+                    return a;
+                }));
+                invisParamAnnos.forEach((k,v) -> mergedParamAnnos.merge(k, new ArrayList<>(v), (a, b) -> {
+                    a.addAll(b);
+                    return a;
+                }));
+
+                obj.next();
+                boolean isVirtual = !parameterList.isEmpty() && parameterList.getFirst().name().equals("this");
+                var pannos = obj.value("parameter-annotations").object();
+                var pannosIt = mergedParamAnnos.entrySet().iterator();
+                while (pannosIt.hasNext()) {
+                    var entry = pannosIt.next();
+                    int idx = entry.getKey() + (isVirtual ? 1 : 0);
+                    List<Annotation> annos = entry.getValue();
+
+                    var parameter = parameterList.get(idx);
+                    String parameterName = parameter.name();
+                    var parr = pannos.value(parameterName).array();
+
+                    Iterator<Annotation> annosIt = annos.iterator();
+                    while (annosIt.hasNext()) {
+                        Annotation anno = annosIt.next();
+                        boolean visible = visParamAnnos.containsKey(idx) && visParamAnnos.get(idx).contains(anno);
+                        new JvmAnnotationPrinter(anno, visible).print(parr);
+                        if (annosIt.hasNext()) {
+                            parr.append(",");
+                            pannos.newline();
+                        }
+                    }
+
+                    parr.end();
+                    if (pannosIt.hasNext()) {
+                        pannos.append(",");
+                        ctx.line();
+                    }
+                }
+                pannos.end();
+            }
         }
         Element annotationDefault = method.annotationDefault();
         if (annotationDefault != null) {
@@ -326,7 +375,8 @@ public class JvmMethodPrinter implements MethodPrinter {
             return VarNaming.name(index, type);
 
         // No bs descriptor chars in names
-        if (name.indexOf('/') >= 0 || name.indexOf('.') >= 0 || name.indexOf(';') >= 0 || name.indexOf('[') >= 0)
+        if (name.indexOf('/') >= 0 || name.indexOf('.') >= 0 || name.indexOf(';') >= 0 || name.indexOf('[') >= 0
+                || name.indexOf('<') >= 0 || name.indexOf('>') >= 0|| name.indexOf('-') >= 0)
             return VarNaming.name(index, type);
 
 		// Standard escaping

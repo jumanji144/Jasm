@@ -260,7 +260,7 @@ public class Tokenizer {
         }
 
         static final Pattern NUMBER_PATTERN = Pattern.compile(
-                "-?(?:(?:(?:(?:(?:\\d[\\d_]*\\.(?:\\d[\\d_]*)?([eE]-?\\d[\\d_]*)?)|(?:\\.(?:\\d[\\d_]*)(?:[eE]-?\\d[\\d_]*)?)|(?:(?:\\d[\\d_]*)(?:[eE]-?\\d[\\d_]*))|(?:0[xX][\\dA-Fa-f_]*(\\.[\\dA-Fa-f_]*)?[pP]-?\\d[\\d_]*))[fFdD]?)|(?:(?:(?:0[xX][\\dA-fa-f_]+)|(?:\\d[\\d_]*))[LlFfDd]?)))"
+                "-?(?:(?:(?:(?:(?:\\d[\\d_]*\\.(?:\\d[\\d_]*)?([eE]-?\\d[\\d_]*)?)|(?:\\.(?:\\d[\\d_]*)(?:[eE]-?\\d[\\d_]*)?)|(?:(?:\\d[\\d_]*)(?:[eE]-?\\d[\\d_]*))|(?:0[xX][\\dA-Fa-f_]*(\\.[\\dA-Fa-f_]*)?[pP]-?\\d[\\d_]*)|(0[bB][01]+))[fFdD]?)|(?:(?:(?:0[xX][\\dA-fa-f_]+)|(?:\\d[\\d_]*))[LlFfDd]?)))"
         );
 
         boolean checkIfNumber(String content) {
@@ -284,7 +284,7 @@ public class Tokenizer {
 
             String content = buffer.toString();
             Range range = new Range(index - content.length(), index);
-            Location location = new Location(line, column, content.length(), source);
+            Location location = new Location(line, Math.max(0, column - content.length()), content.length(), source);
 
             if (inString) {
                 tokens.add(new Token(range, location, TokenType.STRING, content));

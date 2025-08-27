@@ -48,16 +48,37 @@ public record Variables(@NotNull NavigableMap<Integer, Parameter> parameters, @N
      * @return The local or parameter matching the index and position. Can be {@code null}.
      */
     public @Nullable Variable get(int index, int position, @NotNull String assumedTypeDesc) {
-        int assumedTypeCategory = computeCategory(assumedTypeDesc.charAt(0));
-        for (var local : locals)
-            if (local.index == index
-                    && local.start <= position && local.end >= position
-                    && assumedTypeCategory == computeCategory(local.descriptor().charAt(0)))
-                return local;
-        return parameters.get(index);
+	    for (var local : locals)
+		    if (local.index == index && local.start <= position && local.end >= position) {
+			    if (compatibleDescriptors(assumedTypeDesc, local.descriptor))
+				    return local;
+		    }
+	    return parameters.get(index);
     }
 
-    private static int computeCategory(char c) {
+	/**
+	 * @param declarationDesc
+	 *                 Some descriptor assumed to be the wider of the two types.
+	 * @param usageDesc
+	 *                 some other descriptor.
+	 *
+	 * @return {@code true} when the usage descriptor <i>(2nd arg)</i>
+	 * can be used in the context of the declaration descriptor <i>(1st arg)</i>/
+	 */
+	public static boolean compatibleDescriptors(@NotNull String declarationDesc, @NotNull String usageDesc) {
+		int categoryA = computeCategory(declarationDesc.charAt(0));
+		int categoryB = computeCategory(usageDesc.charAt(0));
+
+		// Primitive int widening
+		if (categoryA >= 1 /* BOOL */ && categoryA <= 5 /* INT */
+				&& categoryB >= 1 /* BOOL */ && categoryB <= categoryA)
+			return true;
+
+		// Anything else just needs to be an exact match
+		return categoryA == categoryB;
+	}
+
+	private static int computeCategory(char c) {
         // Maps to ASM's Type.getSort()
         return switch (c) {
             case 'V' -> 0;
@@ -73,7 +94,8 @@ public record Variables(@NotNull NavigableMap<Integer, Parameter> parameters, @N
         };
     }
 
-    public record Local(int index, int start, int end, String name, String descriptor) implements Variable {}
+
+	public record Local(int index, int start, int end, String name, String descriptor) implements Variable {}
 
     public record Parameter(int index, String name, String descriptor) implements Variable {}
 

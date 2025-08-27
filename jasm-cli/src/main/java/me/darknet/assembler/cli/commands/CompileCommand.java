@@ -57,6 +57,12 @@ public class CompileCommand implements Runnable {
                     "--library-folder" }, description = "Library folder path", paramLabel = "path"
     )
     private Optional<String> libraryFolder;
+    
+    @CommandLine.Option(
+            names = { "-ic",
+                    "--inheritance-checker" }, description = "Enable the inheritance checker (default: ${DEFAULT-VALUE})", defaultValue = "true", paramLabel = "boolean"
+    )
+    private boolean enableInheritanceChecker;
 
     private Compiler compiler;
     private CompilerOptions<?> options;
@@ -71,11 +77,13 @@ public class CompileCommand implements Runnable {
             default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
         }
 
-        InheritanceChecker inheritanceChecker = new ReflectiveInheritanceChecker(new SafeClassLoader(new URL[0]));
-        if (this.libraryFolder.isPresent()) {
-            URL[] urls = new URL[0];
-            try (var stream = Files.walk(Paths.get(this.libraryFolder.get()))) {
-                urls = stream
+        InheritanceChecker inheritanceChecker;
+        if (enableInheritanceChecker) {
+            inheritanceChecker = new ReflectiveInheritanceChecker(new SafeClassLoader(new URL[0]));
+            if (this.libraryFolder.isPresent()) {
+                URL[] urls = new URL[0];
+                try (var stream = Files.walk(Paths.get(this.libraryFolder.get()))) {
+                    urls = stream
                         .filter(Files::isRegularFile)
                         .filter(path -> path.toString().endsWith(".class") || path.toString().endsWith(".jar"))
                         .map(Path::toUri)
@@ -88,11 +96,14 @@ public class CompileCommand implements Runnable {
                                 return null;
                             }
                         }).toArray(URL[]::new);
-            } catch (IOException e) {
-                System.err.println("Failed to read library folder: " + e.getMessage());
-                System.exit(1);
+                } catch (IOException e) {
+                    System.err.println("Failed to read library folder: " + e.getMessage());
+                    System.exit(1);
+                }
+                inheritanceChecker = new ReflectiveInheritanceChecker(new SafeClassLoader(urls));
             }
-            inheritanceChecker = new ReflectiveInheritanceChecker(new SafeClassLoader(urls));
+        } else {
+            inheritanceChecker = EmptyInheritanceChecker.INSTANCE;
         }
 
         options.version(bytecodeVersion).overlay(new JavaClassRepresentation(overlay.map(file -> {
@@ -172,9 +183,11 @@ public class CompileCommand implements Runnable {
                            outputPath = Paths.get(classFilename);
                         }
                         try {
+                            Files.createDirectories(outputPath.getParent());
                             Files.write(outputPath, ((JavaClassRepresentation) representation).classFile());
                         } catch (IOException e) {
                             System.err.println("Failed to write output file: " + e.getMessage());
+                            e.printStackTrace();
                             System.exit(1);
                         }
                     }

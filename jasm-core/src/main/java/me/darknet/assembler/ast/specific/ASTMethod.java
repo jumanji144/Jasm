@@ -15,10 +15,12 @@ import me.darknet.assembler.visitor.Modifiers;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 
 public class ASTMethod extends ASTMember {
 
     private final List<ASTIdentifier> parameters;
+    private final Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations;
     private final List<ASTException> exceptions;
     private final ASTElement defaultValue;
     private final ASTCode code;
@@ -26,10 +28,12 @@ public class ASTMethod extends ASTMember {
     private final BytecodeFormat format;
 
     public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor, List<ASTIdentifier> parameters,
+                     Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations,
                      ASTElement defaultValue, List<ASTException> exceptions, ASTCode code,
                      List<Instruction<?>> instructions, BytecodeFormat format) {
         super(ElementType.METHOD, modifiers, name, descriptor);
         this.parameters = parameters;
+        this.parameterAnnotations = parameterAnnotations;
         this.exceptions = exceptions;
         this.defaultValue = defaultValue;
         this.code = code;
@@ -47,6 +51,10 @@ public class ASTMethod extends ASTMember {
 
     public List<ASTIdentifier> parameters() {
         return parameters;
+    }
+
+    public Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations() {
+        return parameterAnnotations;
     }
 
     public List<ASTException> exceptions() {
@@ -68,6 +76,23 @@ public class ASTMethod extends ASTMember {
         for (int i = 0; i < localParams.size(); i++) {
             visitor.visitParameter(i, localParams.get(i));
         }
+        parameterAnnotations.forEach((id, annos) -> {
+            int parameterIndex = findParameterIndex(id.content());
+
+            // We artificially bumped the parameter indices by one earlier when adding "this" as a parameter
+            // and now need to bump the index back down when writing the annotation back.
+            if (!getModifiers().hasModifier("static"))
+                parameterIndex--;
+
+            if (parameterIndex < 0)
+                return;
+            for (ASTAnnotation annotation : annos) {
+                if (annotation.isVisible())
+                    annotation.accept(collector, visitor.visitVisibleParameterAnnotation(parameterIndex, annotation.classType()));
+                else
+                    annotation.accept(collector, visitor.visitInvisibleParameterAnnotation(parameterIndex, annotation.classType()));
+            }
+        });
         if (this.defaultValue != null) {
             visitor.visitAnnotationDefaultValue(defaultValue);
         }
@@ -104,5 +129,14 @@ public class ASTMethod extends ASTMember {
         }
 
         visitor.visitEnd();
+    }
+
+    protected int findParameterIndex(String name) {
+        for (int i = 0; i < parameters.size(); i++) {
+            ASTIdentifier parameter = parameters.get(i);
+            if (parameter.content().equals(name))
+                return i;
+        }
+        return -1;
     }
 }

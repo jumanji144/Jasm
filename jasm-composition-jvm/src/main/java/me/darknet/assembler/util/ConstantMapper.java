@@ -46,8 +46,15 @@ public class ConstantMapper {
     }
 
     public static ConstantDynamic constantDynamicFromArray(ASTArray array) {
-        String name = array.<ASTIdentifier>value(0).literal();
-        String descriptor = array.<ASTIdentifier>value(1).literal();
+        ASTElement nameElement = array.value(0);
+        ASTElement typeElement = array.value(1);
+
+        String name = nameElement instanceof ASTIdentifier ident ? ident.literal() :
+                nameElement instanceof ASTNumber number ? number.content() : null;
+        String descriptor = typeElement instanceof ASTIdentifier ident ? ident.literal() : null;
+
+        if (name == null || descriptor == null)
+            throw new IllegalStateException("Invalid condy, name or type not an identifier");
 
         MethodHandle bootstrapMethod = methodHandleFromArray(array.value(2));
 

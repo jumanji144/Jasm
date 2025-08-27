@@ -30,8 +30,9 @@ public class ASTProcessor {
         ParserRegistry.register("annotation", (ctx, decl) -> parseAnnotation(ctx, true, decl));
         ParserRegistry.register("visible-annotation", (ctx, decl) -> parseAnnotation(ctx, true, decl));
         ParserRegistry.register("invisible-annotation", (ctx, decl) -> parseAnnotation(ctx, false, decl));
-        // ParserRegistry.register("type-visible-annotation", ASTProcessor::parseAnnotation);
-        // ParserRegistry.register("type-invisible-annotation", ASTProcessor::parseAnnotation);
+        ParserRegistry.register("type-annotation", (ctx, decl) -> parseTypeAnnotation(ctx, true, decl));
+        ParserRegistry.register("type-visible-annotation", (ctx, decl) -> parseTypeAnnotation(ctx, true, decl));
+        ParserRegistry.register("type-invisible-annotation", (ctx, decl) -> parseTypeAnnotation(ctx, false, decl));
         ParserRegistry.register("inner", ASTProcessor::parseInner);
         ParserRegistry.register("enum", (ctx, decl) -> {
             if (!ctx.isInState(State.IN_ANNOTATION)) {
@@ -225,12 +226,27 @@ public class ASTProcessor {
         if (body == null)
             return null;
         List<ASTIdentifier> parameters = Collections.emptyList();
+        Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations = new IdentityHashMap<>();
         if (body.values().containsKey("parameters")) {
             ASTArray array = ctx.validateEmptyableElement(
                     body.values().get("parameters"), ElementType.ARRAY, "method parameters", declaration
             );
             if (array != null)
                 parameters = ctx.validateArray(array, ElementType.IDENTIFIER, "method parameter", declaration);
+
+            // TODO: This is unsafe and doesn't use any validate methods
+            if (body.values().containsKey("parameter-annotations")) {
+                ASTObject methodParameterAnnotations = body.values().get("parameter-annotations");
+                ctx.enterState(State.DO_NOT_ADD_TOP_LEVEL_ANNO);
+                methodParameterAnnotations.values().pairs().forEach((pair) -> {
+                    if (pair.second() instanceof ASTDeclaration astDeclaration) {
+                        ASTDeclaration annotationDeclaration = (ASTDeclaration) astDeclaration.element(0);
+                        ASTAnnotation element = (ASTAnnotation) parseDeclaration(ctx, annotationDeclaration);
+                        parameterAnnotations.computeIfAbsent(pair.first(), k -> new ArrayList<>()).add(element);
+                    }
+                });
+                ctx.leaveState();
+            }
         }
         ASTElement defaultValueElement = null;
         if (body.values().containsKey("default-value")) {
@@ -286,7 +302,7 @@ public class ASTProcessor {
         ASTIdentifier desc = ctx.validateIdentifier(elements.get(descIndex), "method descriptor", declaration);
         Modifiers modifiers = parseModifiers(ctx, nameIndex, declaration);
         ProcessorAttributes attributes = ctx.result.collectAttributes();
-        return new ASTMethod(modifiers, name, desc, parameters, defaultValueElement, exceptions, code, instructions, ctx.format)
+        return new ASTMethod(modifiers, name, desc, parameters, parameterAnnotations, defaultValueElement, exceptions, code, instructions, ctx.format)
                 .accept(attributes);
     }
 
@@ -355,16 +371,43 @@ public class ASTProcessor {
     }
 
     public static ASTAnnotation parseAnnotation(ParserContext ctx, boolean visible, ASTDeclaration declaration) {
+        return parseAnnotation(ctx, visible, false, declaration);
+    }
+
+    public static ASTAnnotation parseTypeAnnotation(ParserContext ctx, boolean visible, ASTDeclaration declaration) {
+        return parseAnnotation(ctx, visible, true, declaration);
+    }
+
+    public static ASTAnnotation parseAnnotation(ParserContext ctx, boolean visible, boolean isTypeAnnotation, ASTDeclaration declaration) {
         // verify that we have exactly 2 elements
-        if (declaration.elements().size() != 2) {
+        int elementCount = declaration.elements().size();
+        if (elementCount != 2) {
             ctx.throwError("Expected annotation type and values", declaration.location());
             return null;
         }
         ASTIdentifier type = ctx.validateIdentifier(declaration.elements().get(0), "annotation type", declaration);
-        ASTObject values = ctx.validateEmptyableElement(
-                declaration.elements().get(1), ElementType.OBJECT, "annotation values", declaration
-        );
-        // parse object values
+        ASTObject values;
+
+        // parse type-path for type-annotations
+        // - lack of presence means it's a regular annotation
+        ASTNumber typeRef;
+        ASTIdentifier typePath;
+        if (isTypeAnnotation) {
+            ASTObject typeAnnoStuff = ctx.validateEmptyableElement(declaration.element(1), ElementType.OBJECT, "type annotation data", declaration);
+
+            ASTObject location = ctx.validateEmptyableElement(typeAnnoStuff.value("location"), ElementType.OBJECT, "type annotation data", declaration);
+            typeRef = location.value("ref");
+            typePath = location.value("path");
+
+            values = ctx.validateEmptyableElement(typeAnnoStuff.value("values"), ElementType.OBJECT, "type annotation data", declaration);
+        } else {
+            typeRef = null;
+            typePath = null;
+            values = ctx.validateEmptyableElement(declaration.element(1), ElementType.OBJECT, "annotation values", declaration);
+        }
+
+
+        // parse object values + path
         ctx.enterState(State.IN_ANNOTATION);
         ElementMap<ASTIdentifier, ASTElement> map = new ElementMap<>();
         for (var pair : values.values().pairs()) {
@@ -373,10 +416,16 @@ public class ASTProcessor {
             map.put(key, value);
         }
         ctx.leaveState();
-        ASTAnnotation annotation = new ASTAnnotation(visible, type, map);
-        if (!ctx.isInState(State.IN_ANNOTATION)) // if not inside annotation, add it as an attribute
-            if (visible) ctx.result.addVisibleAnnotation(annotation);
-            else ctx.result.addInvisibleAnnotation(annotation);
+        ASTAnnotation annotation = new ASTAnnotation(visible, type, map, typeRef, typePath);
+        if (!ctx.isInState(State.DO_NOT_ADD_TOP_LEVEL_ANNO)) // if not inside annotation, add it as an attribute
+            if (annotation.isTypeAnnotation()) {
+                if (visible) ctx.result.addVisibleTypeAnnotation(annotation);
+                else ctx.result.addInvisibleTypeAnnotation(annotation);
+            } else {
+                if (visible) ctx.result.addVisibleAnnotation(annotation);
+                else ctx.result.addInvisibleAnnotation(annotation);
+            }
+
         return annotation;
     }
 
@@ -427,6 +476,7 @@ public class ASTProcessor {
 
     enum State {
         IN_ANNOTATION,
+        DO_NOT_ADD_TOP_LEVEL_ANNO
     }
 
     public static class ParserContext extends Stateful<State> {
@@ -619,13 +669,13 @@ public class ASTProcessor {
             return object;
         }
 
-        ASTIdentifier validateIdentifier(ASTElement e, String description, ASTElement parent) {
+        public ASTIdentifier validateIdentifier(ASTElement e, String description, ASTElement parent) {
             if (isNull(e, description, parent.location()))
                 return null;
             return validateMaybeIdentifier(e, description, parent);
         }
 
-        ASTIdentifier validateMaybeIdentifier(ASTElement e, String description, ASTElement parent) {
+        public ASTIdentifier validateMaybeIdentifier(ASTElement e, String description, ASTElement parent) {
             // Keep nulls as-is since this is an optional identifier
             if (e == null)
                 return null;

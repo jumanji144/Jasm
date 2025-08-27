@@ -28,6 +28,7 @@ import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.platform.commons.util.StringUtils;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
 
@@ -41,6 +42,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.text.DecimalFormat;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
@@ -283,6 +285,11 @@ public class SampleCompilerTest {
      */
     @Nested
     class Warning {
+        @Test
+        void wrongReturn() throws Throwable {
+            warnOnBothEngines(TestArgument.fromName("Example-wrong-return.jasm"));
+        }
+
         @Test
         void int2Object() throws Throwable {
             warnOnBothEngines(TestArgument.fromName("Example-int2obj-cast.jasm"));
@@ -597,6 +604,40 @@ public class SampleCompilerTest {
             });
         }
 
+	    @Test
+	    void floatingPointFormat() throws Throwable {
+		    TestArgument arg = TestArgument.fromName("Example-floats.jasm");
+		    String source = arg.source.get();
+		    TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		    options.engineProvider(TypedJvmAnalysisEngine::new);
+		    processJvm(source, options, result -> {
+			    // Should build
+			    AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+			    assertNull(results.getAnalysisFailure());
+			    assertFalse(results.terminalFrames().isEmpty());
+
+			    // Disassembled code should be normalized
+			    // 4x ldc 100.0F
+			    // 4x ldc 100.0D
+			    String dissassembled = dissassemble(result.representation().classFile());
+			    int last = 0;
+			    for (int i = 0; i < 4; i++) {
+				    int next = dissassembled.indexOf("ldc 100.0F", last+1);
+				    assertTrue(next > last, "Missing 'ldc float' iteration " + i);
+				    last = next;
+			    }
+			    last = 0;
+			    for (int i = 0; i < 4; i++) {
+				    int next = dissassembled.indexOf("ldc 100.0D", last+1);
+				    assertTrue(next > last, "Missing 'ldc double' iteration " + i);
+				    last = next;
+			    }
+		    }, warns -> {
+			    warns.forEach(System.err::println);
+			    fail("No warnings allowed");
+		    });
+	    }
+
         @Test
         void arrayObjectMergeOnParameter() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-array-object-merge-on-parameter.jasm");
@@ -627,7 +668,11 @@ public class SampleCompilerTest {
         @MethodSource("getValidSources")
         void all(TestArgument arg) throws Throwable {
             String source = arg.source.get();
-            processJvm(source, new TestJvmCompilerOptions(), result -> {
+
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.version(21);
+
+            processJvm(source, options, result -> {
                 if (source.contains("SKIP-ROUND-TRIP-EQUALITY"))
                     return;
 
@@ -729,6 +774,25 @@ public class SampleCompilerTest {
         }
 
         /**
+         * Infinity should remain as {@code "Infinity"} rather than being translated to the infinity unicode char
+         * when using our whole-number {@link DecimalFormat}.
+         */
+        @Test
+        void supportInfinityInWholeNumberRepresentation() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("InfinityFloat.sample");
+
+            byte[] raw = arg.source.get();
+            String source1 = dissassemble(raw, ctx -> {
+                ctx.setForceWholeNumberRepresentation(true);
+            });
+            String source2 = dissassemble(raw, ctx -> {
+                ctx.setForceWholeNumberRepresentation(false);
+            });
+
+            assertEquals(source1, source2);
+        }
+
+        /**
          * NaN should remain as a printed constant across re-assembles
          */
         @Test
@@ -741,6 +805,31 @@ public class SampleCompilerTest {
                 String newPrinted = dissassemble(result.representation().classFile());
 
                 assertEquals(normalize(source.replace("NaND", "NaN")), normalize(newPrinted));
+            });
+        }
+
+        /**
+         * Things like Z being allowed in I usages (like ifeq)
+         */
+        @Test
+        void handlePrimitiveWidening() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TextFormatConfig.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("iload shortenPath"));
+            assertTrue(source.contains("iload escape"));
+            assertTrue(source.contains("iload maxLength"));
+
+            // Ensure it keeps when round-tripped
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                String newPrinted = dissassemble(result.representation().classFile());
+                assertTrue(newPrinted.contains("iload shortenPath"));
+                assertTrue(newPrinted.contains("iload escape"));
+                assertTrue(newPrinted.contains("iload maxLength"));
             });
         }
 
@@ -780,6 +869,51 @@ public class SampleCompilerTest {
             assertTrue(source.contains("default-value: .enum java/lang/annotation/ElementType FIELD"));
             assertTrue(source.contains("default-value: .annotation java/lang/annotation/Retention {"));
             assertTrue(source.contains("    value: .enum java/lang/annotation/RetentionPolicy CLASS"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void parameterAnnotation() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TypeAnnoOnMethod.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("the foo"));
+            assertTrue(source.contains("the bar"));
+            assertTrue(source.contains("\"a\""));
+            assertTrue(source.contains("\"b\""));
+            assertTrue(source.contains("\"c\""));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void typeAnnotationOnClassTypeArgument() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TypeAnnoOnClassTypeArg.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("ref: 0b0"));
+            assertTrue(source.contains("path: _")); // Top level type-anno has no path, and we use '_' as a placeholder
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void typeAnnotationInArray() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TypeAnnoInArray.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("ref: 0b10110000000000000000000000000"));
+            assertTrue(source.contains("path: [[")); // Top level type-anno has no path, and we use '_' as a placeholder
 
             // Round-trip it
             roundTrip(source, arg);
@@ -931,8 +1065,13 @@ public class SampleCompilerTest {
     }
 
     private static String dissassemble(byte[] raw) throws IOException {
+        return dissassemble(raw, null);
+    }
+
+    private static String dissassemble(byte[] raw, Consumer<PrintContext<?>> contextConsumer) throws IOException {
         JvmClassPrinter initPrinter = new JvmClassPrinter(raw);
         PrintContext<?> initCtx = new PrintContext<>("    ");
+        if (contextConsumer != null) contextConsumer.accept(initCtx);
         initPrinter.print(initCtx);
         return initCtx.toString();
     }

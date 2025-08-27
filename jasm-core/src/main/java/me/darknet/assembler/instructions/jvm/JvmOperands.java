@@ -175,13 +175,13 @@ public enum JvmOperands implements Operands {
             return;
         }
 
-        if (context.validateCorrect(array.value(0), ElementType.IDENTIFIER, "name", array))
+        ASTIdentifier identifier = context.validateIdentifier(array.value(0), "name", array);
+        if (identifier == null)
             return;
 
-        if (context.validateCorrect(array.value(1), ElementType.IDENTIFIER, "type", array))
+        ASTIdentifier type = context.validateIdentifier(array.value(1), "type", array);
+        if (type == null)
             return;
-
-        ASTIdentifier type = array.value(1);
 
         String descriptor = type.content();
         boolean valid = DescriptorUtil.isValidFieldDescriptor(descriptor);

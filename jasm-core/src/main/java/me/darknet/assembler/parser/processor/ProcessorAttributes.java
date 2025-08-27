@@ -14,6 +14,8 @@ public class ProcessorAttributes {
     // generic attributes
     public final List<ASTAnnotation> visibleAnnotations = new ArrayList<>();
     public final List<ASTAnnotation> invisibleAnnotations = new ArrayList<>();
+    public final List<ASTAnnotation> visibleTypeAnnotations = new ArrayList<>();
+    public final List<ASTAnnotation> invisibleTypeAnnotations = new ArrayList<>();
     public ASTString signature;
 
     // class attributes
@@ -35,6 +37,8 @@ public class ProcessorAttributes {
         signature = null;
         visibleAnnotations.clear();
         invisibleAnnotations.clear();
+        visibleTypeAnnotations.clear();
+        invisibleTypeAnnotations.clear();
         return this;
     }
 
@@ -45,6 +49,10 @@ public class ProcessorAttributes {
             annotated.setVisibleAnnotations(new ArrayList<>(visibleAnnotations));
         if (!invisibleAnnotations.isEmpty() && element instanceof ASTAnnotated annotated)
             annotated.setInvisibleAnnotations(new ArrayList<>(invisibleAnnotations));
+        if (!visibleTypeAnnotations.isEmpty() && element instanceof ASTAnnotated annotated)
+            annotated.setVisibleTypeAnnotations(new ArrayList<>(visibleTypeAnnotations));
+        if (!invisibleTypeAnnotations.isEmpty() && element instanceof ASTAnnotated annotated)
+            annotated.setInvisibleTypeAnnotations(new ArrayList<>(invisibleTypeAnnotations));
 
         // Same idea as annotations above
         if (signature != null && element instanceof ASTSigned signed)

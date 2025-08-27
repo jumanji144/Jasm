@@ -10,7 +10,9 @@ import dev.xdark.blw.classfile.Signed;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
 
 public record JvmMemberPrinter(@Nullable Annotated annotated, @Nullable Signed signed, @Nullable Accessible accessible, @NotNull Type type) {
 
@@ -20,20 +22,22 @@ public record JvmMemberPrinter(@Nullable Annotated annotated, @Nullable Signed s
 
     public void printAttributes(PrintContext<?> ctx) {
         if (annotated != null) {
-            for (Annotation visibleRuntimeAnnotation : annotated.visibleRuntimeAnnotations()) {
-                JvmAnnotationPrinter printer = JvmAnnotationPrinter.forTopLevelAnno(visibleRuntimeAnnotation, true);
-                printer.print(ctx);
-                ctx.next();
-            }
-            for (Annotation invisibleRuntimeAnnotation : annotated.invisibleRuntimeAnnotations()) {
-                JvmAnnotationPrinter printer = JvmAnnotationPrinter.forTopLevelAnno(invisibleRuntimeAnnotation, false);
-                printer.print(ctx);
-                ctx.next();
-            }
+            printAnnos(ctx, annotated.visibleRuntimeAnnotations(), a ->  JvmAnnotationPrinter.forTopLevelAnno(a, true));
+            printAnnos(ctx, annotated.invisibleRuntimeAnnotations(), a ->  JvmAnnotationPrinter.forTopLevelAnno(a, false));
+            printAnnos(ctx, annotated.visibleRuntimeTypeAnnotations(), a ->  JvmAnnotationPrinter.forTopLevelAnno(a, true));
+            printAnnos(ctx, annotated.invisibleRuntimeTypeAnnotations(), a ->  JvmAnnotationPrinter.forTopLevelAnno(a, false));
         }
         if (signed != null && signed.signature() != null) {
             ctx.begin().element(".signature").string(signed.signature()).next();
         }
+    }
+
+    private void printAnnos(PrintContext<?> ctx, List<? extends Annotation> annotations, Function<Annotation, JvmAnnotationPrinter> printerFunction) {
+	    for (Annotation annotation : annotations) {
+		    JvmAnnotationPrinter printer = printerFunction.apply(annotation);
+		    printer.print(ctx);
+		    ctx.next();
+	    }
     }
 
     public PrintContext<?> printDeclaration(PrintContext<?> ctx) {

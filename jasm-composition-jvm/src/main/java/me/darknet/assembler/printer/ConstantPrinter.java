@@ -4,14 +4,20 @@ import dev.xdark.blw.constant.*;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.helper.Handle;
 
+import java.text.DecimalFormat;
 import java.util.Map;
 
 record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
-
+    private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("#"); // Prevent 1E100 form
     private static final Map<Integer, String> HANDLE_TYPES = Map.of(
             1, "getfield", 2, "getstatic", 3, "putfield", 4, "putstatic", 5, "invokevirtual", 6, "invokestatic", 7,
             "invokespecial", 8, "newinvokespecial", 9, "invokeinterface"
     );
+
+    static {
+		DECIMAL_FORMAT.setMinimumIntegerDigits(1); // Ensure leading 0 for fractions like "0.125"
+        DECIMAL_FORMAT.setMaximumFractionDigits(10); // Ensure we don't have stupid long fractions
+    }
 
     public static void printMethodHandle(MethodHandle handle, PrintContext<?> ctx) {
         String owner = handle.owner().internalName();
@@ -64,7 +70,9 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
 
     @Override
     public void acceptDouble(OfDouble value) {
-        String content = Double.toString(value.value());
+        String content = ctx.forceWholeNumberRepresentation && Double.isFinite(value.value()) ?
+                DECIMAL_FORMAT.format(value.value()) :
+                String.valueOf(value.value());
         ctx.print(content);
 
         // Skip 'D' suffix for things like 'NaN' where it is implied
@@ -79,7 +87,9 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
 
     @Override
     public void acceptFloat(OfFloat value) {
-        ctx.print(String.valueOf(value.value())).print("F");
+        String content = ctx.forceWholeNumberRepresentation && Float.isFinite(value.value())?
+                DECIMAL_FORMAT.format(value.value()) :
+                String.valueOf(value.value());
+        ctx.print(content).print("F");
     }
-
 }

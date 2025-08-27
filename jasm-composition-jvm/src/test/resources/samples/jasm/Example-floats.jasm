@@ -1,0 +1,30 @@
+// SKIP-ROUND-TRIP-EQUALITY
+.super java/lang/Object
+.class public super Example {
+    .method public exampleMethod ()V {
+        parameters: { this },
+        code: {
+        A:
+            // All valid floats
+            ldc 100.0F
+            ldc 100.0f
+            ldc 100F
+            ldc 100f
+            pop
+            pop
+            pop
+            pop
+            // All valid doubles
+            ldc 100.0D
+            ldc 100.0d
+            ldc 100D
+            ldc 100d
+            pop2
+            pop2
+            pop2
+            pop2
+            return
+        B:
+        }
+    }
+}

@@ -160,6 +160,12 @@ public class ASTClass extends ASTMember {
             for (ASTAnnotation annotation : recordComponent.getInvisibleAnnotations()) {
                 annotation.accept(collector, componentVisitor.visitInvisibleAnnotation(annotation.classType()));
             }
+            for (ASTAnnotation annotation : recordComponent.getVisibleTypeAnnotations()) {
+                annotation.accept(collector, componentVisitor.visitVisibleTypeAnnotation(annotation.classType(), annotation.typeRef(), annotation.typePath()));
+            }
+            for (ASTAnnotation annotation : recordComponent.getInvisibleTypeAnnotations()) {
+                annotation.accept(collector, componentVisitor.visitInvisibleTypeAnnotation(annotation.classType(), annotation.typeRef(), annotation.typePath()));
+            }
         }
 
         for (ASTInner inner : inners) {
