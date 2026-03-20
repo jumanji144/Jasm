@@ -168,7 +168,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
                     warn(instruction, "Array reference on stack is not an array");
                 if (!(valueType instanceof PrimitiveType)) {
                     warn(instruction, "Value to store in array is not a primitive");
-                } else warn(instruction, "Value to store in array is not a primitive");
+                }
             }
             case IALOAD -> {
                 ClassType indexType = frame.pop();

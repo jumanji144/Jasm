@@ -11,7 +11,13 @@ public interface ASTMethodVisitor extends ASTDeclarationVisitor {
 
     void visitAnnotationDefaultValue(ASTElement defaultValue);
 
-    ASTJvmInstructionVisitor visitJvmCode(@NotNull ErrorCollector collector);
+    default ASTJvmInstructionVisitor visitJvmCode(@NotNull ErrorCollector collector) {
+        return null;
+    }
+
+    default ASTDalvikInstructionVisitor visitDalvikCode(@NotNull ErrorCollector collector) {
+        return null;
+    }
 
     ASTAnnotationVisitor visitVisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType);
 

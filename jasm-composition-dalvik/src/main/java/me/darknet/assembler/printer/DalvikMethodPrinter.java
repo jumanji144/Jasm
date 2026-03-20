@@ -68,6 +68,7 @@ public class DalvikMethodPrinter implements MethodPrinter {
                 } else {
                     arr.print("p" + i);
                 }
+                if (i < code.getIn() - 1) arr.arg();
             }
             arr.end();
         }
