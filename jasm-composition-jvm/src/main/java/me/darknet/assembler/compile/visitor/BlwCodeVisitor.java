@@ -234,18 +234,22 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     public void visitLookupSwitchInsn(ASTObject lookupSwitchObject) {
         ASTIdentifier defaultLabel = lookupSwitchObject.value("default");
         assert defaultLabel != null;
-        List<Integer> keys = new ArrayList<>();
-        List<Label> labels = new ArrayList<>();
+        List<LookupSwitchKey> entries = new ArrayList<>();
         for (var pair : lookupSwitchObject.values().pairs()) {
-            if (pair.first().content().equals("default"))
+            String content = pair.first().content();
+            if ("default".equals(content))
                 continue;
-            keys.add(Integer.parseInt(pair.first().content()));
-            labels.add(getOrCreateLabel(pair.second().content()));
+	        int key = Integer.parseInt(content);
+	        Label label = getOrCreateLabel(pair.second().content());
+	        entries.add(new LookupSwitchKey(key,label));
         }
+        // We sort because the JVM verifier requires them to be ordered by key.
+        // - jdk/internal/classfile/impl/verifierVerifierImpl.java # verify_switch
+        Collections.sort(entries);
         add(new LookupSwitchInstruction(
-                keys.stream().mapToInt(Integer::intValue).toArray(),
+                entries.stream().mapToInt(i -> i.value).toArray(),
                 getOrCreateLabel(defaultLabel.content()),
-                labels
+		        entries.stream().map(i -> i.label).toList()
         ));
     }
 
@@ -457,7 +461,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         codeBuilderList.addInstruction(instruction);
 
         // The ASTMethod will record the current ASTInstruction being mapped. Thus, when we see a call to something like
-        // visitTableSwitch and we add a TableSwitchInstruction to the CodeBuilder, we know that added instruction maps
+        // visitTableSwitch, and we add a TableSwitchInstruction to the CodeBuilder, we know that added instruction maps
         // to the current AST being visited.
         analysisEngine.recordInstructionMapping(currentInstructionAst, instruction);
     }
@@ -504,5 +508,12 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         else if (first == '[')
             return desc;
         return desc;
+    }
+
+    private record LookupSwitchKey(int value, Label label) implements Comparable<LookupSwitchKey> {
+        @Override
+        public int compareTo(@NotNull BlwCodeVisitor.LookupSwitchKey o) {
+            return Integer.compare(value, o.value);
+        }
     }
 }

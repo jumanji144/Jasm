@@ -119,7 +119,24 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case IADD -> ((IntOp) Integer::sum).accept(frame, m -> warn(instruction, m));
             case ISUB -> ((IntOp) (a, b) -> b - a).accept(frame, m -> warn(instruction, m));
             case IMUL -> ((IntOp) (a, b) -> b * a).accept(frame, m -> warn(instruction, m));
-            case IREM -> ((IntOp) (a, b) -> b % a).accept(frame, m -> warn(instruction, m));
+            case IREM -> {
+                Value value1 = frame.pop();
+                Value value2 = frame.pop();
+                if (value1 instanceof Value.KnownIntValue int1 && value2 instanceof Value.KnownIntValue int2) {
+                    int a = int1.value();
+                    int b = int2.value();
+                    if (a == 0)
+                        frame.pushType(Types.INT);
+                    else
+                        frame.push(Values.valueOf(b% a));
+                } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
+                    frame.pushType(Types.INT);
+                }
+            }
             case ISHL -> ((IntOp) (a, b) -> b << a).accept(frame, m -> warn(instruction, m));
             case ISHR -> ((IntOp) (a, b) -> b >> a).accept(frame, m -> warn(instruction, m));
             case IUSHR -> ((IntOp) (a, b) -> b >>> a).accept(frame, m -> warn(instruction, m));
@@ -147,7 +164,24 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             case LADD -> ((LongOp) Long::sum).accept(frame, m -> warn(instruction, m));
             case LSUB -> ((LongOp) (a, b) -> b - a).accept(frame, m -> warn(instruction, m));
             case LMUL -> ((LongOp) (a, b) -> b * a).accept(frame, m -> warn(instruction, m));
-            case LREM -> ((LongOp) (a, b) -> b % a).accept(frame, m -> warn(instruction, m));
+            case LREM -> {
+                Value value1 = frame.pop2();
+                Value value2 = frame.pop2();
+                if (value1 instanceof Value.KnownLongValue long1 && value2 instanceof Value.KnownLongValue long2) {
+                    long a = long1.value();
+                    long b = long2.value();
+                    if (a == 0)
+                        frame.pushType(Types.LONG);
+                    else
+                        frame.push(Values.valueOf(b % a));
+                } else {
+                    if (!(value1.type() instanceof PrimitiveType))
+                        warn(instruction, "Top value to compare is not a primitive");
+                    if (!(value2.type() instanceof PrimitiveType))
+                        warn(instruction, "Bottom value to compare is not a primitive");
+                    frame.pushType(Types.LONG);
+                }
+            }
             case LSHL -> ((LongIntOp) (a, b) -> a << b).accept(frame, m -> warn(instruction, m));
             case LSHR -> ((LongIntOp) (a, b) -> a >> b).accept(frame, m -> warn(instruction, m));
             case LUSHR -> ((LongIntOp) (a, b) -> b >>> a).accept(frame, m -> warn(instruction, m));
@@ -327,7 +361,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
                     warn(instruction, "Array reference on stack is not an array");
                 if (!(valueType instanceof PrimitiveType)) {
                     warn(instruction, "Value to store in array is not a primitive");
-                } else warn(instruction, "Value to store in array is not a primitive");
+                }
             }
             case IALOAD -> {
                 ClassType indexType = frame.pop().type();
