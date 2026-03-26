@@ -54,7 +54,7 @@ public class DalvikMethodPrinter implements MethodPrinter {
         var obj = memberPrinter.printDeclaration(ctx).literal(definition.getName()).print(" ")
                 .literal(definition.getType().descriptor()).print(" ").object();
 
-        var code = definition.code();
+        var code = definition.getCode();
 
 
         boolean hasPrior = code != null && code.getIn() != 0;

@@ -7,6 +7,7 @@ import me.darknet.dex.file.instructions.Opcodes;
 import me.darknet.dex.tree.definitions.code.Code;
 import me.darknet.dex.tree.definitions.code.CodeBuilder;
 import me.darknet.dex.tree.definitions.instructions.*;
+import me.darknet.dex.tree.type.InstanceType;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
@@ -137,11 +138,11 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
             }
             case "const-string" -> {
                 ASTString constValue = (ASTString) value;
-                codeBuilder.add(new ConstStringInstruction(toIndex, constValue.content());
+                codeBuilder.add(new ConstStringInstruction(toIndex, constValue.content()));
             }
             case "const-class" -> {
                 ASTIdentifier constValue = (ASTIdentifier) value;
-                codeBuilder.add(new ConstClassInstruction(toIndex, constValue.literal()));
+                codeBuilder.add(new ConstTypeInstruction(toIndex, new InstanceType(constValue.literal())));
             }
         }
     }
