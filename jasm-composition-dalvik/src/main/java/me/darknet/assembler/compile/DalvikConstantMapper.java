@@ -7,7 +7,7 @@ import me.darknet.dex.tree.type.InstanceType;
 import me.darknet.dex.tree.type.MethodType;
 import me.darknet.dex.tree.type.Types;
 
-public class ConstantMapper {
+public class DalvikConstantMapper {
 
     public static Handle methodHandleFromHandle(me.darknet.assembler.helper.Handle handle) {
         var split = handle.name().split("\\.");

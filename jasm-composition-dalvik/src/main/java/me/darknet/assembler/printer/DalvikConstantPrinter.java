@@ -6,7 +6,6 @@ import me.darknet.dex.tree.definitions.annotation.Annotation;
 import me.darknet.dex.tree.definitions.annotation.AnnotationPart;
 import me.darknet.dex.tree.definitions.constant.*;
 import me.darknet.dex.tree.type.InstanceType;
-import me.darknet.dex.tree.type.MethodType;
 import me.darknet.dex.tree.type.Type;
 
 import java.util.List;
@@ -14,7 +13,7 @@ import java.util.Map;
 
 import static me.darknet.assembler.printer.DalvikAnnotationPrinter.VISIBILITY_INTERNAL;
 
-public class ConstantPrinter {
+public class DalvikConstantPrinter {
 
     private static final Map<Integer, String> HANDLE_TYPES = Map.of(
             Handle.KIND_STATIC_GET, "getstatic", Handle.KIND_STATIC_PUT, "putstatic",
@@ -49,7 +48,7 @@ public class ConstantPrinter {
             case AnnotationConstant(AnnotationPart part) -> printAnnotation(ctx, part);
             case ArrayConstant(List<Constant> constants) -> {
                 var array = ctx.array();
-                array.print(constants, ConstantPrinter::printConstant);
+                array.print(constants, DalvikConstantPrinter::printConstant);
                 array.end();
             }
             case BoolConstant(boolean value) -> ctx.print(Boolean.toString(value));

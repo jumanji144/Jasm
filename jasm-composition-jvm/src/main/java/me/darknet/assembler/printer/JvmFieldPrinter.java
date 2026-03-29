@@ -25,7 +25,7 @@ public class JvmFieldPrinter implements FieldPrinter {
         Constant constant = field.defaultValue();
         if (constant != null) {
             ctx.print("{value: ");
-            constant.accept(new ConstantPrinter(ctx));
+            constant.accept(new JvmConstantPrinter(ctx));
             ctx.print("}");
         }
     }

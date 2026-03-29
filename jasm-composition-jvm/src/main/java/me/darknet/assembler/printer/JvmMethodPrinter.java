@@ -287,7 +287,7 @@ public class JvmMethodPrinter implements MethodPrinter {
 
             // Print instructions
             var code = obj.value("code").code();
-            InstructionPrinter printer = new InstructionPrinter(code, methodCode, variables, labelNames);
+            JvmInstructionPrinter printer = new JvmInstructionPrinter(code, methodCode, variables, labelNames);
             IndexedStraightforwardSimulation simulation = new IndexedStraightforwardSimulation();
             simulation.execute(printer, method.code());
             code.end();

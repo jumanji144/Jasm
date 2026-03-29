@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-public class InstructionPrinter implements IndexedExecutionEngine {
+public class JvmInstructionPrinter implements IndexedExecutionEngine {
     private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u[0-9a-fA-F]{4}");
     private final static String[] OPCODES = new String[256];
 
@@ -33,7 +33,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     protected Variables variables;
     private int currentIndex = 0;
 
-    public InstructionPrinter(PrintContext.CodePrint ctx, Code code, Variables variables, Map<Integer, String> labelNames) {
+    public JvmInstructionPrinter(PrintContext.CodePrint ctx, Code code, Variables variables, Map<Integer, String> labelNames) {
         this.ctx = ctx;
         this.code = code;
         this.variables = variables;
@@ -129,7 +129,7 @@ public class InstructionPrinter implements IndexedExecutionEngine {
             case null, default -> opcode = "ldc";
         }
         ctx.instruction(opcode);
-        instruction.constant().accept(new ConstantPrinter(ctx));
+        instruction.constant().accept(new JvmConstantPrinter(ctx));
         ctx.next();
     }
 
@@ -238,9 +238,9 @@ public class InstructionPrinter implements IndexedExecutionEngine {
     public void execute(InvokeDynamicInstruction instruction) {
         ctx.instruction("invokedynamic").literal(instruction.name()).arg().literal(instruction.type().descriptor())
                 .arg();
-        ConstantPrinter.printMethodHandle(instruction.bootstrapHandle(), ctx);
+        JvmConstantPrinter.printMethodHandle(instruction.bootstrapHandle(), ctx);
         var bsmArray = ctx.arg().array();
-        ConstantPrinter printer = new ConstantPrinter(bsmArray);
+        JvmConstantPrinter printer = new JvmConstantPrinter(bsmArray);
         bsmArray.print(instruction.args(), (__, cst) -> cst.accept(printer));
         bsmArray.end();
         ctx.next();

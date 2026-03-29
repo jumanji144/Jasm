@@ -37,7 +37,7 @@ public class DalvikFieldPrinter implements FieldPrinter {
         Constant constant = definition.getStaticValue();
         if (constant != null) {
             ctx.print("{value: ");
-            ConstantPrinter.printConstant(ctx, constant);
+            DalvikConstantPrinter.printConstant(ctx, constant);
             ctx.print("}");
         }
     }

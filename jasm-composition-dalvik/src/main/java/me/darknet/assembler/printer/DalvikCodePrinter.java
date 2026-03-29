@@ -2,7 +2,6 @@ package me.darknet.assembler.printer;
 
 import me.darknet.dex.file.instructions.Opcodes;
 import me.darknet.dex.tree.definitions.OpcodeNames;
-import me.darknet.dex.tree.definitions.constant.Constant;
 import me.darknet.dex.tree.definitions.instructions.*;
 import me.darknet.dex.tree.simulation.ExecutionEngine;
 import org.jetbrains.annotations.NotNull;
@@ -142,7 +141,7 @@ public class DalvikCodePrinter implements ExecutionEngine {
         ctx.instruction("const-method-handle")
                 .print(register(instruction.destination())).arg();
 
-        ConstantPrinter.printHandle(instruction.handle(), ctx);
+        DalvikConstantPrinter.printHandle(instruction.handle(), ctx);
     }
 
     @Override
@@ -250,13 +249,13 @@ public class DalvikCodePrinter implements ExecutionEngine {
 
         arguments.end();
 
-        ConstantPrinter.printHandle(invokeCustomInstruction.handle(), ctx.arg());
+        DalvikConstantPrinter.printHandle(invokeCustomInstruction.handle(), ctx.arg());
 
         ctx.arg().literal(invokeCustomInstruction.name()).arg()
                 .literal(invokeCustomInstruction.type().descriptor()).arg();
 
         var constantArguments = ctx.array();
-        constantArguments.print(invokeCustomInstruction.arguments(), ConstantPrinter::printConstant);
+        constantArguments.print(invokeCustomInstruction.arguments(), DalvikConstantPrinter::printConstant);
 
         constantArguments.end();
     }

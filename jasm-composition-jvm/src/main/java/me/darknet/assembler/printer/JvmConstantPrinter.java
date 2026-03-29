@@ -7,7 +7,7 @@ import me.darknet.assembler.helper.Handle;
 import java.text.DecimalFormat;
 import java.util.Map;
 
-record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
+record JvmConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
     private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("#"); // Prevent 1E100 form
     private static final Map<Integer, String> HANDLE_TYPES = Map.of(
             1, "getfield", 2, "getstatic", 3, "putfield", 4, "putstatic", 5, "invokevirtual", 6, "invokestatic", 7,
@@ -57,7 +57,7 @@ record ConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
         array.literal(dynamic.name()).arg().literal(dynamic.type().descriptor()).arg();
         printMethodHandle(dynamic.methodHandle(), ctx);
         var bsmArray = array.arg().array();
-        ConstantPrinter printer = new ConstantPrinter(bsmArray);
+        JvmConstantPrinter printer = new JvmConstantPrinter(bsmArray);
         bsmArray.print(dynamic.args(), (__, arg) -> arg.accept(printer));
         bsmArray.end();
         array.end();
