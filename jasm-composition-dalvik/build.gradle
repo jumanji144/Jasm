@@ -10,10 +10,6 @@ dependencies {
     api 'com.github.jumanji144.dex:dex-core:32b2dd05c1' // 'me.darknet:dex-core:0.0.2-alpha'
 
     api project(path: ':jasm-core')
-
-    // test dependencies
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 test {
