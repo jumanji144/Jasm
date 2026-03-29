@@ -8,8 +8,10 @@ import me.darknet.dex.tree.simulation.StraightForwardSimulation;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class DalvikMethodPrinter implements MethodPrinter {
@@ -56,21 +58,22 @@ public class DalvikMethodPrinter implements MethodPrinter {
 
         var code = definition.getCode();
 
-
         boolean hasPrior = code != null && code.getIn() != 0;
         if (hasPrior) {
-            var params = code.getDebugInfo().parameterNames();
-
-            var arr = obj.value("parameters").array();
-            for (int i = 0; i < code.getIn(); i++) {
-                if (params != null && i < params.size()) {
-                    arr.print(params.get(i));
-                } else {
-                    arr.print("p" + i);
+            DebugInformation debug = code.getDebugInfo();
+            if (debug != null) {
+                List<String> params = debug.parameterNames();
+                PrintContext.ArrayPrint arr = obj.value("parameters").array();
+                for (int i = 0; i < code.getIn(); i++) {
+                    if (params != null && i < params.size()) {
+                        arr.print(params.get(i));
+                    } else {
+                        arr.print("p" + i);
+                    }
+                    if (i < code.getIn() - 1) arr.arg();
                 }
-                if (i < code.getIn() - 1) arr.arg();
+                arr.end();
             }
-            arr.end();
         }
 
         if (code != null) {
@@ -101,8 +104,9 @@ public class DalvikMethodPrinter implements MethodPrinter {
 
     private static @NotNull Map<Integer, String> getRegisterNames(Code code) {
         Map<Integer, String> registers = new HashMap<>();
-        var locals = code.getDebugInfo().locals();
-        var params = code.getDebugInfo().parameterNames();
+        DebugInformation debugInfo = code.getDebugInfo();
+        List<DebugInformation.LocalVariable> locals = debugInfo == null ? Collections.emptyList() : debugInfo.locals();
+        List<String> params = debugInfo == null ? Collections.emptyList() : debugInfo.parameterNames();
 
         for (DebugInformation.LocalVariable local : locals) {
             // intermittent name changes are not supported, so we just use the first name we see
