@@ -1,43 +1,21 @@
 package me.darknet.assembler;
 
+import static me.darknet.assembler.TestUtils.normalize;
+import static me.darknet.assembler.TestUtils.processAnalysisFailJvm;
+import static me.darknet.assembler.TestUtils.processAnalysisWarnJvm;
+import static me.darknet.assembler.TestUtils.processJvm;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
 import dev.xdark.blw.code.instruction.MethodInstruction;
 import dev.xdark.blw.type.ClassType;
 import dev.xdark.blw.type.Types;
-import me.darknet.assembler.ast.primitive.ASTInstruction;
-import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.Local;
-import me.darknet.assembler.compile.analysis.Value;
-import me.darknet.assembler.compile.analysis.Values;
-import me.darknet.assembler.compile.analysis.frame.Frame;
-import me.darknet.assembler.compile.analysis.frame.ValuedFrame;
-import me.darknet.assembler.compile.analysis.BasicMethodValueLookup;
-import me.darknet.assembler.compile.analysis.jvm.MethodValueLookup;
-import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
-import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
-import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
-import me.darknet.assembler.printer.JvmClassPrinter;
-import me.darknet.assembler.printer.PrintContext;
-
-import me.darknet.assembler.util.Location;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.ThrowingSupplier;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.platform.commons.util.StringUtils;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.ClassNode;
-
-import static me.darknet.assembler.TestUtils.*;
-import static org.junit.jupiter.api.Assertions.*;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.lang.runtime.SwitchBootstraps;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -50,6 +28,32 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.compile.analysis.AnalysisResults;
+import me.darknet.assembler.compile.analysis.BasicMethodValueLookup;
+import me.darknet.assembler.compile.analysis.Local;
+import me.darknet.assembler.compile.analysis.Value;
+import me.darknet.assembler.compile.analysis.Values;
+import me.darknet.assembler.compile.analysis.frame.Frame;
+import me.darknet.assembler.compile.analysis.frame.ValuedFrame;
+import me.darknet.assembler.compile.analysis.jvm.MethodValueLookup;
+import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
+import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
+import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
+import me.darknet.assembler.printer.JvmClassPrinter;
+import me.darknet.assembler.printer.PrintContext;
+import me.darknet.assembler.util.Location;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.ThrowingSupplier;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.ClassNode;
 
 public class SampleCompilerTest {
     private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";
@@ -376,6 +380,26 @@ public class SampleCompilerTest {
         }
 
         @Test
+        void methodArrayMerging() throws Throwable {
+
+            TestArgument arg = TestArgument.fromName("Example-array-object-primitive-merge-on-method-call.jasm");
+
+            // Both analysis engines should have warnings for these cases
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+
+            // Simpler type-only stack analysis engine
+//            options.engineProvider(TypedJvmAnalysisEngine::new);
+//            processAnalysisWarnJvm(source, options); // Doesn't check types at a method call
+
+            // Value stack analysis engine
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processAnalysisWarnJvm(source, options);
+        }
+
+
+        @Test
         void math() throws Throwable {
             warnOnBothEngines(TestArgument.fromName("Example-fneg-null.jasm"));
             warnOnBothEngines(TestArgument.fromName("Example-fcmpl-null-a.jasm"));
@@ -657,6 +681,46 @@ public class SampleCompilerTest {
                 fail("Expected no warnings, found: " + warns);
             });
         }
+
+        @Test
+        void arrayObjectMergeOnMethodCall() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-array-object-merge-on-method-call.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.inheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                // should not fail or produce warning
+                assertNull(results.getAnalysisFailure());
+
+            }, warns -> {
+                fail("Expected no warnings, found: " + warns);
+            });
+        }
+
+        @Test
+        void arrayStore() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-arraystore-inheritance.jasm");
+
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+
+            options.inheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                // should not fail or produce warning
+                assertNull(results.getAnalysisFailure());
+
+            }, warns -> {
+                // Void type usage in the engine for method parameters should emit a warning.
+                // If this occurs we've broken something.
+                fail("Expected no warnings, found: " + warns);
+            });
+        }
+
     }
 
     /**
@@ -715,7 +779,7 @@ public class SampleCompilerTest {
         }
 
         @Test
-       //@Disabled
+       @Disabled
         void kotlin() throws Throwable {
             BinaryTestArgument arg = BinaryTestArgument.fromName("ExtrasConfig.sample");
             byte[] raw = arg.source.get();

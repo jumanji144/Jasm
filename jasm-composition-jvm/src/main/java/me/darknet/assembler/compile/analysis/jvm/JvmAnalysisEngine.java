@@ -283,8 +283,9 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
      * @param verb Type use action.
      * @param noun Destination name.
      */
-    protected void validateTypeUse(@NotNull CodeElement element, @Nullable ClassType inputType,
-                                   @NotNull ClassType destinationType, @NotNull String verb, @NotNull String noun) {
+    protected void validateTypeUse(@NotNull CodeElement element,
+        @Nullable ClassType inputType, @NotNull ClassType destinationType,
+        @NotNull String verb, @NotNull String noun) {
         switch (inputType) {
             case PrimitiveType ignored -> {
                 if (destinationType instanceof InstanceType)
@@ -296,10 +297,37 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
                 switch (destinationType) {
                     case InstanceType instanceDestinationType when !Types.OBJECT.equals(instanceDestinationType) ->
                             warn(element, "Cannot " + verb + " array value into " + noun + " that is not 'java/lang/Object'");
-                    case PrimitiveType ignored ->
+                    case PrimitiveType ignored -> {
                             warn(element, "Cannot " + verb + " array value into primitive " + noun);
-                    case ArrayType arrayDestinationType when !arrayDestinationType.equals(arrayValueType) ->
+                    }
+                    case ArrayType arrayDestinationType when !arrayDestinationType.equals(arrayValueType) -> {
+                        if(
+                            arrayDestinationType.componentType() instanceof PrimitiveType ||
+                            arrayValueType.componentType() instanceof PrimitiveType ||
+                            arrayDestinationType.componentType() instanceof ArrayType ||
+                            arrayValueType.componentType() instanceof ArrayType
+                        ) {
                             warn(element, "Cannot " + verb + " array value into array " + noun + " of different component type or dimension");
+                            break;
+                        }
+
+                        if(!(
+                            arrayDestinationType.componentType() instanceof InstanceType destinationComponentType &&
+                            arrayValueType.componentType() instanceof InstanceType valueComponentType)
+                        ) {
+                            warn(element, "Illegal state of array component type or dimension");
+                            break;
+                        }
+
+
+                        boolean sc = checker.isSubclassOf(
+                            valueComponentType.externalName(),
+                            destinationComponentType.externalName()
+                        );
+
+                        if(!sc)
+                            warn(element, "Cannot " + verb + " array value into array " + noun + " of different component type or dimension");
+                    }
                     default -> {
                     }
                 }
