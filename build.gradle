@@ -1,3 +1,7 @@
+plugins {
+    id("gov.tak.gradle.plugins.coverage-report-aggregator") version "2.0.0"
+}
+
 allprojects {
     group 'me.darknet'
     version '2.9.0'
@@ -5,6 +9,7 @@ allprojects {
 
 subprojects {
     apply plugin: 'java-library'
+    apply plugin: 'jacoco'
 
     compileJava.options.encoding = "UTF-8"
     compileJava.options.incremental = true
@@ -32,6 +37,16 @@ subprojects {
 
         testLogging {
             events "passed", "skipped", "failed"
+        }
+
+        finalizedBy jacocoTestReport
+    }
+
+    jacocoTestReport {
+        reports {
+            xml.required = true
+            csv.required = false
+            html.required = true
         }
     }
 
@@ -64,5 +79,21 @@ subprojects {
             testImplementation platform('org.junit:junit-bom:5.11.4')
             testImplementation 'org.junit.jupiter:junit-jupiter'
         }
+    }
+}
+
+jacocoAggregation {
+    outputHtml = true
+    outputXml = true
+}
+
+// Build aggregate report for test coverage when subproject 'test' tasks complete.
+// But only do so when the 'test' tasks have executed.
+// You can skip tests by specifying '-x test' in your gradle task arguments.
+tasks.register('test') {
+    dependsOn(subprojects.test)
+    doLast {
+        if (subprojects.test.stream().anyMatch(Task::getDidWork))
+            buildJacocoAggregate.execute()
     }
 }

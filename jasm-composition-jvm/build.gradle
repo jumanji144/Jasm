@@ -1,5 +1,4 @@
 apply plugin: 'java-library'
-apply plugin: 'jacoco'
 apply plugin: 'java-test-fixtures'
 
 repositories {
@@ -19,16 +18,4 @@ dependencies {
     testFixturesImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.4'
     testFixturesImplementation(testFixtures(project(path: ':jasm-core')))
     testImplementation(testFixtures(project(path: ':jasm-core')))
-}
-
-test {
-    finalizedBy jacocoTestReport
-}
-
-jacocoTestReport {
-    reports {
-        xml.required = false
-        csv.required = false
-        html.required = true
-    }
 }
