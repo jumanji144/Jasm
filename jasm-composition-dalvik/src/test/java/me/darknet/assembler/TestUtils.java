@@ -2,9 +2,10 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.compile.DalvikClassResult;
 import me.darknet.assembler.compiler.CompilerOptions;
-import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.Warn;
-import me.darknet.assembler.helper.Processor;
+import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.DiagnosticAssertions;
+import me.darknet.assembler.test.SourceNormalization;
 import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.printer.DalvikClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
@@ -17,27 +18,18 @@ import org.junit.jupiter.api.function.ThrowingConsumer;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
-public class TestUtils {
+// TODO: We've been adding more test utilities to the JVM and core modules but not quite yet here for dalvik.
+//  - We'll probably break down this class and add a number of extra utilities soon.
 
-    private static final Pattern DUPLICATE_NEWLINES = Pattern.compile("\\n\\s*\\n");
-    private static final Pattern END_LINE_PADDING = Pattern.compile("[ \\t]+\\n");
-    private static final Pattern COMMENTS = Pattern.compile("(?:^|\\n)\\s*//.+");
+public class TestUtils {
 
     public static void processDalvik(String source, CompilerOptions<?> options,
                                      ThrowingConsumer<DalvikClassResult> outputConsumer,
                                      Consumer<List<Warn>> warningConsumer) {
-        Processor.processSource(source, "<test>", ast -> {
-
-        }, errors -> {
-            for (Error error : errors) {
-                System.err.println(error);
-            }
-            fail("Failed to parse class");
-        }, BytecodeFormat.DALVIK);
+        assertParsesDalvik(source);
     }
 
     public static void processDalvik(String source, CompilerOptions<?> options,
@@ -103,14 +95,14 @@ public class TestUtils {
     }
 
     public static String normalize(String input) {
-        input = input.replace("\r", "");
-        while (input.contains("  "))
-            input = input.replace("  ", " ");
+        return SourceNormalization.normalize(input);
+    }
 
-        input = COMMENTS.matcher(input).replaceAll("");
-        input = END_LINE_PADDING.matcher(input).replaceAll("\n");
-        input = DUPLICATE_NEWLINES.matcher(input).replaceAll("\n");
-        return input.trim();
+    public static void assertParsesDalvik(String source) {
+        var result = AssemblyParseFixture.processDeclarations("<test>", source, BytecodeFormat.DALVIK);
+        if (result.hasErr()) {
+            fail("Failed to parse Dalvik class\n" + DiagnosticAssertions.formatErrors(result.errors()));
+        }
     }
 
 }

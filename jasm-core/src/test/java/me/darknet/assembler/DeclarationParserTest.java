@@ -3,14 +3,10 @@ package me.darknet.assembler;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.Result;
-import me.darknet.assembler.parser.DeclarationParser;
-import me.darknet.assembler.parser.Token;
-import me.darknet.assembler.parser.Tokenizer;
-import me.darknet.assembler.util.Location;
+import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.AstAssertions;
+import me.darknet.assembler.test.DiagnosticAssertions;
 
-import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,11 +16,8 @@ import java.util.function.Consumer;
 
 public class DeclarationParserTest {
 
-    @SuppressWarnings("unchecked")
-    public static <T> @NotNull T assertIs(Class<T> shouldBe, Object is) {
-        assertNotNull(is);
-        assertInstanceOf(shouldBe, is);
-        return (T) is;
+    public static <T> T assertIs(Class<T> shouldBe, Object is) {
+        return AstAssertions.assertIs(shouldBe, is);
     }
 
     @SuppressWarnings("unchecked")
@@ -39,25 +32,10 @@ public class DeclarationParserTest {
     }
 
     public static void parseString(String input, Consumer<List<ASTElement>> consumer) {
-        DeclarationParser parser = new DeclarationParser();
-        Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", input).get();
-        Assertions.assertNotNull(tokens);
-        Assertions.assertFalse(tokens.isEmpty());
-        Result<List<ASTElement>> result = parser.parseAny(tokens);
-        if (result.hasErr()) {
-            for (Error error : result.errors()) {
-                Location location = error.getLocation();
-                System.err.printf(
-                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
-                );
-                Throwable trace = new Throwable();
-                trace.setStackTrace(error.getInCodeSource());
-                trace.printStackTrace();
-            }
-            Assertions.fail();
-        }
-        consumer.accept(result.get());
+        consumer.accept(DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.parse(input),
+                "Failed to parse declaration input"
+        ));
     }
 
     @Test
@@ -237,10 +215,7 @@ public class DeclarationParserTest {
 
     @Test
     public void testInvalidInput() {
-        DeclarationParser parser = new DeclarationParser();
-        Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", "{ test, 4.... { {").get();
-        Result<List<ASTElement>> result = parser.parseAny(tokens);
+        var result = AssemblyParseFixture.parse("{ test, 4.... { {");
         assertTrue(result.hasErr());
         assertEquals(2, result.errors().size());
     }

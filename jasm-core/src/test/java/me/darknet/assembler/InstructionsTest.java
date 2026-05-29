@@ -4,16 +4,10 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTCode;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.specific.ASTMethod;
-import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.Result;
 import me.darknet.assembler.parser.BytecodeFormat;
-import me.darknet.assembler.parser.DeclarationParser;
-import me.darknet.assembler.parser.Token;
-import me.darknet.assembler.parser.Tokenizer;
-import me.darknet.assembler.parser.processor.ASTProcessor;
-import me.darknet.assembler.util.Location;
+import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.DiagnosticAssertions;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,47 +31,15 @@ public class InstructionsTest {
 
     public static <T extends ASTElement> void assertOne(String input, BytecodeFormat format, Class<T> clazz,
             Consumer<T> consumer) {
-        parseString(input, format, (result) -> {
-            if (result.hasErr()) {
-                for (Error error : result.errors()) {
-                    Location location = error.getLocation();
-                    System.err.printf(
-                            "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
-                    );
-                }
-                Assertions.fail();
-            }
-            List<ASTElement> results = result.get();
-            assertEquals(1, results.size());
-            ASTElement element = results.getFirst();
-            assertNotNull(element);
-            assertInstanceOf(clazz, element);
-            consumer.accept((T) element);
-        });
-    }
-
-    public static void parseString(String input, BytecodeFormat format, Consumer<Result<List<ASTElement>>> consumer) {
-        DeclarationParser parser = new DeclarationParser();
-        Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", input).get();
-        Assertions.assertNotNull(tokens);
-        Assertions.assertFalse(tokens.isEmpty());
-        Result<List<ASTElement>> result = parser.parseAny(tokens);
-        if (result.hasErr()) {
-            for (Error error : result.errors()) {
-                Location location = error.getLocation();
-                System.err.printf(
-                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
-                );
-                Throwable trace = new Throwable();
-                trace.setStackTrace(error.getInCodeSource());
-                trace.printStackTrace();
-            }
-            Assertions.fail();
-        }
-        ASTProcessor processor = new ASTProcessor(format);
-        result = processor.processAST(result.get());
-        consumer.accept(result);
+        List<ASTElement> results = DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.processAst("<stdin>", input, format),
+                "Failed to process instruction input"
+        );
+        assertEquals(1, results.size());
+        ASTElement element = results.getFirst();
+        assertNotNull(element);
+        assertInstanceOf(clazz, element);
+        consumer.accept((T) element);
     }
 
     @Test

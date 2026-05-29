@@ -1,7 +1,8 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.parser.Token;
-import me.darknet.assembler.parser.Tokenizer;
+import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.DiagnosticAssertions;
 import me.darknet.assembler.util.EscapeUtil;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -20,10 +21,11 @@ public class EscapeTest {
                     "\"{ \\\"Hello World\\\", type: \\\"java/lang/HelloWorld\\\" }\",", "\n\n\n\n\n\n\n" }
     )
     public void testStringEscape(String input) {
-        Tokenizer tokenizer = new Tokenizer();
         String escaped = EscapeUtil.escapeString(input);
-        List<Token> tokens = tokenizer.tokenize("<stdin>", "\"" + escaped + "\"").get();
-        assertNotNull(tokens);
+        List<Token> tokens = DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.tokenize("\"" + escaped + "\""),
+                "Failed to tokenize escaped string literal"
+        );
         assertEquals(1, tokens.size());
         assertEquals(input, tokens.getFirst().content());
     }
@@ -44,11 +46,11 @@ public class EscapeTest {
                             """ }
     )
     public void testLiteralEscape(String input) {
-        Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", EscapeUtil.escapeLiteral(input)).get();
-        assertNotNull(tokens);
+        List<Token> tokens = DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.tokenize(EscapeUtil.escapeLiteral(input)),
+                "Failed to tokenize escaped literal"
+        );
         assertEquals(1, tokens.size());
-        System.out.println(tokens.getFirst().content());
         assertEquals(input, EscapeUtil.unescape(tokens.getFirst().content()));
     }
 
