@@ -2,6 +2,7 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.test.BinarySampleFixture;
+import me.darknet.assembler.test.JvmDecompilationFixture;
 import me.darknet.assembler.test.JvmDisassemblyFixture;
 import me.darknet.assembler.test.JvmRoundTripFixture;
 import org.junit.jupiter.api.Disabled;
@@ -13,8 +14,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 
 import static me.darknet.assembler.test.SourceNormalization.normalize;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class JvmRoundTripTest {
     @ParameterizedTest
@@ -137,6 +137,26 @@ class JvmRoundTripTest {
         assertTrue(roundTrip.disassembledSource().contains("iload shortenPath"));
         assertTrue(roundTrip.disassembledSource().contains("iload escape"));
         assertTrue(roundTrip.disassembledSource().contains("iload maxLength"));
+    }
+
+    @Test
+    void kotlinVariableGarbageIHateKotlin() {
+        byte[] raw = BinarySampleFixture.binarySample("KotlinVarScoping.sample").read();
+        String source = JvmDisassemblyFixture.disassembleJvm(raw);
+        TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+        options.engineProvider(ValuedJvmAnalysisEngine::new);
+        var roundTrip = JvmRoundTripFixture.roundTripJvm(source, options);
+        
+        // Seriously this language is such a disaster when you look at the generated code.
+        //
+        // Anyways, we shouldn't be breaking the code to the point of decompilation failures.
+        // Historically this has happened due to the variable name picking in the disassembler.
+        // It would pick improperly scoped variables, which when reassembled, result in invalid code
+        // that decompilers couldn't handle.
+        String decompileOriginal = JvmDecompilationFixture.decompile(raw);
+        String decompileRound = roundTrip.compilation().requireDecompilation();
+        assertFalse(decompileOriginal.contains("This method has failed to decompile"), "Original class failed to decompile, cannot test");
+        assertFalse(decompileRound.contains("This method has failed to decompile"), "Round-tripped class failed to decompile, cannot test");
     }
 
     static List<BinarySampleFixture.JvmTextSample> validSamples() {

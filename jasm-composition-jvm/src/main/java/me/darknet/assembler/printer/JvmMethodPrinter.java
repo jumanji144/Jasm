@@ -322,7 +322,9 @@ public class JvmMethodPrinter implements MethodPrinter {
                 locals.set(i, local.withStart(variableWriteInRange));
         }
 
-        return locals;
+        return locals.stream()
+                .filter(local -> !isLoadOnlyAlias(code, locals, local))
+                .toList();
     }
 
     private static @Nullable LocalRange sanitizeLocalRange(@NotNull Code code, @NotNull Local local) {
@@ -346,6 +348,36 @@ public class JvmMethodPrinter implements MethodPrinter {
             return null;
 
         return new LocalRange(start, end);
+    }
+
+    private static boolean isLoadOnlyAlias(@NotNull Code code, @NotNull List<LocalInfo> locals, @NotNull LocalInfo local) {
+        int firstAccess = findFirstVariableAccessInRange(code, local.index(), local.start(), local.end());
+        if (firstAccess < 0)
+            return true;
+
+        List<CodeElement> elements = code.elements();
+        if (elements.get(firstAccess) instanceof VarInstruction varInsn && BlwOpcodes.isVarStore(varInsn.opcode()))
+            return false;
+
+        return locals.stream()
+                .anyMatch(other -> other != local
+                        && other.index() == local.index()
+                        && other.start() < local.start());
+    }
+
+    private static int findFirstVariableAccessInRange(@NotNull Code code, int variableIndex, int start, int end) {
+        List<CodeElement> elements = code.elements();
+        if (elements.isEmpty())
+            return -1;
+        start = Math.max(0, Math.min(start, elements.size() - 1));
+        end = Math.max(0, Math.min(end, elements.size() - 1));
+        if (start > end)
+            return -1;
+        for (int i = start; i <= end; i++) {
+            if (elements.get(i) instanceof VarInstruction varInsn && varInsn.variableIndex() == variableIndex)
+                return i;
+        }
+        return -1;
     }
 
     private static boolean matchesSlotAndDesc(@NotNull LocalInfo local, int index, @NotNull String descriptor) {
