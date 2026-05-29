@@ -41,16 +41,20 @@ public enum DalvikOperands implements Operands {
     ARGS_ARRAY((context, element) -> {
         // args array can be: register or array
         ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "args array", element);
+        if (array == null)
+            return;
         for (ASTElement value : array.values()) {
             if (context.isNull(value, "args array element", array.location()))
                 return;
             assert value != null;
-            DalvikOperands.verifyConstant(context, element);
+            DalvikOperands.verifyConstant(context, value);
         }
     }),
     REGISTER_ARRAY((context, element) -> {
         // register array can be: register or array
         ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "register array", element);
+        if (array == null)
+            return;
         for (ASTElement value : array.values()) {
             if (context.isNull(value, "register array element", array.location()))
                 return;
@@ -62,6 +66,8 @@ public enum DalvikOperands implements Operands {
     DATA_ARRAY((context, element) -> {
         // data array can be: number or array
         ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "data array", element);
+        if (array == null)
+            return;
         for (ASTElement value : array.values()) {
             if (context.isNull(value, "data array element", array.location()))
                 return;
@@ -80,7 +86,7 @@ public enum DalvikOperands implements Operands {
         if (context.validateCorrect(object.value("first"), ElementType.NUMBER, "number", object))
             return;
 
-        ASTNumber min = object.value("min");
+        ASTNumber min = object.value("first");
 
         if (min.isFloatingPoint())
             context.throwUnexpectedElementError("integer literal", min);

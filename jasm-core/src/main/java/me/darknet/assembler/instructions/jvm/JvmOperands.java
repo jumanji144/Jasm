@@ -72,6 +72,8 @@ public enum JvmOperands implements Operands {
     HANDLE(JvmOperands::verifyHandle),
     ARGS((context, element) -> {
         ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "args", element);
+        if (array == null)
+            return;
         for (ASTElement value : array.values()) {
             if (context.isNull(value, "args element", array.location()))
                 return;
@@ -154,6 +156,10 @@ public enum JvmOperands implements Operands {
             }
             case ARRAY -> {
                 ASTArray array = (ASTArray) element;
+                if (array.values().isEmpty()) {
+                    context.throwUnexpectedElementError("constant", element);
+                    return;
+                }
                 ASTElement last = array.values().getLast();
                 if (last == null) {
                     context.throwUnexpectedElementError("constant", element);
@@ -197,6 +203,8 @@ public enum JvmOperands implements Operands {
         ASTElement argsElement = array.value(3);
 
         ASTArray args = context.validateEmptyableElement(argsElement, ElementType.ARRAY, "args", array);
+        if (args == null)
+            return;
         for (ASTElement value : args.values()) {
             if (context.isNull(value, "args element", args.location()))
                 return;
