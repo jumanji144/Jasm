@@ -10,7 +10,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
  * Tests for {@link BasicMethodValueLookup}.
@@ -37,102 +40,158 @@ class BasicMethodValueLookupTest {
     }
 
     @Test
-    void resolvesLongNumberOfLeadingZeros() {
+    void resolvesByteToUnsignedLongWithCorrectDescriptor() {
         Value value = invokeStatic(
-                "java/lang/Long",
-                "numberOfLeadingZeros",
-                "(J)I",
-                Values.valueOf(1L)
+                "java/lang/Byte",
+                "toUnsignedLong",
+                "(B)J",
+                Values.valueOf((byte) -1)
         );
 
-        Value.KnownIntValue known = assertInstanceOf(Value.KnownIntValue.class, value);
-        assertEquals(Long.numberOfLeadingZeros(1L), known.value());
+        Value.KnownLongValue known = assertInstanceOf(Value.KnownLongValue.class, value);
+        assertEquals(Byte.toUnsignedLong((byte) -1), known.value());
     }
 
     @Test
-    void resolvesMathMaxForKnownDoubles() {
-        Value value = invokeStatic(
-                "java/lang/Math",
-                "max",
-                "(DD)D",
-                Values.valueOf(1.5D),
-                Values.valueOf(9.0D)
-        );
-
-        Value.KnownDoubleValue known = assertInstanceOf(Value.KnownDoubleValue.class, value);
-        assertEquals(9.0D, known.value());
-    }
-
-    @Test
-    void resolvesMathFmaForKnownDoubles() {
+    void resolvesMathGetExponentWithIntReturnType() {
         Value value = invokeStatic(
                 "java/lang/Math",
-                "fma",
-                "(DDD)D",
-                Values.valueOf(2.0D),
-                Values.valueOf(3.0D),
-                Values.valueOf(4.0D)
-        );
-
-        Value.KnownDoubleValue known = assertInstanceOf(Value.KnownDoubleValue.class, value);
-        assertEquals(Math.fma(2.0D, 3.0D, 4.0D), known.value());
-    }
-
-    @Test
-    void resolvesBooleanCompare() {
-        Value value = invokeStatic(
-                "java/lang/Boolean",
-                "compare",
-                "(ZZ)I",
-                Values.INT_1,
-                Values.INT_0
+                "getExponent",
+                "(D)I",
+                Values.valueOf(8.0D)
         );
 
         Value.KnownIntValue known = assertInstanceOf(Value.KnownIntValue.class, value);
-        assertEquals(Boolean.compare(true, false), known.value());
+        assertEquals(Math.getExponent(8.0D), known.value());
     }
 
     @Test
-    void resolvesBooleanHashCode() {
+    void resolvesMathRoundWithCorrectReturnTypes() {
+        Value floatValue = invokeStatic(
+                "java/lang/Math",
+                "round",
+                "(F)I",
+                Values.valueOf(1.6F)
+        );
+        Value doubleValue = invokeStatic(
+                "java/lang/Math",
+                "round",
+                "(D)J",
+                Values.valueOf(1.6D)
+        );
+
+        assertEquals(Math.round(1.6F), assertInstanceOf(Value.KnownIntValue.class, floatValue).value());
+        assertEquals(Math.round(1.6D), assertInstanceOf(Value.KnownLongValue.class, doubleValue).value());
+    }
+
+    @Test
+    void usesStringFallbackForDoubleStringConversions() {
+        Value toStringValue = invokeStatic(
+                "java/lang/Double",
+                "toString",
+                "(D)Ljava/lang/String;",
+                Values.DOUBLE_VALUE
+        );
+        Value toHexStringValue = invokeStatic(
+                "java/lang/Double",
+                "toHexString",
+                "(D)Ljava/lang/String;",
+                Values.DOUBLE_VALUE
+        );
+
+        assertSame(Values.STRING_VALUE, toStringValue);
+        assertSame(Values.STRING_VALUE, toHexStringValue);
+    }
+
+    @Test
+    void resolvesCharacterCodePointOfByCorrectSignature() {
         Value value = invokeStatic(
-                "java/lang/Boolean",
-                "hashCode",
-                "(Z)I",
-                Values.INT_1
+                "java/lang/Character",
+                "codePointOf",
+                "(Ljava/lang/String;)I",
+                Values.valueOfString("LATIN CAPITAL LETTER A")
         );
 
         Value.KnownIntValue known = assertInstanceOf(Value.KnownIntValue.class, value);
-        assertEquals(Boolean.hashCode(true), known.value());
+        assertEquals(Character.codePointOf("LATIN CAPITAL LETTER A"), known.value());
     }
 
     @Test
-    void resolvesKnownStringInstanceCalls() {
-        Value value = LOOKUP.accept(
-                new MethodInstruction(
-                        JavaOpcodes.INVOKEVIRTUAL,
-                        Types.instanceType(String.class),
-                        "length",
-                        Types.methodType("()I"),
-                        false
-                ),
+    void resolvesStringContainsAndMatchesByCorrectKeys() {
+        Value contains = invokeInstance(
+                "java/lang/String",
+                "contains",
+                "(Ljava/lang/CharSequence;)Z",
                 Values.valueOfString("hello"),
-                List.of()
+                Values.valueOfString("ell")
+        );
+        Value matches = invokeInstance(
+                "java/lang/String",
+                "matches",
+                "(Ljava/lang/String;)Z",
+                Values.valueOfString("hello"),
+                Values.valueOfString("h.*o")
         );
 
-        Value.KnownIntValue known = assertInstanceOf(Value.KnownIntValue.class, value);
-        assertEquals(5, known.value());
+        assertEquals(1, assertInstanceOf(Value.KnownIntValue.class, contains).value());
+        assertEquals(1, assertInstanceOf(Value.KnownIntValue.class, matches).value());
+    }
+
+    @Test
+    void allowsStringBoundaryCasesThatEndAtLength() {
+        Value substring = invokeInstance(
+                "java/lang/String",
+                "substring",
+                "(II)Ljava/lang/String;",
+                Values.valueOfString("hello"),
+                Values.valueOf(5),
+                Values.valueOf(5)
+        );
+        Value codePointCount = invokeInstance(
+                "java/lang/String",
+                "codePointCount",
+                "(II)I",
+                Values.valueOfString("hello"),
+                Values.valueOf(0),
+                Values.valueOf(5)
+        );
+
+        assertEquals("", assertInstanceOf(Value.KnownStringValue.class, substring).value());
+        assertEquals(5, assertInstanceOf(Value.KnownIntValue.class, codePointCount).value());
+    }
+
+    @Test
+    void resolvesKnownStringInstanceCallsEvenWhenOwnerIsWider() {
+        Value value = invokeInstance(
+                "java/lang/Object",
+                "toString",
+                "()Ljava/lang/String;",
+                Values.valueOfString("hello")
+        );
+
+        Value.KnownStringValue known = assertInstanceOf(Value.KnownStringValue.class, value);
+        assertEquals("hello", known.value());
     }
 
     private static Value invokeStatic(String owner, String name, String descriptor, Value... params) {
-        MethodInstruction instruction = new MethodInstruction(
-                JavaOpcodes.INVOKESTATIC,
+        Value value = LOOKUP.accept(instruction(JavaOpcodes.INVOKESTATIC, owner, name, descriptor), null, List.of(params));
+        assertNotNull(value, "Expected method lookup to produce a value");
+        return value;
+    }
+
+    private static Value invokeInstance(String owner, String name, String descriptor, Value.ObjectValue context, Value... params) {
+        Value value = LOOKUP.accept(instruction(JavaOpcodes.INVOKEVIRTUAL, owner, name, descriptor), context, List.of(params));
+        assertNotNull(value, "Expected method lookup to produce a value");
+        return value;
+    }
+
+    private static MethodInstruction instruction(int opcode, String owner, String name, String descriptor) {
+        return new MethodInstruction(
+                opcode,
                 Types.instanceTypeFromInternalName(owner),
                 name,
                 Types.methodType(descriptor),
                 false
         );
-        Value value = LOOKUP.accept(instruction, null, List.of(params));
-        assertNotNull(value, "Expected method lookup to produce a value");
-        return value;
     }
 }
