@@ -35,35 +35,41 @@ public class Tokenizer {
         return c == '.' || isExponent(c);
     }
 
-    private void handleComment(TokenizerContext ctx, char currentChar) {
-        while (currentChar != '\n') {
-            currentChar = ctx.peek();
+    private void handleComment(TokenizerContext ctx) {
+        while (ctx.hasCurrent()) {
+            char currentChar = ctx.current();
+            if (currentChar == '\n') {
+                break;
+            }
             ctx.forward();
         }
         ctx.collectToken();
         ctx.leaveComment();
-        ctx.nextLine();
-        ctx.next();
+        if (ctx.hasCurrent() && ctx.current() == '\n') {
+            ctx.next();
+        }
     }
 
-    private void handleMultiLineComment(TokenizerContext ctx, char currentChar) {
-        while (currentChar != '*' || ctx.peek() != '/') {
-            currentChar = ctx.peek();
-            if (currentChar == '\n') {
-                ctx.nextLine();
+    private void handleMultiLineComment(TokenizerContext ctx) {
+        while (ctx.hasCurrent()) {
+            char currentChar = ctx.current();
+            Character nextChar = ctx.peek(1);
+            if (currentChar == '*' && nextChar != null && nextChar == '/') {
+                ctx.next();
+                ctx.next();
+                ctx.collectToken();
+                ctx.leaveMultilineComment();
+                return;
             }
             ctx.forward();
-            if (currentChar == '\\') {
-                ctx.processEscape();
-            }
         }
-        ctx.next();
-        ctx.next();
-        ctx.collectToken();
-        ctx.leaveMultilineComment();
     }
 
-    private void handleString(TokenizerContext ctx, char currentChar) {
+    private void handleString(TokenizerContext ctx) {
+        if (!ctx.hasCurrent()) {
+            return;
+        }
+        char currentChar = ctx.current();
         switch (currentChar) {
             case '"' -> {
                 ctx.collectToken();
@@ -72,42 +78,55 @@ public class Tokenizer {
             }
             case '\\' -> {
                 ctx.next();
-                ctx.processEscape();
+                if (ctx.processEscape()) {
+                    ctx.leaveString();
+                }
             }
             case '\n' -> {
-                ctx.collectToken();
                 ctx.throwError("Unterminated string");
+                ctx.discardToken();
                 ctx.leaveString();
-                ctx.nextLine();
                 ctx.next();
             }
             default -> ctx.forward();
         }
     }
 
-    private void handleWhitespace(TokenizerContext ctx, char currentChar) {
-        // always collect the token
+    private void handleWhitespace(TokenizerContext ctx) {
         ctx.collectToken();
-        if (currentChar == '\n') {
-            ctx.nextLine();
-        }
         ctx.next();
     }
 
-    private void handleNormal(TokenizerContext ctx, char currentChar) {
-        if (currentChar == '/' && (ctx.peek() == '/' || ctx.peek() == '*')) {
-            ctx.next();
-            ctx.next();
-            if (ctx.peek(-1) == '/') {
-                ctx.enterComment();
-            } else {
-                ctx.enterMultilineComment();
+    private void handleNormal(TokenizerContext ctx) {
+        char currentChar = ctx.current();
+        if (currentChar == '/') {
+            Character nextChar = ctx.peek(1);
+            if (nextChar == null) {
+                ctx.collectToken();
+                ctx.markTokenStart();
+                ctx.throwError("Unexpected trailing '/'");
+                ctx.discardToken();
+                ctx.next();
+                return;
             }
-            return;
-        } else if (currentChar == '"') {
+            if (nextChar == '/' || nextChar == '*') {
+                ctx.collectToken();
+                ctx.next();
+                ctx.next();
+                if (nextChar == '/') {
+                    ctx.enterComment();
+                } else {
+                    ctx.enterMultilineComment();
+                }
+                return;
+            }
+        }
+        if (currentChar == '"') {
+            ctx.collectToken();
             ctx.next();
             ctx.enterString();
         } else if (currentChar == '\'') {
+            ctx.collectToken();
             ctx.next();
             ctx.enterCharacter();
         } else if (isOperator(currentChar)) {
@@ -119,7 +138,11 @@ public class Tokenizer {
         }
     }
 
-    private void handleCharacter(TokenizerContext ctx, char currentChar) {
+    private void handleCharacter(TokenizerContext ctx) {
+        if (!ctx.hasCurrent()) {
+            return;
+        }
+        char currentChar = ctx.current();
         switch (currentChar) {
             case '\'' -> {
                 ctx.collectToken();
@@ -128,13 +151,14 @@ public class Tokenizer {
             }
             case '\\' -> {
                 ctx.next();
-                ctx.processEscape();
+                if (ctx.processEscape()) {
+                    ctx.leaveCharacter();
+                }
             }
             case '\n' -> {
-                ctx.collectToken();
                 ctx.throwError("Unterminated character");
+                ctx.discardToken();
                 ctx.leaveCharacter();
-                ctx.nextLine();
                 ctx.next();
             }
             default -> ctx.forward();
@@ -144,24 +168,39 @@ public class Tokenizer {
     public Result<List<Token>> tokenize(String source, String input) {
         TokenizerContext ctx = new TokenizerContext();
         ctx.input = input;
-        ctx.buffer = new StringBuffer();
+        ctx.buffer = new StringBuilder();
         ctx.source = source;
-        int length = input.length();
-        while (ctx.index < length) {
-            char c = input.charAt(ctx.index);
+        while (ctx.hasCurrent()) {
             if (ctx.isComment()) {
-                handleComment(ctx, c);
+                handleComment(ctx);
             } else if (ctx.isMultilineComment()) {
-                handleMultiLineComment(ctx, c);
+                handleMultiLineComment(ctx);
             } else if (ctx.isString()) {
-                handleString(ctx, c);
+                handleString(ctx);
             } else if (ctx.isCharacter()) {
-                handleCharacter(ctx, c);
-            } else if (Character.isWhitespace(c)) {
-                handleWhitespace(ctx, c);
+                handleCharacter(ctx);
+            } else if (Character.isWhitespace(ctx.current())) {
+                handleWhitespace(ctx);
             } else {
-                handleNormal(ctx, c);
+                handleNormal(ctx);
             }
+        }
+
+        if (ctx.isComment()) {
+            ctx.collectToken();
+            ctx.leaveComment();
+        } else if (ctx.isMultilineComment()) {
+            ctx.throwError("Unterminated multiline comment");
+            ctx.discardToken();
+            ctx.leaveMultilineComment();
+        } else if (ctx.isString()) {
+            ctx.throwError("Unterminated string");
+            ctx.discardToken();
+            ctx.leaveString();
+        } else if (ctx.isCharacter()) {
+            ctx.throwError("Unterminated character");
+            ctx.discardToken();
+            ctx.leaveCharacter();
         }
 
         ctx.collectToken();
@@ -174,36 +213,71 @@ public class Tokenizer {
         private int line = 1;
         private int column = 1;
         private int index;
+        private int tokenStartIndex = -1;
+        private int tokenStartLine = -1;
+        private int tokenStartColumn = -1;
+        private boolean tokenInvalid;
         private boolean inString;
         private boolean inCharacter;
         private boolean inMultilineComment;
         private boolean inComment;
-        private StringBuffer buffer;
+        private StringBuilder buffer;
         private final ErrorCollector errors = new ErrorCollector();
         private final List<Token> tokens = new ArrayList<>();
 
         private String input, source;
 
+        public boolean hasCurrent() {
+            return index < input.length();
+        }
+
+        public char current() {
+            return input.charAt(index);
+        }
+
+        public Character peek(int offset) {
+            int peekIndex = index + offset;
+            if (peekIndex < 0 || peekIndex >= input.length()) {
+                return null;
+            }
+            return input.charAt(peekIndex);
+        }
+
+        public void markTokenStart() {
+            if (tokenStartIndex < 0) {
+                tokenStartIndex = index;
+                tokenStartLine = line;
+                tokenStartColumn = column;
+            }
+        }
+
         public void forward() {
-            buffer.append(input.charAt(index));
+            markTokenStart();
+            buffer.append(current());
             next();
         }
 
-        public void nextLine() {
-            line++;
-            column = 0;
-        }
-
         public void next() {
+            if (!hasCurrent()) {
+                return;
+            }
+            char currentChar = current();
             index++;
-            column++;
+            if (currentChar == '\n') {
+                line++;
+                column = 1;
+            } else {
+                column++;
+            }
         }
 
         public void enterComment() {
+            markTokenStart();
             inComment = true;
         }
 
         public void enterMultilineComment() {
+            markTokenStart();
             inMultilineComment = true;
         }
 
@@ -216,6 +290,7 @@ public class Tokenizer {
         }
 
         public void enterString() {
+            markTokenStart();
             inString = true;
         }
 
@@ -224,6 +299,7 @@ public class Tokenizer {
         }
 
         public void enterCharacter() {
+            markTokenStart();
             inCharacter = true;
         }
 
@@ -247,16 +323,12 @@ public class Tokenizer {
             return inMultilineComment;
         }
 
-        public char peek() {
-            return input.charAt(index + 1);
-        }
-
-        public char peek(int offset) {
-            return input.charAt(index + offset);
-        }
-
         public void throwError(String message) {
-            errors.addError(message, new Location(line, column, buffer.length(), source));
+            errors.addError(message, new Location(line, column, 0, source));
+        }
+
+        public void throwError(String message, int errorLine, int errorColumn) {
+            errors.addError(message, new Location(errorLine, errorColumn, 0, source));
         }
 
         static final Pattern NUMBER_PATTERN = Pattern.compile(
@@ -264,27 +336,33 @@ public class Tokenizer {
         );
 
         boolean checkIfNumber(String content) {
-            // note: in this case, a regex is easier to implement than a state machine
             return NUMBER_PATTERN.matcher(content).matches();
         }
 
         public TokenType getType(String content) {
-            if (content.length() == 1) {
-                if (isOperator(content.charAt(0)))
-                    return TokenType.OPERATOR;
+            if (content.length() == 1 && isOperator(content.charAt(0))) {
+                return TokenType.OPERATOR;
             }
-            TokenType type = TokenType.IDENTIFIER;
-            // check if all the characters in the token are digits (and the '-' sign)
-            if (checkIfNumber(content))
-                type = TokenType.NUMBER;
-            return type;
+            return checkIfNumber(content) ? TokenType.NUMBER : TokenType.IDENTIFIER;
         }
 
         public void collectToken() {
+            boolean specialToken = inString || inCharacter || inComment || inMultilineComment;
+            if (!specialToken && buffer.isEmpty()) {
+                discardToken();
+                return;
+            }
+            if (tokenInvalid) {
+                discardToken();
+                return;
+            }
 
             String content = buffer.toString();
-            Range range = new Range(index - content.length(), index);
-            Location location = new Location(line, Math.max(0, column - content.length()), content.length(), source);
+            int startIndex = tokenStartIndex >= 0 ? tokenStartIndex : index;
+            int startLine = tokenStartLine >= 0 ? tokenStartLine : line;
+            int startColumn = tokenStartColumn >= 0 ? tokenStartColumn : column;
+            Range range = new Range(startIndex, index);
+            Location location = new Location(startLine, startColumn, Math.max(0, index - startIndex), source);
 
             if (inString) {
                 tokens.add(new Token(range, location, TokenType.STRING, content));
@@ -292,17 +370,36 @@ public class Tokenizer {
                 tokens.add(new Token(range, location, TokenType.CHARACTER, content));
             } else if (inComment || inMultilineComment) {
                 tokens.add(new Token(range, location, TokenType.COMMENT, content));
-            } else if (!buffer.isEmpty()) {
-                TokenType type = getType(content);
-                tokens.add(new Token(range, location, type, content));
+            } else {
+                tokens.add(new Token(range, location, getType(content), content));
             }
 
-            // clear buffer
-            buffer.setLength(0); // reset buffer
+            discardToken();
         }
 
-        public void processEscape() {
-            switch (input.charAt(index++)) {
+        public void discardToken() {
+            buffer.setLength(0);
+            tokenStartIndex = -1;
+            tokenStartLine = -1;
+            tokenStartColumn = -1;
+            tokenInvalid = false;
+        }
+
+        /**
+         * @return {@code true} when the current string/character token should be aborted immediately.
+         */
+        public boolean processEscape() {
+            int escapeLine = line;
+            int escapeColumn = Math.max(1, column - 1);
+            if (!hasCurrent()) {
+                throwError("Incomplete escape sequence", escapeLine, escapeColumn);
+                tokenInvalid = true;
+                return true;
+            }
+
+            char escapeChar = current();
+            next();
+            switch (escapeChar) {
                 case 'n' -> buffer.append('\n');
                 case 'r' -> buffer.append('\r');
                 case 't' -> buffer.append('\t');
@@ -310,12 +407,36 @@ public class Tokenizer {
                 case 'f' -> buffer.append('\f');
                 case '"' -> buffer.append('"');
                 case '\'' -> buffer.append('\'');
+                case '\\' -> buffer.append('\\');
                 case 'u' -> {
-                    buffer.append((char) Integer.parseInt(input.substring(index, index + 4), 16));
-                    index += 4;
+                    int value = 0;
+                    int digits = 0;
+                    while (digits < 4 && hasCurrent()) {
+                        char digit = current();
+                        if (!isHex(digit)) {
+                            break;
+                        }
+                        value = (value << 4) + Character.digit(digit, 16);
+                        next();
+                        digits++;
+                    }
+                    if (digits != 4) {
+                        throwError("Invalid unicode escape", escapeLine, escapeColumn);
+                        if (!hasCurrent()) {
+                            tokenInvalid = true;
+                            return true;
+                        }
+                        tokenInvalid = true;
+                        return false;
+                    }
+                    buffer.append((char) value);
                 }
-                default -> buffer.append('\\');
+                default -> {
+                    throwError("Invalid escape sequence", escapeLine, escapeColumn);
+                    tokenInvalid = true;
+                }
             }
+            return false;
         }
 
     }

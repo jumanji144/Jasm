@@ -220,4 +220,44 @@ public class DeclarationParserTest {
         assertEquals(2, result.errors().size());
     }
 
+    @Test
+    public void testMissingClosingDelimitersReportStructuredErrors() {
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{test"),
+                "Missing array terminator should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{test: 10"),
+                "Missing object terminator should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{.sourcefile \"Source.java\""),
+                "Missing nested declaration terminator should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse(".method public main ()V { code: { aload_0"),
+                "Missing code terminator should produce an error"
+        );
+    }
+
+    @Test
+    public void testMissingObjectColonReportsStructuredError() {
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{test 10}"),
+                "Missing object colon should produce an error"
+        );
+    }
+
+    @Test
+    public void testMalformedMixedBoundariesReportStructuredErrors() {
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{ .decl foo"),
+                "Malformed nested declaration boundary should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{ key:"),
+                "Missing object value should produce an error"
+        );
+    }
+
 }

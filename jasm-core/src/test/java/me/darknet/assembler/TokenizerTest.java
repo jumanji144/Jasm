@@ -33,7 +33,7 @@ public class TokenizerTest {
     @Test
     public void testStringEscaping() {
         List<Token> tokens = DiagnosticAssertions.requireOk(
-                AssemblyParseFixture.tokenize("\"Hello \\u0020World\\\"\\\\"),
+                AssemblyParseFixture.tokenize("\"Hello \\u0020World\\\"\\\\\""),
                 "Failed to tokenize escaped string input"
         );
         Assertions.assertEquals(1, tokens.size());
@@ -97,6 +97,56 @@ public class TokenizerTest {
         Assertions.assertEquals(1, tokens.size());
         Assertions.assertEquals(" This is a comment\n * with multiple lines\n ", tokens.getFirst().content());
         Assertions.assertSame(TokenType.COMMENT, tokens.getFirst().type());
+    }
+
+    @Test
+    public void testSingleLineCommentAtEof() {
+        List<Token> tokens = DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.tokenize("// This is a comment"),
+                "Failed to tokenize single-line comment at EOF"
+        );
+        Assertions.assertEquals(1, tokens.size());
+        Assertions.assertEquals(" This is a comment", tokens.getFirst().content());
+        Assertions.assertSame(TokenType.COMMENT, tokens.getFirst().type());
+    }
+
+    @Test
+    public void testTrailingSlashReportsStructuredError() {
+        var result = AssemblyParseFixture.tokenize("/");
+        DiagnosticAssertions.assertHasErrors(result, "Trailing slash should produce an error");
+        Assertions.assertTrue(result.get().isEmpty());
+    }
+
+    @Test
+    public void testUnterminatedMultilineCommentReportsStructuredError() {
+        var result = AssemblyParseFixture.tokenize("/* This comment never ends");
+        DiagnosticAssertions.assertHasErrors(result, "Unterminated multiline comment should produce an error");
+        Assertions.assertTrue(result.get().isEmpty());
+    }
+
+    @Test
+    public void testUnterminatedStringAtEofReportsStructuredError() {
+        var result = AssemblyParseFixture.tokenize("\"Hello");
+        DiagnosticAssertions.assertHasErrors(result, "Unterminated string should produce an error");
+        Assertions.assertTrue(result.get().isEmpty());
+    }
+
+    @Test
+    public void testUnterminatedCharacterAtEofReportsStructuredError() {
+        var result = AssemblyParseFixture.tokenize("'a");
+        DiagnosticAssertions.assertHasErrors(result, "Unterminated character should produce an error");
+        Assertions.assertTrue(result.get().isEmpty());
+    }
+
+    @Test
+    public void testInvalidUnicodeEscapeReportsStructuredError() {
+        var truncated = AssemblyParseFixture.tokenize("\"\\u12\"");
+        DiagnosticAssertions.assertHasErrors(truncated, "Truncated unicode escape should produce an error");
+        Assertions.assertTrue(truncated.get().isEmpty());
+
+        var nonHex = AssemblyParseFixture.tokenize("\"\\u00ZZ\"");
+        DiagnosticAssertions.assertHasErrors(nonHex, "Non-hex unicode escape should produce an error");
+        Assertions.assertTrue(nonHex.get().isEmpty());
     }
 
 }

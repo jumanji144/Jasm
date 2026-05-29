@@ -130,6 +130,10 @@ public class DeclarationParser {
 
     private @Nullable ASTElement parse() {
         Token token = ctx.peek();
+        if (token == null) {
+            ctx.throwEofError("element");
+            return null;
+        }
 
         switch (token.type()) {
             case IDENTIFIER -> {
@@ -172,18 +176,28 @@ public class DeclarationParser {
 
     private @Nullable ASTArray parseHalfArray(List<ASTElement> elements) {
         ctx.enterState(State.IN_ARRAY);
-        Token peek = ctx.peek();
-        while (!peek.content().equals("}")) {
-            elements.add(parse());
-            peek = ctx.peek();
+        while (true) {
+            Token peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError(", or {");
+                return null;
+            }
+            if (peek.content().equals("}")) {
+                break;
+            }
+            ASTElement element = parse();
+            if (element == null) {
+                return null;
+            }
+            elements.add(element);
+            peek = ctx.peek();
+            if (peek == null) {
+                ctx.throwEofError(", or }");
                 return null;
             }
             if (!peek.content().equals("}")) {
                 if (ctx.take(",") == null)
                     return null;
-                peek = ctx.peek();
             }
         }
         if (ctx.take("}") == null)
@@ -197,8 +211,15 @@ public class DeclarationParser {
         if (ctx.take("{") == null)
             return null;
         ElementMap<ASTIdentifier, ASTElement> elements = new ElementMap<>();
-        Token peek = ctx.peek();
-        while (!peek.content().equals("}")) {
+        while (true) {
+            Token peek = ctx.peek();
+            if (peek == null) {
+                ctx.throwEofError("identifier or }");
+                return null;
+            }
+            if (peek.content().equals("}")) {
+                break;
+            }
             ASTIdentifier identifier = ctx.literal();
             if (identifier == null)
                 return null;
@@ -240,7 +261,11 @@ public class DeclarationParser {
         }
         List<ASTElement> elements = new ArrayList<>();
         while (!peek.content().startsWith(".")) {
-            elements.add(parse());
+            ASTElement element = parse();
+            if (element == null) {
+                return null;
+            }
+            elements.add(element);
             peek = ctx.peek();
             if (peek == null)
                 break; // declarations are the top level elements, so we can just stop here
@@ -308,14 +333,20 @@ public class DeclarationParser {
 
     private @Nullable ASTDeclaration parseHalfNestedDeclaration(List<ASTElement> elements) {
         ctx.enterState(State.IN_NESTED_DECLARATION);
-        Token peek = ctx.peek();
-        while (!peek.content().equals("}")) {
-            elements.add(parseDeclaration());
-            peek = ctx.peek();
+        while (true) {
+            Token peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError("} or declaration");
                 return null;
             }
+            if (peek.content().equals("}")) {
+                break;
+            }
+            ASTDeclaration declaration = parseDeclaration();
+            if (declaration == null) {
+                return null;
+            }
+            elements.add(declaration);
         }
         if (ctx.take("}") == null)
             return null;
@@ -327,18 +358,20 @@ public class DeclarationParser {
         ctx.enterState(State.IN_CODE);
         if (ctx.take("{") == null)
             return null;
-        Token peek = ctx.peek();
         List<ASTInstruction> instructions = new ArrayList<>();
-        while (!peek.content().equals("}")) {
-            ASTInstruction instruction = parseInstruction();
-            if (instruction == null)
-                return null;
-            instructions.add(instruction);
-            peek = ctx.peek();
+        while (true) {
+            Token peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError("} or instruction");
                 return null;
             }
+            if (peek.content().equals("}")) {
+                break;
+            }
+            ASTInstruction instruction = parseInstruction();
+            if (instruction == null)
+                return null;
+            instructions.add(instruction);
         }
         if (ctx.take("}") == null)
             return null;
@@ -369,11 +402,14 @@ public class DeclarationParser {
         List<ASTElement> arguments = new ArrayList<>();
         // parse until peek is eof or on a different line
         while (peek.location().line() == instruction.location().line()) {
-            arguments.add(parse());
+            ASTElement argument = parse();
+            if (argument == null) {
+                return null;
+            }
+            arguments.add(argument);
             peek = ctx.peek();
             if (peek == null) {
-                ctx.throwEofError("instruction argument");
-                return null;
+                break;
             }
         }
         ctx.leaveState(State.IN_INSTRUCTION);
@@ -427,7 +463,7 @@ public class DeclarationParser {
         }
 
         private Token take(String exact) {
-            if (tokens.isEmpty()) {
+            if (done()) {
                 throwEofError(exact);
                 return null;
             }
@@ -441,7 +477,7 @@ public class DeclarationParser {
         }
 
         private Token takeAny() {
-            if (tokens.isEmpty()) {
+            if (done()) {
                 throwEofError("any token");
                 return null;
             }
@@ -449,7 +485,7 @@ public class DeclarationParser {
         }
 
         private ASTIdentifier literal() {
-            if (tokens.isEmpty()) {
+            if (done()) {
                 throwEofError("literal");
                 return null;
             }
