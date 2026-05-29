@@ -9,7 +9,7 @@ import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.helper.Handle;
 import me.darknet.assembler.instructions.Operand;
 import me.darknet.assembler.instructions.Operands;
-import me.darknet.assembler.parser.processor.ASTProcessor;
+import me.darknet.assembler.parser.processor.ProcessorContext;
 import me.darknet.assembler.util.DescriptorUtil;
 
 import java.util.List;
@@ -76,8 +76,7 @@ public enum JvmOperands implements Operands {
             return;
         for (ASTElement value : array.values()) {
             if (context.isNull(value, "args element", array.location()))
-                return;
-            assert value != null;
+                continue;
             JvmOperands.verifyConstant(context, value);
         }
     }),
@@ -100,7 +99,7 @@ public enum JvmOperands implements Operands {
         this.operand = new Operand(operand);
     }
 
-    public static void verifyConstant(ASTProcessor.ParserContext context, ASTElement element) {
+    public static void verifyConstant(ProcessorContext context, ASTElement element) {
         switch (element.type()) {
             case NUMBER -> {
                 ASTNumber number = (ASTNumber) element;
@@ -175,7 +174,7 @@ public enum JvmOperands implements Operands {
         }
     }
 
-    public static void verifyConstantDynamic(ASTProcessor.ParserContext context, ASTArray array) {
+    public static void verifyConstantDynamic(ProcessorContext context, ASTArray array) {
         // constant dynamic structure: { name, type, { <handle > }, { <args> } }
         if (array.values().size() != 4) {
             context.throwUnexpectedElementError("name, type, handle and args", array);
@@ -207,13 +206,12 @@ public enum JvmOperands implements Operands {
             return;
         for (ASTElement value : args.values()) {
             if (context.isNull(value, "args element", args.location()))
-                return;
-            assert value != null;
+                continue;
             verifyConstant(context, value);
         }
     }
 
-    public static boolean verifyHandle(ASTProcessor.ParserContext context, ASTElement element) {
+    public static boolean verifyHandle(ProcessorContext context, ASTElement element) {
         if(element instanceof ASTIdentifier identifier) { // maybe short handle?
             Handle handle = Handle.HANDLE_SHORTCUTS.get(identifier.content());
             if(handle != null) {

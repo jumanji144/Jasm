@@ -204,8 +204,11 @@ public class DalvikCodePrinter implements ExecutionEngine {
             printer.print(register(filledNewArrayInstruction.first())).arg()
                     .print(register(filledNewArrayInstruction.last()));
         } else {
-            assert filledNewArrayInstruction.registers() != null;
-            printRegisterArray(printer, filledNewArrayInstruction.registers());
+            int[] registers = filledNewArrayInstruction.registers();
+            if (registers == null) {
+                throw new IllegalStateException("Filled new-array instruction is not range-based but has no registers");
+            }
+            printRegisterArray(printer, registers);
         }
 
         printer.end();

@@ -80,10 +80,18 @@ public class ASTClass extends ASTMember {
         this.nestHost = nestHost;
     }
 
+    public @Nullable ASTIdentifier getNestHost() {
+        return nestHost;
+    }
+
     public void setNestMembers(@NotNull List<ASTIdentifier> nestMembers) {
         List<ASTIdentifier> ownedNestMembers = CollectionUtil.immutableCopy(nestMembers);
         replaceChildren(this.nestMembers, ownedNestMembers);
         this.nestMembers = ownedNestMembers;
+    }
+
+    public @NotNull List<ASTIdentifier> getNestMembers() {
+        return nestMembers;
     }
 
     @NotNull

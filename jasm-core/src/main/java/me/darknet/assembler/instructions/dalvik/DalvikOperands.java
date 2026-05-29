@@ -8,7 +8,7 @@ import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.instructions.Operand;
 import me.darknet.assembler.instructions.Operands;
 import me.darknet.assembler.instructions.jvm.JvmOperands;
-import me.darknet.assembler.parser.processor.ASTProcessor;
+import me.darknet.assembler.parser.processor.ProcessorContext;
 
 public enum DalvikOperands implements Operands {
 
@@ -45,8 +45,7 @@ public enum DalvikOperands implements Operands {
             return;
         for (ASTElement value : array.values()) {
             if (context.isNull(value, "args array element", array.location()))
-                return;
-            assert value != null;
+                continue;
             DalvikOperands.verifyConstant(context, value);
         }
     }),
@@ -57,8 +56,7 @@ public enum DalvikOperands implements Operands {
             return;
         for (ASTElement value : array.values()) {
             if (context.isNull(value, "register array element", array.location()))
-                return;
-            assert value != null;
+                continue;
             if(value.type() != ElementType.IDENTIFIER)
                 context.throwUnexpectedElementError("register", value);
         }
@@ -70,8 +68,7 @@ public enum DalvikOperands implements Operands {
             return;
         for (ASTElement value : array.values()) {
             if (context.isNull(value, "data array element", array.location()))
-                return;
-            assert value != null;
+                continue;
             if(value.type() != ElementType.NUMBER)
                 context.throwUnexpectedElementError("number", value);
         }
@@ -124,7 +121,7 @@ public enum DalvikOperands implements Operands {
         return operand;
     }
 
-    static void verifyConstant(ASTProcessor.ParserContext ctx, ASTElement element) {
+    static void verifyConstant(ProcessorContext ctx, ASTElement element) {
         switch (element.type()) {
             case NUMBER, STRING, CHARACTER -> {
             }

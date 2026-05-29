@@ -233,14 +233,22 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitLookupSwitchInsn(ASTObject lookupSwitchObject) {
         ASTIdentifier defaultLabel = lookupSwitchObject.value("default");
-        assert defaultLabel != null;
+        if (defaultLabel == null) {
+            errorCollector.addError("Lookup switch is missing default label", currentInstructionAst.location());
+            return;
+        }
         List<LookupSwitchKey> entries = new ArrayList<>();
         for (var pair : lookupSwitchObject.values().pairs()) {
             String content = pair.first().content();
             if ("default".equals(content))
                 continue;
 	        int key = Integer.parseInt(content);
-	        Label label = getOrCreateLabel(pair.second().content());
+            ASTElement labelElement = pair.second();
+            if (!(labelElement instanceof ASTIdentifier identifier)) {
+                errorCollector.addError("Lookup switch case target must be an identifier", currentInstructionAst.location());
+                return;
+            }
+	        Label label = getOrCreateLabel(identifier.content());
 	        entries.add(new LookupSwitchKey(key,label));
         }
         // We sort because the JVM verifier requires them to be ordered by key.
@@ -256,16 +264,28 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     @Override
     public void visitTableSwitchInsn(ASTObject tableSwitchObject) {
         ASTNumber min = tableSwitchObject.value("min");
-        assert min != null;
+        if (min == null) {
+            errorCollector.addError("Table switch is missing minimum key", currentInstructionAst.location());
+            return;
+        }
         // max is not important as it is just min + length - 1
         ASTIdentifier defaultLabel = tableSwitchObject.value("default");
-        assert defaultLabel != null;
+        if (defaultLabel == null) {
+            errorCollector.addError("Table switch is missing default label", currentInstructionAst.location());
+            return;
+        }
         List<Label> labels = new ArrayList<>();
         ASTArray cases = tableSwitchObject.value("cases");
-        assert cases != null;
+        if (cases == null) {
+            errorCollector.addError("Table switch is missing cases", currentInstructionAst.location());
+            return;
+        }
         for (ASTElement value : cases.values()) {
-            assert value instanceof ASTIdentifier;
-            labels.add(getOrCreateLabel(value.content()));
+            if (!(value instanceof ASTIdentifier identifier)) {
+                errorCollector.addError("Table switch case target must be an identifier", currentInstructionAst.location());
+                return;
+            }
+            labels.add(getOrCreateLabel(identifier.content()));
         }
         add(new TableSwitchInstruction(min.asInt(), getOrCreateLabel(defaultLabel.content()), labels));
     }

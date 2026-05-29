@@ -72,8 +72,11 @@ public class ConstantMapper {
         return switch (element.type()) {
             case CHARACTER -> {
                 ASTCharacter character = (ASTCharacter) element;
-                assert character.content() != null;
-                yield new OfInt(character.content().charAt(0));
+                String content = character.content();
+                if (content == null || content.isEmpty()) {
+                    throw new IllegalStateException("Character constant is missing content");
+                }
+                yield new OfInt(content.charAt(0));
             }
             case NUMBER -> {
                 ASTNumber number = (ASTNumber) element;
@@ -94,12 +97,15 @@ public class ConstantMapper {
             case STRING -> new OfString(element.value().content());
             case IDENTIFIER -> {
                 ASTIdentifier identifier = (ASTIdentifier) element;
-                assert identifier.content() != null;
-                char first = identifier.content().charAt(0);
+                String content = identifier.content();
+                if (content == null || content.isEmpty()) {
+                    throw new IllegalStateException("Identifier constant is missing content");
+                }
+                char first = content.charAt(0);
                 yield switch (first) {
                     case 'L' -> {
                         // if last is `;` then it's a class type, if not could be a short handle
-                        char last = identifier.content().charAt(identifier.content().length() - 1);
+                        char last = content.charAt(content.length() - 1);
                         if(last == ';') {
                             yield new OfType(Types.instanceTypeFromDescriptor(identifier.literal()));
                         } else {
@@ -136,7 +142,9 @@ public class ConstantMapper {
             case ARRAY -> {
                 ASTArray array = (ASTArray) element;
                 ASTElement last = array.values().getLast();
-                assert last != null;
+                if (last == null) {
+                    throw new IllegalStateException("Array constant is missing its trailing discriminator element");
+                }
                 yield switch (last.type()) {
                     case ARRAY, EMPTY -> new OfDynamic(constantDynamicFromArray(array));
                     case IDENTIFIER -> new OfMethodHandle(methodHandleFromArray(array));
