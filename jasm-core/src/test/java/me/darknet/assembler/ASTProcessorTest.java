@@ -4,16 +4,9 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.ast.specific.*;
 import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.Result;
-import me.darknet.assembler.parser.BytecodeFormat;
-import me.darknet.assembler.parser.DeclarationParser;
-import me.darknet.assembler.parser.Token;
-import me.darknet.assembler.parser.Tokenizer;
-import me.darknet.assembler.parser.processor.ASTProcessor;
-import me.darknet.assembler.util.Location;
+import me.darknet.assembler.test.AstAssertions;
 
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -22,63 +15,16 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class ASTProcessorTest {
-
     public static <T extends ASTElement> void assertOne(String input, Class<T> clazz, Consumer<T> consumer) {
-        parseString(input, (result) -> {
-            if (result.hasErr()) {
-                for (Error error : result.errors()) {
-                    Location location = error.getLocation();
-                    System.err.printf(
-                            "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
-                    );
-                }
-                Assertions.fail();
-            }
-            List<ASTElement> results = result.get();
-            assertEquals(1, results.size());
-            ASTElement element = results.getFirst();
-            assertNotNull(element);
-            assertInstanceOf(clazz, element);
-            consumer.accept((T) element);
-        });
+        AstAssertions.assertOneProcessed(input, clazz, consumer);
     }
 
     public static void assertError(String input, Consumer<List<Error>> errorConsumer) {
-        parseString(input, (result) -> {
-            assertNotEquals(0, result.errors().size());
-            errorConsumer.accept(result.errors());
-        });
+        AstAssertions.assertProcessedError(input, errorConsumer);
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> @NotNull T assertIs(Class<T> shouldBe, Object is) {
-        assertNotNull(is);
-        assertInstanceOf(shouldBe, is);
-        return (T) is;
-    }
-
-    public static void parseString(String input, Consumer<Result<List<ASTElement>>> consumer) {
-        DeclarationParser parser = new DeclarationParser();
-        Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", input).get();
-        Assertions.assertNotNull(tokens);
-        Assertions.assertFalse(tokens.isEmpty());
-        Result<List<ASTElement>> result = parser.parseAny(tokens);
-        if (result.hasErr()) {
-            for (Error error : result.errors()) {
-                Location location = error.getLocation();
-                System.err.printf(
-                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
-                );
-                Throwable trace = new Throwable();
-                trace.setStackTrace(error.getInCodeSource());
-                trace.printStackTrace();
-            }
-            Assertions.fail();
-        }
-        ASTProcessor processor = new ASTProcessor(BytecodeFormat.DEFAULT);
-        result = processor.processAST(result.get());
-        consumer.accept(result);
+        return AstAssertions.assertIs(shouldBe, is);
     }
 
     @Test
@@ -230,5 +176,4 @@ public class ASTProcessorTest {
                 }
         );
     }
-
 }
