@@ -5,31 +5,47 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * Map for AST elements, indexable by String and integer.
+ * Immutable ordered AST key/value pairs for live AST nodes.
  *
  * @param <A>
  *            The key type.
  * @param <B>
  *            The value type.
  */
-public class ElementMap<A extends ASTElement, B extends ASTElement> implements ElementMapView<A, B> {
+public final class ImmutableElementMap<A extends ASTElement, B extends ASTElement> implements ElementMapView<A, B> {
+    private final List<Pair<A, B>> values;
 
-    private final List<Pair<A, B>> values = new ArrayList<>();
-
-    public static <A extends ASTElement, B extends ASTElement> ElementMap<A, B> empty() {
-        return new ElementMap<>();
+    private ImmutableElementMap(List<Pair<A, B>> values) {
+        this.values = Collections.unmodifiableList(values);
     }
 
-    public void put(A key, B value) {
-        values.add(new Pair<>(key, value));
+    public static <A extends ASTElement, B extends ASTElement> ImmutableElementMap<A, B> empty() {
+        return new ImmutableElementMap<>(Collections.emptyList());
+    }
+
+    public static <A extends ASTElement, B extends ASTElement> ImmutableElementMap<A, B> copyOf(
+            ElementMapView<A, B> values) {
+        if (values.size() == 0) {
+            return empty();
+        }
+        return copyOf(values.pairs());
+    }
+
+    public static <A extends ASTElement, B extends ASTElement> ImmutableElementMap<A, B> copyOf(
+            Collection<? extends Pair<A, B>> values) {
+        return new ImmutableElementMap<>(new ArrayList<>(values));
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T extends B> @Nullable T get(int index) {
+        if (index < 0 || index >= values.size()) {
+            return null;
+        }
         return (T) values.get(index).second();
     }
 
@@ -46,6 +62,9 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> implements E
 
     @Override
     public @Nullable A key(int index) {
+        if (index < 0 || index >= values.size()) {
+            return null;
+        }
         return values.get(index).first();
     }
 
@@ -61,6 +80,9 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> implements E
 
     @Override
     public @Nullable Pair<A, B> pair(int index) {
+        if (index < 0 || index >= values.size()) {
+            return null;
+        }
         return values.get(index);
     }
 
@@ -71,26 +93,21 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> implements E
 
     @Override
     public boolean containsKey(String content) {
-        for (Pair<A, B> pair : values) {
-            if (pair.first().content().equals(content)) {
-                return true;
-            }
-        }
-        return false;
+        return key(content) != null;
     }
 
     @Override
     public List<ASTElement> elements() {
-        List<ASTElement> elements = new ArrayList<>();
+        List<ASTElement> elements = new ArrayList<>(values.size() * 2);
         for (Pair<A, B> pair : values) {
             elements.add(pair.first());
             elements.add(pair.second());
         }
-        return elements;
+        return Collections.unmodifiableList(elements);
     }
 
+    @Override
     public int size() {
         return values.size();
     }
-
 }

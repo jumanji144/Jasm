@@ -63,7 +63,8 @@ public enum JvmOperands implements Operands {
         // default should be identifier
         if (context.validateCorrect(object.value("default"), ElementType.IDENTIFIER, "identifier", object))
             return;
-        for (ASTElement elem : object.values().elements()) {
+        for (var pair : object.values().pairs()) {
+            ASTElement elem = pair.second();
             if (context.isNotType(elem, ElementType.IDENTIFIER, "identifier"))
                 return;
         }

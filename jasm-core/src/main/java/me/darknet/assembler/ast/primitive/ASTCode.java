@@ -2,6 +2,7 @@ package me.darknet.assembler.ast.primitive;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
+import me.darknet.assembler.util.CollectionUtil;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -13,7 +14,7 @@ public class ASTCode extends ASTElement {
 
     public ASTCode(List<@NotNull ASTInstruction> instructions) {
         super(ElementType.CODE, instructions);
-        this.instructions = instructions;
+        this.instructions = CollectionUtil.immutableCopy(instructions);
     }
 
     public List<@NotNull ASTInstruction> instructions() {

@@ -13,6 +13,7 @@ import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.parser.Stateful;
 import me.darknet.assembler.util.DescriptorUtil;
 import me.darknet.assembler.util.ElementMap;
+import me.darknet.assembler.util.ElementMapView;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.visitor.Modifiers;
 
@@ -442,7 +443,7 @@ public class ASTProcessor {
 
         Modifiers modifiers = parseModifiers(ctx, bodyIndex, declaration);
 
-        ElementMap<ASTIdentifier, ASTElement> values = body.values();
+        ElementMapView<ASTIdentifier, ASTElement> values = body.values();
         ASTIdentifier name = ctx.validateMaybeIdentifier(values.get("name"), "inner class name", declaration);
         ASTIdentifier inner = ctx.validateIdentifier(values.get("inner"), "inner class type", declaration);
         ASTIdentifier outer = ctx.validateMaybeIdentifier(values.get("outer"), "outer class type", declaration);

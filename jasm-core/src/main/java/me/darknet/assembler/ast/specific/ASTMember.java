@@ -27,7 +27,7 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 
     public ASTMember(@NotNull ElementType type, @NotNull Modifiers modifiers, @NotNull ASTIdentifier name,
             @NotNull ASTIdentifier descriptor) {
-        super(type, CollectionUtil.merge(modifiers.modifiers(), name));
+        super(type, CollectionUtil.merge(modifiers.modifiers(), name, descriptor));
         this.modifiers = modifiers;
         this.name = name;
         this.descriptor = descriptor;
@@ -81,14 +81,16 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 
 	@Override
 	public void setVisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
-		replaceChildren(this.visibleAnnotations, annotations);
-		this.visibleAnnotations = annotations;
+		List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+		replaceChildren(this.visibleAnnotations, ownedAnnotations);
+		this.visibleAnnotations = ownedAnnotations;
 	}
 
 	@Override
 	public void setInvisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
-		replaceChildren(this.invisibleAnnotations, annotations);
-		this.invisibleAnnotations = annotations;
+		List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+		replaceChildren(this.invisibleAnnotations, ownedAnnotations);
+		this.invisibleAnnotations = ownedAnnotations;
 	}
 
 	@Override
@@ -103,24 +105,26 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 
 	@Override
 	public void setVisibleTypeAnnotations(@NotNull List<ASTAnnotation> annotations) {
-		replaceChildren(this.visibleTypeAnnotations, annotations);
-		this.visibleTypeAnnotations = annotations;
+		List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+		replaceChildren(this.visibleTypeAnnotations, ownedAnnotations);
+		this.visibleTypeAnnotations = ownedAnnotations;
 	}
 
 	@Override
 	public void setInvisibleTypeAnnotations(@NotNull List<ASTAnnotation> annotations) {
-		replaceChildren(this.invisibleTypeAnnotations, annotations);
-		this.invisibleTypeAnnotations = annotations;
+		List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+		replaceChildren(this.invisibleTypeAnnotations, ownedAnnotations);
+		this.invisibleTypeAnnotations = ownedAnnotations;
 	}
 
 	@Override
 	public void addVisibleTypeAnnotation(@NotNull ASTAnnotation annotation) {
-		setVisibleAnnotations(CollectionUtil.merge(visibleTypeAnnotations, annotation));
+		setVisibleTypeAnnotations(CollectionUtil.merge(visibleTypeAnnotations, annotation));
 	}
 
 	@Override
 	public void addInvisibleTypeAnnotation(@NotNull ASTAnnotation annotation) {
-		setInvisibleAnnotations(CollectionUtil.merge(invisibleTypeAnnotations, annotation));
+		setInvisibleTypeAnnotations(CollectionUtil.merge(invisibleTypeAnnotations, annotation));
 	}
 
 	protected void accept(ErrorCollector collector, ASTDeclarationVisitor visitor) {

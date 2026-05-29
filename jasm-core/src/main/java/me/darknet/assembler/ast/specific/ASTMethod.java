@@ -9,11 +9,14 @@ import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.instructions.Instruction;
 import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.util.CollectionUtil;
 import me.darknet.assembler.visitor.ASTInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
 import me.darknet.assembler.visitor.Modifiers;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,15 +35,18 @@ public class ASTMethod extends ASTMember {
                      ASTElement defaultValue, List<ASTException> exceptions, ASTCode code,
                      List<Instruction<?>> instructions, BytecodeFormat format) {
         super(ElementType.METHOD, modifiers, name, descriptor);
-        this.parameters = parameters;
-        this.parameterAnnotations = parameterAnnotations;
-        this.exceptions = exceptions;
+        this.parameters = CollectionUtil.immutableCopy(parameters);
+        this.parameterAnnotations = freezeParameterAnnotations(parameterAnnotations);
+        this.exceptions = CollectionUtil.immutableCopy(exceptions);
         this.defaultValue = defaultValue;
         this.code = code;
-        this.instructions = instructions;
+        this.instructions = CollectionUtil.immutableCopy(instructions);
         this.format = format;
-        addChildren(parameters);
-        addChildren(exceptions);
+        addChildren(this.parameters);
+        addChildren(this.exceptions);
+        for (List<ASTAnnotation> annotations : this.parameterAnnotations.values()) {
+            addChildren(annotations);
+        }
         if (defaultValue != null) addChild(defaultValue);
         if (code != null) addChild(code);
     }
@@ -138,5 +144,16 @@ public class ASTMethod extends ASTMember {
                 return i;
         }
         return -1;
+    }
+
+    private static Map<ASTIdentifier, List<ASTAnnotation>> freezeParameterAnnotations(
+            Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations) {
+        if (parameterAnnotations == null || parameterAnnotations.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<ASTIdentifier, List<ASTAnnotation>> copy = new IdentityHashMap<>();
+        parameterAnnotations.forEach((parameter, annotations) ->
+                copy.put(parameter, CollectionUtil.immutableCopy(annotations)));
+        return Collections.unmodifiableMap(copy);
     }
 }

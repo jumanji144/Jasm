@@ -5,6 +5,7 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.util.CollectionUtil;
 import me.darknet.assembler.visitor.ASTClassVisitor;
 import me.darknet.assembler.visitor.ASTRecordComponentVisitor;
 import me.darknet.assembler.visitor.Modifiers;
@@ -30,8 +31,9 @@ public class ASTClass extends ASTMember {
 
     public ASTClass(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull List<ASTElement> contents) {
         super(ElementType.CLASS, modifiers, name, name);
-        addChildren(contents);
-        this.contents = contents;
+        List<ASTElement> ownedContents = CollectionUtil.immutableCopy(contents);
+        addChildren(ownedContents);
+        this.contents = ownedContents;
     }
 
     @Nullable
@@ -79,8 +81,9 @@ public class ASTClass extends ASTMember {
     }
 
     public void setNestMembers(@NotNull List<ASTIdentifier> nestMembers) {
-        replaceChildren(this.nestMembers, nestMembers);
-        this.nestMembers = nestMembers;
+        List<ASTIdentifier> ownedNestMembers = CollectionUtil.immutableCopy(nestMembers);
+        replaceChildren(this.nestMembers, ownedNestMembers);
+        this.nestMembers = ownedNestMembers;
     }
 
     @NotNull
@@ -89,12 +92,15 @@ public class ASTClass extends ASTMember {
     }
 
     public void setInterfaces(@NotNull List<ASTIdentifier> interfaces) {
-        replaceChildren(this.interfaces, interfaces);
-        this.interfaces = interfaces;
+        List<ASTIdentifier> ownedInterfaces = CollectionUtil.immutableCopy(interfaces);
+        replaceChildren(this.interfaces, ownedInterfaces);
+        this.interfaces = ownedInterfaces;
     }
 
     public void setPermittedSubclasses(@NotNull List<ASTIdentifier> permittedSubclasses) {
-        this.permittedSubclasses = permittedSubclasses;
+        List<ASTIdentifier> ownedPermittedSubclasses = CollectionUtil.immutableCopy(permittedSubclasses);
+        replaceChildren(this.permittedSubclasses, ownedPermittedSubclasses);
+        this.permittedSubclasses = ownedPermittedSubclasses;
     }
 
     @NotNull
@@ -103,7 +109,9 @@ public class ASTClass extends ASTMember {
     }
 
     public void setRecordComponents(@NotNull List<ASTRecordComponent> recordComponents) {
-        this.recordComponents = recordComponents;
+        List<ASTRecordComponent> ownedRecordComponents = CollectionUtil.immutableCopy(recordComponents);
+        replaceChildren(this.recordComponents, ownedRecordComponents);
+        this.recordComponents = ownedRecordComponents;
     }
 
     @NotNull
@@ -117,8 +125,9 @@ public class ASTClass extends ASTMember {
     }
 
     public void setInnerClasses(@NotNull List<ASTInner> inners) {
-        replaceChildren(this.inners, inners);
-        this.inners = inners;
+        List<ASTInner> ownedInners = CollectionUtil.immutableCopy(inners);
+        replaceChildren(this.inners, ownedInners);
+        this.inners = ownedInners;
     }
 
     @NotNull

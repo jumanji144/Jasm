@@ -19,7 +19,7 @@ public class ASTInstruction extends ASTElement {
     public ASTInstruction(ASTIdentifier identifier, List<@Nullable ASTElement> arguments) {
         super(ElementType.CODE_INSTRUCTION, CollectionUtil.mergeNonNull(arguments, identifier));
         this.identifier = identifier;
-        this.arguments = arguments;
+        this.arguments = CollectionUtil.immutableCopy(arguments);
     }
 
     @Override

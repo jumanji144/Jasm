@@ -1,6 +1,7 @@
 package me.darknet.assembler.visitor;
 
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.util.CollectionUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +29,7 @@ public class Modifiers {
     }
 
     public List<ASTIdentifier> modifiers() {
-        return modifiers;
+        return CollectionUtil.immutableCopy(modifiers);
     }
 
     @Override

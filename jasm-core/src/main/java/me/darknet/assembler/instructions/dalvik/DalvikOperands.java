@@ -100,7 +100,8 @@ public enum DalvikOperands implements Operands {
         ASTObject object = (ASTObject) element;
 
         // cases should be identifier
-        for (ASTElement elem : object.values().elements()) {
+        for (var pair : object.values().pairs()) {
+            ASTElement elem = pair.second();
             if (context.isNotType(elem, ElementType.IDENTIFIER, "identifier"))
                 return;
         }

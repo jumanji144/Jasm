@@ -2,6 +2,7 @@ package me.darknet.assembler.ast.primitive;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
+import me.darknet.assembler.util.CollectionUtil;
 
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
@@ -14,7 +15,7 @@ public class ASTArray extends ASTElement {
 
     public ASTArray(List<@Nullable ASTElement> values) {
         super(ElementType.ARRAY, values);
-        this.values = values;
+        this.values = CollectionUtil.immutableCopy(values);
     }
 
     @Contract(pure = true)
