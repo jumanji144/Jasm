@@ -360,8 +360,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
             if (params.size() == 4
                     && params.get(0) instanceof Value.KnownStringValue text &&
                     params.get(1) instanceof Value.KnownIntValue begin &&
-                    params.get(1) instanceof Value.KnownIntValue end &&
-                    params.get(1) instanceof Value.KnownIntValue radix)
+                    params.get(2) instanceof Value.KnownIntValue end &&
+                    params.get(3) instanceof Value.KnownIntValue radix)
                 try {
                     return Values.valueOf(Long.parseLong(text.value(), begin.value(), end.value(), radix.value()));
                 } catch (NumberFormatException ignored) {
@@ -411,7 +411,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Long.remainderUnsigned(JJ)J", (JJ2JThrowingStaticFunc) Long::remainderUnsigned);
         STATIC_FUNCS.put("java/lang/Long.highestOneBit(J)J", (J2JStaticFunc) Long::highestOneBit);
         STATIC_FUNCS.put("java/lang/Long.lowestOneBit(J)J", (J2JStaticFunc) Long::lowestOneBit);
-        STATIC_FUNCS.put("java/lang/Long.remainderUnsigned(J)I", (J2IStaticFunc) Long::numberOfLeadingZeros);
+        STATIC_FUNCS.put("java/lang/Long.numberOfLeadingZeros(J)I", (J2IStaticFunc) Long::numberOfLeadingZeros);
         STATIC_FUNCS.put("java/lang/Long.numberOfTrailingZeros(J)I", (J2IStaticFunc) Long::numberOfTrailingZeros);
         STATIC_FUNCS.put("java/lang/Long.bitCount(J)I", (J2IStaticFunc) Long::bitCount);
         STATIC_FUNCS.put("java/lang/Long.rotateLeft(JI)J", (JI2JThrowingStaticFunc) Long::rotateLeft);
@@ -534,7 +534,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
                 return Values.valueOf(Boolean.logicalXor(a.value() != 0, b.value() != 0));
             return Values.INT_VALUE;
         });
-        STATIC_FUNCS.put("java/lang/Boolean.compare(ZZ)Z", params -> {
+        STATIC_FUNCS.put("java/lang/Boolean.compare(ZZ)I", params -> {
             if (params.size() == 2 &&
                     params.get(0) instanceof Value.KnownIntValue a  &&
                     params.get(1) instanceof Value.KnownIntValue b)
@@ -546,7 +546,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
                 return Values.valueOfString(Boolean.toString(value.value() != 0));
             return Values.STRING_VALUE;
         });
-        STATIC_FUNCS.put("java/lang/Boolean.hashCode(Z)Ljava/lang/String;", params -> {
+        STATIC_FUNCS.put("java/lang/Boolean.hashCode(Z)I", params -> {
             if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue value)
                 return Values.valueOf(Boolean.hashCode(value.value() != 0));
             return Values.INT_VALUE;
@@ -560,7 +560,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.max(II)I", (II2IStaticFunc) Math::max);
         STATIC_FUNCS.put("java/lang/Math.max(JJ)J", (JJ2JStaticFunc) Math::max);
         STATIC_FUNCS.put("java/lang/Math.max(FF)F", (FF2FStaticFunc) Math::max);
-        STATIC_FUNCS.put("java/lang/Math.max(DD)D", (DD2DStaticFunc) Math::min);
+        STATIC_FUNCS.put("java/lang/Math.max(DD)D", (DD2DStaticFunc) Math::max);
         STATIC_FUNCS.put("java/lang/Math.min(II)I", (II2IStaticFunc) Math::min);
         STATIC_FUNCS.put("java/lang/Math.min(JJ)J", (JJ2JStaticFunc) Math::min);
         STATIC_FUNCS.put("java/lang/Math.min(FF)F", (FF2FStaticFunc) Math::min);
@@ -686,8 +686,8 @@ public class BasicMethodValueLookup implements MethodValueLookup {
         STATIC_FUNCS.put("java/lang/Math.fma(DDD)D", params -> {
             if (params.size() == 3 &&
                     params.get(0) instanceof Value.KnownDoubleValue a &&
-                    params.get(1) instanceof Value.KnownIntValue b &&
-                    params.get(2) instanceof Value.KnownIntValue c) {
+                    params.get(1) instanceof Value.KnownDoubleValue b &&
+                    params.get(2) instanceof Value.KnownDoubleValue c) {
                 return Values.valueOf(Math.fma(a.value(), b.value(), c.value()));
 
             }
