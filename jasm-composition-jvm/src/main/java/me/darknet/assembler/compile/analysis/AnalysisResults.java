@@ -53,26 +53,6 @@ public interface AnalysisResults {
     AnalysisException getAnalysisFailure();
 
     /**
-     * @param analysisFailure
-     *                        The exception thrown when handling method flow
-     *                        analysis.
-     */
-    void setAnalysisFailure(@Nullable AnalysisException analysisFailure);
-
-    /**
-     * Records the relationship of AST --> Element for the given pair.
-     *
-     * @param instruction
-     *         AST instruction.
-     * @param element
-     *         Generated code element.
-     *
-     * @see #getAstToCodeMap() AST --> Element mapping
-     * @see #getAnalysisFailure() Element --> AST mapping
-     */
-    void recordInstructionMapping(@NotNull ASTInstruction instruction, @NotNull CodeElement element);
-
-    /**
      * @return Map of AST instructions/labels to the generated code elements.
      */
     @NotNull Map<ASTInstruction, CodeElement> getAstToCodeMap();

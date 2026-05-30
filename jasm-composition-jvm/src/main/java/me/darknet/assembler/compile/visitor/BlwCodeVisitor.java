@@ -5,8 +5,8 @@ import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.*;
 import me.darknet.assembler.compile.analysis.frame.Frame;
-import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
 import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
+import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisRunner;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.error.ErrorCollector;
@@ -40,6 +40,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     private final VarCache varCache = new VarCache();
     private final List<ASTInstruction> visitedInstructions = new ArrayList<>();
     private final JvmAnalysisEngine<Frame> analysisEngine;
+    private final MethodAnalysisResult analysisResult;
     private final boolean writeVariables;
     private ASTInstruction currentInstructionAst;
     private int opcode = 0;
@@ -63,6 +64,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         this.checker = options.inheritanceChecker();
         this.errorCollector = errorCollector;
         this.analysisEngine = (JvmAnalysisEngine<Frame>) options.createEngine(varCache);
+        this.analysisResult = new MethodAnalysisResult();
         this.parameters = parameters;
         this.writeVariables = options.doWriteVariables();
         this.methodType = methodType;
@@ -78,7 +80,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
      */
     @NotNull
     public AnalysisResults getAnalysisResults() {
-        return analysisEngine;
+        return analysisResult;
     }
 
     /**
@@ -344,7 +346,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             ArrayType arrayType = Types.arrayType((ClassType) literalType);
             var insn = new AllocateMultiDimArrayInstruction(arrayType, dimSize);
             add(insn);
-            analysisEngine.warn(insn, "Expected array type, got class name");
+            errorCollector.addWarn("Expected array type, got class name", currentInstructionAst.location());
         }
     }
 
@@ -352,7 +354,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     public void visitLabel(@NotNull ASTIdentifier label) {
         visitedInstructions.add((ASTInstruction) label.parent());
         Label labelElement = getOrCreateLabel(label.content());
-        analysisEngine.recordInstructionMapping(currentInstructionAst, labelElement);
+        analysisResult.recordInstructionMapping(currentInstructionAst, labelElement);
         codeBuilderList.addLabel(labelElement);
     }
 
@@ -369,10 +371,9 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         if (codeBuilderList.getFirstElement() instanceof Label startLabel) {
             begin = startLabel;
         } else {
-            // TODO: Warn user that they're missing a start label and this will fuck analysis up
-            //  - analysisEngine.addWarning(Warning.MISSING_START_LABEL);
-            //    - Should be language agnostic (IE, don't just use strings)
-            //    - Not sure what other kinds of warnings will be added later, if this is it, then a simple enum works ig
+            ASTInstruction firstVisitedInstruction = visitedInstructions.isEmpty() ? currentInstructionAst : visitedInstructions.get(0);
+            Location warningLocation = firstVisitedInstruction == null ? Location.UNKNOWN : firstVisitedInstruction.location();
+            errorCollector.addWarn("Inserted synthetic start label for analysis; add an explicit leading label to avoid ambiguous method entry", warningLocation);
             codeBuilderList.addLabel(0, begin = new GenericLabel());
         }
 
@@ -400,19 +401,19 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
 
         // Analyze stack for local variable information.
         Code code = codeBuilder.build();
-        AnalysisSimulation.Info method = new AnalysisSimulation.Info(checker, methodType, parameters, code.elements(), code.tryCatchBlocks());
+        JvmAnalysisRunner.Info method = new JvmAnalysisRunner.Info(checker, methodType, parameters, code.elements(), code.tryCatchBlocks());
         try {
             // Variable analysis
             new IndexedStraightforwardSimulation()
                     .execute(new VarCacheUpdater(varCache), code);
 
             // Code analysis
-            AnalysisSimulation simulation = new AnalysisSimulation(analysisEngine.newFrameOps());
-            simulation.execute(analysisEngine, method);
+            JvmAnalysisRunner runner = new JvmAnalysisRunner(analysisEngine.newFrameOps());
+            runner.execute(analysisEngine, method, analysisResult);
         } catch (AnalysisException ex) {
-            analysisEngine.setAnalysisFailure(ex);
+            analysisResult.setAnalysisFailure(ex);
 
-            ASTInstruction problemAst = analysisEngine.getCodeToAstMap().get(ex.getElement());
+            ASTInstruction problemAst = analysisResult.getCodeToAstMap().get(ex.getElement());
             if (problemAst != null)
                 errorCollector.addError(ex.getMessage(), problemAst.location());
             else
@@ -423,57 +424,16 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
             // Populate variables
             //  - Our variables are not scoped, so we can merge by name.
             //  - Known 'null' locals can merge with duplicate locals which may have type info associated with them
-            Map<String, Local> localsMap = new HashMap<>();
-            int paramOffset = parameters.size();
-            analysisEngine.frames().forEach((index, frame) -> {
-                for (Local local : frame.locals().toList()) {
-                    // Skip parameters
-                    if (local.index() < paramOffset)
-                        continue;
-
-                    localsMap.merge(local.name(), local, (a, b) -> {
-                        ClassType at = a.type(); // These may be 'null' for known 'null' values
-                        ClassType bt = b.type();
-
-                        // Edge cases: If we have null values use the other local (with type info hopefully)
-                        if (at == null)
-                            return b;
-                        if (bt == null)
-                            return a;
-
-                        // Edge case: If the types aren't of the same sort they cannot possibly be merged.
-                        // There is no "correct" solution at this step, so just yield object and call it a day.
-                        //
-                        // Reproduction code:
-                        //   ldc "foo"
-                        //   astore foo
-                        //   bipush 10
-                        //   istore foo <--- Foo cannot be an object and an int in our system
-                        if (at.getClass() != bt.getClass())
-                            return a.adaptType(Types.OBJECT);
-
-                        // Merge locals by type
-                        try {
-                            return a.adaptType(common(at, bt));
-                        } catch (ValueMergeException e) {
-                            // If the values could not be merged, report where the failure originated from.
-                            CodeElement element = code.elements().get(index);
-                            ASTInstruction ast = analysisEngine.getCodeToAstMap().get(element);
-                            if (ast != null) {
-                                errorCollector.addError(e.getMessage(), ast.location());
-                                return a.adaptType(Types.OBJECT);
-                            } else {
-                                throw new IllegalStateException();
-                            }
-                        }
-                    });
-                }
-            });
-            localsMap.forEach((name, local) -> {
-                int index = local.index();
-                ClassType type = local.safeType();
-                codeBuilder.localVariable(new GenericLocal(begin, end, index, name, type, null));
-            });
+            AnalysisLocalTableSynthesizer.synthesize(
+                    codeBuilder,
+                    analysisResult,
+                    errorCollector,
+                    checker,
+                    code,
+                    parameters,
+                    begin,
+                    end
+            );
         }
     }
 
@@ -483,33 +443,7 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
         // The ASTMethod will record the current ASTInstruction being mapped. Thus, when we see a call to something like
         // visitTableSwitch, and we add a TableSwitchInstruction to the CodeBuilder, we know that added instruction maps
         // to the current AST being visited.
-        analysisEngine.recordInstructionMapping(currentInstructionAst, instruction);
-    }
-
-    private @NotNull ClassType common(@NotNull ClassType a, @NotNull ClassType b) throws ValueMergeException {
-        if (a instanceof ObjectType ao && b instanceof ObjectType bo) {
-            if (ao instanceof ArrayType aa) {
-                if (bo instanceof ArrayType ba) {
-                    // a == array, b == array
-                    Type ct = common(aa.rootComponentType(), ba.rootComponentType());
-                    String arrayDims = "[".repeat(aa.dimensions());
-                    return Types.arrayTypeFromDescriptor(arrayDims + ct.descriptor());
-                }
-
-                // a == array, b == not-array
-                return Types.OBJECT;
-            } else if (bo instanceof ArrayType) {
-                // a == not-array, b == array
-                return Types.OBJECT;
-            }
-
-            // a == object, b == object
-            String ct = checker.getCommonSuperclass(ao.internalName(), bo.internalName());
-            return Types.instanceTypeFromInternalName(ct);
-        } else if (a instanceof PrimitiveType ap && b instanceof PrimitiveType bp) {
-            return ap.widen(bp);
-        }
-        throw new ValueMergeException("Cannot find common type between " + a.descriptor() + " and " + b.descriptor());
+        analysisResult.recordInstructionMapping(currentInstructionAst, instruction);
     }
 
     private static @NotNull String adaptDescToInternalName(@NotNull String op, @NotNull String desc) {

@@ -51,6 +51,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(SimpleInstruction instruction) {
+        ValuedFrame frame = frame();
         int opcode = instruction.opcode();
         switch (opcode) {
             case DUP -> frame.push(frame.peek());
@@ -464,6 +465,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
     }
 
     private ClassType doArrayStore(SimpleInstruction instruction) {
+        ValuedFrame frame = frame();
         ClassType valueType = frame.pop().type();
         ClassType indexType = frame.pop().type();
         ClassType arrayType = frame.pop().type();
@@ -476,6 +478,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(ConstantInstruction<?> instruction) {
+        ValuedFrame frame = frame();
         Constant constant = instruction.constant();
         if (constant instanceof OfInt cInt) {
             frame.push(Values.valueOf(cInt.value()));
@@ -504,6 +507,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(ConditionalJumpInstruction instruction) {
+        ValuedFrame frame = frame();
         switch (instruction.opcode()) {
             case IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE -> {
                 Value value = frame.pop();
@@ -536,6 +540,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(AllocateInstruction instruction) {
+        ValuedFrame frame = frame();
         ObjectType type = instruction.type();
         if (type instanceof ArrayType at) {
             Value size = frame.pop();
@@ -551,6 +556,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(VarInstruction instruction) {
+        ValuedFrame frame = frame();
         final int index = instruction.variableIndex();
         final int opcode = instruction.opcode();
         final ClassType expectedVarType = switch (opcode) {
@@ -612,6 +618,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(VariableIncrementInstruction instruction) {
+        ValuedFrame frame = frame();
         ValuedLocal local = frame.getLocal(instruction.variableIndex());
         if (local == null) {
             // create a new local with the increment value
@@ -634,6 +641,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(InstanceofInstruction instruction) {
+        ValuedFrame frame = frame();
         ClassType originType = frame.pop().type();
         ObjectType targetType = instruction.type();
 
@@ -654,6 +662,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(CheckCastInstruction instruction) {
+        ValuedFrame frame = frame();
         Value originValue = frame.pop();
         ClassType originType = originValue.type();
         if (originType instanceof PrimitiveType)
@@ -671,6 +680,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(MethodInstruction instruction) {
+        ValuedFrame frame = frame();
         MethodType methodType = instruction.type();
         List<ClassType> types = methodType.parameterTypes();
         int size = types.size();
@@ -723,6 +733,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(FieldInstruction instruction) {
+        ValuedFrame frame = frame();
         final int opcode = instruction.opcode();
         final ClassType fieldType = instruction.type();
         switch (opcode) {
@@ -785,8 +796,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
             default -> throw new IllegalStateException("Unknown field insn: " + opcode);
         }
     }
-        @Override
+    @Override
     public void execute(InvokeDynamicInstruction instruction) {
+        ValuedFrame frame = frame();
         MethodType methodType = (MethodType) instruction.type();
         List<ClassType> types = methodType.parameterTypes();
         for (int i = types.size(); i > 0; i--) {
@@ -800,6 +812,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(PrimitiveConversionInstruction instruction) {
+        ValuedFrame frame = frame();
         PrimitiveType targetType = instruction.to();
         Value fromValue = frame.pop(instruction.from());
         if (fromValue instanceof Value.PrimitiveValue primitiveValue) {
@@ -816,6 +829,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(LookupSwitchInstruction instruction) {
+        ValuedFrame frame = frame();
         ClassType type = frame.pop().type();
         if (type == null)
             warn(instruction, "Cannot switch off 'null' on stack");
@@ -825,6 +839,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
     @Override
     public void execute(TableSwitchInstruction instruction) {
+        ValuedFrame frame = frame();
         ClassType type = frame.pop().type();
         if (type == null)
             warn(instruction, "Cannot switch off 'null' on stack");

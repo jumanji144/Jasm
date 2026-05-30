@@ -28,6 +28,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(SimpleInstruction instruction) {
+        TypedFrame frame = frame();
         int opcode = instruction.opcode();
         switch (opcode) {
             case DUP -> frame.pushType(frame.peek());
@@ -265,6 +266,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
     }
 
     private ClassType doArrayStore(SimpleInstruction instruction) {
+        TypedFrame frame = frame();
         ClassType valueType = frame.pop();
         ClassType indexType = frame.pop();
         ClassType arrayType = frame.pop();
@@ -277,6 +279,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(ConstantInstruction<?> instruction) {
+        TypedFrame frame = frame();
         Constant constant = instruction.constant();
         if (constant instanceof OfInt) {
             frame.pushType(Types.INT);
@@ -305,6 +308,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(VarInstruction instruction) {
+        TypedFrame frame = frame();
         final int index = instruction.variableIndex();
         final int opcode = instruction.opcode();
         switch (opcode) {
@@ -350,6 +354,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(InstanceofInstruction instruction) {
+        TypedFrame frame = frame();
         ClassType origin = frame.pop();
         if (origin instanceof PrimitiveType)
             warn(instruction, "Cannot instanceof primitive to reference");
@@ -358,6 +363,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(CheckCastInstruction instruction) {
+        TypedFrame frame = frame();
         ClassType origin = frame.pop();
         if (origin instanceof PrimitiveType)
             warn(instruction, "Cannot cast primitive to reference");
@@ -366,6 +372,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(MethodInstruction instruction) {
+        TypedFrame frame = frame();
         MethodType methodType = instruction.type();
         List<ClassType> types = methodType.parameterTypes();
         for (int i = types.size(); i > 0; i--) {
@@ -384,6 +391,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(FieldInstruction instruction) {
+        TypedFrame frame = frame();
         int opcode = instruction.opcode();
         final ClassType fieldType = instruction.type();
         switch (opcode) {
@@ -421,6 +429,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(InvokeDynamicInstruction instruction) {
+        TypedFrame frame = frame();
         MethodType methodType = (MethodType) instruction.type();
         List<ClassType> types = methodType.parameterTypes();
         for (int i = types.size(); i > 0; i--) {
@@ -434,6 +443,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(PrimitiveConversionInstruction instruction) {
+        TypedFrame frame = frame();
         ClassType type = frame.pop(instruction.from());
         if (type == null)
             warn(instruction, "Cannot convert 'null' on stack to primitive");
@@ -444,6 +454,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(LookupSwitchInstruction instruction) {
+        TypedFrame frame = frame();
         ClassType type = frame.pop();
         if (type == null)
             warn(instruction, "Cannot switch off 'null' on stack");
@@ -453,6 +464,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(TableSwitchInstruction instruction) {
+        TypedFrame frame = frame();
         ClassType type = frame.pop();
         if (type == null)
             warn(instruction, "Cannot switch off 'null' on stack");
@@ -462,6 +474,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
     @Override
     public void execute(VariableIncrementInstruction instruction) {
+        TypedFrame frame = frame();
         Local local = frame.getLocal(instruction.variableIndex());
         if (local == null) {
             // Invalid iinc target

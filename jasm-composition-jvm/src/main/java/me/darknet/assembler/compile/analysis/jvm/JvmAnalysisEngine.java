@@ -3,11 +3,9 @@ package me.darknet.assembler.compile.analysis.jvm;
 import dev.xdark.blw.code.*;
 import dev.xdark.blw.type.*;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
-import me.darknet.assembler.compile.analysis.AnalysisException;
-import me.darknet.assembler.compile.analysis.AnalysisResults;
+import me.darknet.assembler.compile.analysis.MethodAnalysisResult;
 import me.darknet.assembler.compile.analysis.VarCache;
 import me.darknet.assembler.compile.analysis.frame.Frame;
-import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
 
 import dev.xdark.blw.code.instruction.*;
@@ -17,36 +15,26 @@ import me.darknet.assembler.error.ErrorCollector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.TreeMap;
-
 /**
  * Base outline for an engine intended for use in proper stack/local analysis.
  *
  * @see TypedJvmAnalysisEngine For basic type-tracking of stack/locals.
  * @see ValuedJvmAnalysisEngine For basic value-tracking of stack/locals.
  */
-public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEngine, AnalysisResults, JavaOpcodes {
+public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEngine, JavaOpcodes {
     protected static final InstanceType METHOD_TYPE = Types.instanceType(MethodType.class);
     protected static final InstanceType METHOD_HANDLE = Types.instanceType(MethodHandle.class);
     protected static final InstanceType CLASS = Types.instanceType(Class.class);
 
-    protected final NavigableMap<Integer, F> frames = new TreeMap<>();
-    protected final NavigableMap<Integer, F> terminalFrames = new TreeMap<>();
-    private final Map<ASTInstruction, CodeElement> astToElement = new IdentityHashMap<>();
-    private final Map<CodeElement, ASTInstruction> elementToAst = new IdentityHashMap<>();
     protected final VarCache varCache;
     protected InheritanceChecker checker;
     protected ErrorCollector errorCollector;
-
-    protected AnalysisException analysisFailure;
-    protected F frame;
-    protected int frameIndex;
+    private MethodAnalysisResult result;
+    private AnalysisSession<F> session;
 
     public JvmAnalysisEngine(@NotNull VarCache varCache) {
         this.varCache = varCache;
+        this.result = new MethodAnalysisResult();
     }
 
     public abstract FrameOps<?> newFrameOps();
@@ -72,6 +60,31 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
         return checker;
     }
 
+    public void setResult(@NotNull MethodAnalysisResult result) {
+        this.result = result;
+    }
+
+    public void bindSession(@Nullable AnalysisSession<F> session) {
+        this.session = session;
+    }
+
+    public final @NotNull MethodAnalysisResult result() {
+        return result;
+    }
+
+    public final @NotNull AnalysisSession<F> session() {
+        if (session == null)
+            throw new IllegalStateException("Analysis session not bound");
+        return session;
+    }
+
+    public final @NotNull F frame() {
+        F frame = session().frame();
+        if (frame == null)
+            throw new IllegalStateException("Active frame not bound");
+        return frame;
+    }
+
     /**
      * @param errorCollector
      *         Collector to dump error/warnings into.
@@ -91,7 +104,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     public void clearErrorsAt(@NotNull CodeElement element) {
         if (errorCollector == null)
             return;
-        ASTInstruction ast = getCodeToAstMap().get(element);
+        ASTInstruction ast = result().getCodeToAstMap().get(element);
         if (ast != null)
             errorCollector.removeAt(ast.location());
     }
@@ -105,7 +118,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     public void warn(@NotNull CodeElement element, @NotNull String message) {
         if (errorCollector == null)
             return;
-        ASTInstruction ast = getCodeToAstMap().get(element);
+        ASTInstruction ast = result().getCodeToAstMap().get(element);
         if (ast != null)
             errorCollector.addWarn(message, ast.location());
     }
@@ -119,128 +132,16 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     protected void error(@NotNull CodeElement element, @NotNull String message) {
         if (errorCollector == null)
             return;
-        ASTInstruction ast = getCodeToAstMap().get(element);
+        ASTInstruction ast = result().getCodeToAstMap().get(element);
         if (ast != null)
             errorCollector.addError(message + " @ " + ast.content(), ast.location());
-    }
-
-    /**
-     * @param index
-     *              Key.
-     *
-     * @return Frame at index, or {@code null} if not present.
-     */
-    @Nullable
-    public F getFrame(int index) {
-        return frames.get(index);
-    }
-
-    /**
-     * @param frameIndex
-     *              Offset into {@link Code#elements()} where the frame.
-     * @param frame
-     *              Frame to set.
-     */
-    public void setActiveFrame(int frameIndex, @NotNull F frame) {
-        this.frameIndex = frameIndex;
-        this.frame = frame;
-    }
-
-    /**
-     * @param index
-     *              Key.
-     * @param frame
-     *              Frame to put.
-     */
-    public void putFrame(int index, @NotNull F frame) {
-        frames.put(index, frame);
-    }
-
-    /**
-     * @param checker
-     *              Inheritance checker to use for determining common super-types.
-     * @param index
-     *              Key.
-     * @param frame
-     *              Frame to put.
-     *
-     * @return {@code true} when the frame merge resulted in a change.
-     * {@code false} when the frame merge resulted in no change.
-     */
-    @SuppressWarnings("unchecked")
-    public boolean putAndMergeFrame(@NotNull InheritanceChecker checker, int index, @NotNull F frame) throws FrameMergeException {
-        F old = getFrame(index);
-
-        if (old == null) {
-            putFrame(index, frame);
-            return true;
-        }
-
-        F merged = (F) old.copy();
-        boolean changed = merged.merge(checker, frame);
-        putFrame(index, merged);
-        return changed;
-    }
-
-    /**
-     * @param index
-     *              Key.
-     * @param frame
-     *              Frame to put.
-     */
-    public void markTerminal(int index, @NotNull F frame) {
-        terminalFrames.put(index, frame);
-    }
-
-    @Override
-    public void recordInstructionMapping(@Nullable ASTInstruction instruction, @NotNull CodeElement element) {
-        // Map code element to AST it originates from.
-        elementToAst.put(element, instruction);
-
-        // Not all code elements have an associated AST.
-        // In some cases we will insert things like additional labels.
-        // We do not want to have nay null keys.
-        if (instruction != null)
-            astToElement.put(instruction, element);
-    }
-
-    @Override
-    public @NotNull Map<ASTInstruction, CodeElement> getAstToCodeMap() {
-        return astToElement;
-    }
-
-    @Override
-    public @NotNull Map<CodeElement, ASTInstruction> getCodeToAstMap() {
-        return elementToAst;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public @NotNull NavigableMap<Integer, Frame> frames() {
-        return (NavigableMap<Integer, Frame>) frames;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public @NotNull NavigableMap<Integer, Frame> terminalFrames() {
-        return (NavigableMap<Integer, Frame>) terminalFrames;
-    }
-
-    @Override
-    public @Nullable AnalysisException getAnalysisFailure() {
-        return analysisFailure;
-    }
-
-    @Override
-    public void setAnalysisFailure(@Nullable AnalysisException analysisFailure) {
-        this.analysisFailure = analysisFailure;
     }
 
     @Override
     public void execute(ConditionalJumpInstruction instruction) {
         switch (instruction.opcode()) {
-            case IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE, IFNULL, IFNONNULL -> frame.pop(1);
-            case IF_ICMPEQ, IF_ICMPNE, IF_ICMPLT, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE, IF_ACMPEQ, IF_ACMPNE -> frame.pop(2);
+            case IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE, IFNULL, IFNONNULL -> frame().pop(1);
+            case IF_ICMPEQ, IF_ICMPNE, IF_ICMPLT, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE, IF_ACMPEQ, IF_ACMPNE -> frame().pop(2);
         }
     }
 
@@ -248,8 +149,8 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
     public void execute(AllocateInstruction instruction) {
         ObjectType type = instruction.type();
         if (type instanceof ArrayType)
-            frame.pop(1); // pop array size off stack
-        frame.pushType(type);
+            frame().pop(1); // pop array size off stack
+        frame().pushType(type);
     }
 
     @Override
@@ -257,8 +158,8 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEng
         int dimensions = instruction.dimensions();
         if (dimensions <= 0)
             warn(instruction, "multianewarray must have > 0 dimensions");
-        frame.pop(dimensions); // pop n values off the stack that fill in the dimension sizes
-        frame.pushType(instruction.type());
+        frame().pop(dimensions); // pop n values off the stack that fill in the dimension sizes
+        frame().pushType(instruction.type());
     }
 
     @Override
