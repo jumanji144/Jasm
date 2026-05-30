@@ -11,15 +11,15 @@ import java.util.List;
  * Static {@code int method(byte, byte)} executor.
  */
 public interface BB2IStaticFunc extends StaticFunc {
-    int apply(byte a, byte b);
+	int apply(byte a, byte b);
 
-    @Override
-    @Nullable
-    default Value apply(@NotNull List<Value> params) {
-        if (params.size() == 2 &&
-                params.get(0) instanceof Value.KnownIntValue a &&
-                params.get(1) instanceof Value.KnownIntValue b)
-            return Values.valueOf(apply((byte) a.value(), (byte) b.value()));
-        return Values.INT_VALUE;
-    }
+	@Override
+	@Nullable
+	default Value apply(@NotNull List<Value> params) {
+		if (params.size() == 2 &&
+				params.get(0) instanceof Value.KnownIntValue a &&
+				params.get(1) instanceof Value.KnownIntValue b)
+			return Values.valueOf(apply((byte) a.value(), (byte) b.value()));
+		return Values.INT_VALUE;
+	}
 }

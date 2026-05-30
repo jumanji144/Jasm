@@ -1,8 +1,8 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.type.ClassType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Type;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,13 +111,20 @@ public class VarCache {
     }
 
     /**
+     * @return Stream of all known variables.
+     */
+    public @NotNull Stream<Variable> vars() {
+        return variables.stream();
+    }
+
+    /**
      * Variable model.
      */
     public static class Variable {
         private final String name;
         private final int index;
         private final boolean wide;
-        private ClassType typeHint;
+        private Type typeHint;
         private int firstAssigned = Integer.MAX_VALUE;
 
         public Variable(String name, int index, boolean wide) {
@@ -132,7 +139,7 @@ public class VarCache {
                 firstAssigned = offset;
         }
 
-        public void updateTypeHint(@Nullable ClassType typeHint) {
+        public void updateTypeHint(@Nullable Type typeHint) {
             this.typeHint = typeHint;
         }
 
@@ -145,7 +152,7 @@ public class VarCache {
         }
 
         @Nullable
-        public ClassType getTypeHint() {
+        public Type getTypeHint() {
             return typeHint;
         }
 

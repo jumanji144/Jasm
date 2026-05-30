@@ -1,6 +1,5 @@
 package me.darknet.assembler;
 
-import dev.xdark.blw.code.instruction.SimpleInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.VarCache;
@@ -9,7 +8,9 @@ import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.test.BinarySampleFixture;
 import me.darknet.assembler.test.JvmAssemblerFixture;
 import me.darknet.assembler.test.JvmCompilation;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
+import org.objectweb.asm.tree.AbstractInsnNode;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -91,9 +92,9 @@ class JvmAnalysisArchitectureTest {
         AnalysisResults results = compilation.requireSuccess().analysisLookup().results("exampleMethod", "()I");
 
         assertNotNull(results);
-        assertFalse(results.getAstToCodeMap().isEmpty());
-        assertFalse(results.getCodeToAstMap().isEmpty());
-        results.getAstToCodeMap().forEach((ast, element) -> assertSame(ast, results.getCodeToAstMap().get(element)));
+        assertFalse(results.getAstToInstructionMap().isEmpty());
+        assertFalse(results.getInstructionToAstMap().isEmpty());
+        results.getAstToInstructionMap().forEach((ast, element) -> assertSame(ast, results.getInstructionToAstMap().get(element)));
     }
 
     @Test
@@ -107,7 +108,7 @@ class JvmAnalysisArchitectureTest {
 
         assertNull(results.getAnalysisFailure());
         Frame endFrame = results.frames().lastEntry().getValue();
-        assertEquals(dev.xdark.blw.type.Types.OBJECT, endFrame.getLocalType(0));
+        assertEquals(me.darknet.assembler.util.JvmTypeUtils.OBJECT, endFrame.getLocalType(0));
     }
 
     private static final class ThrowingTypedEngine extends TypedJvmAnalysisEngine {
@@ -116,7 +117,7 @@ class JvmAnalysisArchitectureTest {
         }
 
         @Override
-        public void execute(SimpleInstruction instruction) {
+        public void execute(@NotNull AbstractInsnNode instruction) {
             throw new IllegalStateException("synthetic engine failure");
         }
     }

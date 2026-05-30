@@ -1,373 +1,233 @@
 package me.darknet.assembler.printer;
 
-import dev.xdark.blw.code.*;
-import me.darknet.assembler.compile.analysis.jvm.IndexedExecutionEngine;
 import me.darknet.assembler.helper.Variables;
-
-import dev.xdark.blw.code.instruction.*;
-import dev.xdark.blw.type.*;
 import me.darknet.assembler.util.VarNaming;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.*;
+import org.objectweb.asm.util.Printer;
 
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-public class JvmInstructionPrinter implements IndexedExecutionEngine {
+public class JvmInstructionPrinter {
     private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u[0-9a-fA-F]{4}");
-    private final static String[] OPCODES = new String[256];
 
-    static {
-        for (var field : JavaOpcodes.class.getFields()) {
-            try {
-                OPCODES[field.getInt(null)] = field.getName().toLowerCase();
-            } catch (IllegalAccessException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-    }
-
-    protected PrintContext.CodePrint ctx;
-    protected Code code;
-    protected Map<Integer, String> labelNames;
-    protected Variables variables;
+    protected final PrintContext.CodePrint ctx;
+    protected final InsnList code;
+    protected final List<TryCatchBlockNode> tryCatchBlocks;
+    protected final Map<LabelNode, String> labelNames;
+    protected final Variables variables;
     private int currentIndex = 0;
 
-    public JvmInstructionPrinter(PrintContext.CodePrint ctx, Code code, Variables variables, Map<Integer, String> labelNames) {
+    public JvmInstructionPrinter(PrintContext.CodePrint ctx, InsnList code, List<TryCatchBlockNode> tryCatchBlocks,
+                                 Variables variables, Map<LabelNode, String> labelNames) {
         this.ctx = ctx;
         this.code = code;
+        this.tryCatchBlocks = tryCatchBlocks;
         this.variables = variables;
         this.labelNames = labelNames;
     }
 
-    @Override
     public void index(int index) {
         currentIndex = index;
     }
 
-    @Override
-    public void label(Label label) {
-        String name = labelNames.get(label.getIndex());
+    public void label(LabelNode label) {
+        String name = labelNames.get(label);
+        if (name == null) {
+            return;
+        }
         ctx.label(name).next();
         if (ctx.debugTryCatchRanges) {
-            for (TryCatchBlock block : code.tryCatchBlocks()) {
-                Label start = block.start();
-                Label end = block.end();
-                Label handler = block.handler();
-                InstanceType type = block.type();
-                String typeName = type == null ? "*" : type.internalName();
-                String range = "range=[" + labelNames.get(start.getIndex()) + "-" + labelNames.get(end.getIndex()) + "]";
-                String endName = labelNames.get(handler.getIndex());
-                if (label == start) {
-                    ctx.instruction("// try-start:   " + range + " handler=" + endName + ":" + typeName).next();
+            for (TryCatchBlockNode block : tryCatchBlocks) {
+                String typeName = block.type == null ? "*" : block.type;
+                String range = "range=[" + labelNames.get(block.start) + "-" + labelNames.get(block.end) + "]";
+                String handlerName = labelNames.get(block.handler);
+                if (label == block.start) {
+                    ctx.instruction("// try-start:   " + range + " handler=" + handlerName + ":" + typeName).next();
                 }
-                if (label == end) {
-                    ctx.instruction("// try-end:     " + range + " handler=" + endName + ":" + typeName).next();
+                if (label == block.end) {
+                    ctx.instruction("// try-end:     " + range + " handler=" + handlerName + ":" + typeName).next();
                 }
-                if (label == handler) {
-                    ctx.instruction("// try-handler: " + range + " handler=" + endName + ":" + typeName).next();
+                if (label == block.handler) {
+                    ctx.instruction("// try-handler: " + range + " handler=" + handlerName + ":" + typeName).next();
                 }
             }
-        }
-        if (label.getLineNumber() != Label.UNSET) {
-            ctx.instruction("line").print(Integer.toString(label.getLineNumber())).next();
         }
     }
 
-    @Override
-    public void execute(SimpleInstruction instruction) {
-        ctx.instruction(OPCODES[instruction.opcode()]).next();
+    public void execute(LineNumberNode instruction) {
+        ctx.instruction("line").print(Integer.toString(instruction.line)).next();
     }
 
-    @Override
-    public void execute(ConstantInstruction<?> instruction) {
-        String opcode;
-        switch (instruction) {
-            case ConstantInstruction.Int i -> {
-                int val = i.constant().value();
-                if (val == -1) {
-                    ctx.instruction("iconst_m1").next();
-                    return;
-                } else if (val >= 0 && val <= 5) {
-                    ctx.instruction("iconst_" + val).next();
-                    return;
-                } else if (val >= -128 && val <= 127) {
-                    opcode = "bipush";
-                } else if (val >= -32768 && val <= 32767) {
-                    opcode = "sipush";
-                } else {
-                    opcode = "ldc";
-                }
-            }
-            case ConstantInstruction.Long i -> {
-                long val = i.constant().value();
-                if (val == 0 || val == 1) {
-                    ctx.instruction("lconst_" + val).next();
-                    return;
-                } else {
-                    opcode = "ldc"; // ldc2_w
-                }
-            }
-            case ConstantInstruction.Float i -> {
-                float val = i.constant().value();
-                if (val == 0 || val == 1 || val == 2) {
-                    ctx.instruction("fconst_" + (int) val).next();
-                    return;
-                } else {
-                    opcode = "ldc";
-                }
-            }
-            case ConstantInstruction.Double i -> {
-                double val = i.constant().value();
-                if (val == 0 || val == 1) {
-                    ctx.instruction("dconst_" + (int) val).next();
-                    return;
-                } else {
-                    opcode = "ldc"; // ldc2_w
-                }
-            }
-            case null, default -> opcode = "ldc";
+    public void execute(InsnNode instruction) {
+        ctx.instruction(opcodeName(instruction.getOpcode())).next();
+    }
+
+    public void execute(IntInsnNode instruction) {
+        if (instruction.getOpcode() == Opcodes.NEWARRAY) {
+            ctx.instruction("newarray").print(newArrayTypeName(instruction.operand)).next();
+            return;
         }
-        ctx.instruction(opcode);
-        instruction.constant().accept(new JvmConstantPrinter(ctx));
+        ctx.instruction(opcodeName(instruction.getOpcode())).print(Integer.toString(instruction.operand)).next();
+    }
+
+    public void execute(LdcInsnNode instruction) {
+        ctx.instruction("ldc");
+        new JvmConstantPrinter(ctx).printConstant(instruction.cst);
         ctx.next();
     }
 
-    @Override
-    public void execute(VarInstruction instruction) {
-        int opcode = instruction.opcode();
-        int index = instruction.variableIndex();
+    public void execute(VarInsnNode instruction) {
+        int opcode = instruction.getOpcode();
+        int index = instruction.var;
         String varName = computeName(opcode, index, currentIndex + 1);
-
-        ctx.instruction(OPCODES[opcode]);
-
-        // If it has already been escaped (\\uXXXX), print the escape as-is.
-        // We do not need to escape the variable name twice.
-        if (varName.charAt(0) == '\\' && UNICODE_ESCAPE.matcher(varName).matches())
+        ctx.instruction(opcodeName(opcode));
+        if (varName.charAt(0) == '\\' && UNICODE_ESCAPE.matcher(varName).matches()) {
             ctx.print(varName);
-        else
-            ctx.literal(varName);
-
-        ctx.next();
-    }
-
-    @Override
-    public void execute(LookupSwitchInstruction instruction) {
-        var obj = ctx.instruction("lookupswitch").object();
-        // Java has no zip function
-        int[] keys = instruction.keys();
-        List<Label> targets = instruction.targets();
-        for (int i = 0; i < keys.length; i++) {
-            printLookupCase(obj, keys[i], targets.get(i));
-            obj.next();
-        }
-        obj.value("default").print(labelNames.get(instruction.defaultTarget().getIndex()));
-        obj.end();
-        ctx.next();
-    }
-
-    private void printLookupCase(PrintContext.ObjectPrint ctx, int key, Label target) {
-        ctx.value(String.valueOf(key)).print(labelNames.get(target.getIndex()));
-    }
-
-    @Override
-    public void execute(TableSwitchInstruction instruction) {
-        var obj = ctx.instruction("tableswitch").object();
-        obj.value("min").print(String.valueOf(instruction.min())).next();
-        obj.value("max").print(String.valueOf(instruction.min() + instruction.targets().size())).next();
-        var arr = obj.value("cases").array();
-        List<Label> targets = instruction.targets();
-        arr.print(targets, (print, lbl) -> print.print(labelNames.get(lbl.getIndex())));
-        arr.end();
-        obj.next();
-        obj.value("default").print(labelNames.get(instruction.defaultTarget().getIndex())).end();
-        ctx.next();
-    }
-
-    @Override
-    public void execute(InstanceofInstruction instruction) {
-        ctx.instruction("instanceof").literal(instruction.type().internalName()).next();
-    }
-
-    @Override
-    public void execute(CheckCastInstruction instruction) {
-        ctx.instruction("checkcast").literal(instruction.type().internalName()).next();
-    }
-
-    @Override
-    public void execute(AllocateInstruction instruction) {
-        Type type = instruction.type();
-        if (type instanceof InstanceType instance) {
-            ctx.instruction("new").literal(instance.internalName()).next();
         } else {
-            ArrayType arrayType = (ArrayType) type;
-            ClassType component = arrayType.componentType();
-            if (component instanceof ObjectType objectComponent) {
-                String typeName = objectComponent.internalName();
-                ctx.instruction("anewarray").literal(typeName).next();
-            } else if (component instanceof PrimitiveType primitiveComponent) {
-                ctx.instruction("newarray").print(primitiveComponent.name()).next();
-            }
+            ctx.literal(varName);
         }
+        ctx.next();
     }
 
-    @Override
-    public void execute(AllocateMultiDimArrayInstruction instruction) {
-        String descriptor = instruction.type().descriptor();
-        int dimensions = instruction.dimensions();
-        ctx.instruction("multianewarray").literal(descriptor).arg().print(Integer.toString(dimensions)).next();
+    public void execute(IincInsnNode instruction) {
+        String variableName = computeName(Opcodes.IINC, instruction.var, currentIndex + 1);
+        ctx.instruction("iinc").literal(variableName).arg().literal(instruction.incr).next();
     }
 
-    @Override
-    public void execute(MethodInstruction instruction) {
-        String opcode = OPCODES[instruction.opcode()];
-        if (instruction.isInterface() && instruction.opcode() != JavaOpcodes.INVOKEINTERFACE) {
+    public void execute(JumpInsnNode instruction) {
+        ctx.instruction(opcodeName(instruction.getOpcode())).print(labelNames.get(instruction.label)).next();
+    }
+
+    public void execute(TypeInsnNode instruction) {
+        ctx.instruction(opcodeName(instruction.getOpcode())).literal(instruction.desc).next();
+    }
+
+    public void execute(FieldInsnNode instruction) {
+        ctx.instruction(opcodeName(instruction.getOpcode())).literal(instruction.owner).print(".")
+                .literal(instruction.name).print(" ").literal(instruction.desc).next();
+    }
+
+    public void execute(MethodInsnNode instruction) {
+        String opcode = opcodeName(instruction.getOpcode());
+        if (instruction.itf && instruction.getOpcode() != Opcodes.INVOKEINTERFACE) {
             opcode += "interface";
         }
-        ctx.instruction(opcode).literal(instruction.owner().internalName()).print(".").literal(instruction.name())
-                .print(" ").literal(instruction.type().descriptor()).next();
+        ctx.instruction(opcode).literal(instruction.owner).print(".").literal(instruction.name)
+                .print(" ").literal(instruction.desc).next();
     }
 
-    @Override
-    public void execute(FieldInstruction instruction) {
-        ctx.instruction(OPCODES[instruction.opcode()]).literal(instruction.owner().internalName()).print(".")
-                .literal(instruction.name()).print(" ").literal(instruction.type().descriptor()).next();
-    }
-
-    @Override
-    public void execute(InvokeDynamicInstruction instruction) {
-        ctx.instruction("invokedynamic").literal(instruction.name()).arg().literal(instruction.type().descriptor())
-                .arg();
-        JvmConstantPrinter.printMethodHandle(instruction.bootstrapHandle(), ctx);
+    public void execute(InvokeDynamicInsnNode instruction) {
+        ctx.instruction("invokedynamic").literal(instruction.name).arg().literal(instruction.desc).arg();
+        JvmConstantPrinter.printMethodHandle(instruction.bsm, ctx);
         var bsmArray = ctx.arg().array();
-        JvmConstantPrinter printer = new JvmConstantPrinter(bsmArray);
-        bsmArray.print(instruction.args(), (__, cst) -> cst.accept(printer));
+        for (int i = 0; i < instruction.bsmArgs.length; i++) {
+            if (i > 0) {
+                bsmArray.arg();
+            }
+            new JvmConstantPrinter(bsmArray).printConstant(instruction.bsmArgs[i]);
+        }
         bsmArray.end();
         ctx.next();
     }
 
-    @Override
-    public void execute(ImmediateJumpInstruction instruction) {
-        ctx.instruction(OPCODES[instruction.opcode()]).print(labelNames.get(instruction.target().getIndex())).next();
-    }
-
-    @Override
-    public void execute(ConditionalJumpInstruction instruction) {
-        ctx.instruction(OPCODES[instruction.opcode()]).print(labelNames.get(instruction.target().getIndex())).next();
-    }
-
-    @Override
-    public void execute(VariableIncrementInstruction instruction) {
-        String variableName = computeName(JavaOpcodes.IINC, instruction.variableIndex(), currentIndex + 1);
-        ctx.instruction(OPCODES[instruction.opcode()])
-                .literal(variableName).arg()
-                .literal(instruction.incrementBy()).next();
-    }
-
-    @Override
-    public void execute(PrimitiveConversionInstruction primitiveConversionInstruction) {
-        primitiveConversionInstruction.accept(new PrimitiveConversion() {
-            @Override
-            public void i2l() {
-                ctx.instruction("i2l");
+    public void execute(LookupSwitchInsnNode instruction) {
+        var obj = ctx.instruction("lookupswitch").object();
+        for (int i = 0; i < instruction.keys.size(); i++) {
+            if (i > 0) {
+                obj.next();
             }
-
-            @Override
-            public void i2f() {
-                ctx.instruction("i2f");
-            }
-
-            @Override
-            public void i2d() {
-                ctx.instruction("i2d");
-            }
-
-            @Override
-            public void l2i() {
-                ctx.instruction("l2i");
-            }
-
-            @Override
-            public void l2f() {
-                ctx.instruction("l2f");
-            }
-
-            @Override
-            public void l2d() {
-                ctx.instruction("l2d");
-            }
-
-            @Override
-            public void f2i() {
-                ctx.instruction("f2i");
-            }
-
-            @Override
-            public void f2l() {
-                ctx.instruction("f2l");
-            }
-
-            @Override
-            public void f2d() {
-                ctx.instruction("f2d");
-            }
-
-            @Override
-            public void d2i() {
-                ctx.instruction("d2i");
-            }
-
-            @Override
-            public void d2l() {
-                ctx.instruction("d2l");
-            }
-
-            @Override
-            public void d2f() {
-                ctx.instruction("d2f");
-            }
-
-            @Override
-            public void i2b() {
-                ctx.instruction("i2b");
-            }
-
-            @Override
-            public void i2c() {
-                ctx.instruction("i2c");
-            }
-
-            @Override
-            public void i2s() {
-                ctx.instruction("i2s");
-            }
-        });
+            obj.value(String.valueOf(instruction.keys.get(i))).print(labelNames.get(instruction.labels.get(i)));
+        }
+        if (!instruction.keys.isEmpty()) {
+            obj.next();
+        }
+        obj.value("default").print(labelNames.get(instruction.dflt));
+        obj.end();
         ctx.next();
     }
 
-    @Override
-    public void execute(Instruction instruction) {
+    public void execute(TableSwitchInsnNode instruction) {
+        var obj = ctx.instruction("tableswitch").object();
+        obj.value("min").print(String.valueOf(instruction.min)).next();
+        obj.value("max").print(String.valueOf(instruction.min + instruction.labels.size())).next();
+        var arr = obj.value("cases").array();
+        arr.print(instruction.labels, (print, lbl) -> print.print(labelNames.get(lbl)));
+        arr.end();
+        obj.next();
+        obj.value("default").print(labelNames.get(instruction.dflt)).end();
+        ctx.next();
+    }
 
+    public void execute(MultiANewArrayInsnNode instruction) {
+        ctx.instruction("multianewarray").literal(instruction.desc).arg().print(Integer.toString(instruction.dims)).next();
+    }
+
+    public void print() {
+        for (int i = 0; i < code.size(); i++) {
+            index(i);
+            AbstractInsnNode instruction = code.get(i);
+            switch (instruction) {
+                case LabelNode label -> label(label);
+                case LineNumberNode lineNumber -> execute(lineNumber);
+                case FrameNode ignored -> { }
+                case InsnNode insn -> execute(insn);
+                case IntInsnNode intInsn -> execute(intInsn);
+                case LdcInsnNode ldcInsn -> execute(ldcInsn);
+                case VarInsnNode varInsn -> execute(varInsn);
+                case IincInsnNode iincInsn -> execute(iincInsn);
+                case JumpInsnNode jumpInsn -> execute(jumpInsn);
+                case TypeInsnNode typeInsn -> execute(typeInsn);
+                case FieldInsnNode fieldInsn -> execute(fieldInsn);
+                case MethodInsnNode methodInsn -> execute(methodInsn);
+                case InvokeDynamicInsnNode invokeDynamicInsn -> execute(invokeDynamicInsn);
+                case LookupSwitchInsnNode lookupSwitchInsn -> execute(lookupSwitchInsn);
+                case TableSwitchInsnNode tableSwitchInsn -> execute(tableSwitchInsn);
+                case MultiANewArrayInsnNode multiANewArrayInsn -> execute(multiANewArrayInsn);
+                default -> throw new IllegalStateException("Unhandled instruction node: " + instruction.getClass().getName());
+            }
+        }
+    }
+
+    private static @NotNull String opcodeName(int opcode) {
+        return Printer.OPCODES[opcode].toLowerCase();
+    }
+
+    private static @NotNull String newArrayTypeName(int operand) {
+        return switch (operand) {
+            case Opcodes.T_BOOLEAN -> "boolean";
+            case Opcodes.T_CHAR -> "char";
+            case Opcodes.T_FLOAT -> "float";
+            case Opcodes.T_DOUBLE -> "double";
+            case Opcodes.T_BYTE -> "byte";
+            case Opcodes.T_SHORT -> "short";
+            case Opcodes.T_INT -> "int";
+            case Opcodes.T_LONG -> "long";
+            default -> throw new IllegalStateException("Unexpected newarray operand: " + operand);
+        };
     }
 
     private @NotNull String computeName(int opcode, int variableIndex, int codeOffset) {
-        ClassType assumedType = switch (opcode) {
-            case JavaOpcodes.ALOAD, JavaOpcodes.ASTORE -> Types.OBJECT;
-            case JavaOpcodes.FLOAD, JavaOpcodes.FSTORE -> Types.FLOAT;
-            case JavaOpcodes.DLOAD, JavaOpcodes.DSTORE -> Types.DOUBLE;
-            case JavaOpcodes.LLOAD, JavaOpcodes.LSTORE -> Types.LONG;
-            case JavaOpcodes.ILOAD, JavaOpcodes.ISTORE, JavaOpcodes.IINC, JavaOpcodes.RET -> Types.INT;
-            default -> Types.VOID; // Should never happen
+        Type assumedType = switch (opcode) {
+            case Opcodes.ALOAD, Opcodes.ASTORE -> Type.getObjectType("java/lang/Object");
+            case Opcodes.FLOAD, Opcodes.FSTORE -> Type.FLOAT_TYPE;
+            case Opcodes.DLOAD, Opcodes.DSTORE -> Type.DOUBLE_TYPE;
+            case Opcodes.LLOAD, Opcodes.LSTORE -> Type.LONG_TYPE;
+            case Opcodes.ILOAD, Opcodes.ISTORE, Opcodes.IINC, Opcodes.RET -> Type.INT_TYPE;
+            default -> Type.VOID_TYPE;
         };
 
-        var local = variables.get(variableIndex, codeOffset, assumedType.descriptor());
+        var local = variables.get(variableIndex, codeOffset, assumedType.getDescriptor());
         if (local != null &&
-                // Both must be non-primitives, or both primitives of the same type
-                ((!local.isPrimitive() && !(assumedType instanceof PrimitiveType))
-                || Variables.compatibleDescriptors(assumedType.descriptor(), local.descriptor())))
+                ((!local.isPrimitive() && assumedType.getSort() == Type.OBJECT)
+                        || Variables.compatibleDescriptors(assumedType.getDescriptor(), local.descriptor()))) {
             return local.name();
+        }
 
         return VarNaming.name(variableIndex, assumedType);
     }
-
 }

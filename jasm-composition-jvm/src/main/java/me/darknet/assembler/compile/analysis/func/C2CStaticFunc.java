@@ -11,13 +11,13 @@ import java.util.List;
  * Static {@code char method(char)} executor.
  */
 public interface C2CStaticFunc extends StaticFunc {
-    char apply(char a);
+	char apply(char a);
 
-    @Override
-    @Nullable
-    default Value apply(@NotNull List<Value> params) {
-        if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue a)
-            return Values.valueOf(apply((char) a.value()));
-        return Values.INT_VALUE;
-    }
+	@Override
+	@Nullable
+	default Value apply(@NotNull List<Value> params) {
+		if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue a)
+			return Values.valueOf(apply((char) a.value()));
+		return Values.INT_VALUE;
+	}
 }

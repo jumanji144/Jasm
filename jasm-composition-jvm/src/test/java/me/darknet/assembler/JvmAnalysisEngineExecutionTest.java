@@ -1,14 +1,5 @@
 package me.darknet.assembler;
 
-import dev.xdark.blw.code.Instruction;
-import dev.xdark.blw.code.JavaOpcodes;
-import dev.xdark.blw.code.instruction.FieldInstruction;
-import dev.xdark.blw.code.instruction.InstanceofInstruction;
-import dev.xdark.blw.code.instruction.MethodInstruction;
-import dev.xdark.blw.code.instruction.VariableIncrementInstruction;
-import dev.xdark.blw.simulation.ExecutionEngines;
-import dev.xdark.blw.type.MethodType;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.BasicFieldValueLookup;
 import me.darknet.assembler.compile.analysis.BasicMethodValueLookup;
 import me.darknet.assembler.compile.analysis.Local;
@@ -32,6 +23,13 @@ import me.darknet.assembler.parser.TokenType;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Range;
 import org.junit.jupiter.api.Test;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.IincInsnNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.TypeInsnNode;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -48,19 +46,19 @@ class JvmAnalysisEngineExecutionTest {
         AnalysisSession<TypedFrame> session = new AnalysisSession<>(result);
 
         session.putFrame(10, new TypedFrameImpl(Map.of(
-                0, new Local(0, "value", Types.instanceType(ArrayList.class))
+                0, new Local(0, "value", Type.getType(ArrayList.class))
         )));
 
         boolean changed = session.putAndMergeFrame(
                 new TestJvmCompilerOptions().inheritanceChecker(),
                 10,
                 new TypedFrameImpl(Map.of(
-                        0, new Local(0, "value", Types.instanceType(LinkedList.class))
+                        0, new Local(0, "value", Type.getType(LinkedList.class))
                 ))
         );
 
         assertTrue(changed);
-        assertEquals(Types.instanceType(Object.class), session.getFrame(10).getLocalType(0));
+        assertEquals(Type.getType(Object.class), session.getFrame(10).getLocalType(0));
     }
 
     @Test
@@ -70,15 +68,15 @@ class JvmAnalysisEngineExecutionTest {
 
         ValuedFrameImpl frame = new ValuedFrameImpl();
         frame.push(Values.STRING_VALUE);
-        ValuedFrameImpl output = executeWithFrame(engine, frame, new MethodInstruction(
-                JavaOpcodes.INVOKESTATIC,
-                Types.instanceType(Long.class),
+        ValuedFrameImpl output = executeWithFrame(engine, frame, new MethodInsnNode(
+                Opcodes.INVOKESTATIC,
+                Type.getInternalName(Long.class),
                 "parseLong",
-                Types.methodType("(Ljava/lang/String;)J"),
+                "(Ljava/lang/String;)J",
                 false
-        ), Types.methodType("()V"), null);
+        ), null);
 
-        assertSame(Values.LONG_VALUE, output.pop(Types.LONG));
+        assertSame(Values.LONG_VALUE, output.pop(Type.LONG_TYPE));
     }
 
     @Test
@@ -86,12 +84,12 @@ class JvmAnalysisEngineExecutionTest {
         ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(new VarCache());
         engine.setFieldValueLookup(new BasicFieldValueLookup());
 
-        ValuedFrameImpl output = executeWithFrame(engine, new ValuedFrameImpl(), new FieldInstruction(
-                JavaOpcodes.GETSTATIC,
-                Types.instanceType(Integer.class),
+        ValuedFrameImpl output = executeWithFrame(engine, new ValuedFrameImpl(), new FieldInsnNode(
+                Opcodes.GETSTATIC,
+                Type.getInternalName(Integer.class),
                 "MAX_VALUE",
-                Types.INT
-        ), Types.methodType("()V"), null);
+                Type.INT_TYPE.getDescriptor()
+        ), null);
 
         Value.KnownIntValue value = assertInstanceOf(Value.KnownIntValue.class, output.pop());
         assertEquals(Integer.MAX_VALUE, value.value());
@@ -113,10 +111,10 @@ class JvmAnalysisEngineExecutionTest {
         });
 
         ValuedFrameImpl frame = new ValuedFrameImpl();
-        frame.push(Values.valueOfInstance(Types.instanceType(ArrayList.class)));
+        frame.push(Values.valueOfInstance(Type.getType(ArrayList.class)));
         ValuedFrameImpl output = executeWithFrame(engine, frame,
-                new InstanceofInstruction(Types.instanceType(List.class)),
-                Types.methodType("()V"), null);
+                new TypeInsnNode(Opcodes.INSTANCEOF, Type.getInternalName(List.class)),
+                null);
 
         Value.KnownIntValue value = assertInstanceOf(Value.KnownIntValue.class, output.pop());
         assertEquals(1, value.value());
@@ -129,8 +127,8 @@ class JvmAnalysisEngineExecutionTest {
         ErrorCollector collector = new ErrorCollector();
         engine.setErrorCollector(collector);
 
-        VariableIncrementInstruction instruction = new VariableIncrementInstruction(7, 3);
-        executeWithFrame(engine, new ValuedFrameImpl(), instruction, Types.methodType("()V"), astInstruction("iinc"));
+        IincInsnNode instruction = new IincInsnNode(7, 3);
+        executeWithFrame(engine, new ValuedFrameImpl(), instruction, astInstruction("iinc"));
 
         assertEquals(1, collector.getErrors().size());
         assertTrue(collector.getErrors().getFirst().getMessage().contains("Invalid iinc target"));
@@ -140,8 +138,7 @@ class JvmAnalysisEngineExecutionTest {
     private static <F extends Frame> F executeWithFrame(
             JvmAnalysisEngine<?> engine,
             F initialFrame,
-            Instruction instruction,
-            MethodType methodType,
+            AbstractInsnNode instruction,
             ASTInstruction astInstruction) {
         MethodAnalysisResult result = new MethodAnalysisResult();
         if (astInstruction != null) {
@@ -157,7 +154,7 @@ class JvmAnalysisEngineExecutionTest {
         try {
             boundEngine.clearErrorsAt(instruction);
             session.setActiveFrame(0, initialFrame);
-            ExecutionEngines.execute(boundEngine, instruction);
+            boundEngine.execute(instruction);
             return (F) session.frame();
         } finally {
             boundEngine.bindSession(null);

@@ -1,12 +1,11 @@
 package me.darknet.assembler;
 
-import dev.xdark.blw.code.JavaOpcodes;
-import dev.xdark.blw.code.instruction.MethodInstruction;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.BasicMethodValueLookup;
 import me.darknet.assembler.compile.analysis.Value;
 import me.darknet.assembler.compile.analysis.Values;
 import org.junit.jupiter.api.Test;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.MethodInsnNode;
 
 import java.util.List;
 
@@ -174,24 +173,18 @@ class BasicMethodValueLookupTest {
     }
 
     private static Value invokeStatic(String owner, String name, String descriptor, Value... params) {
-        Value value = LOOKUP.accept(instruction(JavaOpcodes.INVOKESTATIC, owner, name, descriptor), null, List.of(params));
+        Value value = LOOKUP.accept(instruction(Opcodes.INVOKESTATIC, owner, name, descriptor), null, List.of(params));
         assertNotNull(value, "Expected method lookup to produce a value");
         return value;
     }
 
     private static Value invokeInstance(String owner, String name, String descriptor, Value.ObjectValue context, Value... params) {
-        Value value = LOOKUP.accept(instruction(JavaOpcodes.INVOKEVIRTUAL, owner, name, descriptor), context, List.of(params));
+        Value value = LOOKUP.accept(instruction(Opcodes.INVOKEVIRTUAL, owner, name, descriptor), context, List.of(params));
         assertNotNull(value, "Expected method lookup to produce a value");
         return value;
     }
 
-    private static MethodInstruction instruction(int opcode, String owner, String name, String descriptor) {
-        return new MethodInstruction(
-                opcode,
-                Types.instanceTypeFromInternalName(owner),
-                name,
-                Types.methodType(descriptor),
-                false
-        );
+    private static MethodInsnNode instruction(int opcode, String owner, String name, String descriptor) {
+        return new MethodInsnNode(opcode, owner, name, descriptor, false);
     }
 }

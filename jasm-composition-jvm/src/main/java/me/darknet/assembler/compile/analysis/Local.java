@@ -1,20 +1,18 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.type.ClassType;
-import dev.xdark.blw.type.PrimitiveKind;
-import dev.xdark.blw.type.PrimitiveType;
-import dev.xdark.blw.type.Types;
+import me.darknet.assembler.util.JvmTypeUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Type;
 
 import java.util.Objects;
 
 public class Local {
     protected final int index;
     protected final String name;
-    protected final ClassType type;
+    protected final Type type;
 
-    public Local(int index, @NotNull String name, @Nullable ClassType type) {
+    public Local(int index, @NotNull String name, @Nullable Type type) {
         this.index = index;
         this.name = name;
         this.type = type;
@@ -34,17 +32,17 @@ public class Local {
     }
 
     @Nullable
-    public ClassType type() {
+    public Type type() {
         return type;
     }
 
     @NotNull
-    public ClassType safeType() {
-        return type == null ? Types.OBJECT : type;
+    public Type safeType() {
+        return type == null ? JvmTypeUtils.OBJECT : type;
     }
 
     @NotNull
-    public Local adaptType(@NotNull ClassType newType) {
+    public Local adaptType(@NotNull Type newType) {
         if (Objects.equals(type, newType))
             return this;
         return new Local(index, name, newType);
@@ -84,10 +82,6 @@ public class Local {
      *         {@link double}/{@code long} which is {@code 2}.
      */
     public int size() {
-        if (type instanceof PrimitiveType primitiveType) {
-            int kind = primitiveType.kind();
-            return (kind == PrimitiveKind.T_LONG || kind == PrimitiveKind.T_DOUBLE) ? 2 : 1;
-        }
-        return 1;
+        return JvmTypeUtils.category(type);
     }
 }

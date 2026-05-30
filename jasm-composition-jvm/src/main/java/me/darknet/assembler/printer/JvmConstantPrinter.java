@@ -1,95 +1,103 @@
 package me.darknet.assembler.printer;
 
-import dev.xdark.blw.constant.*;
-import dev.xdark.blw.type.*;
 import me.darknet.assembler.helper.Handle;
+import me.darknet.assembler.util.EscapeUtil;
+import org.objectweb.asm.ConstantDynamic;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
 import java.text.DecimalFormat;
 import java.util.Map;
 
-record JvmConstantPrinter(PrintContext<?> ctx) implements ConstantSink {
-    private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("#"); // Prevent 1E100 form
+record JvmConstantPrinter(PrintContext<?> ctx) {
+    private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("#");
     private static final Map<Integer, String> HANDLE_TYPES = Map.of(
-            1, "getfield", 2, "getstatic", 3, "putfield", 4, "putstatic", 5, "invokevirtual", 6, "invokestatic", 7,
-            "invokespecial", 8, "newinvokespecial", 9, "invokeinterface"
+            Opcodes.H_GETFIELD, "getfield",
+            Opcodes.H_GETSTATIC, "getstatic",
+            Opcodes.H_PUTFIELD, "putfield",
+            Opcodes.H_PUTSTATIC, "putstatic",
+            Opcodes.H_INVOKEVIRTUAL, "invokevirtual",
+            Opcodes.H_INVOKESTATIC, "invokestatic",
+            Opcodes.H_INVOKESPECIAL, "invokespecial",
+            Opcodes.H_NEWINVOKESPECIAL, "newinvokespecial",
+            Opcodes.H_INVOKEINTERFACE, "invokeinterface"
     );
 
     static {
-		DECIMAL_FORMAT.setMinimumIntegerDigits(1); // Ensure leading 0 for fractions like "0.125"
-        DECIMAL_FORMAT.setMaximumFractionDigits(10); // Ensure we don't have stupid long fractions
+        DECIMAL_FORMAT.setMinimumIntegerDigits(1);
+        DECIMAL_FORMAT.setMaximumFractionDigits(10);
     }
 
-    public static void printMethodHandle(MethodHandle handle, PrintContext<?> ctx) {
-        String owner = handle.owner().internalName();
-        String name = handle.name();
-        String descriptor = handle.type().descriptor();
+    public static void printMethodHandle(org.objectweb.asm.Handle handle, PrintContext<?> ctx) {
+        String owner = handle.getOwner();
+        String name = handle.getName();
+        String descriptor = handle.getDesc();
         String shortHandle = Handle.SHORTCUT_LOOKUP.get(owner + "." + name + descriptor);
         if (shortHandle != null) {
-            // We are intentionally using append because our 'short handle' is safe and does not need to be escaped
             ctx.append(shortHandle);
             return;
         }
         var array = ctx.array();
-        String kind = HANDLE_TYPES.get(handle.kind());
+        String kind = HANDLE_TYPES.get(handle.getTag());
         array.print(kind).arg().literal(owner).append(".").literal(name).arg().literal(descriptor).end();
     }
 
-    @Override
-    public void acceptString(OfString value) {
-        ctx.string(value.value());
+    public static void printTypeLiteral(Type type, PrintContext<?> ctx) {
+        if (type.getSort() == Type.OBJECT) {
+            ctx.literal(type.getInternalName());
+        } else {
+            ctx.literal(type.getDescriptor());
+        }
     }
 
-    @Override
-    public void acceptMethodHandle(OfMethodHandle value) {
-        printMethodHandle(value.value(), ctx);
+    public void printConstant(Object value) {
+        switch (value) {
+            case null -> ctx.print("null");
+            case String stringValue -> ctx.string(stringValue);
+            case Integer intValue -> ctx.print(String.valueOf(intValue));
+            case Long longValue -> ctx.print(String.valueOf(longValue)).print("L");
+            case Float floatValue -> printFloat(floatValue);
+            case Double doubleValue -> printDouble(doubleValue);
+            case Byte byteValue -> ctx.print(String.valueOf(byteValue));
+            case Short shortValue -> ctx.print(String.valueOf(shortValue));
+            case Boolean booleanValue -> ctx.print(String.valueOf(booleanValue));
+            case Character charValue -> ctx.print("'").print(EscapeUtil.escapeString(String.valueOf(charValue))).print("'");
+            case Type typeValue -> ctx.literal(typeValue.getDescriptor());
+            case org.objectweb.asm.Handle handleValue -> printMethodHandle(handleValue, ctx);
+            case ConstantDynamic dynamicValue -> printDynamic(dynamicValue);
+            default -> throw new IllegalStateException("Unexpected constant value: " + value);
+        }
     }
 
-    @Override
-    public void acceptType(OfType value) {
-        Type t = value.value();
-        ctx.literal(t.descriptor());
-    }
-
-    @Override
-    public void acceptDynamic(OfDynamic value) {
-        ConstantDynamic dynamic = value.value();
+    private void printDynamic(ConstantDynamic dynamic) {
         var array = ctx.array();
-        array.literal(dynamic.name()).arg().literal(dynamic.type().descriptor()).arg();
-        printMethodHandle(dynamic.methodHandle(), ctx);
+        array.literal(dynamic.getName()).arg().literal(dynamic.getDescriptor()).arg();
+        printMethodHandle(dynamic.getBootstrapMethod(), ctx);
         var bsmArray = array.arg().array();
-        JvmConstantPrinter printer = new JvmConstantPrinter(bsmArray);
-        bsmArray.print(dynamic.args(), (__, arg) -> arg.accept(printer));
+        for (int i = 0; i < dynamic.getBootstrapMethodArgumentCount(); i++) {
+            if (i > 0) {
+                bsmArray.arg();
+            }
+            new JvmConstantPrinter(bsmArray).printConstant(dynamic.getBootstrapMethodArgument(i));
+        }
         bsmArray.end();
         array.end();
     }
 
-    @Override
-    public void acceptLong(OfLong value) {
-        ctx.print(String.valueOf(value.value())).print("L");
-    }
-
-    @Override
-    public void acceptDouble(OfDouble value) {
-        String content = ctx.forceWholeNumberRepresentation && Double.isFinite(value.value()) ?
-                DECIMAL_FORMAT.format(value.value()) :
-                String.valueOf(value.value());
+    private void printDouble(double value) {
+        String content = ctx.forceWholeNumberRepresentation && Double.isFinite(value)
+                ? DECIMAL_FORMAT.format(value)
+                : String.valueOf(value);
         ctx.print(content);
-
-        // Skip 'D' suffix for things like 'NaN' where it is implied
-        if (!content.matches("\\D+"))
+        if (!content.matches("\\D+")) {
             ctx.print("D");
+        }
     }
 
-    @Override
-    public void acceptInt(OfInt value) {
-        ctx.print(String.valueOf(value.value()));
-    }
-
-    @Override
-    public void acceptFloat(OfFloat value) {
-        String content = ctx.forceWholeNumberRepresentation && Float.isFinite(value.value())?
-                DECIMAL_FORMAT.format(value.value()) :
-                String.valueOf(value.value());
+    private void printFloat(float value) {
+        String content = ctx.forceWholeNumberRepresentation && Float.isFinite(value)
+                ? DECIMAL_FORMAT.format(value)
+                : String.valueOf(value);
         ctx.print(content).print("F");
     }
 }

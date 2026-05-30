@@ -1,6 +1,6 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compile.visitor.JavaCompileResult;
+import me.darknet.assembler.compile.JavaCompileResult;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.error.Warn;
 import me.darknet.assembler.test.DiagnosticAssertions;

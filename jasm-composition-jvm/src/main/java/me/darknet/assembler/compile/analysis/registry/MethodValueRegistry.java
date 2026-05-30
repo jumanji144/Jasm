@@ -1,12 +1,12 @@
 package me.darknet.assembler.compile.analysis.registry;
 
-import dev.xdark.blw.code.instruction.MethodInstruction;
 import me.darknet.assembler.compile.analysis.Value;
 import me.darknet.assembler.compile.analysis.func.StaticFunc;
 import me.darknet.assembler.compile.analysis.func.StringFunc;
 import me.darknet.assembler.compile.analysis.jvm.MethodValueLookup;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.tree.MethodInsnNode;
 
 import java.util.HashMap;
 import java.util.List;
@@ -36,17 +36,17 @@ public final class MethodValueRegistry implements MethodValueLookup {
     }
 
     @Override
-    public @Nullable Value accept(@NotNull MethodInstruction instruction, Value.@Nullable ObjectValue context,
+    public @Nullable Value accept(@NotNull MethodInsnNode instruction, Value.@Nullable ObjectValue context,
                                   @NotNull List<Value> parameters) {
         if (context instanceof Value.KnownStringValue stringValue) {
-            StringFunc func = stringInstanceFuncs.get(instanceKey(instruction.name(), instruction.type().descriptor()));
+            StringFunc func = stringInstanceFuncs.get(instanceKey(instruction.name, instruction.desc));
             if (func != null)
                 return func.apply(stringValue.value(), parameters);
         } else if (context == null) {
             StaticFunc func = staticFuncs.get(staticKey(
-                    instruction.owner().internalName(),
-                    instruction.name(),
-                    instruction.type().descriptor()
+                    instruction.owner,
+                    instruction.name,
+                    instruction.desc
             ));
             if (func != null)
                 return func.apply(parameters);

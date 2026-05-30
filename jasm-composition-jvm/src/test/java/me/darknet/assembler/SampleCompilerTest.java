@@ -1,8 +1,5 @@
 package me.darknet.assembler;
 
-import dev.xdark.blw.code.instruction.MethodInstruction;
-import dev.xdark.blw.type.ClassType;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
@@ -27,7 +24,9 @@ import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodInsnNode;
 
 import static me.darknet.assembler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -117,7 +116,7 @@ public class SampleCompilerTest {
 
                 ValuedFrame frame = (ValuedFrame) results.terminalFrames().values().iterator().next();
                 if (frame.peek() instanceof Value.ObjectValue objectValue) {
-                    assertEquals(Types.instanceType(Class.class), objectValue.type(), "Pushing type to stack did not yield class reference");
+                    assertEquals(Type.getType(Class.class), objectValue.type(), "Pushing type to stack did not yield class reference");
                 } else {
                     fail("Did not yield object value");
                 }
@@ -219,7 +218,7 @@ public class SampleCompilerTest {
                         .filter(l -> l.name().equals("c"))
                         .findFirst().orElse(null);
                  assertNotNull(local, "The 'c' local was not found");
-                 assertEquals(Types.instanceType(List.class), local.type(), "Expected 'c' == List.class");
+                 assertEquals(Type.getType(List.class), local.type(), "Expected 'c' == List.class");
             });
         }
     }
@@ -279,7 +278,7 @@ public class SampleCompilerTest {
             processJvm(source, options, result -> {
                 AnalysisResults methodAnalysis = result.analysisLookup().results("exampleMethod", "()I");
                 assertNotNull(methodAnalysis);
-                Set<ASTInstruction> instructionAstNodes = methodAnalysis.getAstToCodeMap().keySet();
+                Set<ASTInstruction> instructionAstNodes = methodAnalysis.getAstToInstructionMap().keySet();
                 for (ASTInstruction astNode : instructionAstNodes) {
                     if ("istore".equals(astNode.identifier().content()) ) {
                         // The istore should appear on line 23
@@ -388,7 +387,7 @@ public class SampleCompilerTest {
                 ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
                 engine.setMethodValueLookup(new MethodValueLookup() {
                     @Override
-                    public @NotNull Value accept(@NotNull MethodInstruction instruction, Value.@Nullable ObjectValue context, @NotNull List<Value> parameters) {
+                    public @NotNull Value accept(@NotNull MethodInsnNode instruction, Value.@Nullable ObjectValue context, @NotNull List<Value> parameters) {
                         visited[0] = true;
                         return Values.LONG_VALUE;
                     }
@@ -423,7 +422,7 @@ public class SampleCompilerTest {
                 Frame endFrame = results.terminalFrames().lastEntry().getValue();
                 if (endFrame instanceof ValuedFrame valuedEndFrame) {
                     Value returnValue = valuedEndFrame.peek();
-                    assertEquals(Types.instanceType(List.class), returnValue.type());
+                    assertEquals(Type.getType(List.class), returnValue.type());
                 } else {
                     fail("Wrong return value");
                 }
@@ -475,13 +474,67 @@ public class SampleCompilerTest {
                 // should not fail or produce warning and p0 should be of type Object
                 assertNull(results.getAnalysisFailure());
 
-                ClassType p0Type = results.frames().lastEntry().getValue().getLocalType(0);
-                assertEquals(Types.OBJECT, p0Type);
+                Type p0Type = results.frames().lastEntry().getValue().getLocalType(0);
+                assertEquals(me.darknet.assembler.util.JvmTypeUtils.OBJECT, p0Type);
             }, warns -> {
                 // Void type usage in the engine for method parameters should emit a warning.
                 // If this occurs we've broken something.
                 fail("Expected no warnings, found: " + warns);
             });
+        }
+
+        @Test
+        void arrayObjectMergeOnMethodCall() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-array-object-merge-on-method-call.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.inheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                // should not fail or produce warning
+                assertNull(results.getAnalysisFailure());
+
+            }, warns -> {
+                fail("Expected no warnings, found: " + warns);
+            });
+        }
+
+        @Test
+        void arrayStore() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-arraystore-inheritance.jasm");
+
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+
+            options.inheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                // should not fail or produce warning
+                assertNull(results.getAnalysisFailure());
+
+            }, warns -> {
+                // Void type usage in the engine for method parameters should emit a warning.
+                // If this occurs we've broken something.
+                fail("Expected no warnings, found: " + warns);
+            });
+        }
+
+        @Test
+        void methodArrayMerging() throws Throwable {
+
+            TestArgument arg = TestArgument.fromName("Example-array-object-primitive-merge-on-method-call.jasm");
+
+            // Both analysis engines should have warnings for these cases
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+
+            // Value stack analysis engine
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            processAnalysisWarnJvm(source, options);
         }
     }
 

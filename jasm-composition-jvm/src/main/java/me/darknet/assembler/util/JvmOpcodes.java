@@ -1,24 +1,24 @@
 package me.darknet.assembler.util;
 
-import dev.xdark.blw.code.JavaOpcodes;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.Opcodes;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
-public class BlwOpcodes {
+public class JvmOpcodes {
 
     private static final Map<String, Integer> opcodes = new HashMap<>();
     private static final Map<String, Integer> filteredOpcodes = new HashMap<>();
 
     public static boolean isVarStore(int opcode) {
         return switch (opcode) {
-            case JavaOpcodes.ASTORE,
-                    JavaOpcodes.ISTORE,
-                    JavaOpcodes.FSTORE,
-                    JavaOpcodes.DSTORE,
-                    JavaOpcodes.LSTORE -> true;
+            case Opcodes.ASTORE,
+                    Opcodes.ISTORE,
+                    Opcodes.FSTORE,
+                    Opcodes.DSTORE,
+                    Opcodes.LSTORE -> true;
             default -> false;
         };
     }
@@ -27,7 +27,7 @@ public class BlwOpcodes {
         if (name.endsWith("interface")) {
             String prefix = name.substring(0, name.length() - 9);
             if (prefix.length() == 6)
-                return JavaOpcodes.INVOKEINTERFACE;
+                return Opcodes.INVOKEINTERFACE;
             else
                 return opcodes.get(prefix);
         }
@@ -43,10 +43,12 @@ public class BlwOpcodes {
     }
 
     static {
-        Field[] fields = JavaOpcodes.class.getFields();
+        Field[] fields = Opcodes.class.getFields();
         for (Field field : fields) {
             try {
-                opcodes.put(field.getName().toLowerCase(), field.getInt(null));
+                if (field.getType() == int.class) {
+                    opcodes.put(field.getName().toLowerCase(), field.getInt(null));
+                }
             } catch (IllegalAccessException e) {
                 throw new ExceptionInInitializerError(e);
             }
@@ -59,8 +61,9 @@ public class BlwOpcodes {
         filteredOpcodes.remove("ldc2_w");
         filteredOpcodes.remove("jsr");
         filteredOpcodes.remove("ret");
-        filteredOpcodes.put("invokestaticinterface", JavaOpcodes.INVOKESTATIC);
-        filteredOpcodes.put("invokevirtualinterface", JavaOpcodes.INVOKEINTERFACE);
-        filteredOpcodes.put("invokespecialinterface", JavaOpcodes.INVOKESPECIAL);
+        filteredOpcodes.put("invokestaticinterface", Opcodes.INVOKESTATIC);
+        filteredOpcodes.put("invokevirtualinterface", Opcodes.INVOKEINTERFACE);
+        filteredOpcodes.put("invokespecialinterface", Opcodes.INVOKESPECIAL);
     }
 }
+

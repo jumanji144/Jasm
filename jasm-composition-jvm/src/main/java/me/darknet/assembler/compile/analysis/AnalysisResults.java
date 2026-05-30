@@ -1,12 +1,11 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.code.CodeElement;
 import me.darknet.assembler.ast.primitive.ASTCode;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.frame.Frame;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.tree.AbstractInsnNode;
 
 import java.util.Map;
 import java.util.NavigableMap;
@@ -53,12 +52,12 @@ public interface AnalysisResults {
     AnalysisException getAnalysisFailure();
 
     /**
-     * @return Map of AST instructions/labels to the generated code elements.
+     * @return Map of AST instructions/labels to the generated instruction nodes.
      */
-    @NotNull Map<ASTInstruction, CodeElement> getAstToCodeMap();
+    @NotNull Map<ASTInstruction, AbstractInsnNode> getAstToInstructionMap();
 
     /**
-     * @return Map of the generated code elements to their source AST instructions/labels.
+     * @return Map of the generated instruction nodes to their source AST instructions/labels.
      */
-    @NotNull Map<CodeElement, ASTInstruction> getCodeToAstMap();
+    @NotNull Map<AbstractInsnNode, ASTInstruction> getInstructionToAstMap();
 }

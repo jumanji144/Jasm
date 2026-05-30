@@ -2,11 +2,11 @@ package me.darknet.assembler.util;
 
 import me.darknet.assembler.visitor.Modifiers;
 
-import static dev.xdark.blw.classfile.AccessFlag.*;
+import static org.objectweb.asm.Opcodes.*;
 
 import java.util.Map;
 
-public class BlwModifiers {
+public class JvmModifiers {
 
     public static final int CLASS = 1;
     public static final int METHOD = 2;
@@ -204,3 +204,4 @@ public class BlwModifiers {
         return modifiers.modifiers().stream().map(it -> modifier(it.content(), type)).reduce(0, (a, b) -> a | b);
     }
 }
+

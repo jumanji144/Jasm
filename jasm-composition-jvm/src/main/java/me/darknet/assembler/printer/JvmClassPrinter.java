@@ -1,134 +1,100 @@
 package me.darknet.assembler.printer;
 
-import dev.xdark.blw.classfile.RecordComponent;
-import me.darknet.assembler.util.BlwModifiers;
-
-import dev.xdark.blw.BytecodeLibrary;
-import dev.xdark.blw.asm.AsmBytecodeLibrary;
-import dev.xdark.blw.asm.ClassWriterProvider;
-import dev.xdark.blw.classfile.ClassFileView;
-import dev.xdark.blw.classfile.Field;
-import dev.xdark.blw.classfile.Method;
-import dev.xdark.blw.classfile.attribute.InnerClass;
-import dev.xdark.blw.classfile.generic.GenericClassBuilder;
-import dev.xdark.blw.type.InstanceType;
+import me.darknet.assembler.util.JvmModifiers;
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.InnerClassNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.RecordComponentNode;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
 
 public class JvmClassPrinter implements ClassPrinter {
-
-    protected ClassFileView view;
-    protected JvmMemberPrinter memberPrinter;
-    private static final BytecodeLibrary library = new AsmBytecodeLibrary(
-            ClassWriterProvider.flags(ClassWriter.COMPUTE_FRAMES)
-    );
+    protected final ClassNode view;
+    protected final JvmMemberPrinter memberPrinter;
 
     public JvmClassPrinter(byte[] bytes) throws IOException {
         this(new ByteArrayInputStream(bytes));
     }
 
     public JvmClassPrinter(InputStream stream) throws IOException {
-        var builder = new GenericClassBuilder();
-        library.read(stream, builder);
-        view = builder.build();
-        this.memberPrinter = new JvmMemberPrinter(view, view, view, JvmMemberPrinter.Type.CLASS);
+        view = new ClassNode();
+        new ClassReader(stream).accept(view, 0);
+        this.memberPrinter = new JvmMemberPrinter(view, JvmMemberPrinter.Type.CLASS);
     }
 
     @Override
     public void print(PrintContext<?> ctx) {
-        for (InnerClass innerClass : view.innerClasses()) {
+        for (InnerClassNode innerClass : view.innerClasses) {
             var obj = ctx.begin().element(".inner")
-                    .print(BlwModifiers.modifiers(innerClass.accessFlags(), BlwModifiers.CLASS)).object();
-            String name = innerClass.innerName();
-            if (name != null) {
-                obj.value("name").literal(name).next();
+                    .print(JvmModifiers.modifiers(innerClass.access, JvmModifiers.CLASS)).object();
+            if (innerClass.innerName != null) {
+                obj.value("name").literal(innerClass.innerName).next();
             }
-            obj.value("inner").literal(innerClass.type().internalName());
-            InstanceType outer = innerClass.outerType();
-            if (outer != null) {
+            obj.value("inner").literal(innerClass.name);
+            if (innerClass.outerName != null) {
                 obj.next();
-                obj.value("outer").literal(outer.internalName());
+                obj.value("outer").literal(innerClass.outerName);
             }
             obj.end();
             ctx.end();
         }
 
-        String sourceFile = view.sourceFile();
-        if (sourceFile != null) {
-            ctx.begin().element(".sourcefile").string(sourceFile).end();
+        if (view.sourceFile != null) {
+            ctx.begin().element(".sourcefile").string(view.sourceFile).end();
+        }
+        if (view.outerClass != null) {
+            ctx.begin().element(".outer-class").element(view.outerClass).end();
+        }
+        if (view.outerMethod != null && view.outerMethodDesc != null) {
+            ctx.begin().element(".outer-method").element(view.outerMethod).element(view.outerMethodDesc).end();
+        }
+        if (view.nestHostClass != null) {
+            ctx.begin().element(".nest-host").element(view.nestHostClass).end();
+        }
+        if (view.nestMembers != null && !view.nestMembers.isEmpty()) {
+            for (String nestMember : view.nestMembers) {
+                ctx.begin().element(".nest-member").element(nestMember).end();
+            }
+        }
+        if (view.permittedSubclasses != null && !view.permittedSubclasses.isEmpty()) {
+            for (String permittedSubclass : view.permittedSubclasses) {
+                ctx.begin().element(".permitted-subclass").element(permittedSubclass).end();
+            }
         }
 
-        String outerClass = view.outerClass();
-        if (outerClass != null) {
-            ctx.begin().element(".outer-class").element(outerClass).end();
+        if (view.recordComponents != null && !view.recordComponents.isEmpty()) {
+            for (RecordComponentNode recordComponent : view.recordComponents) {
+                new JvmMemberPrinter(recordComponent).printAttributes(ctx);
+                ctx.begin().element(".record-component").element(recordComponent.name).element(recordComponent.descriptor).end();
+            }
         }
 
-        String outerMethodName = view.outerMethodName();
-        String outerMethodDesc = view.outerMethodDescriptor();
-        if (outerMethodName != null && outerMethodDesc != null) {
-            ctx.begin().element(".outer-method")
-                    .element(outerMethodName).element(outerMethodDesc).end();
-        }
-
-        InstanceType nestHost = view.nestHost();
-        if (nestHost != null)
-            ctx.begin().element(".nest-host").element(nestHost.internalName()).end();
-        List<InstanceType> nestMembers = view.nestMembers();
-        if (nestMembers != null && !nestMembers.isEmpty()) {
-            for (InstanceType nestMember : nestMembers)
-                ctx.begin().element(".nest-member").element(nestMember.internalName()).end();
-        }
-
-        List<InstanceType> permittedSubclasses = view.permittedSubclasses();
-        if (permittedSubclasses != null && !permittedSubclasses.isEmpty()) {
-            permittedSubclasses.forEach(t -> ctx.begin().element(".permitted-subclass").element(t.internalName()).end());
-        }
-
-        // Record components in JASM consume attributes like Signatures and Annotations.
-        // So we cannot put either of those things before we print these.
-        List<RecordComponent> recordComponents = view.recordComponents();
-        if (recordComponents != null && !recordComponents.isEmpty()) {
-            recordComponents.forEach(r -> {
-                // Dirty hack to print the records signature/annotations without too much copy-pasting
-                var compAttrPrinter = new JvmMemberPrinter(r, r, view, JvmMemberPrinter.Type.CLASS);
-                compAttrPrinter.printAttributes(ctx);
-                ctx.begin().element(".record-component").element(r.name()).element(r.type().descriptor()).end();
-            });
-        }
-
-        // This prints attributes that are held mutually by classes and members, so:
-        //  - Signature
-        //  - Annotations
-        // NOTE: This must be called AFTER record-components are printed
         memberPrinter.printAttributes(ctx);
 
-        var superClass = view.superClass();
-        if (superClass != null)
-            ctx.begin().element(".super").literal(superClass.internalName()).end();
-        for (InstanceType anInterface : view.interfaces()) {
-            ctx.begin().element(".implements").literal(anInterface.internalName()).end();
+        if (view.superName != null) {
+            ctx.begin().element(".super").literal(view.superName).end();
         }
-        var obj = memberPrinter.printDeclaration(ctx)
-                .literal(view.type().internalName()).print(" ").declObject()
-                .newline();
-        for (Field field : view.fields()) {
-            JvmFieldPrinter printer = new JvmFieldPrinter(field);
-            printer.print(obj);
+        if (view.interfaces != null) {
+            for (String anInterface : view.interfaces) {
+                ctx.begin().element(".implements").literal(anInterface).end();
+            }
+        }
+
+        var obj = memberPrinter.printDeclaration(ctx).literal(view.name).print(" ").declObject().newline();
+        for (FieldNode field : view.fields) {
+            new JvmFieldPrinter(field).print(obj);
             obj.next();
         }
-	    obj.line();
-	    for (Method method : view.methods()) {
-		    JvmMethodPrinter printer = new JvmMethodPrinter(method);
-		    printer.print(obj);
-		    obj.doubleNext();
+        obj.line();
+        for (MethodNode method : view.methods) {
+            new JvmMethodPrinter(method).print(obj);
+            obj.doubleNext();
         }
         obj.end();
     }
@@ -150,9 +116,8 @@ public class JvmClassPrinter implements ClassPrinter {
 
     @Override
     public MethodPrinter method(String name, String descriptor) {
-        // find method
-        for (Method method : view.methods()) {
-            if (method.name().equals(name) && method.type().descriptor().equals(descriptor)) {
+        for (MethodNode method : view.methods) {
+            if (method.name.equals(name) && method.desc.equals(descriptor)) {
                 return new JvmMethodPrinter(method);
             }
         }
@@ -161,12 +126,12 @@ public class JvmClassPrinter implements ClassPrinter {
 
     @Override
     public FieldPrinter field(String name, String descriptor) {
-        // find field
-        for (Field field : view.fields()) {
-            if (field.name().equals(name) && field.type().descriptor().equals(descriptor)) {
+        for (FieldNode field : view.fields) {
+            if (field.name.equals(name) && field.desc.equals(descriptor)) {
                 return new JvmFieldPrinter(field);
             }
         }
         return null;
     }
 }
+

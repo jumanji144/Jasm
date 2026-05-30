@@ -1,6 +1,5 @@
 package me.darknet.assembler.test;
 
-import dev.xdark.blw.classfile.generic.GenericClassBuilder;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JvmCompiler;
@@ -10,8 +9,6 @@ import org.junit.jupiter.api.Assertions;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.CheckClassAdapter;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
@@ -53,7 +50,7 @@ public final class JvmAssemblerFixture {
 		JvmCompiler compiler = new JvmCompiler();
 		var compileResult = compiler.compile(ast, options);
 		if (compileResult.isOk()) {
-			verifyGeneratedClass(compiler, compileResult.get().representation());
+			verifyGeneratedClass(compileResult.get().representation());
 		}
 		return JvmCompilation.from(sourceName, source, astResult, compileResult);
 	}
@@ -61,19 +58,13 @@ public final class JvmAssemblerFixture {
 	/**
 	 * Verifies that the given class representation can be read and verified as a valid JVM class file.
 	 *
-	 * @param compiler
-	 * 		The compiler that produced the class representation to verify.
 	 * @param representation
 	 * 		The class representation to verify.
 	 */
-	private static void verifyGeneratedClass(JvmCompiler compiler, JavaClassRepresentation representation) {
+	private static void verifyGeneratedClass(JavaClassRepresentation representation) {
 		Assertions.assertNotNull(representation, "Expected generated class bytes");
 		byte[] bytes = representation.classFile();
-		try {
-			compiler.library().read(new ByteArrayInputStream(bytes), new GenericClassBuilder());
-		} catch (IOException ex) {
-			Assertions.fail("Generated class was not readable", ex);
-		}
+		Assertions.assertDoesNotThrow(() -> new ClassReader(bytes), "Generated class was not readable");
 
 		StringWriter verifierOutput = new StringWriter();
 		try {

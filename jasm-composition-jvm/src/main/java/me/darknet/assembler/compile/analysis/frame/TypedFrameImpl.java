@@ -1,19 +1,27 @@
 package me.darknet.assembler.compile.analysis.frame;
 
-import dev.xdark.blw.type.ClassType;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.AnalysisUtils;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compiler.InheritanceChecker;
+import me.darknet.assembler.util.JvmTypeUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Type;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.TreeMap;
 
+/**
+ * Implementation of {@link TypedFrame}.
+ */
 public class TypedFrameImpl implements TypedFrame {
-	/** Do not use the {@link Types#OBJECT} - We want a new instance for identity comparison */
-	private static final ClassType NULL = Types.instanceTypeFromInternalName("java/lang/Object");
-	private final Deque<ClassType> stack;
+	private static final Type NULL = Type.getObjectType("java/lang/Object");
+	private final Deque<Type> stack;
 	private final Map<Integer, Local> locals;
 
 	/**
@@ -24,7 +32,7 @@ public class TypedFrameImpl implements TypedFrame {
 	 * @param locals
 	 * 		Variable table.
 	 */
-	public TypedFrameImpl(@NotNull Deque<ClassType> stack, @NotNull Map<Integer, Local> locals) {
+	public TypedFrameImpl(@NotNull Deque<Type> stack, @NotNull Map<Integer, Local> locals) {
 		this.stack = stack;
 		this.locals = locals;
 	}
@@ -72,11 +80,10 @@ public class TypedFrameImpl implements TypedFrame {
 		for (Map.Entry<Integer, Local> entry : other.getLocals().entrySet()) {
 			int index = entry.getKey();
 			Local otherLocal = entry.getValue();
-			ClassType otherType = otherLocal.type();
-			ClassType ourType = getLocalType(index);
+			Type otherType = otherLocal.type();
+			Type ourType = getLocalType(index);
 
-			// Skip top-type entries
-			if (otherType == Types.VOID || ourType == Types.VOID)
+			if (JvmTypeUtils.VOID.equals(otherType) || JvmTypeUtils.VOID.equals(ourType))
 				continue;
 
 			if (!hasLocal(index)) {
@@ -85,7 +92,7 @@ public class TypedFrameImpl implements TypedFrame {
 				// behavior of frames that previously passed analysis.
 				setLocal(index, otherLocal);
 			} else {
-				ClassType merged = AnalysisUtils.commonType(checker, ourType, otherType);
+				Type merged = AnalysisUtils.commonType(checker, ourType, otherType);
 				if (!Objects.equals(merged, ourType)) {
 					if (merged == null) {
 						// Value is explicitly 'null'
@@ -100,26 +107,26 @@ public class TypedFrameImpl implements TypedFrame {
 			}
 		}
 
-		Deque<ClassType> otherStack = other.getStack();
+		Deque<Type> otherStack = other.getStack();
 		int stackSize = stack.size();
 		if (stackSize != otherStack.size())
 			throw new FrameMergeException(this, other,
 					"Stack size mismatch, " + stackSize + " != " + otherStack.size());
 
-		Deque<ClassType> newStack = new ArrayDeque<>(stackSize);
-		Iterator<ClassType> it1 = stack.iterator();
-		Iterator<ClassType> it2 = otherStack.iterator();
+		Deque<Type> newStack = new ArrayDeque<>(stackSize);
+		Iterator<Type> it1 = stack.iterator();
+		Iterator<Type> it2 = otherStack.iterator();
 		while (it1.hasNext() && it2.hasNext()) {
-			ClassType type1 = it1.next();
-			ClassType type2 = it2.next();
+			Type type1 = it1.next();
+			Type type2 = it2.next();
 			if (Objects.equals(type1, type2)) {
 				newStack.add(type1);
 				continue;
-			} else if (type1 == Types.VOID || type2 == Types.VOID) {
-				newStack.add(Types.VOID);
+			} else if (JvmTypeUtils.VOID.equals(type1) || JvmTypeUtils.VOID.equals(type2)) {
+				newStack.add(JvmTypeUtils.VOID);
 				continue;
 			}
-			ClassType merged = AnalysisUtils.commonType(checker, type1, type2);
+			Type merged = AnalysisUtils.commonType(checker, type1, type2);
 			if (!Objects.equals(merged, type1)) {
 				changed = true;
 				it1.remove();
@@ -135,7 +142,7 @@ public class TypedFrameImpl implements TypedFrame {
 
 	@NotNull
 	@Override
-	public Deque<ClassType> getStack() {
+	public Deque<Type> getStack() {
 		return stack;
 	}
 
@@ -151,13 +158,13 @@ public class TypedFrameImpl implements TypedFrame {
 	}
 
 	@Override
-	public void pushType(@Nullable ClassType type) {
+	public void pushType(@Nullable Type type) {
 		if (type == null)
 			stack.push(NULL);
 		else
 			stack.push(type);
-		if (type == Types.LONG || type == Types.DOUBLE)
-			stack.push(Types.VOID);
+		if (JvmTypeUtils.isWide(type))
+			stack.push(JvmTypeUtils.VOID);
 	}
 
 	@Override
@@ -167,10 +174,10 @@ public class TypedFrameImpl implements TypedFrame {
 
 	@Nullable
 	@Override
-	public ClassType peek() {
+	public Type peek() {
 		if (stack.isEmpty())
 			throw new IllegalStateException("Cannot peek from empty stack");
-		ClassType type = stack.peek();
+		Type type = stack.peek();
 		if (type == NULL)
 			return null;
 		return type;
@@ -178,9 +185,9 @@ public class TypedFrameImpl implements TypedFrame {
 
 	@Nullable
 	@Override
-	public ClassType pop() {
+	public Type pop() {
 		try {
-			ClassType type = stack.pop();
+			Type type = stack.pop();
 			if (type == NULL)
 				return null;
 			return type;

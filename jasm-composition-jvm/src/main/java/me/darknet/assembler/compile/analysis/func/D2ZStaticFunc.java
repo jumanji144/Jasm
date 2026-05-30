@@ -11,13 +11,13 @@ import java.util.List;
  * Static {@code boolean method(double)} executor.
  */
 public interface D2ZStaticFunc extends StaticFunc {
-    boolean apply(double d);
+	boolean apply(double d);
 
-    @Override
-    @Nullable
-    default Value apply(@NotNull List<Value> params) {
-        if (params.size() == 1 && params.getFirst() instanceof Value.KnownDoubleValue a)
-            return Values.valueOf(apply(a.value()));
-        return Values.INT_VALUE;
-    }
+	@Override
+	@Nullable
+	default Value apply(@NotNull List<Value> params) {
+		if (params.size() == 1 && params.getFirst() instanceof Value.KnownDoubleValue a)
+			return Values.valueOf(apply(a.value()));
+		return Values.INT_VALUE;
+	}
 }

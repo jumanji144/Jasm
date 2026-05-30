@@ -1,16 +1,5 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import dev.xdark.blw.code.CodeElement;
-import dev.xdark.blw.code.Instruction;
-import dev.xdark.blw.code.JavaOpcodes;
-import dev.xdark.blw.code.Label;
-import dev.xdark.blw.code.TryCatchBlock;
-import dev.xdark.blw.code.instruction.BranchInstruction;
-import dev.xdark.blw.code.instruction.SimpleInstruction;
-import dev.xdark.blw.simulation.ExecutionEngines;
-import dev.xdark.blw.type.InstanceType;
-import dev.xdark.blw.type.MethodType;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.MethodAnalysisResult;
@@ -18,15 +7,27 @@ import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
 import me.darknet.assembler.compiler.InheritanceChecker;
+import me.darknet.assembler.util.JvmTypeUtils;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.FrameNode;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LineNumberNode;
+import org.objectweb.asm.tree.LookupSwitchInsnNode;
+import org.objectweb.asm.tree.TableSwitchInsnNode;
+import org.objectweb.asm.tree.TryCatchBlockNode;
 
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 
 /**
  * Executes the JVM analysis worklist for a single method.
  */
-public class JvmAnalysisRunner implements JavaOpcodes {
+public class JvmAnalysisRunner implements Opcodes {
 	private static final int MAX_QUEUE = 2048;
 
 	private final FrameOps<Frame> frameOps;
@@ -95,9 +96,9 @@ public class JvmAnalysisRunner implements JavaOpcodes {
 		seedExceptionHandlers(session, worklist, method, initialFrame);
 
 		// Main analysis loop.
-		final List<CodeElement> elements = method.codeElements();
-		final int elementCount = elements.size();
-		final BitSet visited = new BitSet(elementCount);
+		final List<AbstractInsnNode> instructions = method.instructions();
+		final int instructionCount = instructions.size();
+		final BitSet visited = new BitSet(instructionCount);
 		AnalysisWorklist.Entry entry;
 		while ((entry = worklist.next()) != null) {
 			// Exit if we're getting out of control.
@@ -116,14 +117,14 @@ public class JvmAnalysisRunner implements JavaOpcodes {
 			boolean mergeChangedPreviously = false;
 
 			// Execute sequentially until hitting a fork-point with forcefully directed (or terminating) flow.
-			while (index < elementCount) {
+			while (index < instructionCount) {
 				Frame oldFrame = frame.copy();
 				frame = frame.copy();
 				if (index < 0)
 					throw new AnalysisException(AnalysisException.FailureKind.INVALID_CONTROL_FLOW,
 							"Analysis jumped to invalid range: " + index);
 
-				CodeElement element = elements.get(index);
+				AbstractInsnNode instruction = instructions.get(index);
 				Frame existingFrame = session.getFrame(index);
 				if (existingFrame != null) {
 					try {
@@ -140,7 +141,7 @@ public class JvmAnalysisRunner implements JavaOpcodes {
 						if (!mergeChangedPreviously && !changed && visited.get(index))
 							break;
 					} catch (FrameMergeException ex) {
-						throw new AnalysisException(element, AnalysisException.FailureKind.FRAME_MERGE, ex);
+						throw new AnalysisException(instruction, AnalysisException.FailureKind.FRAME_MERGE, ex);
 					}
 				}
 
@@ -152,18 +153,18 @@ public class JvmAnalysisRunner implements JavaOpcodes {
 				visited.set(index++);
 
 				// Handle execution of the instruction.
-				if (element instanceof Instruction instruction) {
+				if (isExecutable(instruction)) {
 					session.setActiveFrame(elementIndex, frame);
-					engine.clearErrorsAt(element);
+					engine.clearErrorsAt(instruction);
 					try {
-						ExecutionEngines.execute(engine, instruction);
+						engine.execute(instruction);
 					} catch (RuntimeException ex) {
 						// Will cover cases like popping off empty stack and implementation bugs in the engine.
 						throw new AnalysisException(instruction, AnalysisException.FailureKind.ENGINE_BUG, ex);
 					}
 
 					// Abort if control flow is terminal.
-					int opcode = instruction.opcode();
+					int opcode = instruction.getOpcode();
 					if (opcode == ATHROW || (opcode >= IRETURN && opcode <= RETURN)) {
 						// We use the old frame so that it snapshots the state before
 						// the return instruction pops off the return value off the stack.
@@ -174,9 +175,9 @@ public class JvmAnalysisRunner implements JavaOpcodes {
 					// Queue branch targets if this is a branch instruction.
 					// This happens after execution since we want to ensure the frame is updated
 					// with the effects of the instruction before merging it into the target indices.
-					if (element instanceof BranchInstruction branchInstruction) {
-						enqueueBranchTargets(session, worklist, checker, elements, frame, visited, branchInstruction, elementCount);
-						if (!branchInstruction.hasFallthrough())
+					if (isBranch(instruction)) {
+						enqueueBranchTargets(session, worklist, checker, instructions, frame, visited, instruction, instructionCount);
+						if (!hasFallthrough(instruction))
 							break;
 					}
 
@@ -188,15 +189,23 @@ public class JvmAnalysisRunner implements JavaOpcodes {
 						// aware of this so that it won't pre-maturely abort.
 						mergeChangedPreviously = session.putAndMergeFrame(checker, index, frame);
 					} catch (FrameMergeException ex) {
-						throw new AnalysisException(element, AnalysisException.FailureKind.FRAME_MERGE, ex);
+						throw new AnalysisException(instruction, AnalysisException.FailureKind.FRAME_MERGE, ex);
 					}
 				}
 			}
 		}
 
-		validateReturnInstructions(engine, method.methodType().returnType().descriptor(), method.codeElements());
+		validateReturnInstructions(engine, Type.getReturnType(method.methodType().getDescriptor()).getDescriptor(), method.instructions());
 	}
 
+	/**
+	 * Seeds the initial frame for the method.
+	 *
+	 * @param params
+	 * 		Parameters to seed into the initial frame.
+	 *
+	 * @return The seeded initial frame.
+	 */
 	private Frame seedInitialFrame(@NotNull List<Local> params) {
 		Frame initialFrame = frameOps.newEmptyFrame();
 		int index = 0;
@@ -210,7 +219,7 @@ public class JvmAnalysisRunner implements JavaOpcodes {
 	}
 
 	/**
-	 * Seeds the initial frames for all exception handlers, which is the same as the initial frame with the addition of the caught exception type on the stack.
+	 * Seeds the initial frames for all exception handlers.
 	 *
 	 * @param session
 	 * 		Analysis session to seed frames into.
@@ -226,26 +235,22 @@ public class JvmAnalysisRunner implements JavaOpcodes {
 	 */
 	private void seedExceptionHandlers(@NotNull AnalysisSession<Frame> session, @NotNull AnalysisWorklist worklist,
 	                                   @NotNull Info method, @NotNull Frame initialFrame) throws AnalysisException {
-		List<CodeElement> elements = method.codeElements();
-		for (TryCatchBlock handler : method.exceptionHandlers()) {
-			Label handlerLabel = handler.handler();
-			int handlerIndex = elements.indexOf(handlerLabel);
+		List<AbstractInsnNode> elements = method.instructions();
+		for (TryCatchBlockNode handler : method.exceptionHandlers()) {
+			int handlerIndex = elements.indexOf(handler.handler);
 			if (handlerIndex < 0) {
-				throw new AnalysisException(handlerLabel, AnalysisException.FailureKind.INVALID_CONTROL_FLOW,
+				throw new AnalysisException(handler.handler, AnalysisException.FailureKind.INVALID_CONTROL_FLOW,
 						"Try/catch handler label does not exist");
 			}
 
-			InstanceType type = handler.type();
-			if (type == null)
-				type = Types.instanceType(Throwable.class);
-
 			// Queue the handler with a frame that has the caught exception type on the stack.
+			Type type = handler.type == null ? JvmTypeUtils.type(Throwable.class) : Type.getObjectType(handler.type);
 			Frame frame = initialFrame.copy();
 			frame.pushType(type);
 			try {
 				session.putAndMergeFrame(method.checker(), handlerIndex, frame);
 			} catch (FrameMergeException ex) {
-				throw new AnalysisException(handlerLabel, AnalysisException.FailureKind.FRAME_MERGE, ex);
+				throw new AnalysisException(handler.handler, AnalysisException.FailureKind.FRAME_MERGE, ex);
 			}
 			worklist.add(handlerIndex, handlerIndex - Integer.MAX_VALUE);
 		}
@@ -276,15 +281,15 @@ public class JvmAnalysisRunner implements JavaOpcodes {
 	 * 		Thrown when a target label is invalid or when merging into a target frame results in an error.
 	 */
 	private void enqueueBranchTargets(@NotNull AnalysisSession<Frame> session, @NotNull AnalysisWorklist worklist,
-	                                  @NotNull InheritanceChecker checker, @NotNull List<CodeElement> elements,
+	                                  @NotNull InheritanceChecker checker, @NotNull List<AbstractInsnNode> elements,
 	                                  @NotNull Frame frame, @NotNull BitSet visited,
-	                                  @NotNull BranchInstruction branchInstruction, int elementCount)
+	                                  @NotNull AbstractInsnNode branchInstruction, int elementCount)
 			throws AnalysisException {
-		for (Label target : branchInstruction.targetsStream().toList()) {
+		for (LabelNode target : branchTargets(branchInstruction)) {
 			int targetIndex = elements.indexOf(target);
 			if (targetIndex < 0 || targetIndex > elementCount)
 				throw new AnalysisException(branchInstruction, AnalysisException.FailureKind.INVALID_CONTROL_FLOW,
-						"Target for branch instruction " + branchInstruction + " does not exist");
+						"Target for branch instruction does not exist");
 			try {
 				boolean shouldVisitTarget;
 				Frame targetFrame = session.getFrame(targetIndex);
@@ -315,25 +320,62 @@ public class JvmAnalysisRunner implements JavaOpcodes {
 	}
 
 	private void validateReturnInstructions(@NotNull JvmAnalysisEngine<Frame> engine, @NotNull String ret,
-	                                        @NotNull List<CodeElement> elements) {
-		for (CodeElement element : elements) {
-			if (element instanceof SimpleInstruction(int opcode)) {
-				if (opcode == IRETURN && !"ZBCSI".contains(ret))
-					engine.warn(element, "Unexpected 'int' return instruction");
-				if (opcode == RETURN && !ret.equals("V"))
-					engine.warn(element, "Unexpected 'void' return instruction");
-				if (opcode == FRETURN && !ret.equals("F"))
-					engine.warn(element, "Unexpected 'float' return instruction");
-				if (opcode == DRETURN && !ret.equals("D"))
-					engine.warn(element, "Unexpected 'float' return instruction");
-				if (opcode == LRETURN && !ret.equals("J"))
-					engine.warn(element, "Unexpected 'long' return instruction");
-				if (opcode == ARETURN && !(ret.charAt(0) == 'L' || ret.charAt(0) == '['))
-					engine.warn(element, "Unexpected 'object' return instruction");
-			}
+	                                        @NotNull List<AbstractInsnNode> elements) {
+		for (AbstractInsnNode instruction : elements) {
+			int opcode = instruction.getOpcode();
+			if (opcode == IRETURN && !"ZBCSI".contains(ret))
+				engine.warn(instruction, "Unexpected 'int' return instruction");
+			if (opcode == RETURN && !ret.equals("V"))
+				engine.warn(instruction, "Unexpected 'void' return instruction");
+			if (opcode == FRETURN && !ret.equals("F"))
+				engine.warn(instruction, "Unexpected 'float' return instruction");
+			if (opcode == DRETURN && !ret.equals("D"))
+				engine.warn(instruction, "Unexpected 'double' return instruction");
+			if (opcode == LRETURN && !ret.equals("J"))
+				engine.warn(instruction, "Unexpected 'long' return instruction");
+			if (opcode == ARETURN && !(ret.charAt(0) == 'L' || ret.charAt(0) == '['))
+				engine.warn(instruction, "Unexpected 'object' return instruction");
 		}
 	}
 
-	public record Info(@NotNull InheritanceChecker checker, @NotNull MethodType methodType, @NotNull List<Local> params,
-	                   @NotNull List<CodeElement> codeElements, @NotNull List<TryCatchBlock> exceptionHandlers) {}
+	private static boolean isExecutable(@NotNull AbstractInsnNode node) {
+		return !(node instanceof LabelNode || node instanceof LineNumberNode || node instanceof FrameNode);
+	}
+
+	private static boolean isBranch(@NotNull AbstractInsnNode node) {
+		return node instanceof JumpInsnNode || node instanceof LookupSwitchInsnNode || node instanceof TableSwitchInsnNode;
+	}
+
+	private static boolean hasFallthrough(@NotNull AbstractInsnNode node) {
+		if (node instanceof JumpInsnNode jumpInsnNode)
+			return jumpInsnNode.getOpcode() != GOTO;
+		return false;
+	}
+
+	private static @NotNull List<LabelNode> branchTargets(@NotNull AbstractInsnNode node) {
+		switch (node) {
+			case JumpInsnNode jumpInsnNode -> {
+				return List.of(jumpInsnNode.label);
+			}
+			case LookupSwitchInsnNode lookupSwitchInsnNode -> {
+				List<LabelNode> labels = new ArrayList<>(lookupSwitchInsnNode.labels);
+				labels.add(lookupSwitchInsnNode.dflt);
+				return labels;
+			}
+			case TableSwitchInsnNode tableSwitchInsnNode -> {
+				List<LabelNode> labels = new ArrayList<>(tableSwitchInsnNode.labels);
+				labels.add(tableSwitchInsnNode.dflt);
+				return labels;
+			}
+			default -> {}
+		}
+		return List.of();
+	}
+
+	public record Info(@NotNull InheritanceChecker checker,
+	                   @NotNull Type methodType,
+	                   @NotNull List<Local> params,
+	                   @NotNull List<AbstractInsnNode> instructions,
+	                   @NotNull List<TryCatchBlockNode> exceptionHandlers) {
+	}
 }

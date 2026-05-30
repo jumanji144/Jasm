@@ -2,7 +2,7 @@ package me.darknet.assembler.test;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.compile.JavaClassRepresentation;
-import me.darknet.assembler.compile.visitor.JavaCompileResult;
+import me.darknet.assembler.compile.JavaCompileResult;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.error.Warn;

@@ -8,15 +8,14 @@ import me.darknet.assembler.compiler.ClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
-
-import dev.xdark.blw.version.JavaVersion;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassWriter;
 
 public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
+    private static final int DEFAULT_VERSION = 8;
 
     protected int asmArgs;
-    protected JavaVersion version;
+    protected int version;
     protected JavaClassRepresentation overlay;
     protected String annotationPath;
     protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
@@ -25,7 +24,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
 
     public JvmCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
-        this.version = JavaVersion.V8;
+        this.version = DEFAULT_VERSION;
     }
 
     public JvmCompilerOptions computeFrames(boolean computeFrames) {
@@ -47,7 +46,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     }
 
     public JvmCompilerOptions version(int version) {
-        this.version = JavaVersion.jdkVersion(version);
+        this.version = version;
         return this;
     }
 
@@ -64,7 +63,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
 
     @Override
     public int version() {
-        return this.version.majorVersion();
+        return this.version;
     }
 
     @Override

@@ -10,6 +10,6 @@ import java.util.List;
  * Static method executor.
  */
 public interface StaticFunc {
-    @Nullable
-    Value apply(@NotNull List<Value> params);
+	@Nullable
+	Value apply(@NotNull List<Value> params);
 }

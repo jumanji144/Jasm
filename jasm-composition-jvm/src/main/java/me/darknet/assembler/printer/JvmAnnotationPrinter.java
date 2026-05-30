@@ -1,98 +1,125 @@
 package me.darknet.assembler.printer;
 
-import dev.xdark.blw.annotation.*;
 import me.darknet.assembler.util.EscapeUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.TypeAnnotationNode;
 
-import java.util.Map;
+import java.lang.reflect.Array;
+import java.util.List;
 
 public class JvmAnnotationPrinter implements AnnotationPrinter {
-
-    private final Annotation annotation;
+    protected final AnnotationNode annotation;
     protected final Boolean visible;
 
-    protected JvmAnnotationPrinter(Annotation annotation, boolean visible) {
+    protected JvmAnnotationPrinter(@Nullable AnnotationNode annotation, boolean visible) {
         this.annotation = annotation;
         this.visible = visible;
     }
 
-    protected JvmAnnotationPrinter(Annotation annotation) {
+    protected JvmAnnotationPrinter(@Nullable AnnotationNode annotation) {
         this.annotation = annotation;
         this.visible = null;
     }
 
-    public static JvmAnnotationPrinter forTopLevelAnno(Annotation annotation, boolean visible) {
-        if (annotation instanceof TypeAnnotation typeAnnotation)
+    public static JvmAnnotationPrinter forTopLevelAnno(@NotNull AnnotationNode annotation, boolean visible) {
+        if (annotation instanceof TypeAnnotationNode typeAnnotation) {
             return new JvmTypeAnnotationPrinter(typeAnnotation, visible);
-        else
-            return new JvmAnnotationPrinter(annotation, visible);
+        }
+        return new JvmAnnotationPrinter(annotation, visible);
     }
 
-    public static JvmAnnotationPrinter forEmbeddedAnno(Annotation annotation) {
-        if (annotation instanceof TypeAnnotation typeAnnotation)
+    public static JvmAnnotationPrinter forEmbeddedAnno(@NotNull AnnotationNode annotation) {
+        if (annotation instanceof TypeAnnotationNode typeAnnotation) {
             return new JvmTypeAnnotationPrinter(typeAnnotation);
-        else
-            return new JvmAnnotationPrinter(annotation);
+        }
+        return new JvmAnnotationPrinter(annotation);
+    }
+
+    public static JvmAnnotationPrinter forElements() {
+        return new JvmAnnotationPrinter(null);
     }
 
     @Override
     public void print(PrintContext<?> ctx) {
-        // For embedded annotations (an annotation inside another) we do not have any concept
-        // of 'visible' vs 'invisible' annotations, so we'll shorten the name.
-        String token = visible == null ? ".annotation" :
-                visible ? ".visible-annotation" : ".invisible-annotation";
-
-        Annotation annotation = this.annotation;
-        ctx.begin().element(token).literal(annotation.type().internalName()).print(" ");
-        if (annotation.names().isEmpty()) {
+        String token = visible == null ? ".annotation" : visible ? ".visible-annotation" : ".invisible-annotation";
+        ctx.begin().element(token).literal(Type.getType(annotation.desc).getInternalName()).print(" ");
+        if (annotation.values == null || annotation.values.isEmpty()) {
             ctx.print("{}");
             return;
         }
         var obj = ctx.object();
-        obj.print(annotation, this::printEntry);
+        printEntries(obj, annotation.values);
         obj.end();
     }
 
-    public void printAnnotation(@NotNull PrintContext<?> ctx, @NotNull Annotation annotation) {
+    public void printAnnotation(@NotNull PrintContext<?> ctx, @NotNull AnnotationNode annotation) {
         forEmbeddedAnno(annotation).print(ctx);
     }
 
-    protected void printEntry(@NotNull PrintContext.ObjectPrint ctx, @NotNull Map.Entry<String, Element> entry) {
-        ctx.literalValue(entry.getKey());
-        printElement(ctx, entry.getValue());
+    protected void printEntries(@NotNull PrintContext.ObjectPrint ctx, @NotNull List<Object> values) {
+        for (int i = 0; i < values.size(); i += 2) {
+            if (i > 0) {
+                ctx.next();
+            }
+            ctx.literalValue((String) values.get(i));
+            printElement(ctx, values.get(i + 1));
+        }
     }
 
-    public void printElement(@NotNull PrintContext<?> ctx, @NotNull Element element) {
+    public void printElement(@NotNull PrintContext<?> ctx, @Nullable Object element) {
         switch (element) {
-            case ElementInt ei -> ctx.print(Integer.toString(ei.value()));
-            case ElementLong el -> ctx.print(el.value() + "L");
-            case ElementFloat ef -> ctx.print(ef.value() + "F");
-            case ElementDouble ed -> {
-                String content = Double.toString(ed.value());
+            case null -> ctx.print("null");
+            case Integer ei -> ctx.print(Integer.toString(ei));
+            case Long el -> ctx.print(el + "L");
+            case Float ef -> ctx.print(ef + "F");
+            case Double ed -> {
+                String content = Double.toString(ed);
                 ctx.print(content);
-
-                // Skip 'D' suffix for things like 'NaN' where it is implied
-                if (!content.matches("\\D+"))
+                if (!content.matches("\\D+")) {
                     ctx.print("D");
+                }
             }
-            case ElementString es -> ctx.string(es.value());
-            case ElementBoolean eb -> ctx.print(Boolean.toString(eb.value()));
-            case ElementByte eb -> ctx.print(Byte.toString(eb.value()));
-            case ElementChar ec -> {
-                String str = String.valueOf(ec.value());
+            case String es -> ctx.string(es);
+            case Boolean eb -> ctx.print(Boolean.toString(eb));
+            case Byte eb -> ctx.print(Byte.toString(eb));
+            case Character ec -> {
+                String str = String.valueOf(ec);
                 ctx.print("'").print(EscapeUtil.escapeString(str)).print("'");
             }
-            case ElementShort es -> ctx.print(Short.toString(es.value()));
-            case ElementEnum ee -> ctx.element(".enum").literal(ee.type().internalName()).print(" ").literal(ee.name());
-            case ElementType et -> ctx.literal(et.value().internalName());
-            case Annotation ea -> printAnnotation(ctx, ea);
-            case ElementArray ea -> {
+            case Short es -> ctx.print(Short.toString(es));
+            case String[] enumValue -> ctx.element(".enum").literal(Type.getType(enumValue[0]).getInternalName()).print(" ").literal(enumValue[1]);
+            case Type et -> JvmConstantPrinter.printTypeLiteral(et, ctx);
+            case AnnotationNode ea -> printAnnotation(ctx, ea);
+            case List<?> ea -> {
                 var array = ctx.array();
-                array.print(ea, this::printElement);
+                boolean first = true;
+                for (Object value : ea) {
+                    if (!first) {
+                        array.arg();
+                    }
+                    printElement(array, value);
+                    first = false;
+                }
                 array.end();
             }
-            default -> throw new IllegalStateException("Unexpected value: " + element);
+            default -> {
+                if (element.getClass().isArray()) {
+                    var array = ctx.array();
+                    int length = Array.getLength(element);
+                    for (int i = 0; i < length; i++) {
+                        if (i > 0) {
+                            array.arg();
+                        }
+                        printElement(array, Array.get(element, i));
+                    }
+                    array.end();
+                } else {
+                    throw new IllegalStateException("Unexpected annotation value: " + element);
+                }
+            }
         }
     }
 }

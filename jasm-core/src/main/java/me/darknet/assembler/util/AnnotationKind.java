@@ -9,11 +9,9 @@ import org.jetbrains.annotations.Nullable;
  */
 public enum AnnotationKind {
     VIS_ANNO("vis-a"),
+    VIS_TYPE_ANNO("vis-type-a"),
     INVIS_ANNO("invis-a"),
-    // TODO: Type annotation support in BLW
-    //  VIS_TYPE_ANNO("vis-t"),
-    //  INVIS_TYPE_ANNO("invis-t")
-    ;
+    INVIS_TYPE_ANNO("invis-type-a");
 
     private final String display;
 

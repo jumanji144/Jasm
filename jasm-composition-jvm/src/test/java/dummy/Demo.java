@@ -1,6 +1,5 @@
 package dummy;
 
-import dev.xdark.blw.util.LazyList;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisRunner;
 
 import java.util.*;
@@ -28,7 +27,7 @@ public class Demo {
 				c = new LinkedList();
 				break;
 			case 3:
-				c = new LazyList(() -> Collections.emptyList());
+				c = Collections.singletonList("lazy");
 				break;
 			case 4:
 				c = Collections.emptyList();

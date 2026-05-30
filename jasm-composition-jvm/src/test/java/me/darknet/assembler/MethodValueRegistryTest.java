@@ -1,8 +1,5 @@
 package me.darknet.assembler;
 
-import dev.xdark.blw.code.JavaOpcodes;
-import dev.xdark.blw.code.instruction.MethodInstruction;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.Value;
 import me.darknet.assembler.compile.analysis.Values;
 import me.darknet.assembler.compile.analysis.registry.BooleanMethodValueRegistry;
@@ -21,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.MethodInsnNode;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -35,7 +34,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 class MethodValueRegistryTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("registryHappyPaths")
-    void resolvesRepresentativeRegistryEntries(String name, MethodValueRegistry registry, MethodInstruction instruction,
+    void resolvesRepresentativeRegistryEntries(String name, MethodValueRegistry registry, MethodInsnNode instruction,
                                                Value.ObjectValue context, List<Value> params, Consumer<Value> assertion) {
         Value value = registry.accept(instruction, context, params);
         assertNotNull(value, name);
@@ -44,7 +43,7 @@ class MethodValueRegistryTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("registryFallbackPaths")
-    void fallsBackToUnknownValuesWhenInputsAreNotKnown(String name, MethodValueRegistry registry, MethodInstruction instruction,
+    void fallsBackToUnknownValuesWhenInputsAreNotKnown(String name, MethodValueRegistry registry, MethodInsnNode instruction,
                                                        Value.ObjectValue context, List<Value> params, Consumer<Value> assertion) {
         Value value = registry.accept(instruction, context, params);
         assertNotNull(value, name);
@@ -59,12 +58,12 @@ class MethodValueRegistryTest {
                 .build();
 
         Value stringValue = registry.accept(
-                instruction(JavaOpcodes.INVOKEVIRTUAL, "java/lang/Object", "toString", "()Ljava/lang/String;"),
+                instruction(Opcodes.INVOKEVIRTUAL, "java/lang/Object", "toString", "()Ljava/lang/String;"),
                 Values.valueOfString("hello"),
                 List.of()
         );
         Value mathValue = registry.accept(
-                instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Math", "max", "(II)I"),
+                instruction(Opcodes.INVOKESTATIC, "java/lang/Math", "max", "(II)I"),
                 null,
                 List.of(Values.valueOf(1), Values.valueOf(9))
         );
@@ -78,7 +77,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Boolean registry",
                         BooleanMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Boolean", "parseBoolean", "(Ljava/lang/String;)Z"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Boolean", "parseBoolean", "(Ljava/lang/String;)Z"),
                         null,
                         List.of(Values.valueOfString("true")),
                         (Consumer<Value>) value -> assertEquals(1, assertInstanceOf(Value.KnownIntValue.class, value).value())
@@ -86,7 +85,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Byte registry",
                         ByteMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Byte", "toUnsignedLong", "(B)J"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Byte", "toUnsignedLong", "(B)J"),
                         null,
                         List.of(Values.valueOf((byte) -1)),
                         (Consumer<Value>) value -> assertEquals(255L, assertInstanceOf(Value.KnownLongValue.class, value).value())
@@ -94,7 +93,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Character registry",
                         CharacterMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Character", "codePointOf", "(Ljava/lang/String;)I"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Character", "codePointOf", "(Ljava/lang/String;)I"),
                         null,
                         List.of(Values.valueOfString("LATIN CAPITAL LETTER A")),
                         (Consumer<Value>) value -> assertEquals(65, assertInstanceOf(Value.KnownIntValue.class, value).value())
@@ -102,7 +101,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Double registry",
                         DoubleMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Double", "toString", "(D)Ljava/lang/String;"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Double", "toString", "(D)Ljava/lang/String;"),
                         null,
                         List.of(Values.valueOf(1.5D)),
                         (Consumer<Value>) value -> assertEquals("1.5", assertInstanceOf(Value.KnownStringValue.class, value).value())
@@ -110,7 +109,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Float registry",
                         FloatMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Float", "hashCode", "(F)I"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Float", "hashCode", "(F)I"),
                         null,
                         List.of(Values.valueOf(1.5F)),
                         (Consumer<Value>) value -> assertEquals(Float.hashCode(1.5F), assertInstanceOf(Value.KnownIntValue.class, value).value())
@@ -118,7 +117,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Integer registry",
                         IntegerMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Integer", "toHexString", "(I)Ljava/lang/String;"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Integer", "toHexString", "(I)Ljava/lang/String;"),
                         null,
                         List.of(Values.valueOf(255)),
                         (Consumer<Value>) value -> assertEquals("ff", assertInstanceOf(Value.KnownStringValue.class, value).value())
@@ -126,7 +125,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Long registry",
                         LongMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Long", "parseLong", "(Ljava/lang/CharSequence;III)J"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Long", "parseLong", "(Ljava/lang/CharSequence;III)J"),
                         null,
                         List.of(Values.valueOfString("0f"), Values.valueOf(0), Values.valueOf(2), Values.valueOf(16)),
                         (Consumer<Value>) value -> assertEquals(15L, assertInstanceOf(Value.KnownLongValue.class, value).value())
@@ -134,7 +133,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Math registry",
                         MathMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/StrictMath", "round", "(D)J"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/StrictMath", "round", "(D)J"),
                         null,
                         List.of(Values.valueOf(1.6D)),
                         (Consumer<Value>) value -> assertEquals(2L, assertInstanceOf(Value.KnownLongValue.class, value).value())
@@ -142,7 +141,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Short registry",
                         ShortMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Short", "toUnsignedLong", "(S)J"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Short", "toUnsignedLong", "(S)J"),
                         null,
                         List.of(Values.valueOf((short) -1)),
                         (Consumer<Value>) value -> assertEquals(65535L, assertInstanceOf(Value.KnownLongValue.class, value).value())
@@ -150,7 +149,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "String registry",
                         StringMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;"),
+                        instruction(Opcodes.INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;"),
                         Values.valueOfString("hello"),
                         List.of(Values.valueOf(5), Values.valueOf(5)),
                         (Consumer<Value>) value -> assertEquals("", assertInstanceOf(Value.KnownStringValue.class, value).value())
@@ -158,7 +157,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "System registry",
                         SystemMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/System", "lineSeparator", "()Ljava/lang/String;"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/System", "lineSeparator", "()Ljava/lang/String;"),
                         null,
                         List.of(),
                         (Consumer<Value>) value -> assertEquals(System.lineSeparator(), assertInstanceOf(Value.KnownStringValue.class, value).value())
@@ -171,7 +170,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Boolean fallback",
                         BooleanMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Boolean", "toString", "(Z)Ljava/lang/String;"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Boolean", "toString", "(Z)Ljava/lang/String;"),
                         null,
                         List.of(Values.STRING_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.STRING_VALUE, value)
@@ -179,7 +178,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Byte fallback",
                         ByteMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Byte", "toUnsignedLong", "(B)J"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Byte", "toUnsignedLong", "(B)J"),
                         null,
                         List.of(Values.INT_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.LONG_VALUE, value)
@@ -187,7 +186,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Character fallback",
                         CharacterMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Character", "codePointOf", "(Ljava/lang/String;)I"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Character", "codePointOf", "(Ljava/lang/String;)I"),
                         null,
                         List.of(Values.STRING_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.INT_VALUE, value)
@@ -195,7 +194,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Double fallback",
                         DoubleMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Double", "toHexString", "(D)Ljava/lang/String;"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Double", "toHexString", "(D)Ljava/lang/String;"),
                         null,
                         List.of(Values.DOUBLE_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.STRING_VALUE, value)
@@ -203,7 +202,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Float fallback",
                         FloatMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Float", "parseFloat", "(Ljava/lang/String;)F"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Float", "parseFloat", "(Ljava/lang/String;)F"),
                         null,
                         List.of(Values.STRING_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.FLOAT_VALUE, value)
@@ -211,7 +210,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Integer fallback",
                         IntegerMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Integer", "toString", "(II)Ljava/lang/String;"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Integer", "toString", "(II)Ljava/lang/String;"),
                         null,
                         List.of(Values.INT_VALUE, Values.INT_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.STRING_VALUE, value)
@@ -219,7 +218,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Long fallback",
                         LongMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Long", "parseLong", "(Ljava/lang/String;)J"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Long", "parseLong", "(Ljava/lang/String;)J"),
                         null,
                         List.of(Values.STRING_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.LONG_VALUE, value)
@@ -227,7 +226,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Math fallback",
                         MathMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Math", "round", "(D)J"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Math", "round", "(D)J"),
                         null,
                         List.of(Values.DOUBLE_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.LONG_VALUE, value)
@@ -235,7 +234,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "Short fallback",
                         ShortMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/Short", "toUnsignedLong", "(S)J"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/Short", "toUnsignedLong", "(S)J"),
                         null,
                         List.of(Values.INT_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.LONG_VALUE, value)
@@ -243,7 +242,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "String fallback",
                         StringMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;"),
+                        instruction(Opcodes.INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;"),
                         Values.valueOfString("hello"),
                         List.of(Values.INT_VALUE, Values.INT_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.STRING_VALUE, value)
@@ -251,7 +250,7 @@ class MethodValueRegistryTest {
                 arguments(
                         "System fallback",
                         SystemMethodValueRegistry.create(),
-                        instruction(JavaOpcodes.INVOKESTATIC, "java/lang/System", "getProperty", "(Ljava/lang/String;)Ljava/lang/String;"),
+                        instruction(Opcodes.INVOKESTATIC, "java/lang/System", "getProperty", "(Ljava/lang/String;)Ljava/lang/String;"),
                         null,
                         List.of(Values.STRING_VALUE),
                         (Consumer<Value>) value -> assertSame(Values.STRING_VALUE, value)
@@ -259,13 +258,7 @@ class MethodValueRegistryTest {
         );
     }
 
-    private static MethodInstruction instruction(int opcode, String owner, String name, String descriptor) {
-        return new MethodInstruction(
-                opcode,
-                Types.instanceTypeFromInternalName(owner),
-                name,
-                Types.methodType(descriptor),
-                false
-        );
+    private static MethodInsnNode instruction(int opcode, String owner, String name, String descriptor) {
+        return new MethodInsnNode(opcode, owner, name, descriptor, false);
     }
 }

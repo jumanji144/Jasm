@@ -11,14 +11,14 @@ import java.util.List;
  * Static {@code int method(float)} executor.
  */
 public interface F2IStaticFunc extends StaticFunc {
-    int apply(float f);
+	int apply(float f);
 
-    @Override
-    @Nullable
-    default Value apply(@NotNull List<Value> params) {
-        if (params.size() == 1 &&
-                params.getFirst() instanceof Value.KnownFloatValue a)
-            return Values.valueOf(apply(a.value()));
-        return Values.INT_VALUE;
-    }
+	@Override
+	@Nullable
+	default Value apply(@NotNull List<Value> params) {
+		if (params.size() == 1 &&
+				params.getFirst() instanceof Value.KnownFloatValue a)
+			return Values.valueOf(apply(a.value()));
+		return Values.INT_VALUE;
+	}
 }

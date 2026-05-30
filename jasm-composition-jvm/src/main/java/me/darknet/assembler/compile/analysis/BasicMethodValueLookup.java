@@ -1,6 +1,5 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.code.instruction.MethodInstruction;
 import me.darknet.assembler.compile.analysis.jvm.MethodValueLookup;
 import me.darknet.assembler.compile.analysis.registry.BooleanMethodValueRegistry;
 import me.darknet.assembler.compile.analysis.registry.ByteMethodValueRegistry;
@@ -16,6 +15,7 @@ import me.darknet.assembler.compile.analysis.registry.StringMethodValueRegistry;
 import me.darknet.assembler.compile.analysis.registry.SystemMethodValueRegistry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.tree.MethodInsnNode;
 
 import java.util.List;
 
@@ -50,7 +50,7 @@ public class BasicMethodValueLookup implements MethodValueLookup {
     }
 
     @Override
-    public @Nullable Value accept(@NotNull MethodInstruction instruction, Value.@Nullable ObjectValue context,
+    public @Nullable Value accept(@NotNull MethodInsnNode instruction, Value.@Nullable ObjectValue context,
                                   @NotNull List<Value> parameters) {
         return registry.accept(instruction, context, parameters);
     }

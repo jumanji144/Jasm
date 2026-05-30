@@ -10,6 +10,6 @@ import java.util.List;
  * Instance method executor on {@link String}.
  */
 public interface StringFunc {
-    @Nullable
-    Value apply(@NotNull String value, @NotNull List<Value> params);
+	@Nullable
+	Value apply(@NotNull String value, @NotNull List<Value> params);
 }

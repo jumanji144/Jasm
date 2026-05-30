@@ -1,10 +1,9 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.code.CodeElement;
-import dev.xdark.blw.simulation.SimulationException;
 import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.tree.AbstractInsnNode;
 
 /**
  * Wrapper of possible JVM analysis failures.
@@ -17,7 +16,7 @@ import org.jetbrains.annotations.Nullable;
  *   <li>Branch target is unknown, cannot correctly complete analysis</li>
  * </ul>
  */
-public class AnalysisException extends SimulationException {
+public class AnalysisException extends RuntimeException {
 	public enum FailureKind {
 		FRAME_MERGE,
 		INVALID_CONTROL_FLOW,
@@ -25,25 +24,21 @@ public class AnalysisException extends SimulationException {
 		ENGINE_BUG
 	}
 
-	private final CodeElement element;
+	private final AbstractInsnNode instruction;
 	private final FailureKind kind;
 
-	public AnalysisException(@Nullable CodeElement element, @NotNull FailureKind kind, @Nullable Throwable cause, @NotNull String message) {
+	public AnalysisException(@Nullable AbstractInsnNode instruction, @NotNull FailureKind kind, @Nullable Throwable cause, @NotNull String message) {
 		super(message, cause);
-		this.element = element;
+		this.instruction = instruction;
 		this.kind = kind;
 	}
 
-	public AnalysisException(@NotNull FailureKind kind, @NotNull Throwable cause, @NotNull String message) {
-		this(null, kind, cause, message);
+	public AnalysisException(@NotNull AbstractInsnNode instruction, @NotNull FailureKind kind, @NotNull String message) {
+		this(instruction, kind, null, message);
 	}
 
-	public AnalysisException(@NotNull CodeElement element, @NotNull FailureKind kind, @NotNull String message) {
-		this(element, kind, null, message);
-	}
-
-	public AnalysisException(@NotNull CodeElement element, @NotNull FailureKind kind, @NotNull Throwable cause) {
-		this(element, kind, cause, cause.getMessage());
+	public AnalysisException(@NotNull AbstractInsnNode instruction, @NotNull FailureKind kind, @NotNull Throwable cause) {
+		this(instruction, kind, cause, cause.getMessage());
 	}
 
 	public AnalysisException(@NotNull FailureKind kind, @NotNull String message) {
@@ -54,8 +49,8 @@ public class AnalysisException extends SimulationException {
 	 * @return Element linked to the failure. May be {@code null} in some cases.
 	 */
 	@Nullable
-	public CodeElement getElement() {
-		return element;
+	public AbstractInsnNode getInstruction() {
+		return instruction;
 	}
 
 	public @NotNull FailureKind getKind() {

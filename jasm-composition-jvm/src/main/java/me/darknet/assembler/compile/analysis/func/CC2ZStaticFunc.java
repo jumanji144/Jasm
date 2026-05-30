@@ -11,15 +11,15 @@ import java.util.List;
  * Static {@code boolean method(char, char)} executor.
  */
 public interface CC2ZStaticFunc extends StaticFunc {
-    boolean apply(char a, char b);
+	boolean apply(char a, char b);
 
-    @Override
-    @Nullable
-    default Value apply(@NotNull List<Value> params) {
-        if (params.size() == 2 &&
-                params.get(0) instanceof Value.KnownIntValue a &&
-                params.get(1) instanceof Value.KnownIntValue b)
-            return Values.valueOf(apply((char) a.value(), (char) b.value()));
-        return Values.INT_VALUE;
-    }
+	@Override
+	@Nullable
+	default Value apply(@NotNull List<Value> params) {
+		if (params.size() == 2 &&
+				params.get(0) instanceof Value.KnownIntValue a &&
+				params.get(1) instanceof Value.KnownIntValue b)
+			return Values.valueOf(apply((char) a.value(), (char) b.value()));
+		return Values.INT_VALUE;
+	}
 }
