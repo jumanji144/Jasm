@@ -16,6 +16,31 @@ import java.util.List;
 public record LabelQueryResult(@NotNull List<LabelInfo> declarations,
                                @NotNull List<LabelUsage> usages) {
 	/**
+	 * @param name
+	 * 		The name of the label to search for.
+	 *
+	 * @return The first declaration of the label with the given name, or {@code null} if none exists.
+	 */
+	public @Nullable LabelInfo declarationOf(@NotNull String name) {
+		return declarations.stream()
+				.filter(declaration -> declaration.name().equals(name))
+				.findFirst()
+				.orElse(null);
+	}
+
+	/**
+	 * @param name
+	 * 		The name of the label to search for.
+	 *
+	 * @return All declarations of the label with the given name. Empty list if no such label exists.
+	 */
+	public @NotNull List<LabelInfo> declarationsOf(@NotNull String name) {
+		return declarations.stream()
+				.filter(declaration -> declaration.name().equals(name))
+				.toList();
+	}
+
+	/**
 	 * @param usage
 	 * 		The label usage to find the declaration of.
 	 *

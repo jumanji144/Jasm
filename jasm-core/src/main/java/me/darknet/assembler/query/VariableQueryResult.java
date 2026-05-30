@@ -42,6 +42,19 @@ public record VariableQueryResult(@NotNull List<VariableInfo> declarations,
 	}
 
 	/**
+	 * @param name
+	 * 		The name of the variable to search for.
+	 *
+	 * @return List of all usages of the variable with the given name.
+	 * Empty list if no such variable exists.
+	 */
+	public @NotNull List<VariableUsage> usagesOf(@NotNull String name) {
+		return usages.stream()
+				.filter(usage -> usage.name().equals(name))
+				.toList();
+	}
+
+	/**
 	 * @param identity
 	 * 		The identity of the variable to search for.
 	 *
