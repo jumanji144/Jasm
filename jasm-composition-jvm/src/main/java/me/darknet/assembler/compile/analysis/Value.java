@@ -99,7 +99,7 @@ public sealed interface Value {
         }
     }
 
-    record UnnownIntValue() implements IntValue {
+    record UnknownIntValue() implements IntValue {
         @Override
         public @NotNull PrimitiveValue negate() {
             return this;

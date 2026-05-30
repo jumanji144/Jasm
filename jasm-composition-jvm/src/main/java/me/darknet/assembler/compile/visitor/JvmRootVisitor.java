@@ -51,13 +51,11 @@ public record JvmRootVisitor(JvmClassBuilder builder, JvmCompilerOptions options
 
 	@Override
 	public ASTFieldVisitor visitField(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
-		// TODO: This isn't covered by our tests.
 		return new JvmFieldVisitor(builder.putField(JvmModifiers.getFieldModifiers(modifiers), name.literal(), descriptor.literal()));
 	}
 
 	@Override
 	public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
-		// TODO: This isn't covered by our tests.
 		int accessFlags = JvmModifiers.getMethodModifiers(modifiers);
 		return new JvmMethodVisitor(
 				options,
@@ -71,7 +69,6 @@ public record JvmRootVisitor(JvmClassBuilder builder, JvmCompilerOptions options
 
 	private @NotNull AnnotationNode selectAnnotationTarget(@NotNull String[] parts, int index, @NotNull AnnotationKind kind,
 	                                                       @NotNull String descriptor) {
-		// TODO: This isn't covered by our tests.
 		if (parts.length >= 5) {
 			String target = parts[parts.length - 5];
 			String member = parts[parts.length - 4];

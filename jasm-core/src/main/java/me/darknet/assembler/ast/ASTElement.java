@@ -207,4 +207,9 @@ public class ASTElement {
         attributes.fill(this);
         return (T) this;
     }
+
+    @Override
+    public String toString() {
+        return content();
+    }
 }

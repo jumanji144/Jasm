@@ -34,12 +34,10 @@ public class Transformer {
 		for (ASTElement declaration : declarations) {
 			switch (declaration) {
 				case ASTField field -> {
-					// TODO: This is covered by our tests
 					ASTFieldVisitor fieldVisitor = localVisitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor());
 					field.accept(collector, fieldVisitor);
 				}
 				case ASTMethod method -> {
-					// TODO: This is covered by our tests
 					ASTMethodVisitor methodVisitor = localVisitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor());
 					method.accept(collector, methodVisitor);
 				}

@@ -18,7 +18,6 @@ import me.darknet.assembler.helper.Handle;
 import me.darknet.assembler.util.ConstantMapper;
 import me.darknet.assembler.util.JvmOpcodes;
 import me.darknet.assembler.util.JvmTypeUtils;
-import me.darknet.assembler.util.Location;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -60,7 +59,6 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	private final Map<String, LabelNode> nameToLabel = new HashMap<>();
 	private final List<Local> parameters;
 	private final VarCache varCache = new VarCache();
-	private final List<ASTInstruction> visitedInstructions = new ArrayList<>();
 	private final Set<String> definedLabels = new HashSet<>();
 	private final Map<ASTInstruction, List<String>> referencedLabels = new IdentityHashMap<>();
 	private final MethodAnalysisResult analysisResult = new MethodAnalysisResult();
@@ -93,7 +91,6 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 			return;
 		}
 		opcode = JvmOpcodes.opcode(instruction.identifier().content());
-		visitedInstructions.add(instruction);
 	}
 
 	@Override
@@ -298,7 +295,6 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 
 	@Override
 	public void visitLabel(@NotNull ASTIdentifier label) {
-		visitedInstructions.add((ASTInstruction) label.parent());
 		definedLabels.add(label.content());
 		method.instructions.add(getOrCreateLabel(label.content()));
 	}
@@ -314,83 +310,59 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	public void visitEnd() {
 		validateReferencedLabels();
 
-		boolean needsLocalVariableTable = writeVariables && varCache.vars()
+		// The rest of the logic here is just emitting local variable metadata.
+		// If we don't care about that we're done.
+		if (!writeVariables)
+			return;
+
+		boolean needsLocalVariableTable = varCache.vars()
 				.filter(variable -> variable.getIndex() >= parameters.size())
 				.anyMatch(variable -> variable.getTypeHint() != null);
-		boolean hasExplicitTerminalLabel = method.instructions.getLast() instanceof LabelNode;
+		LabelNode begin = ensureLeadingBoundaryLabel();
+		LabelNode end = ensureTrailingBoundaryLabel();
+		if (method.localVariables == null)
+			method.localVariables = new ArrayList<>();
 
-		LabelNode begin;
-		LabelNode end = null;
-		if (method.instructions.getFirst() instanceof LabelNode startLabel) {
-			begin = startLabel;
-		} else {
-			ASTInstruction firstVisitedInstruction = visitedInstructions.isEmpty() ? currentInstructionAst : visitedInstructions.get(0);
-			Location warningLocation = firstVisitedInstruction == null ? Location.UNKNOWN : firstVisitedInstruction.location();
-			errorCollector.addWarn("Inserted synthetic start label for analysis; add an explicit leading label to avoid ambiguous method entry",
-					warningLocation);
-			begin = new LabelNode();
-			if (method.instructions.getFirst() == null) {
-				method.instructions.add(begin);
-			} else {
-				method.instructions.insert(begin);
-			}
+		for (Local parameter : parameters) {
+			if (parameter == null)
+				continue;
+
+			int index = parameter.index();
+			String name = parameter.name();
+			String descriptor = parameter.safeType().getDescriptor();
+			method.localVariables.add(new LocalVariableNode(
+					name,
+					descriptor,
+					null,
+					begin,
+					end,
+					index
+			));
+			var parameterVar = varCache.getFirstByIndex(index);
+			if (parameterVar != null)
+				parameterVar.updateFirstAssignedOffset(-1);
 		}
 
-		if (method.instructions.getLast() instanceof LabelNode lastLabel) {
-			end = lastLabel;
-		} else if (needsLocalVariableTable) {
-			end = new LabelNode();
-			method.instructions.add(end);
-		}
-
-		if (writeVariables) {
-			if (method.localVariables == null) {
-				method.localVariables = new ArrayList<>();
-			}
-			for (Local parameter : parameters) {
-				if (parameter == null) {
-					continue;
-				}
-				int index = parameter.index();
-				String name = parameter.name();
-				String descriptor = parameter.safeType().getDescriptor();
-				method.localVariables.add(new LocalVariableNode(
-						name,
-						descriptor,
-						null,
-						begin,
-						hasExplicitTerminalLabel ? end : begin,
-						index
-				));
-				var parameterVar = varCache.getFirstByIndex(index);
-				if (parameterVar != null) {
-					parameterVar.updateFirstAssignedOffset(-1);
-				}
-			}
-
-			if (needsLocalVariableTable) {
-				LabelNode finalEnd = end;
-				int parameterSlots = parameters.size();
-				varCache.vars()
-						.filter(variable -> variable.getIndex() >= parameterSlots)
-						.filter(variable -> variable.getTypeHint() != null)
-						.forEach(variable -> method.localVariables.add(new LocalVariableNode(
-								variable.getName(),
-								variable.getTypeHint().getDescriptor(),
-								null,
-								begin,
-								finalEnd,
-								variable.getIndex()
-						)));
-			}
+		if (needsLocalVariableTable) {
+			int parameterSlots = parameters.size();
+			varCache.vars()
+					.filter(variable -> variable.getIndex() >= parameterSlots)
+					.filter(variable -> variable.getTypeHint() != null)
+					.forEach(variable -> method.localVariables.add(new LocalVariableNode(
+							variable.getName(),
+							variable.getTypeHint().getDescriptor(),
+							null,
+							begin,
+							end,
+							variable.getIndex()
+					)));
 		}
 	}
 
 	private void add(@NotNull AbstractInsnNode instruction) {
 		method.instructions.add(instruction);
-		if (currentInstructionAst != null) {
+		if (currentInstructionAst != null)
 			analysisResult.recordOrderedInstruction(currentInstructionAst);
-		}
 	}
 
 	private void recordLabelReference(@Nullable ASTInstruction instruction, @NotNull String labelName) {
@@ -417,14 +389,62 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 		}
 	}
 
+	/**
+	 * For lots of analysis, you'll encounter problems if you have stuff like this:
+	 * <pre>{@code
+	 *  ldc "foo"
+	 *  astore x // Written to before any label
+	 * A:
+	 *  aload x
+	 *  areturn
+	 * B:
+	 * }</pre>
+	 * This ensures that doesn't happen by emitting a leading label if none exist.
+	 *
+	 * @return Label at start of the method.
+	 */
+	private @NotNull LabelNode ensureLeadingBoundaryLabel() {
+		if (method.instructions.getFirst() instanceof LabelNode label)
+			return label;
+
+		LabelNode label = new LabelNode();
+		if (method.instructions.getFirst() == null) {
+			method.instructions.add(label);
+		} else {
+			method.instructions.insert(label);
+		}
+		return label;
+	}
+
+	/**
+	 * For lots of analysis, you'll encounter problems if you have stuff like this:
+	 * <pre>{@code
+	 * A:
+	 *  aload x
+	 *  return
+	 *  // No end label
+	 * }</pre>
+	 * This ensures that doesn't happen by emitting a trailing label if none exist.
+	 *
+	 * @return Label at end of the method.
+	 */
+	private @NotNull LabelNode ensureTrailingBoundaryLabel() {
+		if (method.instructions.getLast() instanceof LabelNode label)
+			return label;
+
+		LabelNode label = new LabelNode();
+		method.instructions.add(label);
+		return label;
+	}
+
 	private static @NotNull String adaptDescToInternalName(@NotNull String op, @NotNull String desc) {
 		char first = desc.charAt(0);
-		if (first == 'L' && desc.charAt(desc.length() - 1) == ';') {
+		if (first == 'L' && desc.charAt(desc.length() - 1) == ';')
 			return desc.substring(1, desc.length() - 1);
-		}
-		if (first == '[') {
+
+		if (first == '[')
 			throw new IllegalStateException("Cannot use '" + op + "' to allocate an array type");
-		}
+
 		return desc;
 	}
 

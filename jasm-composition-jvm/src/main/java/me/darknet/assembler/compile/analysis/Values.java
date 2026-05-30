@@ -45,7 +45,7 @@ public class Values {
     public static final Value.KnownDoubleValue DOUBLE_NAN = new Value.KnownDoubleValue(Double.NaN);
     private static final Value.KnownIntValue[] INT_VALUES;
     private static final Value.KnownLongValue[] LONG_VALUES;
-    public static final Value.IntValue INT_VALUE = new Value.UnnownIntValue();
+    public static final Value.IntValue INT_VALUE = new Value.UnknownIntValue();
     public static final Value.FloatValue FLOAT_VALUE = new Value.UnknownFloatValue();
     public static final Value.LongValue LONG_VALUE = new Value.UnknownLongValue();
     public static final Value.DoubleValue DOUBLE_VALUE = new Value.UnknownDoubleValue();

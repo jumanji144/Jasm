@@ -18,11 +18,14 @@ import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.transformer.Transformer;
+import me.darknet.assembler.util.JvmTypeUtils;
 import me.darknet.assembler.util.Location;
+import me.darknet.assembler.util.VarNaming;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.LocalVariableNode;
@@ -34,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 
 public class JvmCompiler implements Compiler {
-
 	@Override
 	public @NotNull Result<JavaCompileResult> compile(List<ASTElement> ast, CompilerOptions<?> options) {
 		JvmCompilerOptions jvmOptions = (JvmCompilerOptions) options;
@@ -42,7 +44,7 @@ public class JvmCompiler implements Compiler {
 		ErrorCollector collector = new ErrorCollector();
 		JvmRootVisitor visitor = new JvmRootVisitor(builder, jvmOptions);
 
-		// TODO: This failure case isn't tested.
+		// If the user doesn't provide exactly one declaration, we cannot be sure which one is the intended target.
 		if (ast.size() != 1) {
 			collector.addError("Expected exactly one declaration", null);
 			return new Result<>(new JavaCompileResult(null, builder), collector.getErrors(), collector.getWarns());
@@ -50,19 +52,19 @@ public class JvmCompiler implements Compiler {
 
 		builder.setVersion(jvmOptions.version());
 
-		// TODO: This is not tested.
-		//  - We want to be able to apply an overlay on top of the generated class.
-		//  - Overlays are our way of adding just a single edited method on top of an existing class, which is a very common use case.
+		// If the user provided an overlay, we want to apply our transformations on top of it, so we need to read it before visiting the AST.
 		if (jvmOptions.overlay != null)
 			applyOverlay(collector, builder, jvmOptions.overlay.classFile());
 
-		// TODO: This is not testes
-		//  - There are no tests which trigger errors before this point
+		// If the overlay somehow failed, we need to abort.
 		if (collector.hasErr())
 			return new Result<>(new JavaCompileResult(null, builder), collector.getErrors(), collector.getWarns());
 
+		// Now we can visit the AST and build our class node.
 		Transformer transformer = new Transformer(visitor);
-		transformer.transform(ast).ifErr(collector::addErrors).ifWarn(collector::addWarnings);
+		transformer.transform(ast)
+				.ifErr(collector::addErrors)
+				.ifWarn(collector::addWarnings);
 
 		if (!collector.hasErr()) {
 			try {
@@ -76,8 +78,6 @@ public class JvmCompiler implements Compiler {
 				return new Result<>(new JavaCompileResult(new JavaClassRepresentation(bytes), builder),
 						collector.getErrors(), collector.getWarns());
 			} catch (Throwable t) {
-				// TODO: We don't have any tests case that trigger this catch block.
-
 				// We cannot continue, the result might be very corrupted.
 				// Collect as much info that could have led to the error as possible.
 				boolean recordedError = false;
@@ -114,49 +114,63 @@ public class JvmCompiler implements Compiler {
 
 	private void analyzeGeneratedClass(@NotNull byte[] bytes, @NotNull JvmCompilerOptions options,
 	                                   @NotNull JvmClassBuilder builder, @NotNull ErrorCollector collector) {
+		// Populate the node structure.
 		ClassNode classNode = new ClassNode();
 		new ClassReader(bytes).accept(classNode, 0);
+
+		// Map our existing analysis results by method signature.
 		Map<String, MethodAnalysisResult> existingResults = new HashMap<>();
-		for (Map.Entry<MethodNode, AnalysisResults> entry : builder.getMethodAnalysisResults().entrySet()) {
-			if (entry.getValue() instanceof MethodAnalysisResult result) {
+		for (Map.Entry<MethodNode, AnalysisResults> entry : builder.getMethodAnalysisResults().entrySet())
+			if (entry.getValue() instanceof MethodAnalysisResult result)
 				existingResults.put(methodKey(entry.getKey().name, entry.getKey().desc), result);
-			}
-		}
 		builder.getMethodAnalysisResults().clear();
 
 		for (MethodNode method : classNode.methods) {
+			// Build parameters and known local variables.
 			VarCache varCache = new VarCache();
 			List<Local> parameters = buildParameters(classNode, method, varCache);
 			seedKnownLocals(method, varCache);
+
+			// We're going to reuse existing results if possible.
+			// But the analysis logic below will repopulate the states, so we need to clear them first.
 			MethodAnalysisResult result = existingResults.getOrDefault(methodKey(method.name, method.desc), new MethodAnalysisResult());
 			result.resetAnalysisState();
+
+			// We want to be able to correlate the instructions in the generated class with the AST instructions.
 			mapAstInstructions(result, method);
+
+			// First do a linear pass to populate the variable cache with as much info as possible.
 			JvmAnalysisEngine<?> engine = options.createEngine(varCache);
 			engine.setErrorCollector(collector);
-
 			new IndexedStraightforwardSimulation().execute(new VarCacheUpdater(varCache), method);
 
+			// Copying the InsnList model to a regular List...
 			List<AbstractInsnNode> instructions = new ArrayList<>(method.instructions.size());
-			for (int i = 0; i < method.instructions.size(); i++) {
+			for (int i = 0; i < method.instructions.size(); i++)
 				instructions.add(method.instructions.get(i));
-			}
 
+			// Summarize the method model information.
 			JvmAnalysisRunner.Info info = new JvmAnalysisRunner.Info(
 					options.inheritanceChecker(),
-					org.objectweb.asm.Type.getMethodType(method.desc),
+					Type.getMethodType(method.desc),
 					parameters,
 					instructions,
 					method.tryCatchBlocks
 			);
 
+			// Now we can run the actual analysis.
+			// This will populate the frames in the result, or set an analysis failure if something goes wrong.
 			try {
 				new JvmAnalysisRunner(engine.newFrameOps()).execute(engine, info, result);
 			} catch (AnalysisException ex) {
 				result.setAnalysisFailure(ex);
 			}
 
+			// Attempt to link any analysis failure to the original AST instruction,
+			// so we can report it to the user with a proper location.
 			recordAnalysisFailure(result, collector);
 
+			// Done with this method, store the result for later retrieval.
 			builder.setMethodAnalysis(method, result);
 		}
 	}
@@ -172,20 +186,24 @@ public class JvmCompiler implements Compiler {
 		}
 	}
 
-	private static @NotNull List<Local> buildParameters(@NotNull ClassNode classNode, @NotNull MethodNode method,
+	private static @NotNull List<Local> buildParameters(@NotNull ClassNode classNode,
+	                                                    @NotNull MethodNode method,
 	                                                    @NotNull VarCache varCache) {
 		List<Local> parameters = new ArrayList<>();
 		int localIndex = 0;
+
+		// Add 'this' for virtual methods.
 		if ((method.access & Opcodes.ACC_STATIC) == 0) {
-			String name = findLocalName(method, 0, org.objectweb.asm.Type.getObjectType(classNode.name).getDescriptor(), "this");
+			String name = findLocalName(method, 0, Type.getObjectType(classNode.name).getDescriptor(), "this");
 			varCache.getOrCreate(name, 0, false);
-			parameters.add(new Local(localIndex++, name, org.objectweb.asm.Type.getObjectType(classNode.name)));
+			parameters.add(new Local(localIndex++, name, Type.getObjectType(classNode.name)));
 		}
 
-		for (org.objectweb.asm.Type parameterType : org.objectweb.asm.Type.getArgumentTypes(method.desc)) {
-			String fallbackName = me.darknet.assembler.util.VarNaming.name(localIndex, parameterType);
+		// Add method parameters.
+		for (Type parameterType : Type.getArgumentTypes(method.desc)) {
+			String fallbackName = VarNaming.name(localIndex, parameterType);
 			String name = findLocalName(method, localIndex, parameterType.getDescriptor(), fallbackName);
-			boolean wide = me.darknet.assembler.util.JvmTypeUtils.isWide(parameterType);
+			boolean wide = JvmTypeUtils.isWide(parameterType);
 			varCache.getOrCreate(name, localIndex, wide);
 			parameters.add(new Local(localIndex++, name, parameterType));
 			if (wide) {
@@ -193,28 +211,26 @@ public class JvmCompiler implements Compiler {
 				localIndex++;
 			}
 		}
+
 		return parameters;
 	}
 
 	private static @NotNull String findLocalName(@NotNull MethodNode method, int index, @NotNull String descriptor,
 	                                             @NotNull String fallback) {
-		if (method.localVariables != null) {
-			for (LocalVariableNode localVariable : method.localVariables) {
-				if (localVariable.index == index && descriptor.equals(localVariable.desc)) {
+		if (method.localVariables != null)
+			for (LocalVariableNode localVariable : method.localVariables)
+				if (localVariable.index == index && descriptor.equals(localVariable.desc))
 					return localVariable.name;
-				}
-			}
-		}
 		return fallback;
 	}
 
 	private static void seedKnownLocals(@NotNull MethodNode method, @NotNull VarCache varCache) {
-		if (method.localVariables == null) {
+		if (method.localVariables == null)
 			return;
-		}
+
 		for (LocalVariableNode localVariable : method.localVariables) {
-			org.objectweb.asm.Type type = org.objectweb.asm.Type.getType(localVariable.desc);
-			boolean wide = me.darknet.assembler.util.JvmTypeUtils.isWide(type);
+			Type type = Type.getType(localVariable.desc);
+			boolean wide = JvmTypeUtils.isWide(type);
 			VarCache.Variable variable = varCache.getOrCreate(localVariable.name, localVariable.index, wide);
 			variable.updateTypeHint(type);
 		}
@@ -231,7 +247,8 @@ public class JvmCompiler implements Compiler {
 		     instruction = instruction.getNext()) {
 			if (!isExecutable(instruction))
 				continue;
-			result.recordInstructionMapping(astInstructions.get(astIndex++), instruction);
+			ASTInstruction astInstruction = astInstructions.get(astIndex++);
+			result.recordInstructionMapping(astInstruction, instruction);
 		}
 	}
 
@@ -241,9 +258,8 @@ public class JvmCompiler implements Compiler {
 
 	private static void recordAnalysisFailure(@NotNull MethodAnalysisResult result, @NotNull ErrorCollector collector) {
 		AnalysisException failure = result.getAnalysisFailure();
-		if (failure == null) {
+		if (failure == null)
 			return;
-		}
 
 		AbstractInsnNode instruction = failure.getInstruction();
 		if (instruction != null) {

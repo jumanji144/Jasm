@@ -2,6 +2,8 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.test.BinarySampleFixture;
+import me.darknet.assembler.test.JvmAssemblerFixture;
+import me.darknet.assembler.test.JvmCompilation;
 import me.darknet.assembler.test.JvmDecompilationFixture;
 import me.darknet.assembler.test.JvmDisassemblyFixture;
 import me.darknet.assembler.test.JvmRoundTripFixture;
@@ -11,10 +13,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.AnnotationVisitor;
+import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodNode;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -229,6 +234,48 @@ class JvmRoundTripTest {
 	}
 
 	@Test
+	void disassemblyAddsBoundaryLabelsBeforeRoundTrip() throws Throwable {
+		String source = JvmDisassemblyFixture.disassembleJvm(buildMissingBoundaryLabelsClass());
+
+		assertTrue(source.contains("parameters: { value }"));
+		assertTrue(source.matches("(?s).*code: \\{\\s*A:\\s*iload value\\s*ifeq B\\s*return\\s*B:\\s*return\\s*C:\\s*\\}.*"), source);
+
+		assertStableRoundTrip(source);
+	}
+
+	@Test
+	void handWrittenMethodWithoutBoundaryLabelsStillCompiles() {
+		String source = """
+				.super java/lang/Object
+				.class public super handwritten/NoBoundaryLabels {
+				    .method public test (I)V {
+				        parameters: { this, value },
+				        code: {
+				            iload value
+				            pop
+				            return
+				        }
+				    }
+				}
+				""";
+
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, new TestJvmCompilerOptions());
+		assertFalse(compilation.hasWarnings(), "Expected no warnings");
+
+		ClassNode node = readClass(compilation.requireClassBytes());
+		MethodNode method = node.methods.stream()
+				.filter(candidate -> candidate.name.equals("test") && candidate.desc.equals("(I)V"))
+				.findFirst()
+				.orElseThrow();
+
+		assertTrue(method.instructions.getFirst() instanceof org.objectweb.asm.tree.LabelNode);
+		assertTrue(method.instructions.getLast() instanceof org.objectweb.asm.tree.LabelNode);
+		assertNotNull(method.localVariables);
+		assertEquals(2, method.localVariables.size());
+		method.localVariables.forEach(local -> assertNotSame(local.start, local.end, local.name));
+	}
+
+	@Test
 	void kotlinStyleLocalMetadataStillRoundTrips() throws Throwable {
 		byte[] raw = Files.readAllBytes(Path.of("src/test/resources/samples/binary/MainKt.sample"));
 		String source = JvmDisassemblyFixture.disassembleJvm(raw);
@@ -378,6 +425,22 @@ class JvmRoundTripTest {
 		});
 	}
 
+	private static byte[] buildMissingBoundaryLabelsClass() {
+		return buildClass("hardening/MissingBoundaryLabels", cw -> {
+			MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "test", "(I)V", null, null);
+			mv.visitParameter("value", 0);
+			mv.visitCode();
+			Label jumpTarget = new Label();
+			mv.visitVarInsn(Opcodes.ILOAD, 0);
+			mv.visitJumpInsn(Opcodes.IFEQ, jumpTarget);
+			mv.visitInsn(Opcodes.RETURN);
+			mv.visitLabel(jumpTarget);
+			mv.visitInsn(Opcodes.RETURN);
+			mv.visitMaxs(0, 0);
+			mv.visitEnd();
+		});
+	}
+
 	private static byte[] buildClass(String internalName, Consumer<ClassWriter> body) {
 		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
 		cw.visit(Opcodes.V21, Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER, internalName, null, "java/lang/Object", null);
@@ -400,5 +463,11 @@ class JvmRoundTripTest {
 		mv.visitLocalVariable("this", "L" + internalName + ";", null, start, end, 0);
 		mv.visitMaxs(0, 0);
 		mv.visitEnd();
+	}
+
+	private static ClassNode readClass(byte[] bytes) {
+		ClassNode node = new ClassNode();
+		new ClassReader(bytes).accept(node, 0);
+		return node;
 	}
 }

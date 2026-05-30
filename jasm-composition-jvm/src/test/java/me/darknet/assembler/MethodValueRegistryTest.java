@@ -31,6 +31,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+/**
+ * Tests for {@link MethodValueRegistry} implementations, ensuring that they resolve known
+ * method calls to known values and fall back to unknown values when inputs are not known.
+ */
 class MethodValueRegistryTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("registryHappyPaths")

@@ -372,10 +372,23 @@ public class JvmAnalysisRunner implements Opcodes {
 		return List.of();
 	}
 
+	/**
+	 * Method state wrapper.
+	 *
+	 * @param checker
+	 * 		Inheritance resolution for frame merging of different class types.
+	 * @param methodType
+	 * 		Type descriptor of the method.
+	 * @param params
+	 * 		Method parameters.
+	 * @param instructions
+	 * 		Method code.
+	 * @param exceptionHandlers
+	 * 		Method try-catch blocks.
+	 */
 	public record Info(@NotNull InheritanceChecker checker,
 	                   @NotNull Type methodType,
 	                   @NotNull List<Local> params,
 	                   @NotNull List<AbstractInsnNode> instructions,
-	                   @NotNull List<TryCatchBlockNode> exceptionHandlers) {
-	}
+	                   @NotNull List<TryCatchBlockNode> exceptionHandlers) {}
 }

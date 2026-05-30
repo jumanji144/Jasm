@@ -37,6 +37,11 @@ public final class StringMethodValueRegistry {
                 }
             return Values.STRING_VALUE;
         });
+        builder.registerStringInstance("concat", "(Ljava/lang/String;)Ljava/lang/String;", (value, params) -> {
+            if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue strParam)
+                return Values.valueOfString(value.concat(strParam.value()));
+            return Values.STRING_VALUE;
+        });
         builder.registerStringInstance("equals", "(Ljava/lang/Object;)Z", (value, params) -> {
             if (params.size() == 1 && params.getFirst() instanceof Value.KnownStringValue strParam)
                 return Values.valueOf(value.equals(strParam.value()));

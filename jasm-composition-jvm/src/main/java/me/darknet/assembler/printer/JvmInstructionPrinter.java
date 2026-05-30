@@ -16,16 +16,16 @@ public class JvmInstructionPrinter {
     private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u[0-9a-fA-F]{4}");
 
     protected final PrintContext.CodePrint ctx;
-    protected final InsnList code;
     protected final List<TryCatchBlockNode> tryCatchBlocks;
     protected final Map<LabelNode, String> labelNames;
     protected final Variables variables;
     private int currentIndex = 0;
 
-    public JvmInstructionPrinter(PrintContext.CodePrint ctx, InsnList code, List<TryCatchBlockNode> tryCatchBlocks,
-                                 Variables variables, Map<LabelNode, String> labelNames) {
+    public JvmInstructionPrinter(PrintContext.CodePrint ctx,
+                                 List<TryCatchBlockNode> tryCatchBlocks,
+                                 Variables variables,
+                                 Map<LabelNode, String> labelNames) {
         this.ctx = ctx;
-        this.code = code;
         this.tryCatchBlocks = tryCatchBlocks;
         this.variables = variables;
         this.labelNames = labelNames;
@@ -56,6 +56,28 @@ public class JvmInstructionPrinter {
                     ctx.instruction("// try-handler: " + range + " handler=" + handlerName + ":" + typeName).next();
                 }
             }
+        }
+    }
+
+    public void execute(AbstractInsnNode instruction) {
+        switch (instruction) {
+            case LabelNode label -> label(label);
+            case LineNumberNode lineNumber -> execute(lineNumber);
+            case FrameNode ignored -> { }
+            case InsnNode insn -> execute(insn);
+            case IntInsnNode intInsn -> execute(intInsn);
+            case LdcInsnNode ldcInsn -> execute(ldcInsn);
+            case VarInsnNode varInsn -> execute(varInsn);
+            case IincInsnNode iincInsn -> execute(iincInsn);
+            case JumpInsnNode jumpInsn -> execute(jumpInsn);
+            case TypeInsnNode typeInsn -> execute(typeInsn);
+            case FieldInsnNode fieldInsn -> execute(fieldInsn);
+            case MethodInsnNode methodInsn -> execute(methodInsn);
+            case InvokeDynamicInsnNode invokeDynamicInsn -> execute(invokeDynamicInsn);
+            case LookupSwitchInsnNode lookupSwitchInsn -> execute(lookupSwitchInsn);
+            case TableSwitchInsnNode tableSwitchInsn -> execute(tableSwitchInsn);
+            case MultiANewArrayInsnNode multiANewArrayInsn -> execute(multiANewArrayInsn);
+            default -> throw new IllegalStateException("Unhandled instruction node: " + instruction.getClass().getName());
         }
     }
 
@@ -167,29 +189,11 @@ public class JvmInstructionPrinter {
         ctx.instruction("multianewarray").literal(instruction.desc).arg().print(Integer.toString(instruction.dims)).next();
     }
 
-    public void print() {
+    public void print(InsnList code) {
         for (int i = 0; i < code.size(); i++) {
             index(i);
             AbstractInsnNode instruction = code.get(i);
-            switch (instruction) {
-                case LabelNode label -> label(label);
-                case LineNumberNode lineNumber -> execute(lineNumber);
-                case FrameNode ignored -> { }
-                case InsnNode insn -> execute(insn);
-                case IntInsnNode intInsn -> execute(intInsn);
-                case LdcInsnNode ldcInsn -> execute(ldcInsn);
-                case VarInsnNode varInsn -> execute(varInsn);
-                case IincInsnNode iincInsn -> execute(iincInsn);
-                case JumpInsnNode jumpInsn -> execute(jumpInsn);
-                case TypeInsnNode typeInsn -> execute(typeInsn);
-                case FieldInsnNode fieldInsn -> execute(fieldInsn);
-                case MethodInsnNode methodInsn -> execute(methodInsn);
-                case InvokeDynamicInsnNode invokeDynamicInsn -> execute(invokeDynamicInsn);
-                case LookupSwitchInsnNode lookupSwitchInsn -> execute(lookupSwitchInsn);
-                case TableSwitchInsnNode tableSwitchInsn -> execute(tableSwitchInsn);
-                case MultiANewArrayInsnNode multiANewArrayInsn -> execute(multiANewArrayInsn);
-                default -> throw new IllegalStateException("Unhandled instruction node: " + instruction.getClass().getName());
-            }
+            execute(instruction);
         }
     }
 

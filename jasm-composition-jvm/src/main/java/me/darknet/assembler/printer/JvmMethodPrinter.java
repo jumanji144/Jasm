@@ -14,28 +14,37 @@ import java.util.*;
 
 public class JvmMethodPrinter implements MethodPrinter {
     protected final MethodNode method;
+    protected final MethodNode printableMethod;
     protected final JvmMemberPrinter memberPrinter;
 
     public JvmMethodPrinter(MethodNode method) {
         this.method = method;
+        this.printableMethod = normalizeMethodBoundaries(method);
         this.memberPrinter = new JvmMemberPrinter(method, JvmMemberPrinter.Type.METHOD);
     }
 
     public @NotNull Variables buildVariables(PrintContext<?> ctx) {
-        boolean isStatic = (method.access & Opcodes.ACC_STATIC) != 0;
-        List<LocalInfo> localInfos = method.localVariables == null || ctx.ignoreExistingVariableNames
+		// Collect local variable information and parameter names, and allocate unique names for all variables.
+        boolean isStatic = (printableMethod.access & Opcodes.ACC_STATIC) != 0;
+        List<LocalInfo> localInfos = printableMethod.localVariables == null || ctx.ignoreExistingVariableNames
                 ? List.of()
-                : collectLocalInfos(isStatic);
+                : collectLocalInfos(printableMethod, isStatic);
+
+		// Tracking for used names.
         NavigableMap<Integer, Variables.Parameter> parameterNames = new TreeMap<>();
         Set<String> usedNames = new HashSet<>();
+
+		// Start with implicit 'this' parameter for instance methods.
         if (!isStatic) {
             parameterNames.put(0, new Variables.Parameter(0, "this", "Ljava/lang/Object;"));
             usedNames.add("this");
         }
 
+		// Allocate names for method parameters, using local variable information and method parameter metadata
+	    // when available to preserve original names where possible.
         Map<String, String> parameterLocalNames = new HashMap<>();
-        List<ParameterNode> methodParameters = method.parameters == null ? List.of() : method.parameters;
-        Type[] parameterTypes = Type.getArgumentTypes(method.desc);
+        List<ParameterNode> methodParameters = printableMethod.parameters == null ? List.of() : printableMethod.parameters;
+        Type[] parameterTypes = Type.getArgumentTypes(printableMethod.desc);
         int methodParameterIndexOffset = Math.max(0, methodParameters.size() - parameterTypes.length);
         int slot = isStatic ? 0 : 1;
         for (int i = 0; i < parameterTypes.length; i++) {
@@ -47,6 +56,7 @@ public class JvmMethodPrinter implements MethodPrinter {
             slot += type.getSize();
         }
 
+		// Convert our local info models to the final variable models.
         List<Variables.Local> locals = new ArrayList<>();
         for (LocalInfo local : localInfos) {
             String name;
@@ -85,9 +95,9 @@ public class JvmMethodPrinter implements MethodPrinter {
                     var entry = pannosIt.next();
                     int sourceIndex = entry.getKey();
                     int printedIndex = sourceIndex + (isVirtual ? 1 : 0);
-                    if (printedIndex < 0 || printedIndex >= parameterList.size()) {
+                    if (printedIndex < 0 || printedIndex >= parameterList.size())
                         continue;
-                    }
+
                     List<ParameterAnnotationEntry> annos = entry.getValue();
 
                     var parameter = parameterList.get(printedIndex);
@@ -115,23 +125,23 @@ public class JvmMethodPrinter implements MethodPrinter {
         }
 
         if (method.annotationDefault != null) {
-            if (hasPrior) {
+            if (hasPrior)
                 obj.next();
-            }
+
             obj.value("default-value");
             JvmAnnotationPrinter.forElements().printElement(obj, method.annotationDefault);
             hasPrior = true;
         }
 
         if ((method.access & (Opcodes.ACC_ABSTRACT | Opcodes.ACC_NATIVE)) == 0) {
-            if (hasPrior) {
+            if (hasPrior)
                 obj.next();
-            }
 
-            Map<LabelNode, String> labelNames = getLabelNames(ctx, method);
-            if (!method.tryCatchBlocks.isEmpty()) {
+            // Print exception ranges
+            Map<LabelNode, String> labelNames = getLabelNames(ctx, printableMethod);
+            if (!printableMethod.tryCatchBlocks.isEmpty()) {
                 var arr = obj.value("exceptions").array();
-                arr.printIndented(method.tryCatchBlocks, (print, tcb) -> {
+                arr.printIndented(printableMethod.tryCatchBlocks, (print, tcb) -> {
                     var exception = print.array();
                     String start = labelNames.get(tcb.start);
                     String end = labelNames.get(tcb.end);
@@ -143,9 +153,12 @@ public class JvmMethodPrinter implements MethodPrinter {
                 obj.next();
             }
 
-            var code = obj.value("code").code();
-            new JvmInstructionPrinter(code, method.instructions, method.tryCatchBlocks, variables, labelNames).print();
-            code.end();
+            // Print instructions
+			if (printableMethod.instructions != null) {
+				var code = obj.value("code").code();
+				new JvmInstructionPrinter(code, printableMethod.tryCatchBlocks, variables, labelNames).print(printableMethod.instructions);
+				code.end();
+			}
         }
 
         obj.end();
@@ -190,13 +203,21 @@ public class JvmMethodPrinter implements MethodPrinter {
         }
     }
 
-    private @NotNull List<LocalInfo> collectLocalInfos(boolean isStatic) {
+	/**
+	 * Collects local variable information/scopes in the method,
+	 * and attempts to adjust variable scopes to more accurately reflect actual variable lifetimes.
+	 *
+	 * @param isStatic
+	 *        {@code true} when the method is static, {@code false} otherwise.
+	 *
+	 * @return List of local variable information with adjusted scopes.
+	 */
+    private @NotNull List<LocalInfo> collectLocalInfos(@NotNull MethodNode methodView, boolean isStatic) {
         List<LocalInfo> locals = new ArrayList<>();
-        for (LocalVariableNode local : method.localVariables) {
-            LocalRange range = sanitizeLocalRange(method.instructions, local);
-            if (range == null) {
+        for (LocalVariableNode local : methodView.localVariables) {
+            LocalRange range = sanitizeLocalRange(methodView.instructions, local);
+            if (range == null)
                 continue;
-            }
 
             int index = local.index;
             boolean isThis = !isStatic && index == 0;
@@ -210,41 +231,69 @@ public class JvmMethodPrinter implements MethodPrinter {
 
         for (int i = 0; i < locals.size(); i++) {
             LocalInfo local = locals.get(i);
-            if (local.end() <= local.start()) {
+            if (local.end() <= local.start())
                 continue;
-            }
-            int priorLabelOffset = findPriorLabelOffset(method.instructions, local.start());
-            int variableWriteInRange = getVariableWriteInRange(method.instructions, local.index(), priorLabelOffset, local.start());
-            if (variableWriteInRange >= 0 && !isVariableInstructionInOtherScope(variableWriteInRange, locals, local)) {
+
+            int priorLabelOffset = findPriorLabelOffset(methodView.instructions, local.start());
+            int variableWriteInRange = getVariableWriteInRange(methodView.instructions, local.index(), priorLabelOffset, local.start());
+            if (variableWriteInRange >= 0 && !isVariableInstructionInOtherScope(variableWriteInRange, locals, local))
                 locals.set(i, local.withStart(variableWriteInRange));
-            }
         }
 
-        return locals.stream().filter(local -> !isLoadOnlyAlias(method.instructions, locals, local)).toList();
+        return locals.stream().filter(local -> !isLoadOnlyAlias(methodView.instructions, locals, local)).toList();
     }
 
-    private static boolean isVariableInstructionInOtherScope(int variableInstructionIndex, @NotNull List<LocalInfo> locals,
+	/**
+	 * Used to check if an instruction <i>(xload/xstore)</i> is covered by a variable scope over than the given one.
+	 *
+	 * @param variableInstructionIndex
+	 * 		Index of variable instruction in {@link InsnList}.
+	 * @param locals
+	 * 		List of variable scopes to check against.
+	 * @param scope
+	 * 		The current variable scope.
+	 *
+	 * @return {@code true} when the given instruction index is covered by
+	 * a different {@link LocalInfo} scope other than the given one.
+	 * {@code false} when the given instruction index is not covered
+	 * by a variable scope other than the given one.
+	 */
+    private static boolean isVariableInstructionInOtherScope(int variableInstructionIndex,
+                                                             @NotNull List<LocalInfo> locals,
                                                              @NotNull LocalInfo scope) {
         for (LocalInfo local : locals) {
-            if (local == scope) {
+            if (local == scope)
                 continue;
-            }
-            if (scope.index() == local.index() && variableInstructionIndex >= local.start() && variableInstructionIndex <= local.end()) {
+            if (scope.index() == local.index()
+                    && variableInstructionIndex >= local.start()
+                    && variableInstructionIndex <= local.end())
                 return true;
-            }
         }
         return false;
     }
 
+	/**
+	 * @param code
+	 * 		Code to check for other variable instructions in.
+	 * @param variableIndex
+	 * 		Local variable index to filter variable instructions by.
+	 * @param start
+	 * 		Start range in {@link InsnList}
+	 * @param end
+	 * 		End range in {@link InsnList}.
+	 *
+	 * @return Latest instruction index in {@link InsnList} of a variable instruction
+	 * writing to the given variable index within the given range. Otherwise, {@code -1}.
+	 */
     private static int getVariableWriteInRange(@NotNull InsnList code, int variableIndex, int start, int end) {
-        if (code.size() == 0) {
+        if (code.size() == 0)
             return -1;
-        }
+
         start = Math.max(0, Math.min(start, code.size() - 1));
         end = Math.max(0, Math.min(end, code.size() - 1));
-        if (start > end) {
+        if (start > end)
             return -1;
-        }
+
         for (int i = end; i >= start; i--) {
             AbstractInsnNode instruction = code.get(i);
             if (instruction instanceof VarInsnNode varInsn
@@ -253,6 +302,7 @@ public class JvmMethodPrinter implements MethodPrinter {
                 return i;
             }
         }
+
         return -1;
     }
 
@@ -271,55 +321,56 @@ public class JvmMethodPrinter implements MethodPrinter {
     }
 
     private static @Nullable LocalRange sanitizeLocalRange(@NotNull InsnList code, @NotNull LocalVariableNode local) {
-        if (code.size() == 0) {
+        if (code.size() == 0)
             return null;
-        }
+
         int maxIndex = code.size() - 1;
         int start = code.indexOf(local.start);
         int end = code.indexOf(local.end);
-        if (start < 0 && end < 0) {
+        if (start < 0 && end < 0)
             return null;
-        }
-        if (start > maxIndex && end > maxIndex) {
+
+        if (start > maxIndex && end > maxIndex)
             return null;
-        }
+
         start = Math.max(0, Math.min(start, maxIndex));
         end = Math.max(0, Math.min(end, maxIndex));
-        if (start > end) {
+        if (start > end)
             return null;
-        }
+
         return new LocalRange(start, end);
     }
 
     private static boolean isLoadOnlyAlias(@NotNull InsnList code, @NotNull List<LocalInfo> locals, @NotNull LocalInfo local) {
         int firstAccess = findFirstVariableAccessInRange(code, local.index(), local.start(), local.end());
-        if (firstAccess < 0) {
+        if (firstAccess < 0)
             return true;
-        }
 
         AbstractInsnNode instruction = code.get(firstAccess);
-        if (instruction instanceof VarInsnNode varInsn && isVarStore(varInsn.getOpcode())) {
+        if (instruction instanceof VarInsnNode varInsn && isVarStore(varInsn.getOpcode()))
             return false;
-        }
 
-        return locals.stream().anyMatch(other -> other != local && other.index() == local.index() && other.start() < local.start());
+        return locals.stream()
+		        .anyMatch(other -> other != local
+				        && other.index() == local.index()
+				        && other.start() < local.start());
     }
 
     private static int findFirstVariableAccessInRange(@NotNull InsnList code, int variableIndex, int start, int end) {
-        if (code.size() == 0) {
+        if (code.size() == 0)
             return -1;
-        }
+
         start = Math.max(0, Math.min(start, code.size() - 1));
         end = Math.max(0, Math.min(end, code.size() - 1));
-        if (start > end) {
+        if (start > end)
             return -1;
-        }
+
         for (int i = start; i <= end; i++) {
             AbstractInsnNode instruction = code.get(i);
-            if (instruction instanceof VarInsnNode varInsn && varInsn.var == variableIndex) {
+            if (instruction instanceof VarInsnNode varInsn && varInsn.var == variableIndex)
                 return i;
-            }
         }
+
         return -1;
     }
 
@@ -331,17 +382,24 @@ public class JvmMethodPrinter implements MethodPrinter {
         return index + ":" + descriptor;
     }
 
-    private static @NotNull String getParameterName(@NotNull List<LocalInfo> locals, @NotNull List<ParameterNode> methodParameters,
-                                                    int methodParameterIndex, int slot, @NotNull Type type, boolean isStatic) {
+    private static @NotNull String getParameterName(@NotNull List<LocalInfo> locals,
+                                                    @NotNull List<ParameterNode> methodParameters,
+                                                    int methodParameterIndex,
+                                                    int slot,
+                                                    @NotNull Type type,
+                                                    boolean isStatic) {
         String name = findOriginalParameterName(locals, methodParameters, methodParameterIndex, slot, type, isStatic);
-        if (name == null) {
+        if (name == null)
             return VarNaming.name(slot, type);
-        }
         return name;
     }
 
-    private static @Nullable String findOriginalParameterName(@NotNull List<LocalInfo> locals, @NotNull List<ParameterNode> methodParameters,
-                                                              int methodParameterIndex, int slot, @NotNull Type type, boolean isStatic) {
+    private static @Nullable String findOriginalParameterName(@NotNull List<LocalInfo> locals,
+                                                              @NotNull List<ParameterNode> methodParameters,
+                                                              int methodParameterIndex,
+                                                              int slot,
+                                                              @NotNull Type type,
+                                                              boolean isStatic) {
         if (methodParameterIndex < methodParameters.size()) {
             String methodParameterName = methodParameters.get(methodParameterIndex).name;
             if (methodParameterName != null) {
@@ -351,7 +409,8 @@ public class JvmMethodPrinter implements MethodPrinter {
 
         return locals.stream()
                 .filter(local -> matchesSlotAndDesc(local, slot, type.getDescriptor()))
-                .min(Comparator.comparingInt((LocalInfo local) -> local.start() == 0 ? 0 : 1).thenComparingInt(LocalInfo::start))
+                .min(Comparator.comparingInt((LocalInfo local) -> local.start() == 0 ? 0 : 1)
+		                .thenComparingInt(LocalInfo::start))
                 .map(LocalInfo::baseName)
                 .orElse(null);
     }
@@ -364,13 +423,76 @@ public class JvmMethodPrinter implements MethodPrinter {
             AbstractInsnNode instruction = instructions.get(i);
             if (instruction instanceof LabelNode label) {
                 String labelName = LabelUtil.getLabelName(labelIndex++);
-                if (ctx.labelPrefix != null) {
+                if (ctx.labelPrefix != null)
                     labelName = ctx.labelPrefix + labelName;
-                }
                 labelNames.put(label, labelName);
             }
         }
         return labelNames;
+    }
+
+	/**
+	 * Ensures that the method's instruction list starts and ends with a label,
+	 * which is required for correct variable scope analysis.
+	 * <p>
+	 * <b>Example 1</b>: Some variable gets used before a label starts,
+	 * so you cannot give it a correct scope that actually includes the usage
+	 * since the earliest 'start' label is after the usage.
+	 * <pre>{@code
+	 *  ldc "foo"
+	 *  astore x // Written to before any label
+	 * A:
+	 *  aload x
+	 *  areturn
+	 * B:
+	 * }</pre>
+	 * <b>Example 2</b>: Some variable gets used but there's no label after that usage,
+	 * so you cannot give it a correct scope that actually includes the usage
+	 * since the furthest 'end' label is before the usage.
+	 * <pre>{@code
+	 * A:
+	 *  aload x
+	 *  return
+	 *  // No end label
+	 * }</pre>
+	 *
+	 * @param method
+	 * 		Method to normalize.
+	 *
+	 * @return Normalized method.
+	 */
+    private static @NotNull MethodNode normalizeMethodBoundaries(@NotNull MethodNode method) {
+        if ((method.access & (Opcodes.ACC_ABSTRACT | Opcodes.ACC_NATIVE)) != 0)
+            return method;
+
+        boolean missingLeadingLabel = !(method.instructions.getFirst() instanceof LabelNode);
+        boolean missingTrailingLabel = !(method.instructions.getLast() instanceof LabelNode);
+        if (!missingLeadingLabel && !missingTrailingLabel)
+            return method;
+
+        MethodNode normalized = copyMethod(method);
+        if (missingLeadingLabel) {
+            if (normalized.instructions.getFirst() == null)
+                normalized.instructions.add(new LabelNode());
+            else
+                normalized.instructions.insert(new LabelNode());
+        }
+        if (missingTrailingLabel)
+            normalized.instructions.add(new LabelNode());
+
+        return normalized;
+    }
+
+    private static @NotNull MethodNode copyMethod(@NotNull MethodNode method) {
+        MethodNode copy = new MethodNode(
+                method.access,
+                method.name,
+                method.desc,
+                method.signature,
+                method.exceptions == null ? null : method.exceptions.toArray(String[]::new)
+        );
+        method.accept(copy);
+        return copy;
     }
 
     private static @NotNull String allocateUniqueName(@NotNull LocalInfo local, @NotNull Set<String> usedNames) {
@@ -387,27 +509,32 @@ public class JvmMethodPrinter implements MethodPrinter {
         String prefix = escaped ? VarNaming.name(index, type) : baseName;
         String candidate = prefix;
         int suffix = 2;
-        while (usedNames.contains(candidate)) {
+        while (usedNames.contains(candidate))
             candidate = prefix + suffix++;
-        }
+
         usedNames.add(candidate);
         return candidate;
     }
 
     private static @NotNull String escapeVariableName(@NotNull String name, @NotNull Type type, int index, boolean isStatic) {
-        if (name.equals("this") && !(index == 0 && !isStatic)) {
+        if (name.equals("this") && !(index == 0 && !isStatic))
             return VarNaming.name(index, type);
-        }
-        if (name.isBlank()) {
+
+        if (name.isBlank())
             return VarNaming.name(index, type);
-        }
-        if (name.length() > 200) {
+
+        if (name.length() > 200)
             return VarNaming.name(index, type);
-        }
-        if (name.indexOf('/') >= 0 || name.indexOf('.') >= 0 || name.indexOf(';') >= 0 || name.indexOf('[') >= 0
-                || name.indexOf('<') >= 0 || name.indexOf('>') >= 0 || name.indexOf('-') >= 0) {
+
+        if (name.indexOf('/') >= 0
+		        || name.indexOf('.') >= 0
+		        || name.indexOf(';') >= 0
+		        || name.indexOf('[') >= 0
+                || name.indexOf('<') >= 0
+		        || name.indexOf('>') >= 0
+		        || name.indexOf('-') >= 0)
             return VarNaming.name(index, type);
-        }
+
         return EscapeUtil.escapeLiteral(name);
     }
 

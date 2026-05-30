@@ -61,9 +61,8 @@ public class MethodAnalysisResult implements AnalysisResults {
 
 	public void recordInstructionMapping(@Nullable ASTInstruction instruction, @NotNull AbstractInsnNode node) {
 		instructionToAst.put(node, instruction);
-		if (instruction != null) {
+		if (instruction != null)
 			astToInstruction.put(instruction, node);
-		}
 	}
 
 	@Override
