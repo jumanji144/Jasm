@@ -8,11 +8,14 @@ import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.ast.specific.ASTField;
+import me.darknet.assembler.ast.specific.ASTInner;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.query.AssemblyQueries;
 import me.darknet.assembler.query.AssemblyUtils;
+import me.darknet.assembler.query.resolution.ClassExtends;
+import me.darknet.assembler.query.resolution.ClassImplements;
 import me.darknet.assembler.query.LabelInfo;
 import me.darknet.assembler.query.LabelQueryResult;
 import me.darknet.assembler.query.LabelReferenceKind;
@@ -24,6 +27,7 @@ import me.darknet.assembler.query.VariableUsage;
 import me.darknet.assembler.query.resolution.ClassAnnotationResolution;
 import me.darknet.assembler.query.resolution.FieldAnnotationResolution;
 import me.darknet.assembler.query.resolution.IndependentAnnotationResolution;
+import me.darknet.assembler.query.resolution.InnerClassResolution;
 import me.darknet.assembler.query.resolution.LabelDeclarationResolution;
 import me.darknet.assembler.query.resolution.LabelReferenceResolution;
 import me.darknet.assembler.query.resolution.MethodAnnotationResolution;
@@ -350,6 +354,37 @@ class AssemblyUtilsAndQueriesTest {
 		IndependentAnnotationResolution annotationResolution =
 				assertInstanceOf(IndependentAnnotationResolution.class, resolution);
 		assertSame(annotation, annotationResolution.annotation());
+	}
+
+	@Test
+	void resolvesClassExtendsImplementsAndInnerSelections() {
+		String source = """
+				.inner public { name: Inner, inner: Example$Inner, outer: Example }
+				.implements java/io/Serializable
+				.super java/lang/Object
+				.class public Example {}
+				""";
+		List<ASTElement> ast = processed(source);
+		ASTClass klass = assertInstanceOf(ASTClass.class, ast.getFirst());
+		ASTInner inner = klass.getInners().getFirst();
+		ASTIdentifier implemented = klass.getInterfaces().getFirst();
+		ASTIdentifier superName = klass.getSuperName();
+
+		Resolution innerResolution = AssemblyQueries.resolveAt(ast, inner.range().start());
+		InnerClassResolution innerClassResolution =
+				assertInstanceOf(InnerClassResolution.class, innerResolution);
+		assertSame(klass, innerClassResolution.klass());
+		assertSame(inner, innerClassResolution.inner());
+
+		Resolution implementsResolution = AssemblyQueries.resolveAt(ast, implemented.range().start());
+		ClassImplements classImplements = assertInstanceOf(ClassImplements.class, implementsResolution);
+		assertSame(klass, classImplements.klass());
+		assertSame(implemented, classImplements.implemented());
+
+		Resolution extendsResolution = AssemblyQueries.resolveAt(ast, superName.range().start());
+		ClassExtends classExtends = assertInstanceOf(ClassExtends.class, extendsResolution);
+		assertSame(klass, classExtends.klass());
+		assertSame(superName, classExtends.superName());
 	}
 
 	@Test

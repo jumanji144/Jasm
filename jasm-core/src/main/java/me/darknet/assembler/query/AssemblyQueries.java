@@ -12,15 +12,19 @@ import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.ast.specific.ASTException;
 import me.darknet.assembler.ast.specific.ASTField;
+import me.darknet.assembler.ast.specific.ASTInner;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.query.resolution.ClassAnnotationResolution;
+import me.darknet.assembler.query.resolution.ClassExtends;
+import me.darknet.assembler.query.resolution.ClassImplements;
 import me.darknet.assembler.query.resolution.ClassResolution;
 import me.darknet.assembler.query.resolution.EmptyResolution;
 import me.darknet.assembler.query.resolution.FieldAnnotationResolution;
 import me.darknet.assembler.query.resolution.FieldResolution;
 import me.darknet.assembler.query.resolution.IndependentAnnotationResolution;
 import me.darknet.assembler.query.resolution.InstructionResolution;
+import me.darknet.assembler.query.resolution.InnerClassResolution;
 import me.darknet.assembler.query.resolution.LabelDeclarationResolution;
 import me.darknet.assembler.query.resolution.LabelReferenceResolution;
 import me.darknet.assembler.query.resolution.MethodAnnotationResolution;
@@ -281,11 +285,23 @@ public final class AssemblyQueries {
 
 			switch (element) {
 				case ASTClass klass -> {
+					ASTIdentifier implemented = resolveImplementedInterface(offset, klass);
+					if (implemented != null)
+						return new ClassImplements(klass, implemented);
+
+					ASTInner inner = resolveInnerClass(offset, klass);
+					if (inner != null)
+						return new InnerClassResolution(klass, inner);
+
 					ASTAnnotation annotation = resolveAnnotation(offset, klass);
 					if (annotation != null)
 						return new ClassAnnotationResolution(klass, annotation);
 
-					TypeReferenceResolution typeResolution = resolveClassTypeReference(offset, klass);
+					ASTIdentifier superName = klass.getSuperName();
+					if (superName != null && contains(superName.range(), offset))
+						return new ClassExtends(klass, superName);
+
+					TypeReferenceResolution typeResolution = resolveAdditionalClassTypeReference(offset, klass);
 					if (typeResolution != null)
 						return typeResolution;
 
@@ -403,21 +419,28 @@ public final class AssemblyQueries {
 	 * @return Resolution of the type reference at the given offset within the provided class,
 	 * or {@code null} if no type reference was found at that offset within the class
 	 */
-	private static @Nullable TypeReferenceResolution resolveClassTypeReference(int offset, @NotNull ASTClass klass) {
-		ASTIdentifier superName = klass.getSuperName();
-		if (superName != null && contains(superName.range(), offset))
-			return new TypeReferenceResolution(klass, null, superName);
-
-		for (ASTIdentifier identifier : klass.getInterfaces()) {
-			if (contains(identifier.range(), offset))
-				return new TypeReferenceResolution(klass, null, identifier);
-		}
-
+	private static @Nullable TypeReferenceResolution resolveAdditionalClassTypeReference(int offset, @NotNull ASTClass klass) {
 		for (ASTIdentifier identifier : klass.getPermittedSubclasses()) {
 			if (contains(identifier.range(), offset))
 				return new TypeReferenceResolution(klass, null, identifier);
 		}
 
+		return null;
+	}
+
+	private static @Nullable ASTIdentifier resolveImplementedInterface(int offset, @NotNull ASTClass klass) {
+		for (ASTIdentifier identifier : klass.getInterfaces()) {
+			if (contains(identifier.range(), offset))
+				return identifier;
+		}
+		return null;
+	}
+
+	private static @Nullable ASTInner resolveInnerClass(int offset, @NotNull ASTClass klass) {
+		for (ASTInner inner : klass.getInners()) {
+			if (contains(inner.range(), offset))
+				return inner;
+		}
 		return null;
 	}
 
