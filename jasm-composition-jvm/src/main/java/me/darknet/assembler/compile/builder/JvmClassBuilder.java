@@ -131,9 +131,13 @@ public class JvmClassBuilder implements MethodAnalysisLookup {
     }
 
     public @NotNull FieldNode putField(int accessFlags, @NotNull String name, @NotNull String descriptor) {
-        removeField(name, descriptor);
         FieldNode field = new FieldNode(accessFlags, name, descriptor, null, null);
-        classNode.fields.add(field);
+        int index = findFieldIndex(name, descriptor);
+        if (index >= 0) {
+            classNode.fields.set(index, field);
+        } else {
+            classNode.fields.add(field);
+        }
         return field;
     }
 
@@ -145,9 +149,13 @@ public class JvmClassBuilder implements MethodAnalysisLookup {
     }
 
     public @NotNull MethodNode putMethod(int accessFlags, @NotNull String name, @NotNull String descriptor) {
-        removeMethod(name, descriptor);
         MethodNode method = new MethodNode(accessFlags, name, descriptor, null, null);
-        classNode.methods.add(method);
+        int index = findMethodIndex(name, descriptor);
+        if (index >= 0) {
+            classNode.methods.set(index, method);
+        } else {
+            classNode.methods.add(method);
+        }
         return method;
     }
 
@@ -189,12 +197,24 @@ public class JvmClassBuilder implements MethodAnalysisLookup {
         return methodAnalysisResults.get(method);
     }
 
-    private void removeField(@NotNull String name, @NotNull String descriptor) {
-        classNode.fields.removeIf(field -> field.name.equals(name) && field.desc.equals(descriptor));
+    private int findFieldIndex(@NotNull String name, @NotNull String descriptor) {
+        for (int i = 0; i < classNode.fields.size(); i++) {
+            FieldNode field = classNode.fields.get(i);
+            if (field.name.equals(name) && field.desc.equals(descriptor)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
-    private void removeMethod(@NotNull String name, @NotNull String descriptor) {
-        classNode.methods.removeIf(method -> method.name.equals(name) && method.desc.equals(descriptor));
+    private int findMethodIndex(@NotNull String name, @NotNull String descriptor) {
+        for (int i = 0; i < classNode.methods.size(); i++) {
+            MethodNode method = classNode.methods.get(i);
+            if (method.name.equals(name) && method.desc.equals(descriptor)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private void removeRecordComponent(@NotNull String name, @NotNull String descriptor) {
@@ -205,4 +225,3 @@ public class JvmClassBuilder implements MethodAnalysisLookup {
         components.removeIf(component -> component.name.equals(name) && component.descriptor.equals(descriptor));
     }
 }
-

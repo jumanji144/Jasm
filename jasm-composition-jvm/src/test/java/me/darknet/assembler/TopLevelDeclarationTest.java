@@ -13,6 +13,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -69,6 +70,40 @@ public class TopLevelDeclarationTest {
 		});
 	}
 
+	@Test
+	void replacingOverlayFieldPreservesOriginalPosition() {
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
+				".field public middle I { value: 7 }",
+				overlayOptions(OVERLAY_TYPE)
+		);
+		ClassNode node = readClass(compilation.requireClassBytes());
+
+		assertFalse(compilation.hasWarnings(), "Expected no warnings");
+		assertEquals(List.of("first", "middle", "last"), node.fields.stream().map(field -> field.name).toList());
+		assertField(node, "middle", "I", field -> assertEquals(7, field.value));
+	}
+
+	@Test
+	void replacingOverlayMethodPreservesOriginalPosition() {
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
+				"""
+				.method public middle ()V {
+				    code: {
+				    A:
+				        return
+				    B:
+				    }
+				}
+				""",
+				overlayOptions(OVERLAY_TYPE)
+		);
+		ClassNode node = readClass(compilation.requireClassBytes());
+
+		assertFalse(compilation.hasWarnings(), "Expected no warnings");
+		assertEquals(List.of("<init>", "first", "middle", "last"), node.methods.stream().map(method -> method.name).toList());
+		assertMethod(node, "middle", "()V", method -> assertNotNull(method.instructions.getFirst(), "Expected method instructions"));
+	}
+
 	private static TestJvmCompilerOptions overlayOptions(String internalName) {
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
 		options.overlay(new JavaClassRepresentation(buildOverlayClass(internalName)));
@@ -78,6 +113,9 @@ public class TopLevelDeclarationTest {
 	private static byte[] buildOverlayClass(String internalName) {
 		ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
 		writer.visit(Opcodes.V21, Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER, internalName, null, "java/lang/Object", null);
+		writer.visitField(Opcodes.ACC_PUBLIC, "first", "I", null, 1).visitEnd();
+		writer.visitField(Opcodes.ACC_PUBLIC, "middle", "I", null, 2).visitEnd();
+		writer.visitField(Opcodes.ACC_PUBLIC, "last", "I", null, 3).visitEnd();
 		MethodVisitor constructor = writer.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
 		constructor.visitCode();
 		Label start = new Label();
@@ -90,8 +128,19 @@ public class TopLevelDeclarationTest {
 		constructor.visitLocalVariable("this", "L" + internalName + ";", null, start, end, 0);
 		constructor.visitMaxs(0, 0);
 		constructor.visitEnd();
+		writeEmptyMethod(writer, "first");
+		writeEmptyMethod(writer, "middle");
+		writeEmptyMethod(writer, "last");
 		writer.visitEnd();
 		return writer.toByteArray();
+	}
+
+	private static void writeEmptyMethod(ClassWriter writer, String name) {
+		MethodVisitor method = writer.visitMethod(Opcodes.ACC_PUBLIC, name, "()V", null, null);
+		method.visitCode();
+		method.visitInsn(Opcodes.RETURN);
+		method.visitMaxs(0, 0);
+		method.visitEnd();
 	}
 
 	private static ClassNode readClass(byte[] bytes) {
