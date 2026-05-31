@@ -8,30 +8,30 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public interface ASTClassVisitor extends ASTDeclarationVisitor {
+	default void visitSourceDebugExtension(@Nullable ASTString sourceDebugExtension) {}
 
-    void visitSuperClass(@Nullable ASTIdentifier superClass);
+	void visitSuperClass(@Nullable ASTIdentifier superClass);
 
-    void visitInterface(@NotNull ASTIdentifier interfaceName);
+	void visitInterface(@NotNull ASTIdentifier interfaceName);
 
-    void visitSourceFile(@Nullable ASTString sourceFile);
+	void visitSourceFile(@Nullable ASTString sourceFile);
 
-    void visitOuterClass(@Nullable ASTElement outerClass);
+	void visitOuterClass(@Nullable ASTElement outerClass);
 
-    void visitOuterMethod(@Nullable ASTOuterMethod outerMethod);
+	void visitOuterMethod(@Nullable ASTOuterMethod outerMethod);
 
-    void visitPermittedSubclass(@NotNull ASTIdentifier subclass);
+	void visitPermittedSubclass(@NotNull ASTIdentifier subclass);
 
-    void visitNestHost(@Nullable ASTIdentifier nestHost);
+	void visitNestHost(@Nullable ASTIdentifier nestHost);
 
-    void visitNestMember(@NotNull ASTIdentifier nestMember);
+	void visitNestMember(@NotNull ASTIdentifier nestMember);
 
-    ASTRecordComponentVisitor visitRecordComponent(@NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor, @Nullable ASTString signature);
+	ASTRecordComponentVisitor visitRecordComponent(@NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor, @Nullable ASTString signature);
 
-    void visitInnerClass(@NotNull Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
-                         @Nullable ASTIdentifier innerClass);
+	void visitInnerClass(@NotNull Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass,
+	                     @Nullable ASTIdentifier innerClass);
 
-    ASTFieldVisitor visitField(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor);
+	ASTFieldVisitor visitField(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor);
 
-    ASTMethodVisitor visitMethod(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor);
-
+	ASTMethodVisitor visitMethod(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor);
 }

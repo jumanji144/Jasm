@@ -101,6 +101,7 @@ public class ASTModelTest {
                 id("(I)V", 28),
                 List.of(parameter),
                 parameterAnnotations,
+                List.of(),
                 null,
                 List.of(),
                 new ASTCode(List.of()),

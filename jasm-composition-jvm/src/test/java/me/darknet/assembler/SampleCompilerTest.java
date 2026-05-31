@@ -30,6 +30,7 @@ import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -776,6 +777,80 @@ public class SampleCompilerTest {
             roundTrip(source, arg);
         }
 
+        @Test
+        void sourceDebugExtensionFromSource() throws Throwable {
+            String source = """
+                    .source-debug-extension "SMAP\\nExample.java"
+                    .super java/lang/Object
+                    .class public Example {}
+                    """;
+
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                ClassNode node = new ClassNode();
+                new ClassReader(result.representation().classFile()).accept(node, 0);
+                assertEquals("SMAP\nExample.java", node.sourceDebug);
+
+                String newPrinted = dissassemble(result.representation().classFile());
+                assertTrue(newPrinted.contains(".source-debug-extension"), newPrinted);
+            });
+        }
+
+        @Test
+        void deprecatedAndThrowsFromSource() throws Throwable {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .deprecated
+                        .field public value I
+
+                        .deprecated
+                        .method public work ()V {
+                            throws: { java/lang/Exception, java/io/IOException },
+                            code: {
+                                A:
+                                return
+                            }
+                        }
+                    }
+                    """;
+
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                ClassNode node = new ClassNode();
+                new ClassReader(result.representation().classFile()).accept(node, 0);
+
+                assertTrue((node.fields.getFirst().access & Opcodes.ACC_DEPRECATED) != 0);
+                assertTrue((node.methods.stream().filter(m -> m.name.equals("work")).findFirst().orElseThrow().access & Opcodes.ACC_DEPRECATED) != 0);
+                assertEquals(
+                        List.of("java/lang/Exception", "java/io/IOException"),
+                        node.methods.stream().filter(m -> m.name.equals("work")).findFirst().orElseThrow().exceptions
+                );
+
+                String newPrinted = dissassemble(result.representation().classFile());
+                assertTrue(newPrinted.contains(".deprecated"), newPrinted);
+                assertTrue(newPrinted.contains("throws: { java/lang/Exception, java/io/IOException }"), newPrinted);
+            });
+        }
+
+        @Test
+        void emptyRecordPreservedWithoutComponents() throws Throwable {
+            String source = """
+                    .super java/lang/Record
+                    .class public final record example/EmptyRecord {}
+                    """;
+
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.version(21);
+            processJvm(source, options, result -> {
+                ClassNode node = new ClassNode();
+                new ClassReader(result.representation().classFile()).accept(node, 0);
+                assertTrue((node.access & Opcodes.ACC_RECORD) != 0);
+                assertNull(node.recordComponents);
+
+                String newPrinted = dissassemble(result.representation().classFile());
+                assertTrue(newPrinted.contains(".class public final record example/EmptyRecord"), newPrinted);
+            });
+        }
+
         private static void roundTrip(String source, BinaryTestArgument arg) {
             processJvm(source, new TestJvmCompilerOptions(), result -> {
                 String newPrinted = dissassemble(result.representation().classFile());
@@ -799,7 +874,6 @@ public class SampleCompilerTest {
         initPrinter.print(initCtx);
         return initCtx.toString();
     }
-
 
     record TestArgument(Path path, String name, ThrowingSupplier<String> source) {
         public static TestArgument fromName(String name) {

@@ -20,6 +20,7 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
     private final @NotNull ASTIdentifier descriptor;
     private final @NotNull Modifiers modifiers;
     private @Nullable ASTString signature;
+    private boolean deprecated;
 	private List<ASTAnnotation> visibleAnnotations = Collections.emptyList();
 	private List<ASTAnnotation> invisibleAnnotations = Collections.emptyList();
 	private List<ASTAnnotation> visibleTypeAnnotations = Collections.emptyList();
@@ -57,6 +58,14 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
     public void setSignature(@Nullable ASTString signature) {
         replaceChild(this.signature, signature);
 	    this.signature = signature;
+    }
+
+    public boolean isDeprecated() {
+        return deprecated;
+    }
+
+    public void setDeprecated(boolean deprecated) {
+        this.deprecated = deprecated;
     }
 
 	@Override
@@ -143,5 +152,7 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 
 		if (signature != null)
             visitor.visitSignature(signature);
+        if (deprecated)
+            visitor.visitDeprecated();
     }
 }

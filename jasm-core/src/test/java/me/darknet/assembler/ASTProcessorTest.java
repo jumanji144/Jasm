@@ -223,6 +223,19 @@ public class ASTProcessorTest {
     }
 
     @Test
+    void attachesDeprecatedAndSourceDebugExtensionToClass() {
+        ASTClass clazz = onlyProcessed(
+                ".deprecated " +
+                        ".source-debug-extension \"SMAP\\nExample\" " +
+                        ".class public Example {}",
+                ASTClass.class
+        );
+
+        assertTrue(clazz.isDeprecated());
+        assertEquals("SMAP\nExample", clazz.getSourceDebugExtension().content());
+    }
+
+    @Test
     void attachesClassLevelAttributesToClass() {
         ASTClass clazz = onlyProcessed(
                 ".sourcefile \"Example.java\" " +
@@ -246,6 +259,43 @@ public class ASTProcessorTest {
         assertEquals(List.of("pkg/Sub"), clazz.getPermittedSubclasses().stream().map(ASTIdentifier::content).toList());
         assertEquals(List.of("java/io/Serializable"), clazz.getInterfaces().stream().map(ASTIdentifier::content).toList());
         assertEquals("java/lang/Object", clazz.getSuperName().content());
+    }
+
+    @Test
+    void attachesDeprecatedToFieldAndMethodAndParsesDeclaredThrows() {
+        ASTClass clazz = onlyProcessed(
+                """
+                .class public Example {
+                    .deprecated
+                    .field public value I
+                    .deprecated
+                    .method public work ()V {
+                        throws: { java/lang/Exception, java/io/IOException },
+                        exceptions: { { Start, End, Handler, java/lang/RuntimeException } },
+                        code: {
+                            Start:
+                            goto Handler
+                            End:
+                            return
+                            Handler:
+                            athrow
+                        }
+                    }
+                }
+                """,
+                ASTClass.class
+        );
+
+        ASTField field = assertInstanceOf(ASTField.class, clazz.content(0));
+        ASTMethod method = assertInstanceOf(ASTMethod.class, clazz.content(1));
+
+        assertTrue(field.isDeprecated());
+        assertTrue(method.isDeprecated());
+        assertEquals(
+                List.of("java/lang/Exception", "java/io/IOException"),
+                method.declaredExceptions().stream().map(ASTIdentifier::content).toList()
+        );
+        assertEquals(1, method.exceptions().size(), "try/catch exceptions should remain separate");
     }
 
     @Test

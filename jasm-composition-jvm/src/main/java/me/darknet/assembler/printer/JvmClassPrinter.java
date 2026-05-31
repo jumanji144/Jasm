@@ -48,6 +48,9 @@ public class JvmClassPrinter implements ClassPrinter {
         if (view.sourceFile != null) {
             ctx.begin().element(".sourcefile").string(view.sourceFile).end();
         }
+        if (view.sourceDebug != null) {
+            ctx.begin().element(".source-debug-extension").string(view.sourceDebug).end();
+        }
         if (view.outerClass != null) {
             ctx.begin().element(".outer-class").element(view.outerClass).end();
         }

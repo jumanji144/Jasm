@@ -276,6 +276,36 @@ class JvmRoundTripTest {
 	}
 
 	@Test
+	void additiveAttributesRoundTripWithoutChangingExistingSyntax() {
+		String source = """
+				.deprecated
+				.sourcefile "Example.java"
+				.source-debug-extension "SMAP\\nExample.java"
+				.super java/lang/Object
+				.class public example/AttrCarrier {
+				    .deprecated
+				    .field public static VALUE I {value: 1}
+
+				    .deprecated
+				    .method public work ()V {
+				        throws: { java/lang/Exception },
+				        code: {
+				            A:
+				            return
+				        }
+				    }
+				}
+				""";
+
+		assertRoundTripRetains(
+				source,
+				".deprecated",
+				".source-debug-extension",
+				"throws: { java/lang/Exception }"
+		);
+	}
+
+	@Test
 	void kotlinStyleLocalMetadataStillRoundTrips() throws Throwable {
 		byte[] raw = Files.readAllBytes(Path.of("src/test/resources/samples/binary/MainKt.sample"));
 		String source = JvmDisassemblyFixture.disassembleJvm(raw);

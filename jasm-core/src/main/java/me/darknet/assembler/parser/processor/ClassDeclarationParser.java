@@ -60,7 +60,8 @@ final class ClassDeclarationParser {
                 "invisible-annotation",
                 "type-visible-annotation",
                 "type-invisible-annotation",
-                "signature"
+                "signature",
+                "deprecated"
         );
 
         return new ASTClass(modifiers, name, classBody)

@@ -24,6 +24,7 @@ public class ASTClass extends ASTMember {
     private @NotNull List<ASTInner> inners = Collections.emptyList();
     private @Nullable ASTIdentifier superName;
     private @Nullable ASTString sourceFile;
+    private @Nullable ASTString sourceDebugExtension;
     private @Nullable ASTElement outerClass;
     private @Nullable ASTOuterMethod outerMethod;
     private @Nullable ASTIdentifier nestHost;
@@ -44,6 +45,16 @@ public class ASTClass extends ASTMember {
     public void setSourceFile(@Nullable ASTString sourceFile) {
         replaceChild(this.sourceFile, sourceFile);
         this.sourceFile = sourceFile;
+    }
+
+    @Nullable
+    public ASTString getSourceDebugExtension() {
+        return sourceDebugExtension;
+    }
+
+    public void setSourceDebugExtension(@Nullable ASTString sourceDebugExtension) {
+        replaceChild(this.sourceDebugExtension, sourceDebugExtension);
+        this.sourceDebugExtension = sourceDebugExtension;
     }
 
     public @Nullable ASTIdentifier getSuperName() {
@@ -153,6 +164,7 @@ public class ASTClass extends ASTMember {
             return;
 
         visitor.visitSourceFile(sourceFile);
+        visitor.visitSourceDebugExtension(sourceDebugExtension);
         visitor.visitSuperClass(superName);
         visitor.visitOuterClass(outerClass);
         visitor.visitOuterMethod(outerMethod);

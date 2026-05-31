@@ -17,7 +17,8 @@ public class JvmModifiers {
             Map.entry(ACC_STATIC, "static"), Map.entry(ACC_FINAL, "final"), Map.entry(ACC_NATIVE, "native"),
             Map.entry(ACC_ABSTRACT, "abstract"), Map.entry(ACC_INTERFACE, "interface"),
             Map.entry(ACC_SYNTHETIC, "synthetic"), Map.entry(ACC_STRICT, "strictfp"),
-            Map.entry(ACC_ANNOTATION, "annotation"), Map.entry(ACC_ENUM, "enum")
+            Map.entry(ACC_ANNOTATION, "annotation"), Map.entry(ACC_ENUM, "enum"),
+            Map.entry(ACC_RECORD, "record")
     );
 
     private static final Map<Integer, String> CLASS_MODIFIER_NAMES = Map
@@ -70,6 +71,7 @@ public class JvmModifiers {
             case "strict" -> ACC_STRICT;
             case "annotation" -> ACC_ANNOTATION;
             case "enum" -> ACC_ENUM;
+            case "record" -> ACC_RECORD;
             case "super" -> ACC_SUPER;
             case "module" -> ACC_MODULE;
             case "synchronized" -> ACC_SYNCHRONIZED;
@@ -95,6 +97,7 @@ public class JvmModifiers {
             case "strict" -> ACC_STRICT;
             case "annotation" -> ACC_ANNOTATION;
             case "enum" -> ACC_ENUM;
+            case "record" -> ACC_RECORD;
             case "super" -> ACC_SUPER;
             case "module" -> ACC_MODULE;
             default -> 0;

@@ -24,8 +24,10 @@ final class ClassAttributeParsers {
 	 * 		Registry to register the parsers in.
 	 */
 	static void register(DeclarationRegistry registry) {
+		registry.register("deprecated", ClassAttributeParsers::parseDeprecated);
 		registry.register("signature", ClassAttributeParsers::parseSignature);
 		registry.register("sourcefile", ClassAttributeParsers::parseSourceFile);
+		registry.register("source-debug-extension", ClassAttributeParsers::parseSourceDebugExtension);
 		registry.register("super", ClassAttributeParsers::parseSuper);
 		registry.register("implements", ClassAttributeParsers::parseImplements);
 		registry.register("permitted-subclass", ClassAttributeParsers::parsePermittedSubclass);
@@ -35,6 +37,23 @@ final class ClassAttributeParsers {
 		registry.register("nest-host", ClassAttributeParsers::parseNestHost);
 		registry.register("nest-member", ClassAttributeParsers::parseNestMember);
 		registry.register("inner", ClassAttributeParsers::parseInner);
+	}
+
+	/**
+	 * @param context
+	 * 		Context to parse the declaration in.
+	 * @param declaration
+	 * 		Declaration to parse.
+	 *
+	 * @return Parsed deprecated attribute, or {@code null} if the declaration is invalid.
+	 */
+	private static ASTElement parseDeprecated(ProcessorContext context, ASTDeclaration declaration) {
+		if (!declaration.elements().isEmpty()) {
+			context.throwError("Expected no values for deprecated attribute", declaration.location());
+			return null;
+		}
+		context.state().setDeprecated(declaration);
+		return declaration;
 	}
 
 	/**
@@ -69,6 +88,23 @@ final class ClassAttributeParsers {
 		if (sourceFile != null)
 			context.state().setSourceFile(sourceFile);
 		return sourceFile;
+	}
+
+	/**
+	 * @param context
+	 * 		Context to parse the declaration in.
+	 * @param declaration
+	 * 		Declaration to parse.
+	 *
+	 * @return Parsed source debug extension attribute, or {@code null} if the declaration is invalid.
+	 */
+	private static ASTElement parseSourceDebugExtension(ProcessorContext context, ASTDeclaration declaration) {
+		ASTString sourceDebugExtension = context.validateElement(
+				context.declarationElement(declaration, 0), ElementType.STRING, "source debug extension", declaration
+		);
+		if (sourceDebugExtension != null)
+			context.state().setSourceDebugExtension(sourceDebugExtension);
+		return sourceDebugExtension;
 	}
 
 	/**

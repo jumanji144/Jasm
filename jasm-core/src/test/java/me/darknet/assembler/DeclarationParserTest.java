@@ -162,6 +162,14 @@ public class DeclarationParserTest {
                     assertEquals("A", innerName.content());
                 }
         );
+        assertOne(".deprecated", ASTDeclaration.class, (result) -> {
+            assertEquals(".deprecated", result.keyword().content());
+            assertTrue(result.elements().isEmpty());
+        });
+        assertOne(".source-debug-extension \"SMAP\"", ASTDeclaration.class, (result) -> {
+            assertEquals(".source-debug-extension", result.keyword().content());
+            assertEquals("SMAP", result.element(0).content());
+        });
     }
 
     @Test
@@ -209,6 +217,21 @@ public class DeclarationParserTest {
                     assertEquals("public", field2.element(0).content());
                     assertEquals("output", field2.element(1).content());
                     assertEquals("I", field2.element(2).content());
+                }
+        );
+    }
+
+    @Test
+    public void testMethodBodyThrowsKey() {
+        assertOne(
+                ".method public test ()V { throws: { java/lang/Exception, java/io/IOException } }",
+                ASTDeclaration.class,
+                result -> {
+                    ASTObject body = assertIs(ASTObject.class, result.element(3));
+                    ASTArray declaredThrows = assertIs(ASTArray.class, body.value("throws"));
+                    assertEquals(2, declaredThrows.values().size());
+                    assertEquals("java/lang/Exception", declaredThrows.value(0).content());
+                    assertEquals("java/io/IOException", declaredThrows.value(1).content());
                 }
         );
     }

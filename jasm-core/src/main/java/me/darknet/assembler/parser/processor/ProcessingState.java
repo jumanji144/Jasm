@@ -33,12 +33,17 @@ final class ProcessingState {
     ProcessorAttributes collectGenericAttributes() {
         ProcessorAttributes snapshot = new ProcessorAttributes();
         snapshot.signature = attributes.signature;
+        snapshot.deprecated = attributes.deprecated;
+        snapshot.deprecatedAttribute = attributes.deprecatedAttribute;
         snapshot.visibleAnnotations.addAll(attributes.visibleAnnotations);
         snapshot.invisibleAnnotations.addAll(attributes.invisibleAnnotations);
         snapshot.visibleTypeAnnotations.addAll(attributes.visibleTypeAnnotations);
         snapshot.invisibleTypeAnnotations.addAll(attributes.invisibleTypeAnnotations);
         if (snapshot.signature != null) {
             snapshot.attributes.add(snapshot.signature);
+        }
+        if (snapshot.deprecatedAttribute != null) {
+            snapshot.attributes.add(snapshot.deprecatedAttribute);
         }
         snapshot.attributes.addAll(snapshot.visibleAnnotations);
         snapshot.attributes.addAll(snapshot.invisibleAnnotations);
@@ -116,6 +121,11 @@ final class ProcessingState {
         addAttribute(sourceFile);
     }
 
+    void setSourceDebugExtension(ASTString sourceDebugExtension) {
+        attributes.sourceDebugExtension = sourceDebugExtension;
+        addAttribute(sourceDebugExtension);
+    }
+
     void addNestMember(ASTIdentifier nestMember) {
         attributes.nestMembers.add(nestMember);
         addAttribute(nestMember);
@@ -124,6 +134,12 @@ final class ProcessingState {
     void setNestHost(ASTIdentifier nestHost) {
         attributes.nestHost = nestHost;
         addAttribute(nestHost);
+    }
+
+    void setDeprecated(ASTElement deprecated) {
+        attributes.deprecated = true;
+        attributes.deprecatedAttribute = deprecated;
+        addAttribute(deprecated);
     }
 
     private void addAttribute(ASTElement element) {

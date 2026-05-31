@@ -133,6 +133,16 @@ public class JvmMethodPrinter implements MethodPrinter {
             hasPrior = true;
         }
 
+        if (method.exceptions != null && !method.exceptions.isEmpty()) {
+            if (hasPrior)
+                obj.next();
+
+            var arr = obj.value("throws").array();
+            arr.print(method.exceptions, (arrayCtx, exceptionType) -> arr.literal(exceptionType));
+            arr.end();
+            hasPrior = true;
+        }
+
         if ((method.access & (Opcodes.ACC_ABSTRACT | Opcodes.ACC_NATIVE)) == 0) {
             if (hasPrior)
                 obj.next();

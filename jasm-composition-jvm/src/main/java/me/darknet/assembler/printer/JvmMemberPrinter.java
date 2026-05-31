@@ -3,6 +3,7 @@ package me.darknet.assembler.printer;
 import me.darknet.assembler.util.JvmModifiers;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
@@ -20,26 +21,27 @@ public final class JvmMemberPrinter {
     private final List<TypeAnnotationNode> invisibleTypeAnnotations;
     private final String signature;
     private final Integer access;
+    private final boolean deprecated;
     private final Type type;
 
     public JvmMemberPrinter(@NotNull ClassNode node, @NotNull Type type) {
         this(node.visibleAnnotations, node.invisibleAnnotations, node.visibleTypeAnnotations, node.invisibleTypeAnnotations,
-                node.signature, node.access, type);
+                node.signature, node.access, (node.access & Opcodes.ACC_DEPRECATED) != 0, type);
     }
 
     public JvmMemberPrinter(@NotNull FieldNode node, @NotNull Type type) {
         this(node.visibleAnnotations, node.invisibleAnnotations, node.visibleTypeAnnotations, node.invisibleTypeAnnotations,
-                node.signature, node.access, type);
+                node.signature, node.access, (node.access & Opcodes.ACC_DEPRECATED) != 0, type);
     }
 
     public JvmMemberPrinter(@NotNull MethodNode node, @NotNull Type type) {
         this(node.visibleAnnotations, node.invisibleAnnotations, node.visibleTypeAnnotations, node.invisibleTypeAnnotations,
-                node.signature, node.access, type);
+                node.signature, node.access, (node.access & Opcodes.ACC_DEPRECATED) != 0, type);
     }
 
     public JvmMemberPrinter(@NotNull RecordComponentNode node) {
         this(node.visibleAnnotations, node.invisibleAnnotations, node.visibleTypeAnnotations, node.invisibleTypeAnnotations,
-                node.signature, null, Type.CLASS);
+                node.signature, null, false, Type.CLASS);
     }
 
     private JvmMemberPrinter(@Nullable List<AnnotationNode> visibleAnnotations,
@@ -48,6 +50,7 @@ public final class JvmMemberPrinter {
                              @Nullable List<TypeAnnotationNode> invisibleTypeAnnotations,
                              @Nullable String signature,
                              @Nullable Integer access,
+                             boolean deprecated,
                              @NotNull Type type) {
         this.visibleAnnotations = visibleAnnotations == null ? List.of() : visibleAnnotations;
         this.invisibleAnnotations = invisibleAnnotations == null ? List.of() : invisibleAnnotations;
@@ -55,6 +58,7 @@ public final class JvmMemberPrinter {
         this.invisibleTypeAnnotations = invisibleTypeAnnotations == null ? List.of() : invisibleTypeAnnotations;
         this.signature = signature;
         this.access = access;
+        this.deprecated = deprecated;
         this.type = type;
     }
 
@@ -63,6 +67,10 @@ public final class JvmMemberPrinter {
         printAnnos(ctx, invisibleAnnotations, annotation -> JvmAnnotationPrinter.forTopLevelAnno(annotation, false));
         printAnnos(ctx, visibleTypeAnnotations, annotation -> JvmAnnotationPrinter.forTopLevelAnno(annotation, true));
         printAnnos(ctx, invisibleTypeAnnotations, annotation -> JvmAnnotationPrinter.forTopLevelAnno(annotation, false));
+        if (deprecated) {
+            ctx.begin().element(".deprecated").end();
+            ctx.next();
+        }
         if (signature != null) {
             ctx.begin().element(".signature").string(signature).next();
         }

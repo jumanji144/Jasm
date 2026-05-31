@@ -15,6 +15,8 @@ import org.objectweb.asm.tree.TypeAnnotationNode;
 public abstract class JvmMemberVisitor implements ASTDeclarationVisitor {
 	protected abstract void setSignature(@NotNull String signature);
 
+	protected abstract void setDeprecated();
+
 	protected abstract @NotNull AnnotationNode addRuntimeAnnotation(boolean visible, @NotNull String descriptor);
 
 	protected abstract @NotNull TypeAnnotationNode addRuntimeTypeAnnotation(boolean visible, int typeRef,
@@ -58,6 +60,11 @@ public abstract class JvmMemberVisitor implements ASTDeclarationVisitor {
 		if (signature != null) {
 			setSignature(signature.content());
 		}
+	}
+
+	@Override
+	public void visitDeprecated() {
+		setDeprecated();
 	}
 
 	@Override

@@ -52,6 +52,11 @@ public class JvmClassVisitor implements ASTClassVisitor {
 	}
 
 	@Override
+	public void visitSourceDebugExtension(@Nullable ASTString sourceDebugExtension) {
+		builder.setSourceDebugExtension(sourceDebugExtension == null ? null : sourceDebugExtension.content());
+	}
+
+	@Override
 	public void visitOuterClass(@Nullable ASTElement outerClass) {
 		builder.setOuterClass(outerClass == null ? null : outerClass.content());
 	}
@@ -149,6 +154,11 @@ public class JvmClassVisitor implements ASTClassVisitor {
 		if (signature != null) {
 			builder.signature(signature.content());
 		}
+	}
+
+	@Override
+	public void visitDeprecated() {
+		builder.node().access |= Opcodes.ACC_DEPRECATED;
 	}
 
 	@Override

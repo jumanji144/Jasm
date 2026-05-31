@@ -5,6 +5,7 @@ import me.darknet.assembler.util.ConstantMapper;
 import me.darknet.assembler.visitor.ASTFieldVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.TypePath;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.FieldNode;
@@ -22,6 +23,11 @@ public class JvmFieldVisitor extends JvmMemberVisitor implements ASTFieldVisitor
 	@Override
 	protected void setSignature(@NotNull String signature) {
 		field.signature = signature;
+	}
+
+	@Override
+	protected void setDeprecated() {
+		field.access |= Opcodes.ACC_DEPRECATED;
 	}
 
 	@Override

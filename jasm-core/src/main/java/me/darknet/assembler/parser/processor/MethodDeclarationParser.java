@@ -69,6 +69,7 @@ final class MethodDeclarationParser {
 		}
 
 		Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations = parseParameterAnnotations(context, declaration, body);
+		List<ASTIdentifier> declaredExceptions = parseDeclaredExceptions(context, declaration, body);
 
 		ASTElement defaultValueElement = body.values().get("default-value");
 		if (defaultValueElement != null) {
@@ -122,6 +123,7 @@ final class MethodDeclarationParser {
 				desc,
 				parameters,
 				parameterAnnotations,
+				declaredExceptions,
 				defaultValueElement,
 				exceptions,
 				code,
@@ -134,7 +136,7 @@ final class MethodDeclarationParser {
 	 * @param context
 	 * 		Context to parse the parameter annotations in.
 	 * @param declaration
-	 * 		Declaration to report errors on.
+	 * 		Declaration to parse.
 	 * @param body
 	 * 		Method body to parse the parameter annotations from.
 	 *
@@ -181,7 +183,7 @@ final class MethodDeclarationParser {
 	 * @param context
 	 * 		Context to parse the parameter annotations in.
 	 * @param declaration
-	 * 		Declaration to report errors on.
+	 * 		Declaration to parse.
 	 * @param annotationList
 	 * 		List of annotations to parse.
 	 * 		This can be either a single annotation or an array of annotations.
@@ -237,10 +239,36 @@ final class MethodDeclarationParser {
 	}
 
 	/**
+	 *
 	 * @param context
 	 * 		Context to parse the exceptions in.
 	 * @param declaration
-	 * 		Declaration to report errors on.
+	 * 		Declaration to parse.
+	 * @param body
+	 * 		Method body to parse the exceptions from.
+	 *
+	 * @return List of declared exceptions.
+	 */
+	private static List<ASTIdentifier> parseDeclaredExceptions(ProcessorContext context, ASTDeclaration declaration,
+	                                                           ASTObject body) {
+		ASTElement throwsElement = body.values().get("throws");
+		if (throwsElement == null)
+			return Collections.emptyList();
+
+		ASTArray array = context.validateEmptyableElement(
+				throwsElement, ElementType.ARRAY, "method throws declarations", declaration
+		);
+		if (array == null)
+			return Collections.emptyList();
+
+		return context.validateArray(array, ElementType.IDENTIFIER, "declared exception type", declaration);
+	}
+
+	/**
+	 * @param context
+	 * 		Context to parse the exceptions in.
+	 * @param declaration
+	 * 		Declaration to parse.
 	 * @param body
 	 * 		Method body to parse the exceptions from.
 	 *

@@ -24,6 +24,7 @@ public class ASTMethod extends ASTMember {
 
     private final List<ASTIdentifier> parameters;
     private final Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations;
+    private final List<ASTIdentifier> declaredExceptions;
     private final List<ASTException> exceptions;
     private final ASTElement defaultValue;
     private final ASTCode code;
@@ -32,17 +33,19 @@ public class ASTMethod extends ASTMember {
 
     public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor, List<ASTIdentifier> parameters,
                      Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations,
-                     ASTElement defaultValue, List<ASTException> exceptions, ASTCode code,
+                     List<ASTIdentifier> declaredExceptions, ASTElement defaultValue, List<ASTException> exceptions, ASTCode code,
                      List<Instruction<?>> instructions, BytecodeFormat format) {
         super(ElementType.METHOD, modifiers, name, descriptor);
         this.parameters = CollectionUtil.immutableCopy(parameters);
         this.parameterAnnotations = freezeParameterAnnotations(parameterAnnotations);
+        this.declaredExceptions = CollectionUtil.immutableCopy(declaredExceptions);
         this.exceptions = CollectionUtil.immutableCopy(exceptions);
         this.defaultValue = defaultValue;
         this.code = code;
         this.instructions = CollectionUtil.immutableCopy(instructions);
         this.format = format;
         addChildren(this.parameters);
+        addChildren(this.declaredExceptions);
         addChildren(this.exceptions);
         for (List<ASTAnnotation> annotations : this.parameterAnnotations.values()) {
             addChildren(annotations);
@@ -63,6 +66,10 @@ public class ASTMethod extends ASTMember {
         return parameterAnnotations;
     }
 
+    public List<ASTIdentifier> declaredExceptions() {
+        return declaredExceptions;
+    }
+
     public List<ASTException> exceptions() {
         return exceptions;
     }
@@ -81,6 +88,9 @@ public class ASTMethod extends ASTMember {
         List<ASTIdentifier> localParams = parameters;
         for (int i = 0; i < localParams.size(); i++) {
             visitor.visitParameter(i, localParams.get(i));
+        }
+        for (ASTIdentifier declaredException : declaredExceptions) {
+            visitor.visitDeclaredException(declaredException);
         }
         parameterAnnotations.forEach((id, annos) -> {
             int parameterIndex = findParameterIndex(id.content());

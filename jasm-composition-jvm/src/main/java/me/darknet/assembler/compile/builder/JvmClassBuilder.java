@@ -5,6 +5,7 @@ import me.darknet.assembler.compile.analysis.MethodAnalysisLookup;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InnerClassNode;
@@ -36,6 +37,9 @@ public class JvmClassBuilder implements MethodAnalysisLookup {
 
     public void accessFlags(int accessFlags) {
         classNode.access = accessFlags;
+        if ((accessFlags & Opcodes.ACC_RECORD) != 0 && classNode.recordComponents == null) {
+            classNode.recordComponents = new ArrayList<>();
+        }
     }
 
     public void type(@Nullable String internalName) {
@@ -63,6 +67,10 @@ public class JvmClassBuilder implements MethodAnalysisLookup {
 
     public void setSourceFile(@Nullable String sourceFile) {
         classNode.sourceFile = sourceFile;
+    }
+
+    public void setSourceDebugExtension(@Nullable String sourceDebugExtension) {
+        classNode.sourceDebug = sourceDebugExtension;
     }
 
     public void setOuterClass(@Nullable String outerClass) {

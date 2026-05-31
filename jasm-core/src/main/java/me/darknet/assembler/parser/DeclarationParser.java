@@ -256,8 +256,7 @@ public class DeclarationParser {
         State state = ctx.getState();
         Token peek = ctx.peek();
         if (peek == null) {
-            ctx.throwEofError("content");
-            return null;
+            return new ASTDeclaration(identifier, List.of());
         }
         List<ASTElement> elements = new ArrayList<>();
         while (!peek.content().startsWith(".")) {

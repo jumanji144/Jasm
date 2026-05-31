@@ -6,20 +6,21 @@ import me.darknet.assembler.error.ErrorCollector;
 import org.jetbrains.annotations.NotNull;
 
 public interface ASTMethodVisitor extends ASTDeclarationVisitor {
+	void visitParameter(int index, ASTIdentifier name);
 
-    void visitParameter(int index, ASTIdentifier name);
+	default void visitDeclaredException(@NotNull ASTIdentifier exceptionType) {}
 
-    void visitAnnotationDefaultValue(ASTElement defaultValue);
+	void visitAnnotationDefaultValue(ASTElement defaultValue);
 
-    default ASTJvmInstructionVisitor visitJvmCode(@NotNull ErrorCollector collector) {
-        return null;
-    }
+	default ASTJvmInstructionVisitor visitJvmCode(@NotNull ErrorCollector collector) {
+		return null;
+	}
 
-    default ASTDalvikInstructionVisitor visitDalvikCode(@NotNull ErrorCollector collector) {
-        return null;
-    }
+	default ASTDalvikInstructionVisitor visitDalvikCode(@NotNull ErrorCollector collector) {
+		return null;
+	}
 
-    ASTAnnotationVisitor visitVisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType);
+	ASTAnnotationVisitor visitVisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType);
 
-    ASTAnnotationVisitor visitInvisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType);
+	ASTAnnotationVisitor visitInvisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType);
 }

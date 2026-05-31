@@ -14,6 +14,7 @@ import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.TypePath;
 import org.objectweb.asm.tree.AnnotationNode;
@@ -48,6 +49,11 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 	@Override
 	protected void setSignature(@NotNull String signature) {
 		method.signature = signature;
+	}
+
+	@Override
+	protected void setDeprecated() {
+		method.access |= Opcodes.ACC_DEPRECATED;
 	}
 
 	@Override
@@ -93,6 +99,14 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 		}
 		method.parameters.add(new ParameterNode(name.literal(), 0));
 		parameterNames.add(name.literal());
+	}
+
+	@Override
+	public void visitDeclaredException(@NotNull ASTIdentifier exceptionType) {
+		if (method.exceptions == null) {
+			method.exceptions = new ArrayList<>();
+		}
+		method.exceptions.add(exceptionType.literal());
 	}
 
 	@Override
