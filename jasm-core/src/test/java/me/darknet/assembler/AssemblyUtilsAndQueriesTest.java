@@ -417,8 +417,8 @@ class AssemblyUtilsAndQueriesTest {
 				  Start:
 				    if-eq v0 v1 Handler
 				    if-nez v0 End
-				    packed-switch { first: 5, targets: { Start, Handler } }
-				    sparse-switch { 7: End, 8: Handler }
+				    packed-switch v0 { first: 5, targets: { Start, Handler } }
+				    sparse-switch v1 { 7: End, 8: Handler }
 				    goto End
 				  Handler:
 				    return-void

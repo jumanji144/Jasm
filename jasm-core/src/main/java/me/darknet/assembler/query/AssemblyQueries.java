@@ -622,7 +622,7 @@ public final class AssemblyQueries {
 	private static void collectPackedSwitchLabels(@NotNull Map<String, List<ASTLabel>> declarationsByName,
 	                                              @NotNull ASTInstruction instruction,
 	                                              @NotNull List<LabelUsage> usages) {
-		ASTObject object = instruction.argumentObject(0);
+		ASTObject object = switchPayload(instruction);
 		if (object == null)
 			return;
 
@@ -641,7 +641,7 @@ public final class AssemblyQueries {
 	private static void collectSparseSwitchLabels(@NotNull Map<String, List<ASTLabel>> declarationsByName,
 	                                              @NotNull ASTInstruction instruction,
 	                                              @NotNull List<LabelUsage> usages) {
-		ASTObject object = instruction.argumentObject(0);
+		ASTObject object = switchPayload(instruction);
 		if (object == null)
 			return;
 
@@ -654,6 +654,14 @@ public final class AssemblyQueries {
 
 	private static boolean contains(@NotNull Range range, int offset) {
 		return range != Range.EMPTY && range.within(offset);
+	}
+
+	private static @Nullable ASTObject switchPayload(@NotNull ASTInstruction instruction) {
+		if (instruction.arguments().isEmpty())
+			return null;
+
+		ASTElement last = instruction.arguments().getLast();
+		return last instanceof ASTObject object ? object : null;
 	}
 
 	private static int nextOrdinal(@NotNull Map<String, Integer> ordinals, @NotNull String name) {

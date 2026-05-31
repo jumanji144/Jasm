@@ -2,11 +2,14 @@ package me.darknet.assembler.compile.visitor;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
+import me.darknet.assembler.compile.DalvikConstantMapper;
 import me.darknet.assembler.visitor.ASTDalvikInstructionVisitor;
 import me.darknet.dex.file.instructions.Opcodes;
 import me.darknet.dex.tree.definitions.code.Handler;
 import me.darknet.dex.tree.definitions.code.TryCatch;
 import me.darknet.dex.tree.definitions.code.CodeBuilder;
+import me.darknet.dex.tree.definitions.constant.Constant;
+import me.darknet.dex.tree.definitions.constant.HandleConstant;
 import me.darknet.dex.tree.definitions.instructions.*;
 import me.darknet.dex.tree.type.ClassType;
 import me.darknet.dex.tree.type.InstanceType;
@@ -273,6 +276,51 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
         return buffer.array();
     }
 
+    private static int parseSwitchKey(@NotNull String literal) {
+        String normalized = literal.toLowerCase();
+        boolean negative = normalized.startsWith("-");
+        if (negative) {
+            normalized = normalized.substring(1);
+        }
+
+        int radix = 10;
+        if (normalized.startsWith("0x")) {
+            radix = 16;
+            normalized = normalized.substring(2);
+        } else if (normalized.startsWith("0b")) {
+            radix = 2;
+            normalized = normalized.substring(2);
+        }
+
+        if (normalized.isEmpty()) {
+            throw new IllegalStateException("Expected integer switch key");
+        }
+
+        long parsed = radix == 10
+                ? Long.parseLong(normalized, radix)
+                : Long.parseUnsignedLong(normalized, radix);
+        if (negative) {
+            parsed = -parsed;
+        }
+        return (int) parsed;
+    }
+
+    private static @NotNull me.darknet.dex.tree.definitions.constant.Handle parseHandle(@NotNull ASTElement handle) {
+        Constant constant = DalvikConstantMapper.fromConstant(handle);
+        if (constant instanceof HandleConstant handleConstant) {
+            return handleConstant.handle();
+        }
+        throw new IllegalStateException("Expected method handle constant");
+    }
+
+    private static @NotNull List<Constant> parseConstants(@NotNull ASTArray arguments) {
+        List<Constant> constants = new ArrayList<>(arguments.values().size());
+        for (ASTElement argument : arguments.values()) {
+            constants.add(DalvikConstantMapper.fromConstant(argument));
+        }
+        return List.copyOf(constants);
+    }
+
     @Override
     public void visitInstruction(ASTInstruction instruction) {
         currentInstructionAst = instruction;
@@ -473,13 +521,43 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     }
 
     @Override
-    public void visitPackedSwitch(ASTObject packedSwitchObject) {
+    public void visitPackedSwitch(ASTIdentifier register, ASTObject packedSwitchObject) {
+        ASTNumber first = packedSwitchObject.value("first");
+        ASTArray targets = packedSwitchObject.value("targets");
+        if (first == null || targets == null) {
+            throw new IllegalStateException("packed-switch requires first and targets entries");
+        }
 
+        List<Label> targetLabels = new ArrayList<>(targets.values().size());
+        for (ASTElement target : targets.values()) {
+            if (!(target instanceof ASTIdentifier identifier)) {
+                throw new IllegalStateException("packed-switch targets must be labels");
+            }
+            targetLabels.add(label(identifier.literal()));
+        }
+
+        addInstruction(new PackedSwitchInstruction(
+                getRegisterIndex(register.literal()),
+                parseSwitchKey(first.content()),
+                List.copyOf(targetLabels)
+        ));
     }
 
     @Override
-    public void visitSparseSwitch(ASTObject sparseSwitchObject) {
+    public void visitSparseSwitch(ASTIdentifier register, ASTObject sparseSwitchObject) {
+        Map<Integer, Label> targets = new LinkedHashMap<>();
+        for (var pair : sparseSwitchObject.values().pairs()) {
+            ASTElement target = pair.second();
+            if (!(target instanceof ASTIdentifier identifier)) {
+                throw new IllegalStateException("sparse-switch targets must be labels");
+            }
+            targets.put(parseSwitchKey(pair.first().literal()), label(identifier.literal()));
+        }
 
+        addInstruction(new SparseSwitchInstruction(
+                getRegisterIndex(register.literal()),
+                Map.copyOf(targets)
+        ));
     }
 
     @Override
@@ -648,13 +726,37 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     }
 
     @Override
-    public void visitInvokeCustom(ASTArray registers, ASTIdentifier name, ASTIdentifier type, ASTArray handle, ASTArray arguments) {
-
+    public void visitInvokeCustom(ASTArray registers, ASTIdentifier name, ASTIdentifier type, ASTElement handle, ASTArray arguments) {
+        boolean range = opcodeName().endsWith("/range");
+        int[] registerValues = parseRegisters(registers, range);
+        var bootstrapHandle = parseHandle(handle);
+        MethodType methodType = parseMethodType(type);
+        List<Constant> bootstrapArguments = parseConstants(arguments);
+        if (range) {
+            int first = registerValues[0];
+            int last = registerValues[1];
+            addInstruction(new InvokeCustomInstruction(
+                    bootstrapHandle,
+                    name.literal(),
+                    methodType,
+                    bootstrapArguments,
+                    last - first + 1,
+                    first
+            ));
+            return;
+        }
+        addInstruction(new InvokeCustomInstruction(
+                bootstrapHandle,
+                name.literal(),
+                methodType,
+                bootstrapArguments,
+                registerValues
+        ));
     }
 
     @Override
     public void visitInvokePolymorphic(ASTArray registers, ASTIdentifier method, ASTIdentifier descriptor, ASTIdentifier proto) {
-
+        throw new IllegalStateException("invoke-polymorphic is not supported by the current dex-core backend");
     }
 
     @Override

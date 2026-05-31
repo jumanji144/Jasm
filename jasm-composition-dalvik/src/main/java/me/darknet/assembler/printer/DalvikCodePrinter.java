@@ -24,6 +24,9 @@ public class DalvikCodePrinter implements ExecutionEngine {
     }
 
     private static String opcode(Instruction instruction) {
+        if (instruction instanceof InvokeCustomInstruction invokeCustomInstruction && invokeCustomInstruction.isRange()) {
+            return "invoke-custom/range";
+        }
         String opcode = OpcodeNames.name(instruction.opcode());
         if (opcode.endsWith("-range")) {
             return opcode.substring(0, opcode.length() - "-range".length()) + "/range";
@@ -255,10 +258,12 @@ public class DalvikCodePrinter implements ExecutionEngine {
 
         arguments.end();
 
-        DalvikConstantPrinter.printHandle(invokeCustomInstruction.handle(), ctx.arg());
-
         ctx.arg().literal(invokeCustomInstruction.name()).arg()
                 .literal(invokeCustomInstruction.type().descriptor()).arg();
+
+        DalvikConstantPrinter.printHandle(invokeCustomInstruction.handle(), ctx.arg());
+
+        ctx.arg();
 
         var constantArguments = ctx.array();
         constantArguments.print(invokeCustomInstruction.arguments(), DalvikConstantPrinter::printConstant);
@@ -347,7 +352,19 @@ public class DalvikCodePrinter implements ExecutionEngine {
 
     @Override
     public void execute(PackedSwitchInstruction packedSwitchInstruction) {
-
+        var object = ctx.instruction("packed-switch")
+                .print(register(packedSwitchInstruction.register())).arg()
+                .object();
+        object.value("first").print(String.valueOf(packedSwitchInstruction.firstKey())).next();
+        var targets = object.value("targets").array();
+        for (int i = 0; i < packedSwitchInstruction.targets().size(); i++) {
+            if (i > 0) {
+                targets.arg();
+            }
+            targets.print(labels.get(packedSwitchInstruction.targets().get(i)));
+        }
+        targets.end();
+        object.end();
     }
 
     @Override
@@ -360,7 +377,19 @@ public class DalvikCodePrinter implements ExecutionEngine {
 
     @Override
     public void execute(SparseSwitchInstruction sparseSwitchInstruction) {
-
+        var object = ctx.instruction("sparse-switch")
+                .print(register(sparseSwitchInstruction.register())).arg()
+                .object();
+        var sortedTargets = new TreeMap<>(sparseSwitchInstruction.targets());
+        boolean first = true;
+        for (var entry : sortedTargets.entrySet()) {
+            if (!first) {
+                object.next();
+            }
+            object.value(String.valueOf(entry.getKey())).print(labels.get(entry.getValue()));
+            first = false;
+        }
+        object.end();
     }
 
     @Override

@@ -1,14 +1,20 @@
 package me.darknet.assembler;
 
+import me.darknet.assembler.compile.DalvikCompiler;
 import me.darknet.assembler.compile.DalvikCompilerOptions;
 import me.darknet.assembler.compiler.EmptyInheritanceChecker;
+import me.darknet.assembler.error.Result;
+import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.printer.DalvikClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
+import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.DiagnosticAssertions;
 import me.darknet.dex.tree.definitions.ClassDefinition;
 import me.darknet.dex.tree.type.Types;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -120,6 +126,48 @@ class DalvikCompilerTest {
     }
 
     @Test
+    void compilesSwitchInstructions() {
+        TestUtils.processDalvik("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static switches ()V {
+                        code: {
+                            const v0 5
+                            packed-switch v0 { first: 5, targets: { A, B } }
+                            const v1 7
+                            sparse-switch v1 { 7: C, 8: D }
+                            goto D
+                        A:
+                            return-void
+                        B:
+                            return-void
+                        C:
+                            return-void
+                        D:
+                            return-void
+                        }
+                    }
+                }
+                """, options(), result -> {
+            ClassDefinition definition = ((DalvikClassRepresentation) result.representation()).definition();
+            var method = definition.getMethod("switches", "()V");
+            assertNotNull(method);
+            assertNotNull(method.getCode());
+
+            DalvikClassPrinter printer = new DalvikClassPrinter(definition);
+            PrintContext<?> ctx = new PrintContext<>("\t");
+            printer.print(ctx);
+
+            String printed = TestUtils.normalize(ctx.toString());
+            assertTrue(printed.contains("packed-switch v0"), printed);
+            assertTrue(printed.contains("sparse-switch v1"), printed);
+            assertTrue(printed.contains("first: 5"), printed);
+            assertTrue(printed.contains("7: C"), printed);
+            TestUtils.assertParsesDalvik(printed);
+        });
+    }
+
+    @Test
     void compilesArrayPayloadsAndExceptionTables() {
         TestUtils.processDalvik("""
                 .super java/lang/Object
@@ -161,6 +209,57 @@ class DalvikCompilerTest {
             assertTrue(printed.contains("[I"), printed);
             TestUtils.assertParsesDalvik(printed);
         });
+    }
+
+    @Test
+    void compilesInvokeCustomAndPrintsParserCompatibleOrder() {
+        TestUtils.processDalvik("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static custom (I)V {
+                        code: {
+                            invoke-custom/range { v0, v2 } callsite (III)V ConstantBootstraps.nullConstant { "demo", Ljava/lang/String; }
+                            return-void
+                        }
+                    }
+                }
+                """, options(), result -> {
+            ClassDefinition definition = ((DalvikClassRepresentation) result.representation()).definition();
+            var method = definition.getMethod("custom", "(I)V");
+            assertNotNull(method);
+            assertNotNull(method.getCode());
+            assertEquals(2, method.getCode().getInstructions().size());
+
+            DalvikClassPrinter printer = new DalvikClassPrinter(definition);
+            PrintContext<?> ctx = new PrintContext<>("\t");
+            printer.print(ctx);
+
+            String printed = TestUtils.normalize(ctx.toString());
+            assertTrue(printed.contains("invoke-custom/range"), printed);
+            assertTrue(printed.contains("callsite (III)V"), printed);
+            assertTrue(printed.contains("ConstantBootstraps.nullConstant"), printed);
+            TestUtils.assertParsesDalvik(printed);
+        });
+    }
+
+    @Test
+    void rejectsInvokePolymorphicUntilBackendSupportExists() {
+        Result<java.util.List<me.darknet.assembler.ast.ASTElement>> astResult =
+                AssemblyParseFixture.processDeclarations("<test>", """
+                        .method public static test ()V {
+                            code: {
+                                invoke-polymorphic { v0 } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; ([Ljava/lang/Object;)Ljava/lang/Object;
+                                return-void
+                            }
+                        }
+                        """, BytecodeFormat.DALVIK);
+        assertFalse(astResult.hasErr(), DiagnosticAssertions.formatErrors(astResult.errors()));
+
+        Result<? extends me.darknet.assembler.compiler.ClassResult> compilation =
+                new DalvikCompiler().compile(astResult.get(), overlayOptions("top/level/OverlayExample"));
+        assertTrue(compilation.hasErr(), "invoke-polymorphic should fail until the backend supports it");
+        assertTrue(DiagnosticAssertions.formatErrors(compilation.errors()).contains("invoke-polymorphic is not supported"),
+                DiagnosticAssertions.formatErrors(compilation.errors()));
     }
 
     private static DalvikCompilerOptions options() {

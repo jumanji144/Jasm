@@ -72,10 +72,10 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
                 (inst, visitor) -> visitor.visitThrow(inst.argument(0)));
         register("goto", ops(DefaultOperands.LABEL),
                 (inst, visitor) -> visitor.visitGoto(inst.argument(0)));
-        register("packed-switch", ops(DalvikOperands.PACKED_SWITCH),
-                (inst, visitor) -> visitor.visitPackedSwitch(inst.argumentObject(0)));
-        register("sparse-switch", ops(DalvikOperands.SPARSE_SWITCH),
-                (inst, visitor) -> visitor.visitSparseSwitch(inst.argumentObject(0)));
+        register("packed-switch", ops(DefaultOperands.LITERAL, DalvikOperands.PACKED_SWITCH),
+                (inst, visitor) -> visitor.visitPackedSwitch(inst.argument(0), inst.argumentObject(1)));
+        register("sparse-switch", ops(DefaultOperands.LITERAL, DalvikOperands.SPARSE_SWITCH),
+                (inst, visitor) -> visitor.visitSparseSwitch(inst.argument(0), inst.argumentObject(1)));
         registerCmp("cmpl-float", "cmpg-float", "cmpl-double", "cmpg-double", "cmp-long");
         registerIf("if-eq", "if-ne", "if-lt", "if-ge", "if-gt", "if-le");
         registerIfZero("if-eqz", "if-nez", "if-ltz", "if-gez", "if-gtz", "if-lez");
@@ -159,7 +159,7 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
         for (String name : names) {
             register(name,
                     ops(DalvikOperands.REGISTER_ARRAY, DefaultOperands.LITERAL, DefaultOperands.DESCRIPTOR, DalvikOperands.HANDLE, DalvikOperands.ARGS_ARRAY),
-                    (inst, visitor) -> visitor.visitInvokeCustom(inst.argumentArray(0), inst.argument(1), inst.argument(2), inst.argumentArray(3), inst.argumentArray(4)));
+                    (inst, visitor) -> visitor.visitInvokeCustom(inst.argumentArray(0), inst.argument(1), inst.argument(2), inst.argument(3, ASTElement.class), inst.argumentArray(4)));
 
         }
     }

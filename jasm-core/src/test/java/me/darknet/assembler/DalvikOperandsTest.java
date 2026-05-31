@@ -16,7 +16,7 @@ class DalvikOperandsTest {
         assertErrorContains("""
                 .method public static test ()V {
                   code: {
-                    packed-switch { first: 1.5, targets: { L0 } }
+                    packed-switch v0 { first: 1.5, targets: { L0 } }
                     return-void
                   }
                 }

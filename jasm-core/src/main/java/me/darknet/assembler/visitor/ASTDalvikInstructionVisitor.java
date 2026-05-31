@@ -180,6 +180,8 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	/**
 	 * Visits a {@code packed-switch} instruction, which jumps to a label based on the value of a register.
 	 *
+	 * @param register
+	 * 		The register containing the switch selector
 	 * @param packedSwitchObject
 	 * 		An object structured like the following:
 	 * 		<pre>
@@ -190,11 +192,13 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	 * 		</pre>
 	 * 		Number elements correspond to ASTNumber, label elements correspond to ASTIdentifier
 	 */
-	void visitPackedSwitch(ASTObject packedSwitchObject);
+	void visitPackedSwitch(ASTIdentifier register, ASTObject packedSwitchObject);
 
 	/**
 	 * Visits a {@code sparse-switch} instruction, which jumps to a label based on the value of a register.
 	 *
+	 * @param register
+	 * 		The register containing the switch selector
 	 * @param sparseSwitchObject
 	 * 		An object structured like the following:
 	 * 		<pre>
@@ -206,7 +210,7 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	 * 		</pre>
 	 * 		Number elements correspond to ASTNumber, label elements correspond to ASTIdentifier
 	 */
-	void visitSparseSwitch(ASTObject sparseSwitchObject);
+	void visitSparseSwitch(ASTIdentifier register, ASTObject sparseSwitchObject);
 
 	/**
 	 * Visits a {@code cmp} instruction, which compares two registers.
@@ -306,7 +310,7 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	 * @param arguments
 	 * 		The arguments of the method
 	 */
-	void visitInvokeCustom(ASTArray registers, ASTIdentifier name, ASTIdentifier type, ASTArray handle, ASTArray arguments);
+	void visitInvokeCustom(ASTArray registers, ASTIdentifier name, ASTIdentifier type, ASTElement handle, ASTArray arguments);
 
 	/**
 	 * Visits an invoke-polymorphic instruction, which invokes a polymorphic method.
