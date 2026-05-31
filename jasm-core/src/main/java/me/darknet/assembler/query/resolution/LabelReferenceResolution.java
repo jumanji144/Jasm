@@ -23,9 +23,14 @@ import org.jetbrains.annotations.Nullable;
 public record LabelReferenceResolution(@Nullable ASTClass parentClass,
                                        @NotNull ASTMethod method,
                                        @NotNull ASTIdentifier reference,
-                                       @NotNull LabelUsage usage) implements Resolution {
+                                       @NotNull LabelUsage usage) implements LabelResolution {
 	@Override
 	public @NotNull ASTElement element() {
+		return reference;
+	}
+
+	@Override
+	public @NotNull ASTIdentifier identifier() {
 		return reference;
 	}
 }

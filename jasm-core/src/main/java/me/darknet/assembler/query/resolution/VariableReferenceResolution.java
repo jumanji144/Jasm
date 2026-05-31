@@ -9,23 +9,28 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Resolution of a variable reference.
+ * Resolution of a variable use within an instruction.
  *
  * @param parentClass
- * 		The class containing the reference, or {@code null} if the reference is in a static initializer.
+ * 		The class containing the reference, or {@code null} if the method is top-level.
  * @param method
  * 		The method containing the reference.
  * @param reference
- * 		The identifier of the variable reference.
+ * 		The identifier used by the instruction to refer to the variable.
  * @param usage
- * 		The usage of the variable reference.
+ * 		The semantic usage information for the reference, including its access kind and resolved declaration when known.
  */
 public record VariableReferenceResolution(@Nullable ASTClass parentClass,
                                           @NotNull ASTMethod method,
                                           @NotNull ASTIdentifier reference,
-                                          @NotNull VariableUsage usage) implements Resolution {
+                                          @NotNull VariableUsage usage) implements VariableResolution {
 	@Override
 	public @NotNull ASTElement element() {
+		return reference;
+	}
+
+	@Override
+	public @NotNull ASTIdentifier identifier() {
 		return reference;
 	}
 }

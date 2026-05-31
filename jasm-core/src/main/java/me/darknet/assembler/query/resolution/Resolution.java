@@ -9,8 +9,7 @@ import org.jetbrains.annotations.NotNull;
 public sealed interface Resolution permits EmptyResolution, ClassResolution, FieldResolution, MethodResolution,
 		ClassAnnotationResolution, FieldAnnotationResolution, MethodAnnotationResolution,
 		IndependentAnnotationResolution, ClassExtends, ClassImplements, InnerClassResolution,
-		InstructionResolution, LabelDeclarationResolution, LabelReferenceResolution,
-		VariableDeclarationResolution, VariableReferenceResolution, TypeReferenceResolution {
+		InstructionResolution,LabelResolution,		VariableResolution, TypeReferenceResolution {
 	/**
 	 * @return The AST element that was resolved.
 	 */

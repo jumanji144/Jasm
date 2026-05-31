@@ -9,22 +9,28 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Resolution for a variable declaration.
+ * Resolution of the identifier that declares a variable within a method.
  *
  * @param parentClass
- * 		The class containing the variable, or {@code null} if it's a local variable in a method.
+ * 		The class containing the declaration, or {@code null} if the method is top-level.
  * @param method
- * 		The method containing the variable.
+ * 		The method containing the declaration.
  * @param declaration
- * 		The identifier of the variable declaration.
+ * 		The identifier that introduces the variable, such as a method parameter or inferred local name.
  * @param variable
- * 		The variable info of the variable declaration.
+ * 		The semantic information describing the declared variable.
  */
-public record VariableDeclarationResolution(@Nullable ASTClass parentClass, @NotNull ASTMethod method,
+public record VariableDeclarationResolution(@Nullable ASTClass parentClass,
+                                            @NotNull ASTMethod method,
                                             @NotNull ASTIdentifier declaration,
-                                            @NotNull VariableInfo variable) implements Resolution {
+                                            @NotNull VariableInfo variable) implements VariableResolution {
 	@Override
 	public @NotNull ASTElement element() {
+		return declaration;
+	}
+
+	@Override
+	public @NotNull ASTIdentifier identifier() {
 		return declaration;
 	}
 }
