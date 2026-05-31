@@ -1,14 +1,17 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.compile.DalvikClassResult;
+import me.darknet.assembler.compile.DalvikCompiler;
+import me.darknet.assembler.compiler.ClassResult;
 import me.darknet.assembler.compiler.CompilerOptions;
+import me.darknet.assembler.error.Result;
 import me.darknet.assembler.error.Warn;
-import me.darknet.assembler.test.AssemblyParseFixture;
-import me.darknet.assembler.test.DiagnosticAssertions;
-import me.darknet.assembler.test.SourceNormalization;
 import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.printer.DalvikClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
+import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.DiagnosticAssertions;
+import me.darknet.assembler.test.SourceNormalization;
 import me.darknet.dex.file.DexHeader;
 import me.darknet.dex.io.Input;
 import me.darknet.dex.tree.DexFile;
@@ -29,7 +32,28 @@ public class TestUtils {
     public static void processDalvik(String source, CompilerOptions<?> options,
                                      ThrowingConsumer<DalvikClassResult> outputConsumer,
                                      Consumer<List<Warn>> warningConsumer) {
-        assertParsesDalvik(source);
+        Result<List<me.darknet.assembler.ast.ASTElement>> astResult =
+                AssemblyParseFixture.processDeclarations("<test>", source, BytecodeFormat.DALVIK);
+        if (astResult.hasErr()) {
+            fail("Failed to parse Dalvik class\n" + DiagnosticAssertions.formatErrors(astResult.errors()));
+        }
+
+        Result<? extends ClassResult> compilation = new DalvikCompiler().compile(astResult.get(), options);
+        if (compilation.hasErr()) {
+            fail("Failed to compile Dalvik class\n" + DiagnosticAssertions.formatErrors(compilation.errors()));
+        }
+
+        if (warningConsumer != null && compilation.hasWarn()) {
+            warningConsumer.accept(compilation.getWarns());
+        }
+
+        try {
+            if (outputConsumer != null) {
+                outputConsumer.accept((DalvikClassResult) compilation.get());
+            }
+        } catch (Throwable t) {
+            fail("Error processing compiled Dalvik class: " + t.getMessage(), t);
+        }
     }
 
     public static void processDalvik(String source, CompilerOptions<?> options,

@@ -336,7 +336,7 @@ public final class AssemblyUtils {
 
 			// Dalvik type-referencing instructions have varying type reference argument indices, so check each instruction name separately.
 			case DALVIK -> switch (name) {
-				case "const-class", "check-cast", "new-instance", "filled-new-array" -> 1;
+				case "const-class", "check-cast", "new-instance", "filled-new-array", "filled-new-array/range" -> 1;
 				case "instance-of", "new-array" -> 2;
 				default -> -1;
 			};

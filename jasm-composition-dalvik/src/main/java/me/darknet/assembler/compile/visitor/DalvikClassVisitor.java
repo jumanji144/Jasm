@@ -9,8 +9,10 @@ import me.darknet.assembler.ast.specific.ASTOuterMethod;
 import me.darknet.assembler.visitor.*;
 import me.darknet.dex.tree.definitions.ClassDefinition;
 import me.darknet.dex.tree.definitions.FieldMember;
+import me.darknet.dex.tree.definitions.MethodMember;
 import me.darknet.dex.tree.type.ClassType;
-import me.darknet.dex.tree.type.InstanceType;
+import me.darknet.dex.tree.type.MethodType;
+import me.darknet.dex.tree.type.Type;
 import me.darknet.dex.tree.type.TypeParser;
 import me.darknet.dex.tree.type.Types;
 import org.jetbrains.annotations.NotNull;
@@ -19,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
 public record DalvikClassVisitor(ClassDefinition definition) implements ASTClassVisitor {
     @Override
     public void visitSuperClass(@Nullable ASTIdentifier superClass) {
-        definition.setSuperClass(null);
+        definition.setSuperClass(superClass == null ? null : Types.instanceTypeFromInternalName(superClass.literal()));
     }
 
     @Override
@@ -77,7 +79,14 @@ public record DalvikClassVisitor(ClassDefinition definition) implements ASTClass
 
     @Override
     public ASTMethodVisitor visitMethod(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor) {
-        return null;
+        Type parsedType = new TypeParser(descriptor.literal()).required();
+        if (!(parsedType instanceof MethodType methodType)) {
+            throw new IllegalStateException("Expected method descriptor: " + descriptor.literal());
+        }
+
+        MethodMember member = new MethodMember(name.literal(), methodType, DalvikModifiers.getMethodModifiers(modifiers));
+        definition.putMethod(member);
+        return new DalvikMethodVisitor(member);
     }
 
     @Override

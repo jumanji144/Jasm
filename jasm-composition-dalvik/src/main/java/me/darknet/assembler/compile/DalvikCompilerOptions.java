@@ -9,6 +9,7 @@ public class DalvikCompilerOptions implements CompilerOptions<DalvikCompilerOpti
     private int dalvikVersion;
     private InheritanceChecker inheritanceChecker;
     private ClassRepresentation overlay;
+    private String annotationPath;
 
     @Override
     public DalvikCompilerOptions overlay(ClassRepresentation representation) {
@@ -34,12 +35,13 @@ public class DalvikCompilerOptions implements CompilerOptions<DalvikCompilerOpti
 
     @Override
     public DalvikCompilerOptions annotationPath(String path) {
-        return null;
+        this.annotationPath = path;
+        return this;
     }
 
     @Override
     public String annotationPath() {
-        return "";
+        return annotationPath;
     }
 
     @Override

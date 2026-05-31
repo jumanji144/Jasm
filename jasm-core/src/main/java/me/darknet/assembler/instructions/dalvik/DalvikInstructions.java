@@ -1,5 +1,6 @@
 package me.darknet.assembler.instructions.dalvik;
 
+import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.instructions.DefaultOperands;
 import me.darknet.assembler.instructions.Instructions;
@@ -34,17 +35,17 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
         register("return-object", ops(DefaultOperands.LITERAL),
                 (inst, visitor) -> visitor.visitReturn(inst.argument(0)));
         register("const", ops(DefaultOperands.LITERAL, DefaultOperands.NUMBER),
-                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1)));
+                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1, ASTElement.class)));
         register("const-wide", ops(DefaultOperands.LITERAL, DefaultOperands.NUMBER),
-                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1)));
+                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1, ASTElement.class)));
         register("const-string", ops(DefaultOperands.LITERAL, DefaultOperands.STRING),
-                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1)));
+                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1, ASTElement.class)));
         register("const-class", ops(DefaultOperands.LITERAL, DalvikOperands.CLASS_TYPE),
-                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1)));
+                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1, ASTElement.class)));
         register("const-method-handle", ops(DefaultOperands.LITERAL, DalvikOperands.HANDLE),
-                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1)));
+                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1, ASTElement.class)));
         register("const-method-type", ops(DefaultOperands.LITERAL, DalvikOperands.METHOD_TYPE),
-                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1)));
+                (inst, visitor) -> visitor.visitConst(inst.argument(0), inst.argument(1, ASTElement.class)));
         register("monitor-enter", ops(DefaultOperands.LITERAL),
                 (inst, visitor) -> visitor.visitMonitorEnter(inst.argument(0)));
         register("monitor-exit", ops(DefaultOperands.LITERAL),
@@ -63,6 +64,8 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
                         inst.argument(1), inst.argument(2)));
         register("filled-new-array", ops(DalvikOperands.REGISTER_ARRAY, DalvikOperands.CLASS_TYPE),
                 (inst, visitor) -> visitor.visitFilledNewArray(inst.argumentArray(0), inst.argument(1)));
+        register("filled-new-array/range", ops(DalvikOperands.REGISTER_ARRAY, DalvikOperands.CLASS_TYPE),
+                (inst, visitor) -> visitor.visitFilledNewArray(inst.argumentArray(0), inst.argument(1)));
         register("fill-array-data", ops(DefaultOperands.LITERAL, DalvikOperands.DATA_ARRAY),
                 (inst, visitor) -> visitor.visitFillArrayData(inst.argument(0), inst.argumentArray(1)));
         register("throw", ops(DefaultOperands.LITERAL),
@@ -75,7 +78,7 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
                 (inst, visitor) -> visitor.visitSparseSwitch(inst.argumentObject(0)));
         registerCmp("cmpl-float", "cmpg-float", "cmpl-double", "cmpg-double", "cmp-long");
         registerIf("if-eq", "if-ne", "if-lt", "if-ge", "if-gt", "if-le");
-        registerIfZero("if-eqz", "if-nez");
+        registerIfZero("if-eqz", "if-nez", "if-ltz", "if-gez", "if-gtz", "if-lez");
         registerArrayOperation("aget", "aget-object", "aget-wide", "aget-boolean", "aget-byte",
                                "aget-char", "aget-short", "aput", "aput-object", "aput-wide",
                                "aput-boolean", "aput-byte", "aput-char", "aput-short");
@@ -105,7 +108,7 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 
     void registerCmp(String... names) {
         for (String name : names) {
-            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL, DefaultOperands.LABEL),
+            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL, DefaultOperands.LITERAL),
                     (inst, visitor) -> visitor.visitCmp(inst.argument(0), inst.argument(1), inst.argument(2)));
         }
     }

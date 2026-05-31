@@ -24,7 +24,11 @@ public class DalvikCodePrinter implements ExecutionEngine {
     }
 
     private static String opcode(Instruction instruction) {
-        return OpcodeNames.name(instruction.opcode());
+        String opcode = OpcodeNames.name(instruction.opcode());
+        if (opcode.endsWith("-range")) {
+            return opcode.substring(0, opcode.length() - "-range".length()) + "/range";
+        }
+        return opcode;
     }
 
     private String register(int register) {
@@ -196,9 +200,7 @@ public class DalvikCodePrinter implements ExecutionEngine {
 
     @Override
     public void execute(FilledNewArrayInstruction filledNewArrayInstruction) {
-        var printer = ctx.instruction(opcode(filledNewArrayInstruction))
-                .literal(filledNewArrayInstruction.componentType().descriptor()).arg()
-                .array();
+        var printer = ctx.instruction(opcode(filledNewArrayInstruction)).array();
 
         if (filledNewArrayInstruction.isRange()) {
             printer.print(register(filledNewArrayInstruction.first())).arg()
@@ -212,6 +214,7 @@ public class DalvikCodePrinter implements ExecutionEngine {
         }
 
         printer.end();
+        ctx.arg().literal(filledNewArrayInstruction.componentType().descriptor());
     }
 
     @Override

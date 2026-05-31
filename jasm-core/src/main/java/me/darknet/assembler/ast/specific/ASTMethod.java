@@ -109,7 +109,7 @@ public class ASTMethod extends ASTMember {
 
         ASTInstructionVisitor instructionVisitor = switch (format) {
             case JVM -> visitor.visitJvmCode(collector);
-            case DALVIK -> null;
+            case DALVIK -> visitor.visitDalvikCode(collector);
         };
         if (instructionVisitor != null) {
             int instructionIndex = 0;

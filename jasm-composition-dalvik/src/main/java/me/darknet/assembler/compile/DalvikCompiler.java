@@ -2,7 +2,7 @@ package me.darknet.assembler.compile;
 
 import me.darknet.assembler.DalvikClassRepresentation;
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.ast.specific.ASTClass;
+import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.compile.visitor.DalvikRootVisitor;
 import me.darknet.assembler.compiler.ClassResult;
 import me.darknet.assembler.compiler.Compiler;
@@ -11,8 +11,6 @@ import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.transformer.Transformer;
 import me.darknet.dex.tree.definitions.ClassDefinition;
-import me.darknet.dex.tree.type.InstanceType;
-import me.darknet.dex.tree.type.Types;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -28,15 +26,39 @@ public class DalvikCompiler implements Compiler {
         ErrorCollector collector = new ErrorCollector();
 
         if (ast.size() != 1) {
-            collector.addError("Expected exactly one declaration", ast.get(1).location());
+            collector.addError("Expected exactly one declaration", ast.isEmpty() ? null : ast.get(0).location());
+            return new Result<>(new DalvikClassResult(null), collector.getErrors(), collector.getWarns());
+        }
+
+        ASTElement declaration = ast.get(0);
+        if ((declaration.type() == ElementType.FIELD || declaration.type() == ElementType.METHOD) && overlay == null) {
+            collector.addError("Overlay is required for top-level field and method declarations", declaration.location());
             return new Result<>(new DalvikClassResult(null), collector.getErrors(), collector.getWarns());
         }
 
         DalvikRootVisitor visitor = new DalvikRootVisitor(overlay);
 
         Transformer transformer = new Transformer(visitor);
-        transformer.transform(ast).ifErr(collector::addErrors).ifWarn(collector::addWarnings);
+        try {
+            transformer.transform(ast).ifErr(collector::addErrors).ifWarn(collector::addWarnings);
+        } catch (Throwable t) {
+            collector.addError("Failed to compile Dalvik source: " + t.getMessage(), declaration.location());
+        }
 
-        return Result.ok(null);
+        if (collector.hasErr()) {
+            return new Result<>(new DalvikClassResult(null), collector.getErrors(), collector.getWarns());
+        }
+
+        ClassDefinition definition = visitor.getDefinition();
+        if (definition == null) {
+            collector.addError("Cannot build class, type name not specified", declaration.location());
+            return new Result<>(new DalvikClassResult(null), collector.getErrors(), collector.getWarns());
+        }
+
+        return new Result<>(
+                new DalvikClassResult(new DalvikClassRepresentation(definition)),
+                collector.getErrors(),
+                collector.getWarns()
+        );
     }
 }

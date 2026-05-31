@@ -57,9 +57,10 @@ public class DalvikMethodPrinter implements MethodPrinter {
                 .literal(definition.getType().descriptor()).print(" ").object();
 
         var code = definition.getCode();
+        Map<Label, String> labelNames = code == null ? Map.of() : getLabelNames(code);
 
-        boolean hasPrior = code != null && code.getIn() != 0;
-        if (hasPrior) {
+        boolean hasPrior = false;
+        if (code != null && code.getIn() != 0) {
             DebugInformation debug = code.getDebugInfo();
             if (debug != null) {
                 List<String> params = debug.parameterNames();
@@ -73,7 +74,29 @@ public class DalvikMethodPrinter implements MethodPrinter {
                     if (i < code.getIn() - 1) arr.arg();
                 }
                 arr.end();
+                hasPrior = true;
             }
+        }
+
+        if (code != null && !code.tryCatch().isEmpty()) {
+            if (hasPrior) obj.next();
+
+            PrintContext.ArrayPrint exceptions = obj.value("exceptions").array();
+            for (int i = 0; i < code.tryCatch().size(); i++) {
+                var tryCatch = code.tryCatch().get(i);
+                if (i > 0) {
+                    exceptions.arg();
+                }
+
+                exceptions.array()
+                        .print(labelNames.get(tryCatch.begin())).arg()
+                        .print(labelNames.get(tryCatch.end())).arg()
+                        .print(labelNames.get(tryCatch.handlers().getFirst().handler())).arg()
+                        .literal(tryCatch.handlers().getFirst().exceptionType().internalName())
+                        .end();
+            }
+            exceptions.end();
+            hasPrior = true;
         }
 
         if (code != null) {
@@ -82,14 +105,6 @@ public class DalvikMethodPrinter implements MethodPrinter {
             var codeObj = obj.value("code").code();
 
             Map<Integer, String> registers = getRegisterNames(code);
-
-            Map<Label, String> labelNames = new IdentityHashMap<>();
-            int labelIndex = 0;
-            for (var ins : code.getInstructions()) {
-                if (ins instanceof Label label) {
-                    labelNames.put(label, getLabelName(labelIndex++));
-                }
-            }
 
             DalvikCodePrinter printer = new DalvikCodePrinter(codeObj, registers, labelNames);
             StraightForwardSimulation simulation = new StraightForwardSimulation();
@@ -100,6 +115,17 @@ public class DalvikMethodPrinter implements MethodPrinter {
         }
 
         obj.end();
+    }
+
+    private static @NotNull Map<Label, String> getLabelNames(@NotNull Code code) {
+        Map<Label, String> labelNames = new IdentityHashMap<>();
+        int labelIndex = 0;
+        for (var instruction : code.getInstructions()) {
+            if (instruction instanceof Label label) {
+                labelNames.put(label, getLabelName(labelIndex++));
+            }
+        }
+        return labelNames;
     }
 
     private static @NotNull Map<Integer, String> getRegisterNames(Code code) {
