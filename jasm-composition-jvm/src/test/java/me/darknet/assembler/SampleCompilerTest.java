@@ -1,6 +1,10 @@
 package me.darknet.assembler;
 
+import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.compile.JavaClassRepresentation;
+import me.darknet.assembler.compile.JavaCompileResult;
+import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.Value;
@@ -15,6 +19,8 @@ import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
+import me.darknet.assembler.test.JvmAssemblerFixture;
+import me.darknet.assembler.test.JvmCompilation;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -524,7 +530,6 @@ public class SampleCompilerTest {
 
         @Test
         void methodArrayMerging() throws Throwable {
-
             TestArgument arg = TestArgument.fromName("Example-array-object-primitive-merge-on-method-call.jasm");
 
             // Both analysis engines should have warnings for these cases
@@ -535,6 +540,38 @@ public class SampleCompilerTest {
             // Value stack analysis engine
             options.engineProvider(ValuedJvmAnalysisEngine::new);
             processAnalysisWarnJvm(source, options);
+        }
+
+        @Test
+        void overlayMethodCausesAnalysisFailure() {
+            // This class has a method 'fixMissingVariableLabels(Lorg/objectweb/asm/tree/MethodNode;)V'
+            //
+            // Our JvmCompiler analyzes all methods of a class, even ones that are not present in the AST source
+            // and this results in our totally valid source for 'getSizeProduced' to fail.
+            //
+            // Interestingly enough, the 'fixMissingVariableLabels' seems to be fine when you compile it on its own...
+	        // This is probably a "meh" test since the actual source of the problem isn't what is described.
+	        // The fix was to treat the symptom by skipping analysis of non-AST methods in overlay classes.
+            BinaryTestArgument arg = BinaryTestArgument.fromName("AsmInsnUtil.sample");
+            String source = """
+                    .method public static getSizeProduced (Lorg/objectweb/asm/tree/AbstractInsnNode;)I {
+                        parameters: { insn },
+                        code: {
+                        A:
+                            iconst_1
+                            ireturn
+                        B:
+                        }
+                    }""";
+
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            assertDoesNotThrow(() -> options.overlay(new JavaClassRepresentation(arg.source().get())));
+
+			// Compiling the method shouldn't fail for any reason.
+            JvmCompilation compilation = assertDoesNotThrow(() -> JvmAssemblerFixture.compileJvm(source, options));
+            compilation.requireSuccess();
         }
     }
 

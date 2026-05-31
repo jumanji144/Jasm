@@ -73,8 +73,13 @@ public class JvmCompiler implements Compiler {
 				if (builder.type() == null)
 					throw new IllegalStateException("Cannot build class, type name not specified");
 
+				// Compile the class.
 				byte[] bytes = writeClass(builder.node(), options);
+
+				// Filling in the analysis results for the generated class.
 				analyzeGeneratedClass(bytes, jvmOptions, builder, collector);
+
+				// Wrap up.
 				return new Result<>(new JavaCompileResult(new JavaClassRepresentation(bytes), builder),
 						collector.getErrors(), collector.getWarns());
 			} catch (Throwable t) {
@@ -126,6 +131,13 @@ public class JvmCompiler implements Compiler {
 		builder.getMethodAnalysisResults().clear();
 
 		for (MethodNode method : classNode.methods) {
+			// Only re-analyze methods that originated from the AST input.
+			//
+			// Overlay-only methods already exist in the base class and any information about them
+			// is out-of-scope for our purposes here.
+			if (!existingResults.containsKey(methodKey(method.name, method.desc)))
+				continue;
+
 			// Build parameters and known local variables.
 			VarCache varCache = new VarCache();
 			List<Local> parameters = buildParameters(classNode, method, varCache);
