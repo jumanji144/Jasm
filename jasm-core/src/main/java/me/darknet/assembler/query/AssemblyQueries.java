@@ -7,17 +7,23 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.ast.primitive.ASTObject;
+import me.darknet.assembler.ast.specific.ASTAnnotated;
+import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.ast.specific.ASTException;
 import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.query.resolution.ClassAnnotationResolution;
 import me.darknet.assembler.query.resolution.ClassResolution;
 import me.darknet.assembler.query.resolution.EmptyResolution;
+import me.darknet.assembler.query.resolution.FieldAnnotationResolution;
 import me.darknet.assembler.query.resolution.FieldResolution;
+import me.darknet.assembler.query.resolution.IndependentAnnotationResolution;
 import me.darknet.assembler.query.resolution.InstructionResolution;
 import me.darknet.assembler.query.resolution.LabelDeclarationResolution;
 import me.darknet.assembler.query.resolution.LabelReferenceResolution;
+import me.darknet.assembler.query.resolution.MethodAnnotationResolution;
 import me.darknet.assembler.query.resolution.MethodResolution;
 import me.darknet.assembler.query.resolution.Resolution;
 import me.darknet.assembler.query.resolution.TypeReferenceResolution;
@@ -275,6 +281,10 @@ public final class AssemblyQueries {
 
 			switch (element) {
 				case ASTClass klass -> {
+					ASTAnnotation annotation = resolveAnnotation(offset, klass);
+					if (annotation != null)
+						return new ClassAnnotationResolution(klass, annotation);
+
 					TypeReferenceResolution typeResolution = resolveClassTypeReference(offset, klass);
 					if (typeResolution != null)
 						return typeResolution;
@@ -287,7 +297,14 @@ public final class AssemblyQueries {
 					return resolved != null ? resolved : new MethodResolution(parentClass, method);
 				}
 				case ASTField field -> {
+					ASTAnnotation annotation = resolveAnnotation(offset, field);
+					if (annotation != null)
+						return new FieldAnnotationResolution(parentClass, field, annotation);
+
 					return new FieldResolution(parentClass, field);
+				}
+				case ASTAnnotation annotation -> {
+					return new IndependentAnnotationResolution(annotation);
 				}
 				default -> {
 					// Only classes/methods/fields have semantic nested declarations to resolve.
@@ -313,6 +330,10 @@ public final class AssemblyQueries {
 	 */
 	private static @Nullable Resolution resolveMethod(int offset, @Nullable ASTClass parentClass, @NotNull ASTMethod method,
 	                                                  @NotNull BytecodeFormat format) {
+		ASTAnnotation annotation = resolveAnnotation(offset, method);
+		if (annotation != null)
+			return new MethodAnnotationResolution(parentClass, method, annotation);
+
 		VariableQueryResult variables = variables(method);
 		for (VariableInfo declaration : variables.declarations())
 			if (contains(declaration.declaration().range(), offset))
@@ -397,6 +418,30 @@ public final class AssemblyQueries {
 				return new TypeReferenceResolution(klass, null, identifier);
 		}
 
+		return null;
+	}
+
+	private static @Nullable ASTAnnotation resolveAnnotation(int offset, @NotNull ASTAnnotated annotated) {
+		ASTAnnotation annotation = resolveAnnotation(offset, annotated.getVisibleAnnotations());
+		if (annotation != null)
+			return annotation;
+
+		annotation = resolveAnnotation(offset, annotated.getInvisibleAnnotations());
+		if (annotation != null)
+			return annotation;
+
+		annotation = resolveAnnotation(offset, annotated.getVisibleTypeAnnotations());
+		if (annotation != null)
+			return annotation;
+
+		return resolveAnnotation(offset, annotated.getInvisibleTypeAnnotations());
+	}
+
+	private static @Nullable ASTAnnotation resolveAnnotation(int offset, @NotNull List<ASTAnnotation> annotations) {
+		for (ASTAnnotation annotation : annotations) {
+			if (contains(annotation.range(), offset))
+				return annotation;
+		}
 		return null;
 	}
 

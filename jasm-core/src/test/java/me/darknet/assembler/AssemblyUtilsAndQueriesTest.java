@@ -5,7 +5,9 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.ast.primitive.ASTObject;
+import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTClass;
+import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.parser.BytecodeFormat;
@@ -19,8 +21,12 @@ import me.darknet.assembler.query.VariableAccessKind;
 import me.darknet.assembler.query.VariableInfo;
 import me.darknet.assembler.query.VariableQueryResult;
 import me.darknet.assembler.query.VariableUsage;
+import me.darknet.assembler.query.resolution.ClassAnnotationResolution;
+import me.darknet.assembler.query.resolution.FieldAnnotationResolution;
+import me.darknet.assembler.query.resolution.IndependentAnnotationResolution;
 import me.darknet.assembler.query.resolution.LabelDeclarationResolution;
 import me.darknet.assembler.query.resolution.LabelReferenceResolution;
+import me.darknet.assembler.query.resolution.MethodAnnotationResolution;
 import me.darknet.assembler.query.resolution.Resolution;
 import me.darknet.assembler.query.resolution.TypeReferenceResolution;
 import me.darknet.assembler.query.resolution.VariableDeclarationResolution;
@@ -291,6 +297,59 @@ class AssemblyUtilsAndQueriesTest {
 		List<ASTElement> ast = processed(source);
 		Resolution resolution = AssemblyQueries.resolveAt(ast, 4, 9);
 		assertInstanceOf(LabelDeclarationResolution.class, resolution);
+	}
+
+	@Test
+	void resolvesAnnotationSelections() {
+		String source = """
+				.visible-annotation pkg/ClassVisible { value: "class" }
+				.class public Example {
+				    .type-invisible-annotation pkg/FieldType { location: { ref: 1, path: FIELD }, values: { value: "field" } }
+				    .field public value I
+				    .visible-annotation pkg/MethodVisible { value: "method" }
+				    .method public demo ()V {
+				        code: {
+				            return
+				        }
+				    }
+				}
+				""";
+		List<ASTElement> ast = processed(source);
+		ASTClass klass = assertInstanceOf(ASTClass.class, ast.getFirst());
+		ASTField field = assertInstanceOf(ASTField.class, klass.contents().get(0));
+		ASTMethod method = assertInstanceOf(ASTMethod.class, klass.contents().get(1));
+
+		ASTAnnotation classAnnotation = klass.getVisibleAnnotations().getFirst();
+		Resolution classResolution = AssemblyQueries.resolveAt(ast, classAnnotation.range().start());
+		ClassAnnotationResolution classAnnotationResolution =
+				assertInstanceOf(ClassAnnotationResolution.class, classResolution);
+		assertSame(klass, classAnnotationResolution.targetClass());
+		assertSame(classAnnotation, classAnnotationResolution.annotation());
+
+		ASTAnnotation fieldAnnotation = field.getInvisibleTypeAnnotations().getFirst();
+		Resolution fieldResolution = AssemblyQueries.resolveAt(ast, fieldAnnotation.range().start());
+		FieldAnnotationResolution fieldAnnotationResolution =
+				assertInstanceOf(FieldAnnotationResolution.class, fieldResolution);
+		assertSame(field, fieldAnnotationResolution.targetField());
+		assertSame(fieldAnnotation, fieldAnnotationResolution.annotation());
+
+		ASTAnnotation methodAnnotation = method.getVisibleAnnotations().getFirst();
+		Resolution methodResolution = AssemblyQueries.resolveAt(ast, methodAnnotation.range().start());
+		MethodAnnotationResolution methodAnnotationResolution =
+				assertInstanceOf(MethodAnnotationResolution.class, methodResolution);
+		assertSame(method, methodAnnotationResolution.targetMethod());
+		assertSame(methodAnnotation, methodAnnotationResolution.annotation());
+	}
+
+	@Test
+	void resolvesIndependentAnnotations() {
+		List<ASTElement> ast = processed(".annotation pkg/Loose { value: \"free\" }");
+		ASTAnnotation annotation = assertInstanceOf(ASTAnnotation.class, ast.getFirst());
+
+		Resolution resolution = AssemblyQueries.resolveAt(ast, annotation.range().start());
+		IndependentAnnotationResolution annotationResolution =
+				assertInstanceOf(IndependentAnnotationResolution.class, resolution);
+		assertSame(annotation, annotationResolution.annotation());
 	}
 
 	@Test

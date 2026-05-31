@@ -6,7 +6,11 @@ import org.jetbrains.annotations.NotNull;
 /**
  * A resolution of an AST element.
  */
-public sealed interface Resolution permits EmptyResolution, ClassResolution, FieldResolution, MethodResolution, InstructionResolution, LabelDeclarationResolution, LabelReferenceResolution, VariableDeclarationResolution, VariableReferenceResolution, TypeReferenceResolution {
+public sealed interface Resolution permits EmptyResolution, ClassResolution, FieldResolution, MethodResolution,
+		ClassAnnotationResolution, FieldAnnotationResolution, MethodAnnotationResolution,
+		IndependentAnnotationResolution, InstructionResolution, LabelDeclarationResolution,
+		LabelReferenceResolution, VariableDeclarationResolution, VariableReferenceResolution,
+		TypeReferenceResolution {
 	/**
 	 * @return The AST element that was resolved.
 	 */
