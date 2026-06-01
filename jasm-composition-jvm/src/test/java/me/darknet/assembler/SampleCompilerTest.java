@@ -1,10 +1,7 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.JavaClassRepresentation;
-import me.darknet.assembler.compile.JavaCompileResult;
-import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.Value;
@@ -19,8 +16,13 @@ import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
+import me.darknet.assembler.test.BinarySampleFixture;
+import me.darknet.assembler.test.ClassDefiner;
 import me.darknet.assembler.test.JvmAssemblerFixture;
 import me.darknet.assembler.test.JvmCompilation;
+import me.darknet.assembler.test.JvmDecompilationFixture;
+import me.darknet.assembler.test.JvmDisassemblyFixture;
+import me.darknet.assembler.test.JvmRoundTripFixture;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -40,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -573,6 +576,37 @@ public class SampleCompilerTest {
 			// Compiling the method shouldn't fail for any reason.
             JvmCompilation compilation = assertDoesNotThrow(() -> JvmAssemblerFixture.compileJvm(source, options));
             compilation.requireSuccess();
+        }
+
+        @Test
+        void variableScopingCausesHorribleDeconflictionThatBreaksThings() {
+            byte[] raw = BinarySampleFixture.binarySample("ScopedVariables.sample").read();
+            String decompileOriginal = JvmDecompilationFixture.decompile(raw);
+
+            String source = JvmDisassemblyFixture.disassembleJvm(raw);
+            var result = JvmRoundTripFixture.roundTripJvm(source, new TestJvmCompilerOptions());
+            String decompileModified = result.compilation().requireDecompilation();
+
+//            System.out.println("========= ORIGINAL DECOMPILED CODE =============");
+//            System.out.println(decompileOriginal);
+//            System.out.println("========= DECOMPILED CODE AFTER ROUND-TRIP =============");
+//            System.out.println(decompileModified);
+
+            System.out.println("This test should print 'key:value' (null:null) twice");
+            ClassDefiner definer1 = new ClassDefiner("Temp", raw);
+            ClassDefiner definer2 = new ClassDefiner("Temp", result.compilation().requireClassBytes());
+            assertDoesNotThrow(() -> {
+                // Baseline with no modifications
+                Class<?> klass = definer1.loadClass("Temp");
+                Method main = klass.getDeclaredMethods()[0];
+                main.invoke(null, (Object) new String[0]);
+            });
+            assertDoesNotThrow(() -> {
+                // Round-tripped version should also work
+                Class<?> klass = definer2.loadClass("Temp");
+                Method main = klass.getDeclaredMethods()[0];
+                main.invoke(null, (Object) new String[0]);
+            });
         }
     }
 

@@ -51,28 +51,6 @@ class JvmRoundTripTest {
 	}
 
 	@Test
-	@Disabled
-	void kotlinSr2c() {
-		String source = validSamples().stream()
-				.filter(sample -> sample.name().contains("KKKSample"))
-				.findFirst()
-				.orElseThrow()
-				.read();
-		JvmRoundTripFixture.roundTripJvm(source, new TestJvmCompilerOptions());
-	}
-
-	@Test
-	@Disabled
-	void kotlinSrc() {
-		String source = validSamples().stream()
-				.filter(sample -> sample.name().contains("KotlinSample"))
-				.findFirst()
-				.orElseThrow()
-				.read();
-		JvmRoundTripFixture.roundTripJvm(source, new TestJvmCompilerOptions());
-	}
-
-	@Test
 	void kotlin() {
 		byte[] raw = BinarySampleFixture.binarySample("ExtrasConfig.sample").read();
 		String source = JvmDisassemblyFixture.disassembleJvm(raw);
@@ -171,6 +149,19 @@ class JvmRoundTripTest {
 		String decompileRound = roundTrip.compilation().requireDecompilation();
 		assertFalse(decompileOriginal.contains("This method has failed to decompile"), "Original class failed to decompile, cannot test");
 		assertFalse(decompileRound.contains("This method has failed to decompile"), "Round-tripped class failed to decompile, cannot test");
+	}
+
+	@Test
+	void reusesSameNameForMergedSameSlotScopes() {
+		byte[] raw = BinarySampleFixture.binarySample("ScopedVariables.sample").read();
+		String source = JvmDisassemblyFixture.disassembleJvm(raw);
+
+		assertTrue(source.contains("astore temp"));
+		assertTrue(source.contains("aload temp"));
+		assertFalse(source.contains("temp2"), source);
+		assertFalse(source.contains("temp3"), source);
+
+		assertStableRoundTrip(source);
 	}
 
 	@Test
