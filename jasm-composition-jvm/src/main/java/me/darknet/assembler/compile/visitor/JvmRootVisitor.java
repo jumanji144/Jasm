@@ -110,6 +110,7 @@ public record JvmRootVisitor(JvmClassBuilder builder, JvmCompilerOptions options
 		if (method == null) {
 			throw new IllegalStateException("Unexpected missing method data: " + name);
 		}
+		builder.markMethodModified(name, descriptor);
 		List<AnnotationNode> annotations = kind == AnnotationKind.VIS_ANNO ? method.visibleAnnotations : method.invisibleAnnotations;
 		AnnotationNode annotation = installAnnotation(annotations, index, annotationDescriptor);
 		if (kind == AnnotationKind.VIS_ANNO) {
@@ -145,4 +146,3 @@ public record JvmRootVisitor(JvmClassBuilder builder, JvmCompilerOptions options
 		return annotation;
 	}
 }
-

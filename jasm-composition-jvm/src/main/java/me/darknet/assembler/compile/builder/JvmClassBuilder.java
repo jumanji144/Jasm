@@ -13,13 +13,18 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.RecordComponentNode;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class JvmClassBuilder implements MethodAnalysisLookup {
     private ClassNode classNode = new ClassNode();
+
+    // Linked to preserve method declaration order.
     private final Map<MethodNode, AnalysisResults> methodAnalysisResults = new LinkedHashMap<>();
+    private final Set<String> modifiedMethodKeys = new LinkedHashSet<>();
 
     public @NotNull ClassNode node() {
         return classNode;
@@ -29,6 +34,7 @@ public class JvmClassBuilder implements MethodAnalysisLookup {
         ClassNode node = new ClassNode();
         new ClassReader(classFile).accept(node, 0);
         classNode = node;
+        modifiedMethodKeys.clear();
     }
 
     public void setVersion(int version) {
@@ -156,7 +162,16 @@ public class JvmClassBuilder implements MethodAnalysisLookup {
         } else {
             classNode.methods.add(method);
         }
+        markMethodModified(name, descriptor);
         return method;
+    }
+
+    public void markMethodModified(@NotNull String name, @NotNull String descriptor) {
+        modifiedMethodKeys.add(methodKey(name, descriptor));
+    }
+
+    public @NotNull Set<String> modifiedMethodKeys() {
+        return modifiedMethodKeys;
     }
 
     @NotNull
@@ -223,5 +238,9 @@ public class JvmClassBuilder implements MethodAnalysisLookup {
             return;
         }
         components.removeIf(component -> component.name.equals(name) && component.descriptor.equals(descriptor));
+    }
+
+    public static @NotNull String methodKey(@NotNull String name, @NotNull String descriptor) {
+        return name + descriptor;
     }
 }

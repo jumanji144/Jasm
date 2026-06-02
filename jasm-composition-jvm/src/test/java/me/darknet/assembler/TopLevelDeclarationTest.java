@@ -72,6 +72,12 @@ public class TopLevelDeclarationTest {
 
 	@Test
 	void replacingOverlayFieldPreservesOriginalPosition() {
+		// We have a class with three fields:
+		//  - first
+		//  - middle
+		//  - last
+		// When we edit the 'middle' field it should remain in the middle amongst the other fields
+		// and not shift to the first/last position.
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
 				".field public middle I { value: 7 }",
 				overlayOptions(OVERLAY_TYPE)
@@ -85,6 +91,12 @@ public class TopLevelDeclarationTest {
 
 	@Test
 	void replacingOverlayMethodPreservesOriginalPosition() {
+		// We have a class with three methods:
+		//  - first
+		//  - middle
+		//  - last
+		// When we edit the 'middle' method it should remain in the middle amongst the other methods
+		// and not shift to the first/last position.
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
 				"""
 				.method public middle ()V {
@@ -102,6 +114,33 @@ public class TopLevelDeclarationTest {
 		assertFalse(compilation.hasWarnings(), "Expected no warnings");
 		assertEquals(List.of("<init>", "first", "middle", "last"), node.methods.stream().map(method -> method.name).toList());
 		assertMethod(node, "middle", "()V", method -> assertNotNull(method.instructions.getFirst(), "Expected method instructions"));
+	}
+
+	@Test
+	void untouchedOverlayMethodsAreCopiedWithoutRecomputingFrames() {
+		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		options.overlay(new JavaClassRepresentation(buildOverlayWithUntouchedMergedTypes("top/level/MissingTypesOverlay")));
+
+		// Say for instance we have some class that has a bunch of methods.
+		// You want to edit one of them, but the others have some weird control flow with merged types that would require frame recomputation.
+		// We should be able to edit this one method without causing frame recomputation on the others, and thus not require the missing types to be present.
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
+				"""
+				.method public static hello ()V {
+				    code: {
+				    A:
+				        return
+				    B:
+				    }
+				}
+				""",
+				options
+		);
+		ClassNode node = readClass(compilation.requireClassBytes());
+
+		assertFalse(compilation.hasWarnings(), "Expected no warnings");
+		assertMethod(node, "problematic", "()Ljava/lang/Object;", method -> assertNotNull(method.instructions.getFirst(), "Expected untouched overlay method to remain"));
+		assertMethod(node, "hello", "()V", method -> assertNotNull(method.instructions.getFirst(), "Expected new method instructions"));
 	}
 
 	private static TestJvmCompilerOptions overlayOptions(String internalName) {
@@ -141,6 +180,43 @@ public class TopLevelDeclarationTest {
 		method.visitInsn(Opcodes.RETURN);
 		method.visitMaxs(0, 0);
 		method.visitEnd();
+	}
+
+	private static byte[] buildOverlayWithUntouchedMergedTypes(String internalName) {
+		ClassWriter writer = new ClassWriter(0);
+		writer.visit(Opcodes.V21, Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER, internalName, null, "java/lang/Object", null);
+
+		MethodVisitor constructor = writer.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+		constructor.visitCode();
+		constructor.visitVarInsn(Opcodes.ALOAD, 0);
+		constructor.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+		constructor.visitInsn(Opcodes.RETURN);
+		constructor.visitMaxs(1, 1);
+		constructor.visitEnd();
+
+		MethodVisitor method = writer.visitMethod(Opcodes.ACC_PUBLIC, "problematic", "()Ljava/lang/Object;", null, null);
+		method.visitCode();
+		Label fallback = new Label();
+		Label join = new Label();
+		method.visitInsn(Opcodes.ICONST_0);
+		method.visitJumpInsn(Opcodes.IFEQ, fallback);
+		method.visitTypeInsn(Opcodes.NEW, "missing/A");
+		method.visitInsn(Opcodes.DUP);
+		method.visitMethodInsn(Opcodes.INVOKESPECIAL, "missing/A", "<init>", "()V", false);
+		method.visitJumpInsn(Opcodes.GOTO, join);
+		method.visitLabel(fallback);
+		method.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+		method.visitTypeInsn(Opcodes.NEW, "missing/B");
+		method.visitInsn(Opcodes.DUP);
+		method.visitMethodInsn(Opcodes.INVOKESPECIAL, "missing/B", "<init>", "()V", false);
+		method.visitLabel(join);
+		method.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[]{"java/lang/Object"});
+		method.visitInsn(Opcodes.ARETURN);
+		method.visitMaxs(2, 1);
+		method.visitEnd();
+
+		writer.visitEnd();
+		return writer.toByteArray();
 	}
 
 	private static ClassNode readClass(byte[] bytes) {
