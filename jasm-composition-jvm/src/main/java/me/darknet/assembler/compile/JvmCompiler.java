@@ -20,7 +20,6 @@ import me.darknet.assembler.error.Result;
 import me.darknet.assembler.transformer.Transformer;
 import me.darknet.assembler.util.JvmTypeUtils;
 import me.darknet.assembler.util.Location;
-import me.darknet.assembler.util.VarNaming;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
@@ -169,9 +168,11 @@ public class JvmCompiler implements Compiler {
 				continue;
 
 			// Build parameters and known local variables.
+			MethodVariableLayout variableLayout = MethodVariableLayout.fromMethod(Type.getObjectType(classNode.name), method);
 			VarCache varCache = new VarCache();
-			List<Local> parameters = buildParameters(classNode, method, varCache);
-			seedKnownLocals(method, varCache);
+			List<Local> parameters = variableLayout.createParameterLocals();
+			variableLayout.seedParameterSlots(varCache);
+			seedKnownLocals(method, varCache, variableLayout);
 
 			// We're going to reuse existing results if possible.
 			// But the analysis logic below will repopulate the states, so we need to clear them first.
@@ -239,80 +240,23 @@ public class JvmCompiler implements Compiler {
 	}
 
 	/**
-	 * Builds the parameter list for the given method, including the {@code this} parameter for virtual methods.
-	 *
-	 * @param node
-	 * 		Node of the class containing the method, used to determine the type of the {@code this} parameter.
-	 * @param method
-	 * 		Node of the method to build parameters for.
-	 * @param varCache
-	 * 		Variable cache to populate with the parameters.
-	 *
-	 * @return List of parameters for the method, in order.
-	 */
-	private static @NotNull List<Local> buildParameters(@NotNull ClassNode node,
-	                                                    @NotNull MethodNode method,
-	                                                    @NotNull VarCache varCache) {
-		List<Local> parameters = new ArrayList<>();
-		int localIndex = 0;
-
-		// Add 'this' for virtual methods.
-		if ((method.access & Opcodes.ACC_STATIC) == 0) {
-			String name = findLocalName(method, 0, Type.getObjectType(node.name).getDescriptor(), "this");
-			varCache.getOrCreate(name, 0, false);
-			parameters.add(new Local(localIndex++, name, Type.getObjectType(node.name)));
-		}
-
-		// Add method parameters.
-		for (Type parameterType : Type.getArgumentTypes(method.desc)) {
-			String fallbackName = VarNaming.name(localIndex, parameterType);
-			String name = findLocalName(method, localIndex, parameterType.getDescriptor(), fallbackName);
-			boolean wide = JvmTypeUtils.isWide(parameterType);
-			varCache.getOrCreate(name, localIndex, wide);
-			parameters.add(new Local(localIndex++, name, parameterType));
-			if (wide) {
-				parameters.add(null);
-				localIndex++;
-			}
-		}
-
-		return parameters;
-	}
-
-	/**
-	 * Finds the name of a local variable with the given index and descriptor in the given method.
-	 *
-	 * @param method
-	 * 		Method to search for the local variable.
-	 * @param index
-	 * 		Variable index.
-	 * @param descriptor
-	 * 		Variable descriptor.
-	 * @param fallback
-	 * 		Fallback variable name.
-	 *
-	 * @return Name of the local variable with the given index and descriptor, or the fallback name if no match is found.
-	 */
-	private static @NotNull String findLocalName(@NotNull MethodNode method, int index,
-	                                             @NotNull String descriptor, @NotNull String fallback) {
-		if (method.localVariables != null)
-			for (LocalVariableNode localVariable : method.localVariables)
-				if (localVariable.index == index && descriptor.equals(localVariable.desc))
-					return localVariable.name;
-		return fallback;
-	}
-
-	/**
 	 * @param method
 	 * 		Method to seed known local variables for.
 	 * @param varCache
 	 * 		Variable cache to populate with known local variables.
+	 * @param variableLayout
+	 * 		The variable layout of the method.
+	 * 		Differentiates between parameters and local variables, so we don't accidentally seed parameter slots as known locals.
 	 */
-	private static void seedKnownLocals(@NotNull MethodNode method, @NotNull VarCache varCache) {
+	private static void seedKnownLocals(@NotNull MethodNode method, @NotNull VarCache varCache,
+	                                    @NotNull MethodVariableLayout variableLayout) {
 		if (method.localVariables == null)
 			return;
 
 		for (LocalVariableNode localVariable : method.localVariables) {
+			if (variableLayout.matchesParameterSlot(localVariable.index, localVariable.desc))
+				continue;
+
 			Type type = Type.getType(localVariable.desc);
 			boolean wide = JvmTypeUtils.isWide(type);
 			VarCache.Variable variable = varCache.getOrCreate(localVariable.name, localVariable.index, wide);

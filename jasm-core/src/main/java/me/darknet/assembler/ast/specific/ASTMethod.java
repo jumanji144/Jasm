@@ -85,34 +85,31 @@ public class ASTMethod extends ASTMember {
     @SuppressWarnings("UnnecessaryLocalVariable")
     public void accept(ErrorCollector collector, ASTMethodVisitor visitor) {
         super.accept(collector, visitor);
+
         List<ASTIdentifier> localParams = parameters;
-        for (int i = 0; i < localParams.size(); i++) {
+        for (int i = 0; i < localParams.size(); i++)
             visitor.visitParameter(i, localParams.get(i));
-        }
-        for (ASTIdentifier declaredException : declaredExceptions) {
+
+        for (ASTIdentifier declaredException : declaredExceptions)
             visitor.visitDeclaredException(declaredException);
-        }
+
         parameterAnnotations.forEach((id, annos) -> {
-            int parameterIndex = findParameterIndex(id.content());
-
-            // We artificially bumped the parameter indices by one earlier when adding "this" as a parameter
-            // and now need to bump the index back down when writing the annotation back.
-            if (!getModifiers().hasModifier("static"))
-                parameterIndex--;
-
-            if (parameterIndex < 0)
+            int sourceParameterIndex = findSourceParameterIndex(id.content());
+            int jvmParameterIndex = sourceParameterIndexToJvmParameterIndex(sourceParameterIndex);
+            if (jvmParameterIndex < 0)
                 return;
             for (ASTAnnotation annotation : annos) {
                 if (annotation.isVisible())
-                    annotation.accept(collector, visitor.visitVisibleParameterAnnotation(parameterIndex, annotation.classType()));
+                    annotation.accept(collector, visitor.visitVisibleParameterAnnotation(jvmParameterIndex, annotation.classType()));
                 else
-                    annotation.accept(collector, visitor.visitInvisibleParameterAnnotation(parameterIndex, annotation.classType()));
+                    annotation.accept(collector, visitor.visitInvisibleParameterAnnotation(jvmParameterIndex, annotation.classType()));
             }
         });
-        if (this.defaultValue != null) {
+
+        if (defaultValue != null)
             visitor.visitAnnotationDefaultValue(defaultValue);
-        }
-        if (this.code == null) {
+
+        if (code == null) {
             visitor.visitEnd();
             return;
         }
@@ -147,7 +144,7 @@ public class ASTMethod extends ASTMember {
         visitor.visitEnd();
     }
 
-    protected int findParameterIndex(String name) {
+    protected int findSourceParameterIndex(String name) {
         for (int i = 0; i < parameters.size(); i++) {
             ASTIdentifier parameter = parameters.get(i);
             if (parameter.content().equals(name))
@@ -156,11 +153,22 @@ public class ASTMethod extends ASTMember {
         return -1;
     }
 
+    private boolean hasReceiverParameter() {
+        return !getModifiers().hasModifier("static");
+    }
+
+    private int sourceParameterIndexToJvmParameterIndex(int sourceParameterIndex) {
+        if (sourceParameterIndex < 0)
+            return -1;
+        if (hasReceiverParameter() && sourceParameterIndex == 0)
+            return -1;
+        return sourceParameterIndex - (hasReceiverParameter() ? 1 : 0);
+    }
+
     private static Map<ASTIdentifier, List<ASTAnnotation>> freezeParameterAnnotations(
             Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations) {
-        if (parameterAnnotations == null || parameterAnnotations.isEmpty()) {
+        if (parameterAnnotations == null || parameterAnnotations.isEmpty())
             return Collections.emptyMap();
-        }
         Map<ASTIdentifier, List<ASTAnnotation>> copy = new IdentityHashMap<>();
         parameterAnnotations.forEach((parameter, annotations) ->
                 copy.put(parameter, CollectionUtil.immutableCopy(annotations)));

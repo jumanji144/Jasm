@@ -225,6 +225,22 @@ class JvmRoundTripTest {
 	}
 
 	@Test
+	void keepsWideInstanceParameterAnnotationsAlignedWithPrintedParameters() throws Throwable {
+		String source = JvmDisassemblyFixture.disassembleJvm(buildWideInstanceParameterAnnotationsClass());
+
+		assertTrue(source.contains("parameters: { this, count, name }"));
+		assertTrue(source.contains("parameter-annotations"));
+		assertTrue(source.contains("count: {"));
+		assertTrue(source.contains("name: {"));
+		assertTrue(source.contains("lload count"));
+		assertTrue(source.contains("aload name"));
+		assertFalse(source.contains("wrongCount"));
+		assertFalse(source.contains("wrongName"));
+
+		assertStableRoundTrip(source);
+	}
+
+	@Test
 	void disassemblyAddsBoundaryLabelsBeforeRoundTrip() throws Throwable {
 		String source = JvmDisassemblyFixture.disassembleJvm(buildMissingBoundaryLabelsClass());
 
@@ -441,6 +457,38 @@ class JvmRoundTripTest {
 			mv.visitLocalVariable("this", "Lhardening/InstanceParameterAnnotations;", null, start, end, 0);
 			mv.visitLocalVariable("wrongName", "Ljava/lang/String;", null, start, end, 1);
 			mv.visitLocalVariable("wrongCount", "I", null, start, end, 2);
+			mv.visitMaxs(0, 0);
+			mv.visitEnd();
+		});
+	}
+
+	private static byte[] buildWideInstanceParameterAnnotationsClass() {
+		return buildClass("hardening/WideInstanceParameterAnnotations", cw -> {
+			MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "test", "(JLjava/lang/String;)V", null, null);
+			mv.visitParameter("count", 0);
+			mv.visitParameter("name", 0);
+
+			AnnotationVisitor visible = mv.visitParameterAnnotation(0, "LVisible;", true);
+			visible.visit("value", "wide");
+			visible.visitEnd();
+
+			AnnotationVisitor invisible = mv.visitParameterAnnotation(1, "LHidden;", false);
+			invisible.visit("value", "name");
+			invisible.visitEnd();
+
+			mv.visitCode();
+			Label start = new Label();
+			Label end = new Label();
+			mv.visitLabel(start);
+			mv.visitVarInsn(Opcodes.LLOAD, 1);
+			mv.visitInsn(Opcodes.POP2);
+			mv.visitVarInsn(Opcodes.ALOAD, 3);
+			mv.visitInsn(Opcodes.POP);
+			mv.visitInsn(Opcodes.RETURN);
+			mv.visitLabel(end);
+			mv.visitLocalVariable("this", "Lhardening/WideInstanceParameterAnnotations;", null, start, end, 0);
+			mv.visitLocalVariable("wrongCount", "J", null, start, end, 1);
+			mv.visitLocalVariable("wrongName", "Ljava/lang/String;", null, start, end, 3);
 			mv.visitMaxs(0, 0);
 			mv.visitEnd();
 		});

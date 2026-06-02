@@ -81,6 +81,51 @@ public class SampleCompilerTest {
                 assertTrue(varNames.contains("ex"), "Expected 'ex' variable");
             });
         }
+
+        @Test
+        void instanceWideParametersKeepSourceNamesAndSlots() {
+            // Similar test derived from MethodVariableLayoutTest
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public test (JLjava/lang/String;)V {
+                            parameters: { this, count, name },
+                            code: {
+                            A:
+                                lload count
+                                pop2
+                                aload name
+                                pop
+                                return
+                            B:
+                            }
+                        }
+                    }
+                    """;
+
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "(JLjava/lang/String;)V");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                Set<String> varNames = results.frames().values().stream()
+                        .flatMap(Frame::locals)
+                        .map(Local::name)
+                        .collect(Collectors.toSet());
+                assertTrue(varNames.contains("this"), "Expected 'this' variable");
+                assertTrue(varNames.contains("count"), "Expected 'count' variable");
+                assertTrue(varNames.contains("name"), "Expected 'name' variable");
+
+                boolean countUsesLongSlot = results.frames().values().stream()
+                        .flatMap(Frame::locals)
+                        .anyMatch(local -> local.index() == 1 && local.name().equals("count"));
+                boolean nameUsesObjectSlot = results.frames().values().stream()
+                        .flatMap(Frame::locals)
+                        .anyMatch(local -> local.index() == 3 && local.name().equals("name"));
+                assertTrue(countUsesLongSlot, "Expected 'count' at local slot 1");
+                assertTrue(nameUsesObjectSlot, "Expected 'name' at local slot 3");
+            });
+        }
     }
 
     /**

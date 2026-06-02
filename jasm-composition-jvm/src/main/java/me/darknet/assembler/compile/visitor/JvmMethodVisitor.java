@@ -2,6 +2,7 @@ package me.darknet.assembler.compile.visitor;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.compile.MethodVariableLayout;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
@@ -31,19 +32,18 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 	private final MethodNode method;
 	private final JvmCompilerOptions options;
 	private final Consumer<AnalysisResults> analysisResultsConsumer;
-	private final List<String> parameterNames = new ArrayList<>();
+	private final MethodVariableLayout variableLayout;
 	private final Type methodType;
-	private final Type ownerType;
 	private final boolean isStatic;
 
 	public JvmMethodVisitor(JvmCompilerOptions options, Type ownerType, Type methodType,
 	                        MethodNode method, Consumer<AnalysisResults> analysisResultsConsumer) {
 		this.options = options;
 		this.methodType = methodType;
-		this.ownerType = ownerType;
 		this.isStatic = (method.access & Opcodes.ACC_STATIC) == Opcodes.ACC_STATIC;
 		this.method = method;
 		this.analysisResultsConsumer = analysisResultsConsumer;
+		this.variableLayout = MethodVariableLayout.fromAst(ownerType, methodType, isStatic);
 	}
 
 	@Override
@@ -94,26 +94,20 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 
 	@Override
 	public void visitParameter(int index, ASTIdentifier name) {
-		// Fill in parameter names up to the current index with nulls if necessary.
-		// Then set the name at the specified index.
-		while (parameterNames.size() <= index)
-			parameterNames.add(null);
-		parameterNames.set(index, name.literal());
+		variableLayout.setSourceParameterName(index, name.literal());
 
-		// Skip emitting 'this' since it is implicit for instance methods and should not appear in MethodParameters.
-		if (!isStatic && index == 0 && name.literal().equals("this"))
-			return;
-
-		if (method.parameters == null)
-			method.parameters = new ArrayList<>();
-		method.parameters.add(new ParameterNode(name.literal(), 0));
+		ParameterNode methodParameter = variableLayout.createMethodParameter(index);
+		if (methodParameter != null) {
+			if (method.parameters == null)
+				method.parameters = new ArrayList<>();
+			method.parameters.add(methodParameter);
+		}
 	}
 
 	@Override
 	public void visitDeclaredException(@NotNull ASTIdentifier exceptionType) {
-		if (method.exceptions == null) {
+		if (method.exceptions == null)
 			method.exceptions = new ArrayList<>();
-		}
 		method.exceptions.add(exceptionType.literal());
 	}
 
@@ -132,27 +126,7 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 
 	@Override
 	public ASTJvmInstructionVisitor visitJvmCode(@NotNull ErrorCollector collector) {
-		List<Local> parameters = new ArrayList<>();
-		int localIndex = 0;
-		if (!isStatic)
-			parameters.add(new Local(localIndex++, "this", ownerType));
-
-		Type[] parameterTypes = methodType.getArgumentTypes();
-		for (int i = 0; i < parameterTypes.length; i++) {
-			Type parameterType = parameterTypes[i];
-			int nameIndex = i + (isStatic ? 0 : 1);
-			String name = nameIndex < parameterNames.size()
-					? parameterNames.get(nameIndex)
-					: VarNaming.name(i, parameterType);
-
-			parameters.add(new Local(localIndex++, name, parameterType));
-			if (parameterType.getSize() > 1) {
-				parameters.add(null);
-				localIndex++;
-			}
-		}
-
-		return new JvmCodeVisitor(options, collector, method, parameters) {
+		return new JvmCodeVisitor(options, collector, method, variableLayout.createParameterLocals()) {
 			@Override
 			public void visitEnd() {
 				super.visitEnd();

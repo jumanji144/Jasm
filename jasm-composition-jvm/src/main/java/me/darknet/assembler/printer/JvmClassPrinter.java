@@ -96,7 +96,7 @@ public class JvmClassPrinter implements ClassPrinter {
         }
         obj.line();
         for (MethodNode method : view.methods) {
-            new JvmMethodPrinter(method).print(obj);
+            new JvmMethodPrinter(method, Type.getObjectType(view.name)).print(obj);
             obj.doubleNext();
         }
         obj.end();
@@ -121,7 +121,7 @@ public class JvmClassPrinter implements ClassPrinter {
     public MethodPrinter method(String name, String descriptor) {
         for (MethodNode method : view.methods) {
             if (method.name.equals(name) && method.desc.equals(descriptor)) {
-                return new JvmMethodPrinter(method);
+                return new JvmMethodPrinter(method, Type.getObjectType(view.name));
             }
         }
         return null;

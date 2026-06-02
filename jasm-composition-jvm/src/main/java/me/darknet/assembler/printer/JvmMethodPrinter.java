@@ -1,5 +1,6 @@
 package me.darknet.assembler.printer;
 
+import me.darknet.assembler.compile.MethodVariableLayout;
 import me.darknet.assembler.helper.Variables;
 import me.darknet.assembler.util.EscapeUtil;
 import me.darknet.assembler.util.LabelUtil;
@@ -14,11 +15,9 @@ import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.ParameterNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -34,11 +33,13 @@ public class JvmMethodPrinter implements MethodPrinter {
 	protected final MethodNode method;
 	protected final MethodNode printableMethod;
 	protected final JvmMemberPrinter memberPrinter;
+	protected final Type ownerType;
 
-	public JvmMethodPrinter(MethodNode method) {
+	public JvmMethodPrinter(@NotNull MethodNode method, @NotNull Type ownerType) {
 		this.method = method;
 		this.printableMethod = normalizeMethodBoundaries(method);
 		this.memberPrinter = new JvmMemberPrinter(method, JvmMemberPrinter.Type.METHOD);
+		this.ownerType = ownerType;
 	}
 
 	@Override
@@ -47,6 +48,7 @@ public class JvmMethodPrinter implements MethodPrinter {
 		var obj = memberPrinter.printDeclaration(ctx).literal(method.name).print(" ")
 				.literal(method.desc).print(" ").object();
 		Variables variables = buildVariables(ctx);
+		MethodVariableLayout variableLayout = MethodVariableLayout.fromMethod(ownerType, printableMethod);
 		boolean hasPrior = !variables.parameters().isEmpty();
 		if (hasPrior) {
 			var arr = obj.value("parameters").array();
@@ -57,20 +59,24 @@ public class JvmMethodPrinter implements MethodPrinter {
 			Map<Integer, List<ParameterAnnotationEntry>> mergedParamAnnos = mergeParameterAnnotations();
 			if (!mergedParamAnnos.isEmpty()) {
 				obj.next();
-				boolean isVirtual = !parameterList.isEmpty() && parameterList.getFirst().name().equals("this");
+				Map<Integer, String> printedParameterNames = new HashMap<>();
+				for (MethodVariableLayout.SourceParameter parameter : variableLayout.sourceParameters()) {
+					Variables.Parameter printedParameter = variables.parameters().get(parameter.localSlot());
+					if (printedParameter != null) {
+						printedParameterNames.put(parameter.sourceIndex(), printedParameter.name());
+					}
+				}
 				var pannos = obj.value("parameter-annotations").object();
 				Iterator<Map.Entry<Integer, List<ParameterAnnotationEntry>>> pannosIt = mergedParamAnnos.entrySet().iterator();
 				while (pannosIt.hasNext()) {
 					var entry = pannosIt.next();
-					int sourceIndex = entry.getKey();
-					int printedIndex = sourceIndex + (isVirtual ? 1 : 0);
-					if (printedIndex < 0 || printedIndex >= parameterList.size())
+					int sourceIndex = variableLayout.jvmParameterIndexToSourceIndex(entry.getKey());
+					String parameterName = printedParameterNames.get(sourceIndex);
+					if (parameterName == null)
 						continue;
 
 					List<ParameterAnnotationEntry> annos = entry.getValue();
 
-					var parameter = parameterList.get(printedIndex);
-					String parameterName = parameter.name();
 					var parr = pannos.value(parameterName).array();
 
 					Iterator<ParameterAnnotationEntry> annosIt = annos.iterator();
@@ -167,33 +173,25 @@ public class JvmMethodPrinter implements MethodPrinter {
 		List<LocalInfo> localInfos = printableMethod.localVariables == null || ctx.ignoreExistingVariableNames
 				? List.of()
 				: collectLocalInfos(printableMethod, isStatic);
+		MethodVariableLayout variableLayout = MethodVariableLayout.fromMethod(ownerType, printableMethod);
 
 		// Tracking for used names.
 		NavigableMap<Integer, Variables.Parameter> parameterNames = new TreeMap<>();
 		Set<String> usedNames = new HashSet<>();
 		Map<LocalNameReuseKey, String> assignedLocalNames = new HashMap<>();
 
-		// Start with implicit 'this' parameter for instance methods.
-		if (!isStatic) {
-			parameterNames.put(0, new Variables.Parameter(0, "this", "Ljava/lang/Object;"));
-			usedNames.add("this");
-		}
-
 		// Allocate names for method parameters, using local variable information and method parameter metadata
-		// when available to preserve original names where possible.
+		// resolved by the shared parameter layout.
 		Map<String, String> parameterLocalNames = new HashMap<>();
-		List<ParameterNode> methodParameters = printableMethod.parameters == null ? List.of() : printableMethod.parameters;
-		Type[] parameterTypes = Type.getArgumentTypes(printableMethod.desc);
-		int methodParameterIndexOffset = Math.max(0, methodParameters.size() - parameterTypes.length);
-		int slot = isStatic ? 0 : 1;
-		for (int i = 0; i < parameterTypes.length; i++) {
-			Type type = parameterTypes[i];
-			String baseName = getParameterName(localInfos, methodParameters, i + methodParameterIndexOffset, slot, type, isStatic);
+		for (MethodVariableLayout.SourceParameter parameter : variableLayout.sourceParameters()) {
+			int slot = parameter.localSlot();
+			Type type = parameter.type();
+			String rawName = parameter.receiver() ? "this" : variableLayout.sourceParameterName(parameter.sourceIndex());
+			String baseName = parameter.receiver() ? "this" : escapeVariableName(rawName, type, slot, isStatic);
 			String name = allocateUniqueName(baseName, slot, type, false, usedNames);
 			parameterNames.put(slot, new Variables.Parameter(slot, name, type.getDescriptor()));
 			parameterLocalNames.put(parameterLocalNameKey(slot, type.getDescriptor()), name);
 			assignedLocalNames.put(new LocalNameReuseKey(slot, baseName), name);
-			slot += type.getSize();
 		}
 
 		// Convert our local info models to the final variable models.
@@ -454,58 +452,8 @@ public class JvmMethodPrinter implements MethodPrinter {
 		return -1;
 	}
 
-	private static boolean matchesSlotAndDesc(@NotNull LocalInfo local, int index, @NotNull String descriptor) {
-		return local.index() == index && local.descriptor().equals(descriptor);
-	}
-
 	private static @NotNull String parameterLocalNameKey(int index, @NotNull String descriptor) {
 		return index + ":" + descriptor;
-	}
-
-	/**
-	 * Chooses the printed parameter name from the most trustworthy source available.
-	 * <p>
-	 * Parameters are the most stable source-level names in a method, so we only synthesize
-	 * a fallback when neither method metadata nor matching local metadata looks usable.
-	 */
-	private static @NotNull String getParameterName(@NotNull List<LocalInfo> locals,
-	                                                @NotNull List<ParameterNode> methodParameters,
-	                                                int methodParameterIndex,
-	                                                int slot,
-	                                                @NotNull Type type,
-	                                                boolean isStatic) {
-		String name = findOriginalParameterName(locals, methodParameters, methodParameterIndex, slot, type, isStatic);
-		if (name == null)
-			return VarNaming.name(slot, type);
-		return name;
-	}
-
-	/**
-	 * Prefers {@code MethodParameters} over the LVT.
-	 * If that is absent, we fall back to the earliest matching slot/descriptor local entry.
-	 */
-	private static @Nullable String findOriginalParameterName(@NotNull List<LocalInfo> locals,
-	                                                          @NotNull List<ParameterNode> methodParameters,
-	                                                          int methodParameterIndex,
-	                                                          int slot,
-	                                                          @NotNull Type type,
-	                                                          boolean isStatic) {
-		// Check for parameter metadata matching the parameter slot and type.
-		// This is the most reliable source of parameter names, so we prefer it over LVT entries.
-		if (methodParameterIndex < methodParameters.size()) {
-			String methodParameterName = methodParameters.get(methodParameterIndex).name;
-			if (methodParameterName != null)
-				return escapeVariableName(methodParameterName, type, slot, isStatic);
-		}
-
-		// If there is no parameter metadata, or it doesn't match the slot and type,
-		// then we look for the earliest local variable entry that matches the slot and type.
-		return locals.stream()
-				.filter(local -> matchesSlotAndDesc(local, slot, type.getDescriptor()))
-				.min(Comparator.comparingInt((LocalInfo local) -> local.start() == 0 ? 0 : 1)
-						.thenComparingInt(LocalInfo::start))
-				.map(LocalInfo::baseName)
-				.orElse(null);
 	}
 
 	/**
