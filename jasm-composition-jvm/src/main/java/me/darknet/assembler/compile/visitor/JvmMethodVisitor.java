@@ -36,12 +36,12 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 	private final Type ownerType;
 	private final boolean isStatic;
 
-	public JvmMethodVisitor(JvmCompilerOptions options, Type ownerType, Type methodType, boolean isStatic,
+	public JvmMethodVisitor(JvmCompilerOptions options, Type ownerType, Type methodType,
 	                        MethodNode method, Consumer<AnalysisResults> analysisResultsConsumer) {
 		this.options = options;
 		this.methodType = methodType;
 		this.ownerType = ownerType;
-		this.isStatic = isStatic;
+		this.isStatic = (method.access & Opcodes.ACC_STATIC) == Opcodes.ACC_STATIC;
 		this.method = method;
 		this.analysisResultsConsumer = analysisResultsConsumer;
 	}
@@ -94,11 +94,19 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 
 	@Override
 	public void visitParameter(int index, ASTIdentifier name) {
-		if (method.parameters == null) {
+		// Fill in parameter names up to the current index with nulls if necessary.
+		// Then set the name at the specified index.
+		while (parameterNames.size() <= index)
+			parameterNames.add(null);
+		parameterNames.set(index, name.literal());
+
+		// Skip emitting 'this' since it is implicit for instance methods and should not appear in MethodParameters.
+		if (!isStatic && index == 0 && name.literal().equals("this"))
+			return;
+
+		if (method.parameters == null)
 			method.parameters = new ArrayList<>();
-		}
 		method.parameters.add(new ParameterNode(name.literal(), 0));
-		parameterNames.add(name.literal());
 	}
 
 	@Override
@@ -126,9 +134,8 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 	public ASTJvmInstructionVisitor visitJvmCode(@NotNull ErrorCollector collector) {
 		List<Local> parameters = new ArrayList<>();
 		int localIndex = 0;
-		if (!isStatic) {
+		if (!isStatic)
 			parameters.add(new Local(localIndex++, "this", ownerType));
-		}
 
 		Type[] parameterTypes = methodType.getArgumentTypes();
 		for (int i = 0; i < parameterTypes.length; i++) {
@@ -201,4 +208,3 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 		return target;
 	}
 }
-

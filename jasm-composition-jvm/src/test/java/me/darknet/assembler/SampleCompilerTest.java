@@ -72,13 +72,13 @@ public class SampleCompilerTest {
                 assertNull(results.getAnalysisFailure());
                 Set<String> varNames = results.frames().values().stream().flatMap(Frame::locals).map(Local::name)
                         .collect(Collectors.toSet());
-                assertTrue(varNames.contains("this"));
-                assertTrue(varNames.contains("other"));
-                assertTrue(varNames.contains("hundred"));
-                assertTrue(varNames.contains("fifty"));
-                assertTrue(varNames.contains("result"));
-                assertTrue(varNames.contains("msPerTick"));
-                assertTrue(varNames.contains("ex"));
+                assertTrue(varNames.contains("this"), "Expected 'this' variable");
+                assertTrue(varNames.contains("other"), "Expected 'other' variable");
+                assertTrue(varNames.contains("hundred"), "Expected 'hundred' variable");
+                assertTrue(varNames.contains("fifty"), "Expected 'fifty' variable");
+                assertTrue(varNames.contains("result"), "Expected 'result' variable");
+                assertTrue(varNames.contains("msPerTick"), "Expected 'msPerTick' variable");
+                assertTrue(varNames.contains("ex"), "Expected 'ex' variable");
             });
         }
     }

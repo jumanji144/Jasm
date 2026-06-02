@@ -61,7 +61,6 @@ public record JvmRootVisitor(JvmClassBuilder builder, JvmCompilerOptions options
 				options,
 				Type.getObjectType(builder.type()),
 				Type.getMethodType(descriptor.literal()),
-				(accessFlags & Opcodes.ACC_STATIC) == Opcodes.ACC_STATIC,
 				builder.putMethod(accessFlags, name.literal(), descriptor.literal()),
 				analysisResults -> builder.setMethodAnalysis(name.literal(), descriptor.literal(), analysisResults)
 		);
