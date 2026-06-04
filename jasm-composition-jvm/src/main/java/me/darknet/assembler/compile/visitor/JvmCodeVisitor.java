@@ -71,7 +71,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 		this.method = method;
 		this.errorCollector = errorCollector;
 		this.parameters = parameters;
-		this.writeVariables = options.doWriteVariables();
+		this.writeVariables = options.variableFilter().shouldWriteVariables(method.name, Type.getMethodType(method.desc));
 		parameters.stream().filter(Objects::nonNull).forEach(param -> {
 			VarCache.Variable parameterVar = varCache.getOrCreate(param.name(), param.index(), param.size() > 1);
 			parameterVar.updateTypeHint(param.type());
