@@ -39,14 +39,16 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
     private final List<Parameter> parameters = new ArrayList<>();
     private final MethodType type;
     private final ObjectType owner;
+    private final String name;
     private final boolean isStatic;
 
-    public BlwMethodVisitor(JvmCompilerOptions options, ObjectType owner, MethodType type, boolean isStatic,
+    public BlwMethodVisitor(JvmCompilerOptions options, ObjectType owner, String name, MethodType type, boolean isStatic,
             BlwReplaceMethodBuilder builder, Consumer<AnalysisResults> analysisResultsConsumer) {
         super(CastUtil.cast(builder));
         this.options = options;
         this.type = type;
         this.owner = owner;
+        this.name = name;
         this.isStatic = isStatic;
         this.builder = builder;
         this.analysisResultsConsumer = analysisResultsConsumer;
@@ -99,7 +101,7 @@ public class BlwMethodVisitor extends BlwMemberVisitor<MethodType, Method> imple
             }
         }
 
-        return new BlwCodeVisitor(options, collector, builder.code().child(), type, parameters) {
+        return new BlwCodeVisitor(options, name, collector, builder.code().child(), type, parameters) {
             @Override
             public void visitEnd() {
                 super.visitEnd();

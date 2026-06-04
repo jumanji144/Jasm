@@ -47,6 +47,8 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
     /**
      * @param options
      *                   Compiler option to pull values from.
+     * @param name
+     *                   Name of the method.
      * @param errorCollector
      *                   Collector for error reporting.
      * @param builder
@@ -57,14 +59,14 @@ public class BlwCodeVisitor implements ASTJvmInstructionVisitor, JavaOpcodes {
      *                   Parameter variables.
      */
     @SuppressWarnings("unchecked")
-    public BlwCodeVisitor(JvmCompilerOptions options, ErrorCollector errorCollector, CodeBuilder<?> builder, MethodType methodType, List<Local> parameters) {
+    public BlwCodeVisitor(JvmCompilerOptions options, String name, ErrorCollector errorCollector, CodeBuilder<?> builder, MethodType methodType, List<Local> parameters) {
         this.codeBuilder = builder;
         this.codeBuilderList = builder.codeList().child();
         this.checker = options.inheritanceChecker();
         this.errorCollector = errorCollector;
         this.analysisEngine = (JvmAnalysisEngine<Frame>) options.createEngine(varCache);
         this.parameters = parameters;
-        this.writeVariables = options.doWriteVariables();
+        this.writeVariables = options.variableFilter().shouldWriteVariables(name, methodType);
         this.methodType = methodType;
 
         analysisEngine.setErrorCollector(errorCollector);
