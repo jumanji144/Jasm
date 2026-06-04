@@ -11,6 +11,8 @@ import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassWriter;
 
+import java.util.Objects;
+
 public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     private static final int DEFAULT_VERSION = 8;
 
@@ -20,6 +22,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     protected String annotationPath;
     protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
     protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
+    private WriteLocalVariableFilter writeVariableFilter = WriteLocalVariableFilter.ALWAYS;
     private boolean doWriteVariables = true;
 
     public JvmCompilerOptions() {
@@ -101,12 +104,22 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
         return this;
     }
 
+    @Deprecated
     public boolean doWriteVariables() {
         return doWriteVariables;
     }
 
+    public @NotNull WriteLocalVariableFilter variableFilter() {
+        return writeVariableFilter;
+    }
+
+    public JvmCompilerOptions variableFilter(@NotNull WriteLocalVariableFilter writeVariableFilter) {
+        this.writeVariableFilter = Objects.requireNonNull(writeVariableFilter, "variableFilter");
+        return this;
+    }
+
     public JvmCompilerOptions doWriteVariables(boolean doWriteVariables) {
         this.doWriteVariables = doWriteVariables;
-        return this;
+        return variableFilter(doWriteVariables ? WriteLocalVariableFilter.ALWAYS : WriteLocalVariableFilter.NEVER);
     }
 }
