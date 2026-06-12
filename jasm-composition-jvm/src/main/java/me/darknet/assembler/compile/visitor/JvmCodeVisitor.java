@@ -9,6 +9,7 @@ import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.JvmVariableMode;
+import me.darknet.assembler.compile.WriteLocalVariableFilter;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
@@ -63,7 +64,8 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	private final Set<String> definedLabels = new HashSet<>();
 	private final Map<ASTInstruction, List<String>> referencedLabels = new IdentityHashMap<>();
 	private final MethodAnalysisResult analysisResult = new MethodAnalysisResult();
-	private final JvmVariableMode writeVariables;
+	private final JvmVariableMode variableTableMode;
+	private final WriteLocalVariableFilter variableFilter;
 	private final boolean hadPriorLocalVariables;
 	private ASTInstruction currentInstructionAst;
 	private int opcode;
@@ -73,8 +75,9 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 		this.method = method;
 		this.errorCollector = errorCollector;
 		this.parameters = parameters;
-		this.writeVariables = options.doWriteVariables();
+		this.variableTableMode = options.variableTableMode();
 		this.hadPriorLocalVariables = hadPriorLocalVariables;
+		this.variableFilter = options.variableFilter();
 		parameters.stream().filter(Objects::nonNull).forEach(param -> {
 			VarCache.Variable parameterVar = varCache.getOrCreate(param.name(), param.index(), param.size() > 1);
 			parameterVar.updateTypeHint(param.type());
@@ -318,9 +321,9 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 
 		// The rest of the logic here is just emitting local variable metadata.
 		// If we don't care about that we're done.
-		if (writeVariables == JvmVariableMode.NEVER_WRITE)
+		if (variableTableMode == JvmVariableMode.NEVER_WRITE)
 			return;
-		if (writeVariables == JvmVariableMode.WRITE_IF_ALREADY_PRESENT && !hadPriorLocalVariables)
+		if (variableTableMode == JvmVariableMode.WRITE_IF_ALREADY_PRESENT && !hadPriorLocalVariables)
 			return;
 
 		boolean needsLocalVariableTable = varCache.vars()
@@ -338,6 +341,10 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 			int index = parameter.index();
 			String name = parameter.name();
 			String descriptor = parameter.safeType().getDescriptor();
+
+			if (!variableFilter.canEmit(  index, name, Type.getType(descriptor)))
+				continue;
+
 			method.localVariables.add(new LocalVariableNode(
 					name,
 					descriptor,
@@ -356,6 +363,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 			varCache.vars()
 					.filter(variable -> variable.getIndex() >= parameterSlots)
 					.filter(variable -> variable.getTypeHint() != null)
+					.filter(variable -> variableFilter.canEmit(variable.getIndex(), variable.getName(), variable.getTypeHint()))
 					.forEach(variable -> method.localVariables.add(new LocalVariableNode(
 							variable.getName(),
 							variable.getTypeHint().getDescriptor(),
