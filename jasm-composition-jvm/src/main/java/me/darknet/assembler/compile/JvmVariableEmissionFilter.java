@@ -6,13 +6,13 @@ import org.objectweb.asm.Type;
 /**
  * Per variable filter for local variable debug data.
  *
- * @see JvmCompilerOptions#variableFilter(WriteLocalVariableFilter)
+ * @see JvmCompilerOptions#variableFilter(JvmVariableEmissionFilter)
  */
 @FunctionalInterface
-public interface WriteLocalVariableFilter {
+public interface JvmVariableEmissionFilter {
 
-    WriteLocalVariableFilter ALWAYS = (i, name, type) -> true;
-    WriteLocalVariableFilter NEVER = (i, name, type) -> false;
+    JvmVariableEmissionFilter ALWAYS = (i, name, type) -> true;
+    JvmVariableEmissionFilter NEVER = (i, name, type) -> false;
 
     boolean canEmit(int index, @NotNull String name, @NotNull Type type);
 
