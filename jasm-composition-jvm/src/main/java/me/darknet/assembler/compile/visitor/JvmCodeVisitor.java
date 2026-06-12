@@ -9,7 +9,7 @@ import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.JvmVariableMode;
-import me.darknet.assembler.compile.WriteLocalVariableFilter;
+import me.darknet.assembler.compile.JvmVariableEmissionFilter;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
@@ -65,7 +65,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	private final Map<ASTInstruction, List<String>> referencedLabels = new IdentityHashMap<>();
 	private final MethodAnalysisResult analysisResult = new MethodAnalysisResult();
 	private final JvmVariableMode variableTableMode;
-	private final WriteLocalVariableFilter variableFilter;
+	private final JvmVariableEmissionFilter variableFilter;
 	private final boolean hadPriorLocalVariables;
 	private ASTInstruction currentInstructionAst;
 	private int opcode;

@@ -27,7 +27,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
 
     // Variable writing options
     protected JvmVariableMode variableTableMode = JvmVariableMode.ALWAYS_WRITE;
-    protected WriteLocalVariableFilter variableFilter = WriteLocalVariableFilter.ALWAYS;
+    protected JvmVariableEmissionFilter variableFilter = JvmVariableEmissionFilter.ALWAYS;
 
     public JvmCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
@@ -126,11 +126,11 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
         return this;
     }
 
-    public @NotNull WriteLocalVariableFilter variableFilter() {
+    public @NotNull JvmVariableEmissionFilter variableFilter() {
         return variableFilter;
     }
 
-    public JvmCompilerOptions variableFilter(@NotNull WriteLocalVariableFilter writeVariableFilter) {
+    public JvmCompilerOptions variableFilter(@NotNull JvmVariableEmissionFilter writeVariableFilter) {
         this.variableFilter = Objects.requireNonNull(writeVariableFilter, "variableFilter");
         return this;
     }
