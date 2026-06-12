@@ -21,6 +21,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
     protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
     protected JvmVariableMode doWriteVariables = JvmVariableMode.ALWAYS_WRITE;
+    protected boolean reuseOverlayPool = true;
 
     public JvmCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
@@ -107,6 +108,15 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
 
     public JvmCompilerOptions doWriteVariables(JvmVariableMode doWriteVariables) {
         this.doWriteVariables = doWriteVariables;
+        return this;
+    }
+
+    public boolean reuseOverlayPool() {
+        return reuseOverlayPool;
+    }
+
+    public JvmCompilerOptions reuseOverlayPool(boolean reuseOverlayPool) {
+        this.reuseOverlayPool = reuseOverlayPool;
         return this;
     }
 }

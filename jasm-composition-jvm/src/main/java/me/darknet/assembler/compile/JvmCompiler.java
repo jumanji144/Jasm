@@ -352,7 +352,7 @@ public class JvmCompiler implements Compiler {
 		// We don't want to recompute frames for methods that haven't been modified,
 		// so we need to merge the methods from the overlay with the ones from our class node.
 		ClassReader overlayReader = new ClassReader(options.overlay.classFile());
-		JvmClassWriter writer = new JvmClassWriter(overlayReader, flags, options.inheritanceChecker());
+		JvmClassWriter writer = new JvmClassWriter(options.reuseOverlayPool() ? overlayReader : null, flags, options.inheritanceChecker());
 		writeClassWithoutMethods(node, writer);
 		writeOverlayMethods(node, overlayReader, writer, builder.modifiedMethodKeys(), flags);
 		return writer.toByteArray();
