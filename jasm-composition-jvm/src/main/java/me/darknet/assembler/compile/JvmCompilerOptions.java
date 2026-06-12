@@ -11,17 +11,23 @@ import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassWriter;
 
+import java.util.Objects;
+
 public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     private static final int DEFAULT_VERSION = 8;
 
+    // General class options
+    protected boolean reuseOverlayPool = true;
     protected int asmArgs;
     protected int version;
     protected JavaClassRepresentation overlay;
     protected String annotationPath;
     protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
     protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
-    protected JvmVariableMode doWriteVariables = JvmVariableMode.ALWAYS_WRITE;
-    protected boolean reuseOverlayPool = true;
+
+    // Variable writing options
+    protected JvmVariableMode variableTableMode = JvmVariableMode.ALWAYS_WRITE;
+    protected WriteLocalVariableFilter variableFilter = WriteLocalVariableFilter.ALWAYS;
 
     public JvmCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
@@ -102,12 +108,12 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
         return this;
     }
 
-    public JvmVariableMode doWriteVariables() {
-        return doWriteVariables;
+    public JvmVariableMode variableTableMode() {
+        return variableTableMode;
     }
 
-    public JvmCompilerOptions doWriteVariables(JvmVariableMode doWriteVariables) {
-        this.doWriteVariables = doWriteVariables;
+    public JvmCompilerOptions variableTableMode(JvmVariableMode variableTableMode) {
+        this.variableTableMode = variableTableMode;
         return this;
     }
 
@@ -117,6 +123,15 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
 
     public JvmCompilerOptions reuseOverlayPool(boolean reuseOverlayPool) {
         this.reuseOverlayPool = reuseOverlayPool;
+        return this;
+    }
+
+    public @NotNull WriteLocalVariableFilter variableFilter() {
+        return variableFilter;
+    }
+
+    public JvmCompilerOptions variableFilter(@NotNull WriteLocalVariableFilter writeVariableFilter) {
+        this.variableFilter = Objects.requireNonNull(writeVariableFilter, "variableFilter");
         return this;
     }
 }
