@@ -8,6 +8,7 @@ import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.compile.JvmCompilerOptions;
+import me.darknet.assembler.compile.JvmVariableMode;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
@@ -62,16 +63,18 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	private final Set<String> definedLabels = new HashSet<>();
 	private final Map<ASTInstruction, List<String>> referencedLabels = new IdentityHashMap<>();
 	private final MethodAnalysisResult analysisResult = new MethodAnalysisResult();
-	private final boolean writeVariables;
+	private final JvmVariableMode writeVariables;
+	private final boolean hadPriorLocalVariables;
 	private ASTInstruction currentInstructionAst;
 	private int opcode;
 
 	public JvmCodeVisitor(JvmCompilerOptions options, ErrorCollector errorCollector, MethodNode method,
-	                      List<Local> parameters) {
+	                      List<Local> parameters, boolean hadPriorLocalVariables) {
 		this.method = method;
 		this.errorCollector = errorCollector;
 		this.parameters = parameters;
 		this.writeVariables = options.doWriteVariables();
+		this.hadPriorLocalVariables = hadPriorLocalVariables;
 		parameters.stream().filter(Objects::nonNull).forEach(param -> {
 			VarCache.Variable parameterVar = varCache.getOrCreate(param.name(), param.index(), param.size() > 1);
 			parameterVar.updateTypeHint(param.type());
@@ -315,7 +318,9 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 
 		// The rest of the logic here is just emitting local variable metadata.
 		// If we don't care about that we're done.
-		if (!writeVariables)
+		if (writeVariables == JvmVariableMode.NEVER_WRITE)
+			return;
+		if (writeVariables == JvmVariableMode.WRITE_IF_ALREADY_PRESENT && !hadPriorLocalVariables)
 			return;
 
 		boolean needsLocalVariableTable = varCache.vars()

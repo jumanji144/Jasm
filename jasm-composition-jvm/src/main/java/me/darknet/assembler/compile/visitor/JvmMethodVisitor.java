@@ -35,13 +35,16 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 	private final MethodVariableLayout variableLayout;
 	private final Type methodType;
 	private final boolean isStatic;
+	private final boolean hadPriorLocalVariables;
 
 	public JvmMethodVisitor(JvmCompilerOptions options, Type ownerType, Type methodType,
-	                        MethodNode method, Consumer<AnalysisResults> analysisResultsConsumer) {
+	                        MethodNode method, boolean hadPriorLocalVariables,
+	                        Consumer<AnalysisResults> analysisResultsConsumer) {
 		this.options = options;
 		this.methodType = methodType;
 		this.isStatic = (method.access & Opcodes.ACC_STATIC) == Opcodes.ACC_STATIC;
 		this.method = method;
+		this.hadPriorLocalVariables = hadPriorLocalVariables;
 		this.analysisResultsConsumer = analysisResultsConsumer;
 		this.variableLayout = MethodVariableLayout.fromAst(ownerType, methodType, isStatic);
 	}
@@ -126,7 +129,7 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 
 	@Override
 	public ASTJvmInstructionVisitor visitJvmCode(@NotNull ErrorCollector collector) {
-		return new JvmCodeVisitor(options, collector, method, variableLayout.createParameterLocals()) {
+		return new JvmCodeVisitor(options, collector, method, variableLayout.createParameterLocals(), hadPriorLocalVariables) {
 			@Override
 			public void visitEnd() {
 				super.visitEnd();

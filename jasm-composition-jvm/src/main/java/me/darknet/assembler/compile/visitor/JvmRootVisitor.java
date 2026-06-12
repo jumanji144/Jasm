@@ -57,11 +57,16 @@ public record JvmRootVisitor(JvmClassBuilder builder, JvmCompilerOptions options
 	@Override
 	public ASTMethodVisitor visitMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor) {
 		int accessFlags = JvmModifiers.getMethodModifiers(modifiers);
+		MethodNode existingMethod = builder.method(name.literal(), descriptor.literal());
+		boolean hadPriorLocalVariables = existingMethod != null
+				&& existingMethod.localVariables != null
+				&& !existingMethod.localVariables.isEmpty();
 		return new JvmMethodVisitor(
 				options,
 				Type.getObjectType(builder.type()),
 				Type.getMethodType(descriptor.literal()),
 				builder.putMethod(accessFlags, name.literal(), descriptor.literal()),
+				hadPriorLocalVariables,
 				analysisResults -> builder.setMethodAnalysis(name.literal(), descriptor.literal(), analysisResults)
 		);
 	}

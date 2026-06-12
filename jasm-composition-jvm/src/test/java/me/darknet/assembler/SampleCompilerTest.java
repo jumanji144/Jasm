@@ -2,6 +2,7 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.JavaClassRepresentation;
+import me.darknet.assembler.compile.JvmVariableMode;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.Value;
@@ -32,9 +33,13 @@ import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 
 import static me.darknet.assembler.TestUtils.*;
@@ -124,6 +129,50 @@ public class SampleCompilerTest {
                         .anyMatch(local -> local.index() == 3 && local.name().equals("name"));
                 assertTrue(countUsesLongSlot, "Expected 'count' at local slot 1");
                 assertTrue(nameUsesObjectSlot, "Expected 'name' at local slot 3");
+            });
+        }
+
+        @Test
+        void writeIfAlreadyPresentOnlyEmitsVariablesWhenOverlayMethodHadLocalTable() {
+            // Our small class with a 'value' int variable.
+            String source = """
+                    .super java/lang/Object
+                    .class public hardening/VariableModeOverlay {
+                        .method public static test ()V {
+                            code: {
+                            A:
+                                iconst_0
+                                istore value
+                                return
+                            B:
+                            }
+                        }
+                    }
+                    """;
+
+            // We'll compile this class twice with the same source but different overlays.
+            // First, an overlay that includes a local variable table.
+            TestJvmCompilerOptions withLocals = new TestJvmCompilerOptions();
+            withLocals.doWriteVariables(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
+            withLocals.overlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(true)));
+
+            // In this case we should see that the variable 'value' is emitted since the
+            // overlay method has a local variable table with that variable.
+            processJvm(source, withLocals, result -> {
+                MethodNode method = readMethod(result.representation().classFile(), "test", "()V");
+                assertNotNull(method.localVariables);
+                assertEquals(1, method.localVariables.size());
+                assertEquals("value", method.localVariables.getFirst().name);
+            });
+
+            // The second time the overlay will not have a local variable table, so since the method
+            // no longer matches the 'if already present' contract, we get no variables emitted at all.
+            TestJvmCompilerOptions withoutLocals = new TestJvmCompilerOptions();
+            withoutLocals.doWriteVariables(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
+            withoutLocals.overlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(false)));
+            processJvm(source, withoutLocals, result -> {
+                MethodNode method = readMethod(result.representation().classFile(), "test", "()V");
+                assertTrue(method.localVariables == null || method.localVariables.isEmpty());
             });
         }
     }
@@ -944,6 +993,50 @@ public class SampleCompilerTest {
 
     private static String dissassemble(byte[] raw) throws IOException {
         return dissassemble(raw, null);
+    }
+
+    private static byte[] buildOverlayClassWithOptionalLocalTable(boolean includeLocalTable) {
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        writer.visit(Opcodes.V21, Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER, "hardening/VariableModeOverlay", null,
+                "java/lang/Object", null);
+
+        MethodVisitor constructor = writer.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+        constructor.visitCode();
+        Label ctorStart = new Label();
+        Label ctorEnd = new Label();
+        constructor.visitLabel(ctorStart);
+        constructor.visitVarInsn(Opcodes.ALOAD, 0);
+        constructor.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+        constructor.visitInsn(Opcodes.RETURN);
+        constructor.visitLabel(ctorEnd);
+        constructor.visitLocalVariable("this", "Lhardening/VariableModeOverlay;", null, ctorStart, ctorEnd, 0);
+        constructor.visitMaxs(0, 0);
+        constructor.visitEnd();
+
+        MethodVisitor method = writer.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "test", "()V", null, null);
+        method.visitCode();
+        Label start = new Label();
+        Label end = new Label();
+        method.visitLabel(start);
+        method.visitInsn(Opcodes.RETURN);
+        method.visitLabel(end);
+        if (includeLocalTable) {
+            method.visitLocalVariable("previous", "I", null, start, end, 0);
+        }
+        method.visitMaxs(0, 0);
+        method.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static MethodNode readMethod(byte[] bytes, String name, String descriptor) {
+        ClassNode node = new ClassNode();
+        new ClassReader(bytes).accept(node, 0);
+        return node.methods.stream()
+                .filter(method -> method.name.equals(name) && method.desc.equals(descriptor))
+                .findFirst()
+                .orElseThrow();
     }
 
     private static String dissassemble(byte[] raw, Consumer<PrintContext<?>> contextConsumer) throws IOException {
