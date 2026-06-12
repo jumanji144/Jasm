@@ -153,7 +153,7 @@ public class SampleCompilerTest {
             // We'll compile this class twice with the same source but different overlays.
             // First, an overlay that includes a local variable table.
             TestJvmCompilerOptions withLocals = new TestJvmCompilerOptions();
-            withLocals.doWriteVariables(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
+            withLocals.variableTableMode(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
             withLocals.overlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(true)));
 
             // In this case we should see that the variable 'value' is emitted since the
@@ -168,7 +168,7 @@ public class SampleCompilerTest {
             // The second time the overlay will not have a local variable table, so since the method
             // no longer matches the 'if already present' contract, we get no variables emitted at all.
             TestJvmCompilerOptions withoutLocals = new TestJvmCompilerOptions();
-            withoutLocals.doWriteVariables(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
+            withoutLocals.variableTableMode(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
             withoutLocals.overlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(false)));
             processJvm(source, withoutLocals, result -> {
                 MethodNode method = readMethod(result.representation().classFile(), "test", "()V");
