@@ -2,6 +2,9 @@ package me.darknet.assembler.error;
 
 import me.darknet.assembler.util.Location;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * Represents an error at a location.
  */
@@ -62,5 +65,26 @@ public class Error {
     @Override
     public String toString() {
         return getLocation() == null ? getMessage() : getLocation().toString() + ": " + getMessage();
+    }
+
+    @Override
+    public final boolean equals(Object o) {
+        // Also covers warnings, since they are a subclass of Error
+        if (!(o instanceof Error error)) return false;
+
+        // We ignore the stack-trace elements for equality,
+        // since they are not relevant to the error itself,
+        // and can be different depending on where the error was created.
+	    return threadStacktrace == error.threadStacktrace
+                && Objects.equals(message, error.message)
+                && Objects.equals(location, error.location);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hashCode(message);
+        result = 31 * result + Objects.hashCode(location);
+        result = 31 * result + Boolean.hashCode(threadStacktrace);;
+        return result;
     }
 }

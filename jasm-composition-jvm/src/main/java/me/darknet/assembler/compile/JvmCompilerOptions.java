@@ -8,6 +8,7 @@ import me.darknet.assembler.compiler.ClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
+import me.darknet.assembler.compiler.TypeAwareness;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassWriter;
 
@@ -22,6 +23,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     protected int version;
     protected JavaClassRepresentation overlay;
     protected String annotationPath;
+    protected TypeAwareness typeAwareness; // Optional, disabled by default to reduce warning noise.
     protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
     protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
 
@@ -100,6 +102,17 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     @Override
     public InheritanceChecker inheritanceChecker() {
         return this.inheritanceChecker;
+    }
+
+    @Override
+    public TypeAwareness awareness() {
+        return typeAwareness;
+    }
+
+    @Override
+    public JvmCompilerOptions awareness(TypeAwareness awareness) {
+        this.typeAwareness = awareness;
+        return this;
     }
 
     @Override
