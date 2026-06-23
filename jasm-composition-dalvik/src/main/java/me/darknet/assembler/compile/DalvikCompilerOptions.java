@@ -3,10 +3,12 @@ package me.darknet.assembler.compile;
 import me.darknet.assembler.compiler.ClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
+import me.darknet.assembler.compiler.TypeAwareness;
 
 public class DalvikCompilerOptions implements CompilerOptions<DalvikCompilerOptions> {
 
     private int dalvikVersion;
+    protected TypeAwareness typeAwareness; // Optional, disabled by default to reduce warning noise.
     private InheritanceChecker inheritanceChecker;
     private ClassRepresentation overlay;
     private String annotationPath;
@@ -56,5 +58,16 @@ public class DalvikCompilerOptions implements CompilerOptions<DalvikCompilerOpti
             throw new IllegalStateException("Inheritance checker is not set");
         }
         return inheritanceChecker;
+    }
+
+    @Override
+    public TypeAwareness awareness() {
+        return typeAwareness;
+    }
+
+    @Override
+    public DalvikCompilerOptions awareness(TypeAwareness awareness) {
+        this.typeAwareness = awareness;
+        return this;
     }
 }

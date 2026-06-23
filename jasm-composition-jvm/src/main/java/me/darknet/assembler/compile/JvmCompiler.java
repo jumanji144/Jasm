@@ -91,7 +91,7 @@ public class JvmCompiler implements Compiler {
 					throw new IllegalStateException("Cannot build class, type name not specified");
 
 				// Compile the class.
-				byte[] bytes = writeClass(builder, jvmOptions);
+				byte[] bytes = writeClass(builder, jvmOptions, collector);
 
 				// Filling in the analysis results for the generated class.
 				analyzeGeneratedClass(bytes, jvmOptions, builder, collector);
@@ -329,10 +329,13 @@ public class JvmCompiler implements Compiler {
 	 * 		Builder containing the class to write.
 	 * @param options
 	 * 		Compiler options, used to determine how to write the class <i>(Ex: whether to merge with an overlay)</i>.
+	 * @param collector
+	 * 		Error collector to report any errors that occur during writing.
 	 *
 	 * @return Compiled class bytes.
 	 */
-	private static byte @NotNull [] writeClass(@NotNull JvmClassBuilder builder, @NotNull JvmCompilerOptions options) {
+	private static byte @NotNull [] writeClass(@NotNull JvmClassBuilder builder, @NotNull JvmCompilerOptions options,
+	                                           @NotNull ErrorCollector collector) {
 		ClassNode node = builder.node();
 
 		// Determine flags for writing the class.
@@ -343,7 +346,7 @@ public class JvmCompiler implements Compiler {
 		// If there is no overlay specified we can just write the class as is,
 		// without needing to worry about merging methods or anything.
 		if (options.overlay == null) {
-			ClassWriter writer = new JvmClassWriter(flags, options.inheritanceChecker());
+			ClassWriter writer = new JvmClassWriter(flags, collector, options.awareness(), options.inheritanceChecker());
 			node.accept(writer);
 			return writer.toByteArray();
 		}
@@ -352,7 +355,7 @@ public class JvmCompiler implements Compiler {
 		// We don't want to recompute frames for methods that haven't been modified,
 		// so we need to merge the methods from the overlay with the ones from our class node.
 		ClassReader overlayReader = new ClassReader(options.overlay.classFile());
-		JvmClassWriter writer = new JvmClassWriter(options.reuseOverlayPool() ? overlayReader : null, flags, options.inheritanceChecker());
+		JvmClassWriter writer = new JvmClassWriter(options.reuseOverlayPool() ? overlayReader : null, flags, collector, options.awareness(), options.inheritanceChecker());
 		writeClassWithoutMethods(node, writer);
 		writeOverlayMethods(node, overlayReader, writer, builder.modifiedMethodKeys(), flags);
 		return writer.toByteArray();

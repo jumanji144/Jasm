@@ -79,4 +79,15 @@ public interface CompilerOptions<B extends CompilerOptions<?>> {
      */
     InheritanceChecker inheritanceChecker();
 
+    /**
+     * @return The awareness checker to use.
+     */
+    TypeAwareness awareness();
+
+    /**
+     * @param awareness Awareness checker to use.
+     * @return The options
+     */
+    B awareness(TypeAwareness awareness);
+
 }
