@@ -2,6 +2,7 @@ package me.darknet.assembler.test;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.error.Error;
+import me.darknet.assembler.parser.BytecodeFormat;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.List;
@@ -31,6 +32,32 @@ public final class AstAssertions {
 		);
 		Assertions.assertEquals(1, results.size(), "Expected exactly one AST node");
 		consumer.accept(assertIs(clazz, results.getFirst()));
+	}
+
+	/**
+	 * Verifies that processing the given JASM assembly source code succeeds without errors.
+	 *
+	 * @param input
+	 * 		The JASM assembly source code to process.
+	 */
+	public static void assertProcessedJvmOk(String input) {
+		DiagnosticAssertions.requireOk(
+				AssemblyParseFixture.processAst(AssemblyParseFixture.STDIN, input, BytecodeFormat.JVM),
+				"Failed to process AST"
+		);
+	}
+
+	/**
+	 * Verifies that processing the given JASM assembly source code succeeds without errors.
+	 *
+	 * @param input
+	 * 		The JASM assembly source code to process.
+	 */
+	public static void assertProcessedDalvikOk(String input) {
+		DiagnosticAssertions.requireOk(
+				AssemblyParseFixture.processAst(AssemblyParseFixture.STDIN, input, BytecodeFormat.DALVIK),
+				"Failed to process AST"
+		);
 	}
 
 	/**

@@ -14,7 +14,7 @@ import java.util.List;
  * Utilities for tokenizing, parsing, and processing assembly source code in tests.
  */
 public final class AssemblyParseFixture {
-	private static final String STDIN = "<stdin>";
+	public static final String STDIN = "<stdin>";
 
 	private AssemblyParseFixture() {}
 

@@ -155,6 +155,88 @@ public class ASTModelTest {
         assertEquals(2, annotation.values().elements().size());
     }
 
+    @Test
+    void numberParsingDistinguishesHexDigitsFromSuffixes() {
+        ASTNumber decimal = num("127", 0);
+        ASTNumber hexLower = num("0x7f", 4);
+        ASTNumber hexUpper = num("0X7F", 4);
+        ASTNumber binaryLower = num("0b01111111", 9);
+        ASTNumber binaryUpper = num("0B01111111", 9);
+
+        assertEquals(127, decimal.asInt());
+        assertEquals(127, hexLower.asInt());
+        assertEquals(127, hexUpper.asInt());
+        assertEquals(127, binaryLower.asInt());
+        assertEquals(127, binaryUpper.asInt());
+        assertFalse(hexLower.isFloatingPoint());
+        assertFalse(binaryLower.isFloatingPoint());
+        assertFalse(hexLower.isWide());
+        assertFalse(binaryLower.isWide());
+    }
+
+    @Test
+    void specialNumberFormsCoverFloatAndDoubleVariants() {
+        ASTNumber nan = num("NaN", 0);
+        ASTNumber nanDouble = num("NaND", 4);
+        ASTNumber nanFloat = num("NaNF", 9);
+        ASTNumber infinity = num("Infinity", 14);
+        ASTNumber posInfinityDouble = num("+InfinityD", 23);
+        ASTNumber negInfinityDouble = num("-InfinityD", 34);
+        ASTNumber posInfinityFloat = num("+InfinityF", 45);
+        ASTNumber negInfinityFloat = num("-InfinityF", 56);
+
+        assertTrue(Double.isNaN(nan.asDouble()));
+        assertTrue(Double.isNaN(nanDouble.asDouble()));
+        assertTrue(Float.isNaN(nanFloat.asFloat()));
+        assertTrue(nan.isNaN());
+        assertTrue(nanDouble.isNaN());
+        assertTrue(nanFloat.isNaN());
+        assertTrue(nan.isFloatingPoint());
+        assertTrue(nanDouble.isWide());
+        assertFalse(nanFloat.isWide());
+
+        assertEquals(Double.POSITIVE_INFINITY, infinity.asDouble());
+        assertEquals(Double.POSITIVE_INFINITY, posInfinityDouble.asDouble());
+        assertEquals(Double.NEGATIVE_INFINITY, negInfinityDouble.asDouble());
+        assertEquals(Float.POSITIVE_INFINITY, posInfinityFloat.asFloat());
+        assertEquals(Float.NEGATIVE_INFINITY, negInfinityFloat.asFloat());
+        assertTrue(infinity.isInfinity());
+        assertTrue(posInfinityDouble.isInfinity());
+        assertTrue(negInfinityDouble.isInfinity());
+        assertTrue(posInfinityFloat.isInfinity());
+        assertTrue(negInfinityFloat.isInfinity());
+        assertTrue(infinity.isWide());
+        assertTrue(posInfinityDouble.isWide());
+        assertFalse(posInfinityFloat.isWide());
+    }
+
+    @Test
+    void exponentNumberFormsParseAsFloatingPoint() {
+        ASTNumber decimalExponent = num("1e3", 0);
+        ASTNumber decimalNegativeExponent = num("2.5E-2", 4);
+        ASTNumber floatExponent = num("1e3f", 12);
+        ASTNumber hexExponent = num("0x1.8p1", 18);
+        ASTNumber hexFloatExponent = num("0x1.0p2f", 26);
+
+        assertEquals(1000.0d, decimalExponent.asDouble());
+        assertEquals(0.025d, decimalNegativeExponent.asDouble());
+        assertEquals(1000.0f, floatExponent.asFloat());
+        assertEquals(3.0d, hexExponent.asDouble());
+        assertEquals(4.0f, hexFloatExponent.asFloat());
+
+        assertTrue(decimalExponent.isFloatingPoint());
+        assertTrue(decimalNegativeExponent.isFloatingPoint());
+        assertTrue(floatExponent.isFloatingPoint());
+        assertTrue(hexExponent.isFloatingPoint());
+        assertTrue(hexFloatExponent.isFloatingPoint());
+
+        assertTrue(decimalExponent.isWide());
+        assertTrue(decimalNegativeExponent.isWide());
+        assertFalse(floatExponent.isWide());
+        assertTrue(hexExponent.isWide());
+        assertFalse(hexFloatExponent.isWide());
+    }
+
     private static ASTAnnotation annotation(String type, int start) {
         ElementMap<ASTIdentifier, ASTElement> values = new ElementMap<>();
         values.put(id("value", start + 2), num("1", start + 8));
