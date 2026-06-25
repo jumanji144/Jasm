@@ -26,6 +26,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     protected TypeAwareness typeAwareness; // Optional, disabled by default to reduce warning noise.
     protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
     protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
+    protected boolean verifyOutput = true;
 
     // Variable writing options
     protected JvmVariableMode variableTableMode = JvmVariableMode.ALWAYS_WRITE;
@@ -62,6 +63,15 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     public JvmCompilerOptions engineProvider(@NotNull JvmAnalysisEngineFactory engineProvider) {
         this.engineProvider = engineProvider;
         return this;
+    }
+
+    public JvmCompilerOptions verifyOutput(boolean verifyOutput) {
+        this.verifyOutput = verifyOutput;
+        return this;
+    }
+
+    public boolean verifyOutput() {
+        return verifyOutput;
     }
 
     public @NotNull JvmAnalysisEngine<?> createEngine(@NotNull VarCache varCache) {

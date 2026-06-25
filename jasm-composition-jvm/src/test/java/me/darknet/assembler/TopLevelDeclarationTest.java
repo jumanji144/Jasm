@@ -1,6 +1,7 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.compile.JavaClassRepresentation;
+import me.darknet.assembler.error.Warn;
 import me.darknet.assembler.test.JvmAssemblerFixture;
 import me.darknet.assembler.test.JvmCompilation;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * These tests are meant to test the compilation of top-level declarations such as classes, fields and methods.
@@ -141,6 +143,37 @@ public class TopLevelDeclarationTest {
 		assertFalse(compilation.hasWarnings(), "Expected no warnings");
 		assertMethod(node, "problematic", "()Ljava/lang/Object;", method -> assertNotNull(method.instructions.getFirst(), "Expected untouched overlay method to remain"));
 		assertMethod(node, "hello", "()V", method -> assertNotNull(method.instructions.getFirst(), "Expected new method instructions"));
+	}
+
+	@Test
+	void modifiedOverlayMethodsAreVerifiedWithoutTouchingUntouchedOverlayMethods() {
+		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		options.overlay(new JavaClassRepresentation(buildOverlayWithUntouchedMergedTypes("top/level/MissingTypesOverlay")));
+
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
+				"""
+				.method public static hello ()I {
+				    code: {
+				    A:
+				        iconst_1
+				        return  // wrong return instruction, should be ireturn
+				    B:
+				    }
+				}
+				""",
+				options
+		);
+
+		// The warning should be for the modified method, and not for the untouched overlay method that has missing types.
+		Warn verifierWarning = compilation.warnings().stream()
+				.filter(warning -> warning.getMessage().contains("may fail JVM verification"))
+				.findFirst()
+				.orElse(null);
+		assertNotNull(verifierWarning, "Expected verifier warning for modified method");
+		assertTrue(verifierWarning.getMessage().contains("hello()I"));
+
+		// The problem method is untouched so any existing problems with it should be ignored here.
+		assertFalse(verifierWarning.getMessage().contains("problematic()Ljava/lang/Object;"));
 	}
 
 	private static TestJvmCompilerOptions overlayOptions(String internalName) {
