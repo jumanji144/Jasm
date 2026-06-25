@@ -7,6 +7,7 @@ import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compiler.*;
 import me.darknet.assembler.compiler.Compiler;
+import me.darknet.assembler.error.Warn;
 import me.darknet.assembler.helper.Processor;
 
 import picocli.CommandLine;
@@ -14,7 +15,6 @@ import picocli.CommandLine;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -79,7 +79,8 @@ public class CompileCommand implements Runnable {
 
         InheritanceChecker inheritanceChecker;
         if (enableInheritanceChecker) {
-            inheritanceChecker = new ReflectiveInheritanceChecker(new SafeClassLoader(new URL[0]));
+            ClassLoader classLoader = new SafeClassLoader(new URL[0]);
+            inheritanceChecker = new ReflectiveInheritanceChecker(classLoader);
             if (this.libraryFolder.isPresent()) {
                 URL[] urls = new URL[0];
                 try (var stream = Files.walk(Paths.get(this.libraryFolder.get()))) {
@@ -100,22 +101,25 @@ public class CompileCommand implements Runnable {
                     System.err.println("Failed to read library folder: " + e.getMessage());
                     System.exit(1);
                 }
-                inheritanceChecker = new ReflectiveInheritanceChecker(new SafeClassLoader(urls));
+                classLoader = new SafeClassLoader(urls);
+                inheritanceChecker = new ReflectiveInheritanceChecker(classLoader);
             }
         } else {
             inheritanceChecker = EmptyInheritanceChecker.INSTANCE;
         }
 
-        options.version(bytecodeVersion).overlay(new JavaClassRepresentation(overlay.map(file -> {
+        options.version(bytecodeVersion)
+                .annotationPath(annotationTarget.orElse(null))
+                .inheritanceChecker(inheritanceChecker);
+
+        overlay.ifPresent(file -> {
             try {
-                return Files.readAllBytes(file.toPath());
+                options.overlay(new JavaClassRepresentation(Files.readAllBytes(file.toPath())));
             } catch (IOException e) {
                 System.err.println("Failed to read overlay file: " + e.getMessage());
                 System.exit(1);
-                return null;
             }
-        }).orElse(null))).annotationPath(annotationTarget.orElse(null))
-        .inheritanceChecker(inheritanceChecker);
+        });
     }
 
     private void validateAst(List<ASTElement> ast) {
@@ -166,7 +170,9 @@ public class CompileCommand implements Runnable {
         Processor.processSource(code, src, ast -> {
             validateAst(ast);
 
-            compiler.compile(ast, options).ifErr((unused, errors) -> {
+            var compileResult = compiler.compile(ast, options);
+            printWarnings(compileResult.getWarns());
+            compileResult.ifErr((unused, errors) -> {
                 System.err.println("Failed to compile source file:");
                 errors.forEach(System.err::println);
                 System.exit(1);
@@ -200,5 +206,11 @@ public class CompileCommand implements Runnable {
             errors.forEach(System.err::println);
             System.exit(1);
         }, MainCommand.target);
+    }
+
+    private static void printWarnings(Iterable<Warn> warnings) {
+        for (Warn warning : warnings) {
+            System.err.println(warning);
+        }
     }
 }

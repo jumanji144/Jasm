@@ -96,6 +96,9 @@ public class JvmCompiler implements Compiler {
 				// Filling in the analysis results for the generated class.
 				analyzeGeneratedClass(bytes, jvmOptions, builder, collector);
 
+				// Verify the generated class, if the user requested it.
+				JvmVerify.verifyGeneratedMethods(bytes, jvmOptions, builder, collector);
+
 				// Wrap up.
 				return new Result<>(new JavaCompileResult(new JavaClassRepresentation(bytes), builder),
 						collector.getErrors(), collector.getWarns());
@@ -295,7 +298,7 @@ public class JvmCompiler implements Compiler {
 	 *
 	 * @return {@code true} if the instruction is executable, {@code false} otherwise.
 	 */
-	private static boolean isExecutable(@NotNull AbstractInsnNode instruction) {
+	protected static boolean isExecutable(@NotNull AbstractInsnNode instruction) {
 		return instruction.getOpcode() >= 0;
 	}
 
@@ -362,6 +365,23 @@ public class JvmCompiler implements Compiler {
 	}
 
 	/**
+	 * Writes a temporary class containing only the given method.
+	 *
+	 * @param classNode
+	 * 		Declaring class of the method.
+	 * @param method
+	 * 		Method to include in the generated class.
+	 *
+	 * @return Bytecode of the class containing only the given method.
+	 */
+	protected static byte @NotNull [] writeClassWithMethod(@NotNull ClassNode classNode, @NotNull MethodNode method) {
+		ClassWriter writer = new ClassWriter(0);
+		writeClassWithoutMethods(classNode, writer);
+		emitMethod(writer, method);
+		return writer.toByteArray();
+	}
+
+	/**
 	 * Write top-level class information from the given class node to the given writer, but skip all methods.
 	 * We'll write methods in a following pass in {@link #writeOverlayMethods(ClassNode, ClassReader, JvmClassWriter, Set, int)}.
 	 *
@@ -370,13 +390,51 @@ public class JvmCompiler implements Compiler {
 	 * @param writer
 	 * 		Writer to write the class to.
 	 */
-	private static void writeClassWithoutMethods(@NotNull ClassNode node, @NotNull ClassVisitor writer) {
+	protected static void writeClassWithoutMethods(@NotNull ClassNode node, @NotNull ClassVisitor writer) {
 		node.accept(new ClassVisitor(Opcodes.ASM9, writer) {
 			@Override
 			public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
 				return null;
 			}
 		});
+	}
+
+	/**
+	 * Write a method to the given writer, setting the given flags on the writer before writing the method.
+	 *
+	 * @param writer
+	 * 		Writer to write the method to.
+	 * @param method
+	 * 		Method to emit.
+	 * @param flags
+	 * 		Flags to use when writing the method.
+	 *
+	 * @see #emitMethod(ClassWriter, MethodNode)
+	 */
+	protected static void emitMethod(@NotNull ClassWriter writer, @NotNull MethodNode method, int flags) {
+		writer.setFlags(flags);
+		emitMethod(writer, method);
+	}
+
+	/**
+	 * Write a method to the given writer.
+	 *
+	 * @param writer
+	 * 		Writer to write the method to.
+	 * @param method
+	 * 		Method to emit.
+	 *
+	 * @see #emitMethod(ClassWriter, MethodNode, int)
+	 */
+	protected static void emitMethod(@NotNull ClassWriter writer, @NotNull MethodNode method) {
+		MethodVisitor visitor = writer.visitMethod(
+				method.access,
+				method.name,
+				method.desc,
+				method.signature,
+				method.exceptions == null ? null : method.exceptions.toArray(String[]::new)
+		);
+		method.accept(visitor);
 	}
 
 	/**
@@ -436,27 +494,5 @@ public class JvmCompiler implements Compiler {
 			if (emittedMethods.add(key))
 				emitMethod(writer, method, methodFlags);
 		}
-	}
-
-	/**
-	 * Write a method to the given writer.
-	 *
-	 * @param writer
-	 * 		Writer to write the method to.
-	 * @param method
-	 * 		Method to emit.
-	 * @param flags
-	 * 		Flags to use when writing the method.
-	 */
-	private static void emitMethod(@NotNull JvmClassWriter writer, @NotNull MethodNode method, int flags) {
-		writer.setFlags(flags);
-		MethodVisitor visitor = writer.visitMethod(
-				method.access,
-				method.name,
-				method.desc,
-				method.signature,
-				method.exceptions == null ? null : method.exceptions.toArray(String[]::new)
-		);
-		method.accept(visitor);
 	}
 }
