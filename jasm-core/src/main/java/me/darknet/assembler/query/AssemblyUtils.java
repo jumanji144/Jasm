@@ -4,6 +4,7 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTLabel;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.util.Location;
@@ -312,6 +313,8 @@ public final class AssemblyUtils {
 			return fallback;
 
 		try {
+			if (element instanceof ASTNumber number)
+				return number.asInt();
 			return Integer.parseInt(element.content());
 		} catch (NumberFormatException ex) {
 			return fallback;
