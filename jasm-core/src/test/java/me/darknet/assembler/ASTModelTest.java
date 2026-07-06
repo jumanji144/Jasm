@@ -172,6 +172,17 @@ public class ASTModelTest {
         assertFalse(binaryLower.isFloatingPoint());
         assertFalse(hexLower.isWide());
         assertFalse(binaryLower.isWide());
+
+        ASTNumber negDecimal = num("-127", 0);
+        ASTNumber negHexLower = num("-0x7f", 4);
+        ASTNumber negHexUpper = num("-0X7F", 4);
+        ASTNumber negBinaryLower = num("-0b01111111", 9);
+        ASTNumber negBinaryUpper = num("-0B01111111", 9);
+        assertEquals(-127, negDecimal.asInt());
+        assertEquals(-127, negHexLower.asInt());
+        assertEquals(-127, negHexUpper.asInt());
+        assertEquals(-127, negBinaryLower.asInt());
+        assertEquals(-127, negBinaryUpper.asInt());
     }
 
     @Test
