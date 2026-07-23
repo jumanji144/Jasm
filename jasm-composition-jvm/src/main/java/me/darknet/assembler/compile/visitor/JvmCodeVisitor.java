@@ -8,8 +8,8 @@ import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.compile.JvmCompilerOptions;
-import me.darknet.assembler.compile.JvmVariableMode;
 import me.darknet.assembler.compile.JvmVariableEmissionFilter;
+import me.darknet.assembler.compile.JvmVariableMode;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
@@ -62,6 +62,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	private final List<Local> parameters;
 	private final VarCache varCache = new VarCache();
 	private final Set<String> definedLabels = new HashSet<>();
+	private final Set<AbstractInsnNode> emittedInstructions = Collections.newSetFromMap(new IdentityHashMap<>());
 	private final Map<ASTInstruction, List<String>> referencedLabels = new IdentityHashMap<>();
 	private final MethodAnalysisResult analysisResult = new MethodAnalysisResult();
 	private final JvmVariableMode variableTableMode;
@@ -304,15 +305,19 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 
 	@Override
 	public void visitLabel(@NotNull ASTIdentifier label) {
-		definedLabels.add(label.content());
-		method.instructions.add(getOrCreateLabel(label.content()));
+		String labelName = label.content();
+		if (definedLabels.add(labelName)) {
+			add(getOrCreateLabel(labelName));
+		} else {
+			errorCollector.addError("Label '" + labelName + "' already defined", label.location());
+		}
 	}
 
 	@Override
 	public void visitLineNumber(ASTNumber line) {
 		LabelNode label = new LabelNode();
-		method.instructions.add(label);
-		method.instructions.add(new LineNumberNode(line.asInt(), label));
+		add(label);
+		add(new LineNumberNode(line.asInt(), label));
 	}
 
 	@Override
@@ -342,7 +347,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 			String name = parameter.name();
 			String descriptor = parameter.safeType().getDescriptor();
 
-			if (!variableFilter.canEmit(  index, name, Type.getType(descriptor)))
+			if (!variableFilter.canEmit(index, name, Type.getType(descriptor)))
 				continue;
 
 			method.localVariables.add(new LocalVariableNode(
@@ -376,9 +381,14 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	private void add(@NotNull AbstractInsnNode instruction) {
-		method.instructions.add(instruction);
-		if (currentInstructionAst != null)
-			analysisResult.recordOrderedInstruction(currentInstructionAst);
+		if (emittedInstructions.add(instruction)) {
+			method.instructions.add(instruction);
+			if (currentInstructionAst != null)
+				analysisResult.recordOrderedInstruction(currentInstructionAst);
+		} else {
+			errorCollector.addError("Instruction emitted/visted multiple times: "
+					+ instruction.getClass().getSimpleName(), currentInstructionAst.location());
+		}
 	}
 
 	private void recordLabelReference(@Nullable ASTInstruction instruction, @NotNull String labelName) {
@@ -425,7 +435,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 
 		LabelNode label = new LabelNode();
 		if (method.instructions.getFirst() == null) {
-			method.instructions.add(label);
+			add(label);
 		} else {
 			method.instructions.insert(label);
 		}
@@ -449,7 +459,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 			return label;
 
 		LabelNode label = new LabelNode();
-		method.instructions.add(label);
+		add(label);
 		return label;
 	}
 
