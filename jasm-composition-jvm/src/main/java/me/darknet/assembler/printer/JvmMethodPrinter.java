@@ -18,6 +18,7 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -414,10 +415,21 @@ public class JvmMethodPrinter implements MethodPrinter {
 
 		// If the first access is a load, then we check if there is an earlier local with
 		// an overlapping scope that introduces the same variable slot.
-		return locals.stream()
-				.anyMatch(other -> other != local
+		LocalInfo prior = locals.stream()
+				.filter(other -> other != local
 						&& other.index() == local.index()
-						&& other.start() < local.start());
+						&& other.start() < local.start())
+				.max(Comparator.comparingInt(LocalInfo::start))
+				.orElse(null);
+		if (prior == null)
+			return false;
+
+		// A non-overlapping entry is a continuation only when it carries the same
+		// name and descriptor. Kotlin commonly emits unrelated read-only aliases
+		// for the same slot. Retaining those would introduce misleading variables.
+		return prior.end() >= local.start()
+				|| !prior.descriptor().equals(local.descriptor())
+				|| !prior.baseName().equals(local.baseName());
 	}
 
 	/**

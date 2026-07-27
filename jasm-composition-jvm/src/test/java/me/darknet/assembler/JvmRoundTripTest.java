@@ -132,6 +132,22 @@ class JvmRoundTripTest {
 	}
 
 	@Test
+	void anotherVariableScopingSkillIssue() {
+		byte[] raw = BinarySampleFixture.binarySample("NativeImageryMosaicDatabase2.sample").read();
+		String source = JvmDisassemblyFixture.disassembleJvm(raw);
+		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		options.engineProvider(ValuedJvmAnalysisEngine::new);
+		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, options);
+		assertTrue(roundTrip.disassembledSource().contains("aload ref"));
+		assertFalse(roundTrip.disassembledSource().contains("aload v2"));
+
+		String decompileOriginal = JvmDecompilationFixture.decompile(raw);
+		String decompileRound = roundTrip.compilation().requireDecompilation();
+		assertFalse(decompileOriginal.contains("This method has failed to decompile"), "Original class failed to decompile, cannot test");
+		assertFalse(decompileRound.contains("This method has failed to decompile"), "Round-tripped class failed to decompile, cannot test");
+	}
+
+	@Test
 	void kotlinVariableGarbageIHateKotlin() {
 		byte[] raw = BinarySampleFixture.binarySample("KotlinVarScoping.sample").read();
 		String source = JvmDisassemblyFixture.disassembleJvm(raw);
