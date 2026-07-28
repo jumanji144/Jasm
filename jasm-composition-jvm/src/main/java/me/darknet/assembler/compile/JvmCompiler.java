@@ -343,12 +343,26 @@ public class JvmCompiler implements Compiler {
 	 */
 	private static byte @NotNull [] writeClass(@NotNull JvmClassBuilder builder, @NotNull JvmCompilerOptions options,
 	                                           @NotNull ErrorCollector collector) {
-		ClassNode node = builder.node();
-
 		// Determine flags for writing the class.
 		int flags = options.asmArgs;
-		if (node.version <= Opcodes.V1_5)
+		if (builder.node().version <= Opcodes.V1_5)
 			flags &= ~ClassWriter.COMPUTE_FRAMES;
+
+		try {
+			return writeClass(builder, options, collector, flags);
+		} catch (RuntimeException ex) {
+			// If ASM failed while computing frames, retry without frame computation so our compiler's analysis
+			// can diagnose the malformed method for things like stack-underflow and invalid local variable access.
+			// These warnings from our analyzer will be more useful to the user than a generic ASM exception.
+			if ((flags & ClassWriter.COMPUTE_FRAMES) == 0)
+				throw ex;
+			return writeClass(builder, options, collector, flags & ~ClassWriter.COMPUTE_FRAMES);
+		}
+	}
+
+	private static byte @NotNull [] writeClass(@NotNull JvmClassBuilder builder, @NotNull JvmCompilerOptions options,
+	                                           @NotNull ErrorCollector collector, int flags) {
+		ClassNode node = builder.node();
 
 		// If there is no overlay specified we can just write the class as is,
 		// without needing to worry about merging methods or anything.
@@ -438,7 +452,15 @@ public class JvmCompiler implements Compiler {
 				method.signature,
 				method.exceptions == null ? null : method.exceptions.toArray(String[]::new)
 		);
-		method.accept(visitor);
+		try {
+			method.accept(visitor);
+		} catch (RuntimeException ex) {
+			// ASM's frame computation can fail for methods that do not pass verification.
+			//
+			// The method visitor has already received the instructions, so leave the
+			// partially emitted method in place and let our analysis pass report the
+			// failure against the corresponding AST instruction.
+		}
 	}
 
 	/**
