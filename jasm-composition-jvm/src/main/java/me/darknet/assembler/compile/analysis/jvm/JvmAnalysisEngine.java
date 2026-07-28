@@ -288,6 +288,25 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	}
 
 	/**
+	 * Warn when a local-variable store does not have enough values on the operand stack.
+	 *
+	 * @param instruction
+	 * 		Instruction to associate the warning with.
+	 * @param index
+	 * 		Local-variable index targeted by the instruction.
+	 * @param expected
+	 * 		Number of stack values required by the instruction.
+	 * @param actual
+	 * 		Number of values currently on the operand stack.
+	 */
+	protected void warnInvalidStoreStack(@NotNull AbstractInsnNode instruction, int index, int expected, int actual) {
+		String name = varCache.getVarName(index);
+		String local = name == null ? "local " + index : "local '" + name + "'";
+		warn(instruction, "Cannot store into " + local + ": expected " + expected
+				+ " value" + (expected == 1 ? "" : "s") + " on the operand stack, found " + actual);
+	}
+
+	/**
 	 * Validate that the input type can be used as the receiver type for the given owner.
 	 *
 	 * @param instruction

@@ -466,7 +466,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			}
 			case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> {
 				String name = varCache.getVarName(index);
-				Value value = JvmTypeUtils.isWide(expectedVarType) ? frame.pop2() : frame.pop();
+				int expectedStackSize = JvmTypeUtils.isWide(expectedVarType) ? 2 : 1;
+				if (frame.getStack().size() < expectedStackSize)
+					warnInvalidStoreStack(instruction, index, expectedStackSize, frame.getStack().size());
+				Value value = expectedStackSize == 2 ? frame.pop2() : frame.pop();
 				Type actualStackType = value.type();
 				Type normalizedStackType = JvmTypeUtils.verificationType(actualStackType);
 				if (JvmTypeUtils.isPrimitive(expectedVarType)) {

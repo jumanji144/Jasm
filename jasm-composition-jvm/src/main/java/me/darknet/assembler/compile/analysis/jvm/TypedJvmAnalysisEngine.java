@@ -358,7 +358,10 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 			}
 			case ISTORE, LSTORE, FSTORE, DSTORE, ASTORE -> {
 				String name = varCache.getVarName(index);
-				Type stackType = JvmTypeUtils.isWide(JvmTypeUtils.primitiveFromStoreOpcode(opcode)) ? frame.pop2() : frame.pop();
+				int expectedStackSize = JvmTypeUtils.isWide(JvmTypeUtils.primitiveFromStoreOpcode(opcode)) ? 2 : 1;
+				if (frame.getStack().size() < expectedStackSize)
+					warnInvalidStoreStack(instruction, index, expectedStackSize, frame.getStack().size());
+				Type stackType = expectedStackSize == 2 ? frame.pop2() : frame.pop();
 				Type assumedType = switch (opcode) {
 					case ISTORE -> JvmTypeUtils.INT;
 					case LSTORE -> JvmTypeUtils.LONG;
