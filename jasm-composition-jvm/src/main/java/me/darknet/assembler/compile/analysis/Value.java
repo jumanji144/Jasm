@@ -25,6 +25,37 @@ public sealed interface Value {
         return false;
     }
 
+    /** Verifier TOP/undefined value. This is distinct from a known null value. */
+    record TopValue() implements Value {
+        @Override
+        public @NotNull Type type() {
+            return JvmTypeUtils.TOP;
+        }
+
+        @Override
+        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) {
+            return this;
+        }
+    }
+
+    /** A verifier uninitialized reference produced by NEW or used as constructor {@code this}. */
+    record UninitializedObjectValue(@NotNull Type marker, @NotNull Type owner) implements ObjectValue {
+        @Override
+        public @NotNull Type type() {
+            return marker;
+        }
+
+        @Override
+        public @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) {
+            if (equals(other))
+                return this;
+
+            // Distinct uninitialized allocation identities merge to verifier TOP.
+            // They cannot be treated as an initialized common reference.
+            return Values.TOP_VALUE;
+        }
+    }
+
     sealed interface PrimitiveValue extends Value {
         @Override
         @NotNull
@@ -44,7 +75,8 @@ public sealed interface Value {
             if (equals(other))
                 return this;
             if (other instanceof PrimitiveValue primitiveValue)
-                return Values.valueOfPrimitive(JvmTypeUtils.commonType(checker, type(), primitiveValue.type()));
+                if (JvmTypeUtils.verificationType(type()).equals(JvmTypeUtils.verificationType(primitiveValue.type())))
+                    return Values.valueOfPrimitive(JvmTypeUtils.verificationType(type()));
             throw new ValueMergeException("Cannot merge primitive with non-primitive");
         }
 
@@ -273,6 +305,8 @@ public sealed interface Value {
         default @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
             if (equals(other) || other instanceof NullValue)
                 return this;
+			if (other instanceof UninitializedObjectValue)
+				return Values.TOP_VALUE;
             if (other instanceof ObjectValue objectValue) {
                 Type thisType = type();
                 Type otherType = objectValue.type();
@@ -327,6 +361,14 @@ public sealed interface Value {
         default @NotNull Value mergeWith(@NotNull InheritanceChecker checker, @NotNull Value other) throws ValueMergeException {
             if (equals(other))
                 return this;
+            if (other instanceof ArrayValue otherArray) {
+				Type common = JvmTypeUtils.commonType(checker, arrayType(), otherArray.arrayType());
+				if (common != null && common.getSort() == Type.ARRAY)
+					return Values.valueOfArray(common);
+				return Values.OBJECT_VALUE;
+            }
+			if (other instanceof UninitializedObjectValue)
+				return Values.TOP_VALUE;
             if (other instanceof ObjectValue)
                 return Values.OBJECT_VALUE;
             throw new ValueMergeException("Invalid array merge with non-object value");

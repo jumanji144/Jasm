@@ -3,9 +3,13 @@ package me.darknet.assembler.compile.analysis.jvm;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.MethodAnalysisResult;
+import me.darknet.assembler.compile.analysis.Value;
+import me.darknet.assembler.compile.analysis.ValuedLocal;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
+import me.darknet.assembler.compile.analysis.frame.TypedFrame;
+import me.darknet.assembler.compile.analysis.frame.ValuedFrame;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.util.JvmTypeUtils;
 import org.jetbrains.annotations.NotNull;
@@ -62,12 +66,13 @@ public class JvmAnalysisRunner implements Opcodes {
 		JvmAnalysisEngine<Frame> typedEngine = (JvmAnalysisEngine<Frame>) engine;
 		AnalysisSession<Frame> session = new AnalysisSession<>(result);
 		typedEngine.setResult(result);
-		typedEngine.bindSession(session);
+		typedEngine.setMethodDetails(Type.getReturnType(method.methodType().getDescriptor()), method.owner(), method.name(), method.access());
+		typedEngine.setSession(session);
 		try {
 			executeBound(typedEngine, session, method);
 			return result;
 		} finally {
-			typedEngine.bindSession(null);
+			typedEngine.setSession(null);
 		}
 	}
 
@@ -89,11 +94,29 @@ public class JvmAnalysisRunner implements Opcodes {
 		final InheritanceChecker checker = method.checker();
 		final AnalysisWorklist worklist = new AnalysisWorklist();
 
-		// Seed initial frame and exception handlers.
+		// Seed only the standard method entry.
+		//
+		// Exception handlers are reached from every reachable instruction inside their protected ranges below.
 		Frame initialFrame = seedInitialFrame(method.params());
+
+		// If this is a constructor, we need to mark the receiver as uninitialized so that it can be tracked
+		// and validated for proper initialization before use.
+		if ("<init>".equals(method.name())
+				&& (method.access() & ACC_STATIC) == 0
+				&& !method.params().isEmpty()
+				&& !method.owner().isEmpty()) {
+			// Get the receiver local variable and mark it as uninitialized.
+			Local receiver = method.params().getFirst();
+			Type owner = Type.getObjectType(method.owner());
+			Type marker = engine.newUninitializedType(owner);
+			if (initialFrame instanceof TypedFrame typedFrame)
+				typedFrame.setLocal(receiver.index(), new Local(receiver.index(), receiver.name(), marker));
+			else if (initialFrame instanceof ValuedFrame valuedFrame)
+				valuedFrame.setLocal(receiver.index(), new ValuedLocal(receiver.index(), receiver.name(),
+						new Value.UninitializedObjectValue(marker, owner)));
+		}
 		session.putFrame(0, initialFrame);
 		worklist.add(0);
-		seedExceptionHandlers(session, worklist, method, initialFrame);
 
 		// Main analysis loop.
 		final List<AbstractInsnNode> instructions = method.instructions();
@@ -156,6 +179,7 @@ public class JvmAnalysisRunner implements Opcodes {
 				if (isExecutable(instruction)) {
 					session.setActiveFrame(elementIndex, frame);
 					engine.clearErrorsAt(instruction);
+					enqueueExceptionHandlers(session, worklist, checker, method, elementIndex, oldFrame, visited);
 					try {
 						engine.execute(instruction);
 					} catch (RuntimeException ex) {
@@ -195,7 +219,8 @@ public class JvmAnalysisRunner implements Opcodes {
 			}
 		}
 
-		validateReturnInstructions(engine, Type.getReturnType(method.methodType().getDescriptor()).getDescriptor(), method.instructions());
+		validateReturnInstructions(engine, Type.getReturnType(method.methodType().getDescriptor()).getDescriptor(),
+				method.instructions(), visited);
 	}
 
 	/**
@@ -225,34 +250,69 @@ public class JvmAnalysisRunner implements Opcodes {
 	 * 		Analysis session to seed frames into.
 	 * @param worklist
 	 * 		Worklist to seed handler indices into.
+	 * @param checker
+	 * 		Inheritance checker to use for frame merging.
 	 * @param method
 	 * 		Method to seed handlers for.
-	 * @param initialFrame
-	 * 		Initial frame to copy and add exception types onto for handler frames.
+	 * @param instructionIndex
+	 * 		Index of the instruction that is throwing an exception.
+	 * @param throwingFrame
+	 * 		Frame at the instruction that is throwing an exception.
+	 * @param visited
+	 * 		BitSet tracking which indices have been visited before.
 	 *
 	 * @throws AnalysisException
 	 * 		Thrown when a handler label is invalid or when merging a handler frame results in an error.
 	 */
-	private void seedExceptionHandlers(@NotNull AnalysisSession<Frame> session, @NotNull AnalysisWorklist worklist,
-	                                   @NotNull Info method, @NotNull Frame initialFrame) throws AnalysisException {
+	private void enqueueExceptionHandlers(@NotNull AnalysisSession<Frame> session, @NotNull AnalysisWorklist worklist,
+	                                      @NotNull InheritanceChecker checker, @NotNull Info method, int instructionIndex,
+	                                      @NotNull Frame throwingFrame, @NotNull BitSet visited) throws AnalysisException {
 		List<AbstractInsnNode> elements = method.instructions();
 		for (TryCatchBlockNode handler : method.exceptionHandlers()) {
+			int startIndex = elements.indexOf(handler.start);
+			int endIndex = elements.indexOf(handler.end);
 			int handlerIndex = elements.indexOf(handler.handler);
-			if (handlerIndex < 0) {
+			if (startIndex < 0 || endIndex < 0 || handlerIndex < 0) {
 				throw new AnalysisException(handler.handler, AnalysisException.FailureKind.INVALID_CONTROL_FLOW,
-						"Try/catch handler label does not exist");
+						"Try/catch range or handler label does not exist");
 			}
+			if (instructionIndex < startIndex || instructionIndex >= endIndex)
+				continue;
 
-			// Queue the handler with a frame that has the caught exception type on the stack.
+			// An exceptional edge preserves locals from immediately before the throwing instruction and replaces
+			// the operand stack with the exception. So we want to:
+			//  - Copy the frame from immediately before the throwing instruction.
+			//  - Clear the operand stack.
+			//  - Push the exception type onto the operand stack.
 			Type type = handler.type == null ? JvmTypeUtils.type(Throwable.class) : Type.getObjectType(handler.type);
-			Frame frame = initialFrame.copy();
+			Frame frame = throwingFrame.copy();
+			if (frame instanceof TypedFrame typedFrame)
+				typedFrame.getStack().clear();
+			else if (frame instanceof ValuedFrame valuedFrame)
+				valuedFrame.getStack().clear();
 			frame.pushType(type);
+
+			// Queue the handler index for visiting if the merge results in a change to the handler frame's state.
 			try {
-				session.putAndMergeFrame(method.checker(), handlerIndex, frame);
+				Frame existing = session.getFrame(handlerIndex);
+				boolean changed = existing == null;
+				if (existing == null) {
+					session.putFrame(handlerIndex, frame);
+				} else {
+					Frame merged = existing.copy();
+					changed = merged.merge(checker, frame);
+					if (changed)
+						session.putFrame(handlerIndex, merged);
+				}
+
+				// If the merge resulted in a change to the handler frame's state, we need to queue it for visiting.
+				if (changed) {
+					visited.clear(handlerIndex);
+					worklist.add(handlerIndex, handlerIndex - Integer.MAX_VALUE);
+				}
 			} catch (FrameMergeException ex) {
 				throw new AnalysisException(handler.handler, AnalysisException.FailureKind.FRAME_MERGE, ex);
 			}
-			worklist.add(handlerIndex, handlerIndex - Integer.MAX_VALUE);
 		}
 	}
 
@@ -320,8 +380,11 @@ public class JvmAnalysisRunner implements Opcodes {
 	}
 
 	private void validateReturnInstructions(@NotNull JvmAnalysisEngine<Frame> engine, @NotNull String ret,
-	                                        @NotNull List<AbstractInsnNode> elements) {
-		for (AbstractInsnNode instruction : elements) {
+	                                        @NotNull List<AbstractInsnNode> elements, @NotNull BitSet reachable) {
+		for (int index = 0; index < elements.size(); index++) {
+			if (!reachable.get(index))
+				continue;
+			AbstractInsnNode instruction = elements.get(index);
 			int opcode = instruction.getOpcode();
 			if (opcode == IRETURN && !"ZBCSI".contains(ret))
 				engine.warn(instruction, "Unexpected 'int' return instruction");
@@ -377,6 +440,12 @@ public class JvmAnalysisRunner implements Opcodes {
 	 *
 	 * @param checker
 	 * 		Inheritance resolution for frame merging of different class types.
+	 * @param owner
+	 * 		Name of the class that owns the method.
+	 * @param name
+	 * 		Method name.
+	 * @param access
+	 * 		Method access flags.
 	 * @param methodType
 	 * 		Type descriptor of the method.
 	 * @param params
@@ -387,6 +456,9 @@ public class JvmAnalysisRunner implements Opcodes {
 	 * 		Method try-catch blocks.
 	 */
 	public record Info(@NotNull InheritanceChecker checker,
+	                   @NotNull String owner,
+	                   @NotNull String name,
+	                   int access,
 	                   @NotNull Type methodType,
 	                   @NotNull List<Local> params,
 	                   @NotNull List<AbstractInsnNode> instructions,

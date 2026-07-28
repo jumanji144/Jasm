@@ -24,6 +24,7 @@ import me.darknet.assembler.test.JvmCompilation;
 import me.darknet.assembler.test.JvmDecompilationFixture;
 import me.darknet.assembler.test.JvmDisassemblyFixture;
 import me.darknet.assembler.test.JvmRoundTripFixture;
+import me.darknet.assembler.util.JvmTypeUtils;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -199,8 +200,8 @@ public class SampleCompilerTest {
                 assertFalse(results.terminalFrames().isEmpty());
                 results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
                     Value returnValue = frame.peek();
-                    if (returnValue instanceof Value.KnownIntValue known)
-                        assertEquals(100, known.value());
+                    if (returnValue instanceof Value.KnownIntValue(int value))
+                        assertEquals(100, value);
                     else
                         fail("Unexpected ret-val: " + returnValue);
                 });
@@ -243,8 +244,8 @@ public class SampleCompilerTest {
                 assertFalse(results.terminalFrames().isEmpty());
                 results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
                     Value returnValue = frame.peek();
-                    if (returnValue instanceof Value.KnownIntValue known)
-                        assertEquals(100, known.value());
+                    if (returnValue instanceof Value.KnownIntValue(int value))
+                        assertEquals(100, value);
                     else
                         fail("Unexpected ret-val: " + returnValue);
                 });
@@ -267,8 +268,8 @@ public class SampleCompilerTest {
                 assertFalse(results.terminalFrames().isEmpty());
                 results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
                     Value returnValue = frame.peek();
-                    if (returnValue instanceof Value.KnownIntValue known)
-                        assertEquals(100, known.value());
+                    if (returnValue instanceof Value.KnownIntValue(int value))
+                        assertEquals(100, value);
                     else
                         fail("Unexpected ret-val: " + returnValue);
                 });
@@ -503,11 +504,9 @@ public class SampleCompilerTest {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
                 assertFalse(results.terminalFrames().isEmpty());
-            }, warns -> {
-                // Void type usage in the engine for method parameters should emit a warning.
-                // If this occurs we've broken something.
-                fail("Expected no warnings, found: " + warns);
-            });
+			}, warns -> {
+				fail("Expected no warnings, found: " + warns);
+			});
             assertTrue(visited[0], "Method call was not visited");
         }
 
@@ -575,16 +574,17 @@ public class SampleCompilerTest {
             options.engineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
-                // should not fail or produce warning and p0 should be of type Object
+                // The method intentionally leaves an int on the stack before RETURN;
+                // the analyzer must report that structural mismatch.
                 assertNull(results.getAnalysisFailure());
 
                 Type p0Type = results.frames().lastEntry().getValue().getLocalType(0);
-                assertEquals(me.darknet.assembler.util.JvmTypeUtils.OBJECT, p0Type);
-            }, warns -> {
-                // Void type usage in the engine for method parameters should emit a warning.
-                // If this occurs we've broken something.
-                fail("Expected no warnings, found: " + warns);
-            });
+                assertEquals(JvmTypeUtils.OBJECT, p0Type);
+             }, warns -> {
+                 assertTrue(warns.stream().anyMatch(warning -> warning.getMessage()
+                                 .contains("Return instruction leaves values on the operand stack")),
+                         "Expected the invalid non-empty return stack to be diagnosed: " + warns);
+             });
         }
 
         @Test

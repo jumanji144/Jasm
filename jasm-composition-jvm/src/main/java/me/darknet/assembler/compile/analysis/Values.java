@@ -51,6 +51,7 @@ public class Values {
     public static final Value.DoubleValue DOUBLE_VALUE = new Value.UnknownDoubleValue();
     public static final Value.UnknownObjectValue OBJECT_VALUE = new Value.UnknownObjectValue(JvmTypeUtils.OBJECT);
     public static final Value.UnknownObjectValue STRING_VALUE = new Value.UnknownObjectValue(JvmTypeUtils.STRING);
+    public static final Value.TopValue TOP_VALUE = new Value.TopValue();
     public static final Value.NullValue NULL_VALUE = new Value.NullValue();
     public static final Value.VoidValue VOID_VALUE = new Value.VoidValue();
 
@@ -129,6 +130,8 @@ public class Values {
     }
 
     public static @NotNull Value valueOf(@NotNull Type type) {
+        if (JvmTypeUtils.isTop(type))
+            return TOP_VALUE;
         if (JvmTypeUtils.isPrimitive(type)) {
             if (type.equals(JvmTypeUtils.VOID))
                 return VOID_VALUE;

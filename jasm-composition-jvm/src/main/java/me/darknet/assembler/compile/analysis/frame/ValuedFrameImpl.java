@@ -78,20 +78,20 @@ public class ValuedFrameImpl implements ValuedFrame {
 	 */
 	public boolean merge(@NotNull InheritanceChecker checker, @NotNull ValuedFrame other) throws FrameMergeException {
 		boolean changed = false;
-		for (Map.Entry<Integer, ValuedLocal> entry : other.getLocals().entrySet()) {
-			int index = entry.getKey();
+		Map<Integer, ValuedLocal> allLocals = new TreeMap<>(getLocals());
+		allLocals.putAll(other.getLocals());
+		for (Integer index : allLocals.keySet()) {
 			ValuedLocal local = getLocal(index);
-			ValuedLocal otherLocal = entry.getValue();
-
-			// If we don't have the local, copy it from the other frame.
-			if (local == null) {
-				// We do not set 'changed' since expanding local variable scope is not going to change
-				// behavior of frames that previously passed analysis.
-				setLocal(index, otherLocal);
+			ValuedLocal otherLocal = other.getLocal(index);
+			if (local == null || otherLocal == null) {
+				ValuedLocal present = local == null ? otherLocal : local;
+				if (!(present.value() instanceof Value.TopValue) || local == null) {
+					setLocal(index, new ValuedLocal(index, present.name(), Values.TOP_VALUE));
+					changed = true;
+				}
 				continue;
 			}
 
-			// Merge the local values.
 			try {
 				ValuedLocal mergedLocal = local.mergeWith(checker, otherLocal);
 				if (!Objects.equals(local, mergedLocal)) {
@@ -119,10 +119,14 @@ public class ValuedFrameImpl implements ValuedFrame {
 			if (value1 == value2) {
 				newStack.add(value1);
 				continue;
-			} else if (value1 == Values.VOID_VALUE || value2 == Values.VOID_VALUE) {
-				newStack.add(Values.VOID_VALUE);
+			}
+			if (value1 instanceof Value.TopValue || value2 instanceof Value.TopValue) {
+				newStack.add(Values.TOP_VALUE);
+				changed = true;
 				continue;
 			}
+			if (value1 == Values.VOID_VALUE || value2 == Values.VOID_VALUE)
+				throw new FrameMergeException(this, other, "Incompatible wide stack values");
 			Value merged;
 			try {
 				merged = value1.mergeWith(checker, value2);

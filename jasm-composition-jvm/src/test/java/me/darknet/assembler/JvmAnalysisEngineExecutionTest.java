@@ -150,14 +150,14 @@ class JvmAnalysisEngineExecutionTest {
         engine.setResult(result);
         JvmAnalysisEngine<Frame> boundEngine =
                 (JvmAnalysisEngine<Frame>) engine;
-        boundEngine.bindSession(session);
+        boundEngine.setSession(session);
         try {
             boundEngine.clearErrorsAt(instruction);
             session.setActiveFrame(0, initialFrame);
             boundEngine.execute(instruction);
             return (F) session.frame();
         } finally {
-            boundEngine.bindSession(null);
+            boundEngine.setSession(null);
         }
     }
 
