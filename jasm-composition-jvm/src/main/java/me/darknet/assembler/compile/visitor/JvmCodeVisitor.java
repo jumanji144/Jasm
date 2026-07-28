@@ -383,7 +383,10 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	private void add(@NotNull AbstractInsnNode instruction) {
 		if (emittedInstructions.add(instruction)) {
 			method.instructions.add(instruction);
-			if (currentInstructionAst != null)
+
+			// Only record non-metadata instructions for analysis.
+			// Inclusion of metadata instructions can cause mismatches in AST <-> bytecode mapping.
+			if (currentInstructionAst != null && instruction.getOpcode() >= 0)
 				analysisResult.recordOrderedInstruction(currentInstructionAst);
 		} else {
 			errorCollector.addError("Instruction emitted/visted multiple times: "
