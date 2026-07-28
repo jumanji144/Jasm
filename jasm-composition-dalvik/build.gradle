@@ -7,7 +7,7 @@ repositories {
 }
 
 dependencies {
-    api 'com.github.jumanji144.dex:dex-core:ecf4e82e3f' // 'me.darknet:dex-core:0.0.3-alpha'
+    api 'com.github.jumanji144.dex:dex-core:f9353e0f33' // 'me.darknet:dex-core:0.0.4-alpha'
 
     api project(path: ':jasm-core')
     testImplementation(testFixtures(project(path: ':jasm-core')))
