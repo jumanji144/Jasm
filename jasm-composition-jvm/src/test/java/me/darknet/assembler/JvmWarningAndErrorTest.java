@@ -6,7 +6,11 @@ import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.test.BinarySampleFixture;
 import me.darknet.assembler.test.JvmAnalysisAssertions;
 import me.darknet.assembler.test.JvmAssemblerFixture;
+import me.darknet.assembler.test.JvmCompilation;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JvmWarningAndErrorTest {
     @Test
@@ -117,7 +121,76 @@ class JvmWarningAndErrorTest {
 		warnOnBothEngines("Example-load-not-initialized.jasm");
 	}
 
-    private static void warnOnBothEngines(String sampleName) {
+	@Test
+	void frameComputationFailureReportsAstLocation() {
+		String source = """
+				.super java/lang/Object
+				.class public Example {
+				    .field public foo Ljava/lang/String;
+				    .method public example ()Ljava/lang/String; {
+				        parameters: { this },
+				        code: {
+				        A:
+				            aload this
+				            getfield Example.foo Ljava/lang/String;
+				            pop
+				            astore foo
+				            aload foo
+				            areturn
+				        B:
+				        }
+				    }
+				}
+				""";
+
+		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm("frame-computation-failure.jasm", source, options);
+
+		assertTrue(compilation.hasErrors(), "Expected invalid bytecode to produce a compilation error");
+		assertTrue(compilation.warnings().stream().anyMatch(warning ->
+				warning.getMessage().contains("Cannot store into local 'foo'")
+						&& warning.getMessage().contains("found 0")),
+				"Expected a warning explaining why foo is invalid: " + compilation.warnings());
+		assertEquals(11, compilation.errors().getFirst().getLocation().line(),
+				"Expected the error to point at the invalid astore instruction: " + compilation.errors());
+	}
+
+	@Test
+	void stackUnderflowAfterLineDirectivesReportsFailingInstructionLocation() {
+		String source = """
+				.super java/lang/Object
+				.class public Example {
+				    .field public mosaic Ljava/lang/Object;
+				    .method public suspend ()V {
+				        parameters: { this },
+				        code: {
+				        A:
+				            line 368
+				            aload this
+				            getfield Example.mosaic Ljava/lang/Object;
+				            astore mosaic
+				            line 369
+				            pop
+				            aload mosaic
+				            ifnull D
+				        D:
+				        }
+				    }
+				}
+				""";
+
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm("late-stack-underflow.jasm", source,
+				new TestJvmCompilerOptions());
+
+		var error = compilation.errors().stream()
+				.filter(candidate -> candidate.getMessage().contains("Cannot peek from empty stack"))
+				.findFirst()
+				.orElseThrow(() -> new AssertionError("Expected stack-underflow error: " + compilation.errors()));
+		assertEquals(13, error.getLocation().line(),
+				"Expected the error to point at the later pop instruction: " + compilation.errors());
+	}
+
+	private static void warnOnBothEngines(String sampleName) {
         String source = BinarySampleFixture.jvmSample(sampleName).read();
 
         TestJvmCompilerOptions typed = new TestJvmCompilerOptions();
