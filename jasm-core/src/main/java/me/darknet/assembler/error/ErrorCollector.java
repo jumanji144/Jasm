@@ -43,6 +43,10 @@ public class ErrorCollector {
     }
 
     public void removeAt(Location location) {
+        // Note: JvmAnalysisEngine.clearErrorsAt() is called before each instruction is analyzed.
+        // Since cleanup is currently line-based, a later instruction on the same source line
+        // may delete a warning emitted by an earlier instruction.
+        // - Instructions are generally put on separate lines so unless this isn't a huge concern.
         errors.removeIf(e -> e.getLocation().line() == location.line());
         warns.removeIf(e -> e.getLocation().line() == location.line());
     }

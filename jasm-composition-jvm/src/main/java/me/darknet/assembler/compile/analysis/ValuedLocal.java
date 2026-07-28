@@ -38,6 +38,8 @@ public class ValuedLocal extends Local {
 
 	@NotNull
 	public ValuedLocal mergeWith(@NotNull InheritanceChecker checker, @NotNull ValuedLocal other) throws ValueMergeException {
+		if (value instanceof Value.TopValue || other.value instanceof Value.TopValue)
+			return new ValuedLocal(index, name, Values.TOP_VALUE);
 		if (isNull() && !other.isNull())
 			return other;
 		else if (!isNull() && other.isNull())

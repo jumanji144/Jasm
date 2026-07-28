@@ -6,7 +6,6 @@ import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.test.BinarySampleFixture;
 import me.darknet.assembler.test.JvmAnalysisAssertions;
 import me.darknet.assembler.test.JvmAssemblerFixture;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class JvmWarningAndErrorTest {
@@ -113,11 +112,10 @@ class JvmWarningAndErrorTest {
         assertAnalysisFailure("Example-int-object-var-merge.jasm");
     }
 
-    @Test
-    @Disabled("Checking for uninitialized vars is more than a linear search. We cannot realistically include this as part of the single-pass analysis-simulation")
-    void loadUninitializedVariable() {
-        assertAnalysisFailure("Example-load-not-initialized.jasm");
-    }
+	@Test
+	void loadUninitializedVariable() {
+		warnOnBothEngines("Example-load-not-initialized.jasm");
+	}
 
     private static void warnOnBothEngines(String sampleName) {
         String source = BinarySampleFixture.jvmSample(sampleName).read();

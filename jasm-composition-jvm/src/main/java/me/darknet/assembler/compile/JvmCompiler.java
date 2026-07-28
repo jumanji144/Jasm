@@ -199,6 +199,9 @@ public class JvmCompiler implements Compiler {
 			// Summarize the method model information.
 			JvmAnalysisRunner.Info info = new JvmAnalysisRunner.Info(
 					options.inheritanceChecker(),
+					classNode.name,
+					method.name,
+					method.access,
 					Type.getMethodType(method.desc),
 					parameters,
 					instructions,
