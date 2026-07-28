@@ -145,6 +145,7 @@ public class Tokenizer {
         char currentChar = ctx.current();
         switch (currentChar) {
             case '\'' -> {
+                ctx.validateCharacterLiteral();
                 ctx.collectToken();
                 ctx.leaveCharacter();
                 ctx.next();
@@ -331,9 +332,24 @@ public class Tokenizer {
             errors.addError(message, new Location(errorLine, errorColumn, 0, source));
         }
 
+        private static final String DECIMAL_DIGITS = "\\d(?:[\\d_]*\\d)?";
+        private static final String HEX_DIGITS = "[\\dA-Fa-f](?:[\\dA-Fa-f_]*[\\dA-Fa-f])?";
+        private static final String BINARY_DIGITS = "[01](?:[01_]*[01])?";
         static final Pattern NUMBER_PATTERN = Pattern.compile(
-                "-?(?:(?:(?:(?:(?:\\d[\\d_]*\\.(?:\\d[\\d_]*)?([eE]-?\\d[\\d_]*)?)|(?:\\.(?:\\d[\\d_]*)(?:[eE]-?\\d[\\d_]*)?)|(?:(?:\\d[\\d_]*)(?:[eE]-?\\d[\\d_]*))|(?:0[xX][\\dA-Fa-f_]*(\\.[\\dA-Fa-f_]*)?[pP]-?\\d[\\d_]*)|(0[bB][01]+))[fFdD]?)|(?:(?:(?:0[xX][\\dA-fa-f_]+)|(?:\\d[\\d_]*))[LlFfDd]?)))"
+                "-?(?:"
+                        + "(?:"
+                        + DECIMAL_DIGITS + "\\.(?:" + DECIMAL_DIGITS + ")?(?:[eE]-?" + DECIMAL_DIGITS + ")?"
+                        + "|\\." + DECIMAL_DIGITS + "(?:[eE]-?" + DECIMAL_DIGITS + ")?"
+                        + "|" + DECIMAL_DIGITS + "[eE]-?" + DECIMAL_DIGITS
+                        + "|0[xX]" + HEX_DIGITS + "(?:\\." + HEX_DIGITS + ")?[pP]-?" + DECIMAL_DIGITS
+                        + ")[fFdD]?"
+                        + "|0[xX]" + HEX_DIGITS + "[Ll]?"
+                        + "|0[bB]" + BINARY_DIGITS + "[Ll]?"
+                        + "|" + DECIMAL_DIGITS + "[LlFfDd]?"
+                        + ")"
         );
+
+        private static final Pattern MALFORMED_HEX_FLOAT_PATTERN = Pattern.compile("-?0[xX].*[pP].*");
 
         boolean checkIfNumber(String content) {
             return NUMBER_PATTERN.matcher(content).matches();
@@ -371,7 +387,13 @@ public class Tokenizer {
             } else if (inComment || inMultilineComment) {
                 tokens.add(new Token(range, location, TokenType.COMMENT, content));
             } else {
-                tokens.add(new Token(range, location, getType(content), content));
+                TokenType type = getType(content);
+                if (type == TokenType.IDENTIFIER && MALFORMED_HEX_FLOAT_PATTERN.matcher(content).matches()) {
+                    errors.addError("Invalid hexadecimal floating-point literal", location);
+                    discardToken();
+                    return;
+                }
+                tokens.add(new Token(range, location, type, content));
             }
 
             discardToken();
@@ -383,6 +405,14 @@ public class Tokenizer {
             tokenStartLine = -1;
             tokenStartColumn = -1;
             tokenInvalid = false;
+        }
+
+        public void validateCharacterLiteral() {
+            if (buffer.length() != 1) {
+                errors.addError("Character literal must contain exactly one character",
+                        new Location(tokenStartLine, tokenStartColumn, Math.max(0, index - tokenStartIndex), source));
+                tokenInvalid = true;
+            }
         }
 
         /**

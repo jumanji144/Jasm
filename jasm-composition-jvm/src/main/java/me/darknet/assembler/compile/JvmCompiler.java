@@ -67,8 +67,6 @@ public class JvmCompiler implements Compiler {
 			return new Result<>(new JavaCompileResult(null, builder), collector.getErrors(), collector.getWarns());
 		}
 
-		builder.setVersion(jvmOptions.version());
-
 		// If the user provided an overlay, we want to apply our transformations on top of it, so we need to read it before visiting the AST.
 		if (jvmOptions.overlay != null)
 			applyOverlay(collector, builder, jvmOptions.overlay.classFile());
@@ -76,6 +74,9 @@ public class JvmCompiler implements Compiler {
 		// If the overlay somehow failed, we need to abort.
 		if (collector.hasErr())
 			return new Result<>(new JavaCompileResult(null, builder), collector.getErrors(), collector.getWarns());
+
+		// The requested output version takes precedence over any version carried by the overlay.
+		builder.setVersion(jvmOptions.version());
 
 		// Now we can visit the AST and build our class node.
 		Transformer transformer = new Transformer(visitor);

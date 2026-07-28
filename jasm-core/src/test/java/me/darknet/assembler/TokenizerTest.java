@@ -2,6 +2,7 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.TokenType;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
 
@@ -59,6 +60,44 @@ public class TokenizerTest {
         Assertions.assertEquals("6.02214076e23", tokens.get(9).content());
         for (Token token : tokens) {
             Assertions.assertSame(TokenType.NUMBER, token.type());
+        }
+    }
+
+    @Test
+    public void testBinaryNumberWithSeparators() {
+        var result = AssemblyParseFixture.parse("0b1_0");
+        List<me.darknet.assembler.ast.ASTElement> elements = DiagnosticAssertions.requireOk(
+                result,
+                "Failed to parse binary number with separators"
+        );
+        Assertions.assertEquals(1, elements.size());
+        ASTNumber number = Assertions.assertInstanceOf(ASTNumber.class, elements.getFirst());
+        Assertions.assertEquals(2, number.asInt());
+    }
+
+    @Test
+    public void testMalformedHexadecimalFloatsReportStructuredErrors() {
+        for (String input : List.of("0xp1", "0x.p1")) {
+            var result = AssemblyParseFixture.tokenize(input);
+            DiagnosticAssertions.assertHasErrors(result,
+                    "Malformed hexadecimal float should produce an error: " + input);
+            Assertions.assertTrue(result.get().isEmpty());
+        }
+    }
+
+    @Test
+    public void testCharacterLiteralMustContainExactlyOneCharacter() {
+        List<Token> valid = DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.tokenize("'a'"),
+                "Failed to tokenize valid character literal"
+        );
+        Assertions.assertEquals("a", valid.getFirst().content());
+
+        for (String input : List.of("''", "'ab'")) {
+            var result = AssemblyParseFixture.tokenize(input);
+            DiagnosticAssertions.assertHasErrors(result,
+                    "Malformed character literal should produce an error: " + input);
+            Assertions.assertTrue(result.get().isEmpty());
         }
     }
 
