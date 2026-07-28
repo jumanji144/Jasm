@@ -37,6 +37,9 @@ public class DeclarationParser {
             return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
         }
         Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
+        if (filtered.second().isEmpty()) {
+            return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), filtered.first());
+        }
         this.ctx = new ParserContext(this, new ArrayList<>(filtered.second()));
         List<ASTElement> declarations = new ArrayList<>();
         while (!this.ctx.done()) {
@@ -60,6 +63,9 @@ public class DeclarationParser {
             return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
         }
         Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
+        if (filtered.second().isEmpty()) {
+            return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), filtered.first());
+        }
         this.ctx = new ParserContext(this, new ArrayList<>(filtered.second()));
         List<ASTElement> result = new ArrayList<>();
         while (!this.ctx.done()) {

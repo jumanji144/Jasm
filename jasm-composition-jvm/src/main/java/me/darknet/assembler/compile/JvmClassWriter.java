@@ -29,14 +29,28 @@ public class JvmClassWriter extends ClassWriter {
 
     @Override
     protected String getCommonSuperClass(String type1, String type2) {
-        checkAware(type1);
-        checkAware(type2);
+        boolean unknownType = false;
+        if (isUnknownType(type1)) {
+            checkAware(type1);
+            unknownType = true;
+        }
+        if (isUnknownType(type2)) {
+            checkAware(type2);
+            unknownType = true;
+        }
+
+        if (unknownType)
+            return "java/lang/Object";
 
         return checker.getCommonSuperclass(type1, type2);
     }
 
+    private boolean isUnknownType(String type) {
+        return type != null && typeAwareness != null && !typeAwareness.isAwareOf(type);
+    }
+
     protected void checkAware(String type) {
-        if (type != null && typeAwareness != null && !typeAwareness.isAwareOf(type))
+        if (isUnknownType(type) && errorCollector != null)
             errorCollector.addWarn(typeAwareness.notifyUnknownType(type), Location.UNKNOWN);
     }
 }

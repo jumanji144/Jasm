@@ -6,6 +6,7 @@ import me.darknet.assembler.error.Error;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.AstAssertions;
 import me.darknet.assembler.test.DiagnosticAssertions;
+import me.darknet.assembler.parser.DeclarationParser;
 
 import org.junit.jupiter.api.Test;
 
@@ -281,6 +282,28 @@ public class DeclarationParserTest {
                 AssemblyParseFixture.parse("{ key:"),
                 "Missing object value should produce an error"
         );
+    }
+
+    @Test
+    public void testCommentOnlyInputProducesEmptyResults() {
+        var tokens = DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.tokenize("// only a comment"),
+                "Failed to tokenize comment-only input"
+        );
+
+        var any = new DeclarationParser().parseAny(tokens);
+        assertFalse(any.hasErr());
+        assertTrue(any.get().isEmpty());
+
+        var declarations = new DeclarationParser().parseDeclarations(tokens);
+        assertFalse(declarations.hasErr());
+        assertTrue(declarations.get().isEmpty());
+
+        var processed = AssemblyParseFixture.processDeclarations(
+                "<stdin>", "// only a comment", me.darknet.assembler.parser.BytecodeFormat.DEFAULT
+        );
+        assertFalse(processed.hasErr());
+        assertTrue(processed.get().isEmpty());
     }
 
 }

@@ -47,6 +47,21 @@ public class TopLevelDeclarationTest {
 	}
 
 	@Test
+	void requestedVersionOverridesOverlayVersion() {
+		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		options.version(21);
+		options.overlay(new JavaClassRepresentation(buildOverlayClass(OVERLAY_TYPE, Opcodes.V1_8)));
+
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
+				".field public static final answer I { value: 42 }",
+				options
+		);
+		ClassNode node = readClass(compilation.requireClassBytes());
+
+		assertEquals(Opcodes.V21, node.version);
+	}
+
+	@Test
 	void compilesTopLevelMethodIntoOverlayClass() {
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
 				"""
@@ -183,8 +198,12 @@ public class TopLevelDeclarationTest {
 	}
 
 	private static byte[] buildOverlayClass(String internalName) {
+		return buildOverlayClass(internalName, Opcodes.V21);
+	}
+
+	private static byte[] buildOverlayClass(String internalName, int version) {
 		ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-		writer.visit(Opcodes.V21, Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER, internalName, null, "java/lang/Object", null);
+		writer.visit(version, Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER, internalName, null, "java/lang/Object", null);
 		writer.visitField(Opcodes.ACC_PUBLIC, "first", "I", null, 1).visitEnd();
 		writer.visitField(Opcodes.ACC_PUBLIC, "middle", "I", null, 2).visitEnd();
 		writer.visitField(Opcodes.ACC_PUBLIC, "last", "I", null, 3).visitEnd();
