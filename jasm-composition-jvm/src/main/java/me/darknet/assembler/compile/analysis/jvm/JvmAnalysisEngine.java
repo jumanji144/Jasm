@@ -1,5 +1,8 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
+import java.util.IdentityHashMap;
+import java.util.Map;
+
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.MethodAnalysisResult;
 import me.darknet.assembler.compile.analysis.VarCache;
@@ -22,6 +25,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	protected static final Type METHOD_HANDLE = JvmTypeUtils.METHOD_HANDLE;
 	protected static final Type CLASS = JvmTypeUtils.CLASS;
 
+	protected final Map<AbstractInsnNode, Integer> allocationIdentities = new IdentityHashMap<>();
 	protected final VarCache varCache;
 	protected InheritanceChecker checker;
 	protected ErrorCollector errorCollector;
@@ -138,6 +142,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 		this.analyzedMethodName = methodName;
 		this.analyzedAccess = access;
 		this.nextAllocationIdentity = 1;
+		this.allocationIdentities.clear();
 	}
 
 	/**
@@ -148,6 +153,28 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	 */
 	protected @NotNull Type newUninitializedType(@NotNull Type owner) {
 		return JvmTypeUtils.uninitializedType(owner, nextAllocationIdentity++);
+	}
+
+	/**
+	 * Creates an uninitialized type whose allocation identity is stable across re-executions of the same
+	 * {@code new} instruction. Re-running the same allocation site must yield the same verifier marker,
+	 * otherwise re-visits during worklist analysis merge two distinct markers for one allocation and degrade
+	 * the value to {@code TOP}.
+	 *
+	 * @param owner
+	 * 		Type of the owner of the uninitialized type.
+	 * @param site
+	 * 		The {@code new} instruction that allocates this value.
+	 *
+	 * @return Uninitialized type for the given allocation site.
+	 */
+	protected @NotNull Type newUninitializedType(@NotNull Type owner, @NotNull AbstractInsnNode site) {
+		Integer identity = allocationIdentities.get(site);
+		if (identity == null) {
+			identity = nextAllocationIdentity++;
+			allocationIdentities.put(site, identity);
+		}
+		return JvmTypeUtils.uninitializedType(owner, identity);
 	}
 
 	/**

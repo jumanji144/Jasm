@@ -392,7 +392,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 
 	private void executeTypeInsn(@NotNull TypeInsnNode instruction) {
 		switch (instruction.getOpcode()) {
-			case NEW -> getCurrentFrame().pushType(newUninitializedType(Type.getObjectType(instruction.desc)));
+			case NEW -> getCurrentFrame().pushType(newUninitializedType(Type.getObjectType(instruction.desc), instruction));
 			case CHECKCAST -> {
 				Type origin = getCurrentFrame().pop();
 				if (JvmTypeUtils.isUninitialized(origin))
