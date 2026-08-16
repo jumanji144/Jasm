@@ -526,7 +526,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		Type instructionType = Type.getObjectType(instruction.desc);
 		switch (instruction.getOpcode()) {
 			case NEW -> {
-				Type marker = newUninitializedType(instructionType);
+				Type marker = newUninitializedType(instructionType, instruction);
 				frame.push(new Value.UninitializedObjectValue(marker, instructionType));
 			}
 			case CHECKCAST -> {

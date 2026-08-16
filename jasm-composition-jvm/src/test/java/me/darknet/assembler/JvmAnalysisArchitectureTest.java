@@ -111,6 +111,45 @@ class JvmAnalysisArchitectureTest {
         assertEquals(me.darknet.assembler.util.JvmTypeUtils.OBJECT, endFrame.getLocalType(0));
     }
 
+    @Test
+    void revisitedNewAllocationKeepsStableUninitializedIdentity() {
+        // A branch merge that changes an int's value forces a downstream block to be re-analyzed. Re-running the
+        // 'new' instruction there must not mint a fresh uninitialized marker, otherwise the re-visit merges two
+        // distinct markers for the same allocation into TOP and the constructor/return checks report bogus warnings.
+        String source = """
+                .super java/lang/Object
+                .class public Example {
+                    .method public static build (I)LExample; {
+                        parameters: { x },
+                        code: {
+                        A:
+                            iload x
+                            ifeq B
+                            bipush 42
+                            goto C
+                        B:
+                            iload x
+                        C:
+                            istore y
+                        D:
+                            new Example
+                            dup
+                            invokespecial Example.<init> ()V
+                            areturn
+                        E:
+                        }
+                    }
+                }
+                """;
+        TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+
+        JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
+
+        assertFalse(compilation.hasErrors(), "Unexpected compilation errors: " + compilation.errors());
+        assertTrue(compilation.warnings().isEmpty(), "Expected no warnings, but got: " + compilation.warnings());
+    }
+
     private static final class ThrowingTypedEngine extends TypedJvmAnalysisEngine {
         private ThrowingTypedEngine(VarCache varCache) {
             super(varCache);
