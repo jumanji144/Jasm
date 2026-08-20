@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.tree.AbstractInsnNode;
 
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 
@@ -43,6 +44,12 @@ public interface AnalysisResults {
      */
     @NotNull
     NavigableMap<Integer, Frame> terminalFrames();
+
+    /**
+     * @return Immutable scoped local-variable states.
+     */
+    @NotNull
+    List<LocalVariableState> localVariableStates();
 
     /**
      * @return The exception thrown when handling method flow analysis. Will be

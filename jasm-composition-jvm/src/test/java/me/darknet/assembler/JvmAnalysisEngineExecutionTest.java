@@ -62,6 +62,19 @@ class JvmAnalysisEngineExecutionTest {
     }
 
     @Test
+    void valuedFrameTreatsTopStackValueAsStableMergeResult() throws Exception {
+        ValuedFrameImpl frame = new ValuedFrameImpl();
+        frame.pushRaw(Values.TOP_VALUE);
+
+        ValuedFrameImpl other = new ValuedFrameImpl();
+        other.pushRaw(Values.STRING_VALUE);
+
+        InheritanceChecker checker = new TestJvmCompilerOptions().inheritanceChecker();
+        assertFalse(frame.merge(checker, other));
+        assertSame(Values.TOP_VALUE, frame.pop());
+    }
+
+    @Test
     void valuedEngineFallsBackToUnknownReturnTypesWhenLookupCannotResolveValue() throws Exception {
         ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(new VarCache());
         engine.setMethodValueLookup(new BasicMethodValueLookup());

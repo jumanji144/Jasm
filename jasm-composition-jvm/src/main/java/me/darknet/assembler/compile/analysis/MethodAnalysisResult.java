@@ -22,6 +22,7 @@ public class MethodAnalysisResult implements AnalysisResults {
 	private final Map<ASTInstruction, AbstractInsnNode> astToInstruction = new IdentityHashMap<>();
 	private final Map<AbstractInsnNode, ASTInstruction> instructionToAst = new IdentityHashMap<>();
 	private final List<ASTInstruction> orderedAstInstructions = new ArrayList<>();
+	private List<LocalVariableState> localVariableStates = List.of();
 	private AnalysisException analysisFailure;
 
 	@Override
@@ -32,6 +33,19 @@ public class MethodAnalysisResult implements AnalysisResults {
 	@Override
 	public @NotNull NavigableMap<Integer, Frame> terminalFrames() {
 		return terminalFrames;
+	}
+
+	@Override
+	public @NotNull List<LocalVariableState> localVariableStates() {
+		return localVariableStates;
+	}
+
+	/**
+	 * @param states
+	 * 		Scoped source-level states to store.
+	 */
+	public void setLocalVariableStates(@NotNull List<LocalVariableState> states) {
+		localVariableStates = List.copyOf(states);
 	}
 
 	@Override
@@ -48,6 +62,7 @@ public class MethodAnalysisResult implements AnalysisResults {
 		terminalFrames.clear();
 		astToInstruction.clear();
 		instructionToAst.clear();
+		localVariableStates = List.of();
 		analysisFailure = null;
 	}
 

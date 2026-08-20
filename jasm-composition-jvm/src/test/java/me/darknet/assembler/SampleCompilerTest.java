@@ -5,6 +5,7 @@ import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JvmVariableMode;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
+import me.darknet.assembler.compile.analysis.LocalVariableState;
 import me.darknet.assembler.compile.analysis.Value;
 import me.darknet.assembler.compile.analysis.Values;
 import me.darknet.assembler.compile.analysis.frame.Frame;
@@ -39,9 +40,12 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.VarInsnNode;
 
 import static me.darknet.assembler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -302,6 +306,269 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-type-infer-list-alt.jasm");
             String source = arg.source.get();
             listTypeInference(source, options -> options.engineProvider(TypedJvmAnalysisEngine::new));
+        }
+
+        @Test
+        void scopedVariableStatesMergeConcreteTypesAndRewriteLvt() {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public static test (I)V {
+                            parameters: { branch },
+                            code: {
+                            A:
+                                iload branch
+                                ifeq B
+                                new java/lang/Integer
+                                dup
+                                iconst_0
+                                invokespecial java/lang/Integer.<init> (I)V
+                                astore value
+                                goto C
+                            B:
+                                new java/lang/Double
+                                dup
+                                dconst_0
+                                invokespecial java/lang/Double.<init> (D)V
+                                astore value
+                            C:
+                                return
+                            D:
+                            }
+                        }
+                    }
+                    """;
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "(I)V");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                LocalVariableState value = results.localVariableStates().stream()
+                        .filter(state -> state.name().equals("value"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(Type.getType(Number.class), value.type());
+                assertTrue(value.endIndex() > value.startIndex());
+
+                MethodNode method = readMethod(result.representation().classFile(), "test", "(I)V");
+                LocalVariableNode local = method.localVariables.stream()
+                        .filter(candidate -> candidate.name.equals("value"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(Type.getType(Number.class).getDescriptor(), local.desc);
+            });
+        }
+
+        @Test
+        void scopedStatesIgnoreTopWithoutWideningVerifierFrames() {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public static test (I)V {
+                            parameters: { branch },
+                            code: {
+                            A:
+                                iload branch
+                                ifeq B
+                                new java/lang/Integer
+                                dup
+                                iconst_0
+                                invokespecial java/lang/Integer.<init> (I)V
+                                astore value
+                            B:
+                                return
+                            C:
+                            }
+                        }
+                    }
+                    """;
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "(I)V");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                LocalVariableState value = results.localVariableStates().stream()
+                        .filter(state -> state.name().equals("value"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(Type.getType(Integer.class), value.type(), results.localVariableStates().toString());
+                assertTrue(results.localVariableStates().stream()
+                        .noneMatch(state -> JvmTypeUtils.isTop(state.type())));
+
+                MethodNode method = readMethod(result.representation().classFile(), "test", "(I)V");
+                LocalVariableNode local = method.localVariables.stream()
+                        .filter(candidate -> candidate.name.equals("value"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(Type.getType(Integer.class).getDescriptor(), local.desc);
+            });
+        }
+
+        @Test
+        void reportedStatesAreScopedToWhereVariablesAreUsed() {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public static test ()I {
+                            code: {
+                            A:
+                                iconst_1
+                                istore x
+                                iconst_2
+                                istore y
+                                iload y
+                                iload x
+                                iadd
+                                ireturn
+                            B:
+                            }
+                        }
+                    }
+                    """;
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "()I");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                MethodNode method = readMethod(result.representation().classFile(), "test", "()I");
+
+                // Locate the first store and last load for 'x' (slot 0) to derive its expected scope.
+                int firstStore = -1;
+                int lastLoad = -1;
+                for (int i = 0; i < method.instructions.size(); i++) {
+                    AbstractInsnNode instruction = method.instructions.get(i);
+                    if (!(instruction instanceof VarInsnNode variable) || variable.var != 0)
+                        continue;
+                    if (isVarStore(variable.getOpcode()) && firstStore < 0)
+                        firstStore = i;
+                    if (isVarLoad(variable.getOpcode()))
+                        lastLoad = i;
+                }
+                assertTrue(firstStore >= 0, "Expected a store to slot 0");
+                assertTrue(lastLoad >= 0, "Expected a load from slot 0");
+
+                LocalVariableState x = results.localVariableStates().stream()
+                        .filter(state -> state.name().equals("x"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(firstStore, x.startIndex());
+                assertEquals(lastLoad + 1, x.endIndex());
+                // The scope must be strictly narrower than the whole method body.
+                assertTrue(x.startIndex() > 0);
+                assertTrue(x.endIndex() < method.instructions.size());
+            });
+        }
+
+        @Test
+        void reportedParameterStatesKeepFullMethodScope() {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public static test (I)I {
+                            parameters: { branch },
+                            code: {
+                            A:
+                                iload branch
+                                ifeq B
+                                iconst_1
+                                istore x
+                            B:
+                                iconst_2
+                                istore y
+                                iload y
+                                ireturn
+                            C:
+                            }
+                        }
+                    }
+                    """;
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "(I)I");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                MethodNode method = readMethod(result.representation().classFile(), "test", "(I)I");
+
+                // The parameter keeps the full-method scope of its emitted debug entry,
+                // even though it is only read at the start of the method.
+                LocalVariableNode branch = method.localVariables.stream()
+                        .filter(local -> local.name.equals("branch"))
+                        .findFirst()
+                        .orElseThrow();
+                int start = method.instructions.indexOf(branch.start);
+                int end = method.instructions.indexOf(branch.end);
+
+                LocalVariableState branchState = results.localVariableStates().stream()
+                        .filter(state -> state.name().equals("branch"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(start, branchState.startIndex());
+                assertEquals(end, branchState.endIndex());
+
+                // Non-parameter locals are still narrowed to their usage range.
+                LocalVariableState y = results.localVariableStates().stream()
+                        .filter(state -> state.name().equals("y"))
+                        .findFirst()
+                        .orElseThrow();
+                assertTrue(y.endIndex() > y.startIndex());
+                assertTrue(y.endIndex() < method.instructions.size());
+            });
+        }
+
+        private static boolean isVarStore(int opcode) {
+            return opcode == Opcodes.ISTORE || opcode == Opcodes.LSTORE || opcode == Opcodes.FSTORE
+                    || opcode == Opcodes.DSTORE || opcode == Opcodes.ASTORE;
+        }
+
+        private static boolean isVarLoad(int opcode) {
+            return opcode == Opcodes.ILOAD || opcode == Opcodes.LLOAD || opcode == Opcodes.FLOAD
+                    || opcode == Opcodes.DLOAD || opcode == Opcodes.ALOAD;
+        }
+
+        @Test
+        void frameDerivedStatesWorkWithoutLocalVariableTable() {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public static test ()V {
+                            code: {
+                            A:
+                                ldc "value"
+                                astore value
+                                return
+                            B:
+                            }
+                        }
+                    }
+                    """;
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.variableTableMode(JvmVariableMode.NEVER_WRITE); // Explicitly disable writing local variable table
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "()V");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                // We should still be able to infer the type of the variable 'value' from the frame analysis,
+                // even though there is no local variable table.
+                LocalVariableState value = results.localVariableStates().stream()
+                        .filter(state -> state.index() == 0)
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(Type.getType(String.class), value.type());
+                assertEquals("value", value.name());
+
+                // The actual output LVT should be empty or not present at all.
+                MethodNode method = readMethod(result.representation().classFile(), "test", "()V");
+                assertTrue(method.localVariables == null || method.localVariables.isEmpty());
+            });
         }
 
         @SuppressWarnings("DataFlowIssue")
