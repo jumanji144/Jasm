@@ -68,7 +68,7 @@ public final class JvmMemberPrinter {
         printAnnos(ctx, visibleTypeAnnotations, annotation -> JvmAnnotationPrinter.forTopLevelAnno(annotation, true));
         printAnnos(ctx, invisibleTypeAnnotations, annotation -> JvmAnnotationPrinter.forTopLevelAnno(annotation, false));
         if (deprecated) {
-            ctx.begin().element(".deprecated").end();
+            ctx.begin().element(".deprecated").line();
             ctx.next();
         }
         if (signature != null) {
