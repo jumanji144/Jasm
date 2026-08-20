@@ -5,6 +5,8 @@ import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
+import me.darknet.assembler.compile.analysis.LocalVariableState;
+import me.darknet.assembler.compile.analysis.LocalVariableStateAnalyzer;
 import me.darknet.assembler.compile.analysis.MethodAnalysisResult;
 import me.darknet.assembler.compile.analysis.VarCache;
 import me.darknet.assembler.compile.analysis.VarCacheUpdater;
@@ -96,6 +98,9 @@ public class JvmCompiler implements Compiler {
 
 				// Filling in the analysis results for the generated class.
 				analyzeGeneratedClass(bytes, jvmOptions, builder, collector);
+
+				// Refine existing debug descriptors without touching verifier frames or instructions.
+				bytes = rewriteLocalVariableTypes(bytes, builder);
 
 				// Verify the generated class, if the user requested it.
 				JvmVerify.verifyGeneratedMethods(bytes, jvmOptions, builder, collector);
@@ -216,6 +221,9 @@ public class JvmCompiler implements Compiler {
 				result.setAnalysisFailure(ex);
 			}
 
+			// Finally, we can infer the local-variable states from the analysis results.
+			result.setLocalVariableStates(LocalVariableStateAnalyzer.infer(method, result, options.inheritanceChecker()));
+
 			// Attempt to link any analysis failure to the original AST instruction,
 			// so we can report it to the user with a proper location.
 			recordAnalysisFailure(result, collector);
@@ -223,6 +231,64 @@ public class JvmCompiler implements Compiler {
 			// Done with this method, store the result for later retrieval.
 			builder.setMethodAnalysis(method, result);
 		}
+	}
+
+	/**
+	 * Refines existing local-variable descriptors using the analysis states.
+	 *
+	 * @param bytes
+	 * 		Class bytes whose debug metadata should be refined.
+	 * @param builder
+	 * 		Builder containing analysis results keyed by method signature.
+	 *
+	 * @return Original bytes when no descriptor changed, otherwise rewritten bytes.
+	 */
+	private static byte @NotNull [] rewriteLocalVariableTypes(byte @NotNull [] bytes,
+	                                                          @NotNull JvmClassBuilder builder) {
+		ClassNode classNode = new ClassNode();
+		new ClassReader(bytes).accept(classNode, 0);
+
+		// Map the analysis results by method signature for easy lookup.
+		Map<String, AnalysisResults> resultsByMethod = new HashMap<>();
+		for (Map.Entry<MethodNode, AnalysisResults> entry : builder.getMethodAnalysisResults().entrySet()) {
+			MethodNode method = entry.getKey();
+			resultsByMethod.put(methodKey(method.name, method.desc), entry.getValue());
+		}
+
+		boolean changed = false;
+		for (MethodNode method : classNode.methods) {
+			// Skip methods with no analysis results or no local variables, since there's nothing to refine.
+			AnalysisResults results = resultsByMethod.get(methodKey(method.name, method.desc));
+			if (results == null || method.localVariables == null || method.localVariables.isEmpty())
+				continue;
+
+			// For each local variable in the method, check if the analysis results have a different type for it.
+			for (LocalVariableNode local : method.localVariables) {
+				int start = method.instructions.indexOf(local.start);
+				int end = method.instructions.indexOf(local.end);
+				if (start < 0 || end <= start)
+					continue;
+
+				// Find the corresponding local-variable state from the analysis results.
+				LocalVariableState state = results.localVariableStates().stream()
+						.filter(candidate -> candidate.index() == local.index && candidate.name().equals(local.name))
+						.findFirst()
+						.orElse(null);
+				if (state == null || state.type().getDescriptor().equals(local.desc))
+					continue;
+
+				local.desc = state.type().getDescriptor();
+				changed = true;
+			}
+		}
+
+		if (!changed)
+			return bytes;
+
+		// Rewrite the class with the refined local-variable descriptors.
+		ClassWriter writer = new ClassWriter(0);
+		classNode.accept(writer);
+		return writer.toByteArray();
 	}
 
 	/**

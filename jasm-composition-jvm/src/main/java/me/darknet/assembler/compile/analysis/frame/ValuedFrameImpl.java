@@ -121,8 +121,9 @@ public class ValuedFrameImpl implements ValuedFrame {
 				continue;
 			}
 			if (value1 instanceof Value.TopValue || value2 instanceof Value.TopValue) {
+				if (!Objects.equals(value1, Values.TOP_VALUE))
+					changed = true;
 				newStack.add(Values.TOP_VALUE);
-				changed = true;
 				continue;
 			}
 			if (value1 == Values.VOID_VALUE || value2 == Values.VOID_VALUE)
