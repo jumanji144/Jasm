@@ -7,7 +7,6 @@ import me.darknet.assembler.test.JvmCompilation;
 import me.darknet.assembler.test.JvmDecompilationFixture;
 import me.darknet.assembler.test.JvmDisassemblyFixture;
 import me.darknet.assembler.test.JvmRoundTripFixture;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -308,7 +307,7 @@ class JvmRoundTripTest {
 				.class public example/AttrCarrier {
 				    .deprecated
 				    .field public static VALUE I {value: 1}
-
+				
 				    .deprecated
 				    .method public work ()V {
 				        throws: { java/lang/Exception },
@@ -336,6 +335,34 @@ class JvmRoundTripTest {
 		assertTrue(source.contains("parameters: { args }"));
 
 		assertRoundTripRetains(source, "parameters: { args }");
+	}
+
+	@Test
+	void deprecatedAttributesRoundTrip() {
+		byte[] raw = buildDeprecatedAttributeClass();
+		ClassNode original = readClass(raw);
+		String source = JvmDisassemblyFixture.disassembleJvm(raw);
+
+		// Check the input class really carries Deprecated attributes at every supported member level.
+		assertTrue((original.access & Opcodes.ACC_DEPRECATED) != 0);
+		assertTrue((original.fields.getFirst().access & Opcodes.ACC_DEPRECATED) != 0);
+		MethodNode originalMethod = original.methods.stream()
+				.filter(method -> method.name.equals("work"))
+				.findFirst()
+				.orElseThrow();
+		assertTrue((originalMethod.access & Opcodes.ACC_DEPRECATED) != 0);
+
+		// Compile the disassembly again and verify that each Deprecated attribute survives the round-trip.
+		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, new TestJvmCompilerOptions());
+		ClassNode roundTripped = readClass(roundTrip.compilation().requireClassBytes());
+		assertTrue((roundTripped.access & Opcodes.ACC_DEPRECATED) != 0);
+		assertTrue((roundTripped.fields.getFirst().access & Opcodes.ACC_DEPRECATED) != 0);
+		MethodNode roundTrippedMethod = roundTripped.methods.stream()
+				.filter(method -> method.name.equals("work"))
+				.findFirst()
+				.orElseThrow();
+		assertTrue((roundTrippedMethod.access & Opcodes.ACC_DEPRECATED) != 0);
+		assertEquals(normalize(source), normalize(roundTrip.disassembledSource()));
 	}
 
 	static List<BinarySampleFixture.JvmTextSample> validSamples() {
@@ -526,9 +553,29 @@ class JvmRoundTripTest {
 		});
 	}
 
+	private static byte[] buildDeprecatedAttributeClass() {
+		return buildClass(
+				Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER | Opcodes.ACC_DEPRECATED,
+				"hardening/DeprecatedAttributes",
+				cw -> {
+					cw.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_DEPRECATED, "VALUE", "I", null, null).visitEnd();
+
+					MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_DEPRECATED, "work", "()V", null, null);
+					mv.visitCode();
+					mv.visitInsn(Opcodes.RETURN);
+					mv.visitMaxs(0, 0);
+					mv.visitEnd();
+				}
+		);
+	}
+
 	private static byte[] buildClass(String internalName, Consumer<ClassWriter> body) {
+		return buildClass(Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER, internalName, body);
+	}
+
+	private static byte[] buildClass(int access, String internalName, Consumer<ClassWriter> body) {
 		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-		cw.visit(Opcodes.V21, Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER, internalName, null, "java/lang/Object", null);
+		cw.visit(Opcodes.V21, access, internalName, null, "java/lang/Object", null);
 		addDefaultConstructor(cw, internalName);
 		body.accept(cw);
 		cw.visitEnd();
