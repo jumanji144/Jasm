@@ -11,13 +11,13 @@ import java.util.List;
  * Static {@code long method(byte)} executor.
  */
 public interface B2JStaticFunc extends StaticFunc {
-    long apply(byte a);
+	long apply(byte a);
 
-    @Override
-    @Nullable
-    default Value apply(@NotNull List<Value> params) {
-        if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue a)
-            return Values.valueOf(apply((byte) a.value()));
-        return Values.LONG_VALUE;
-    }
+	@Override
+	@Nullable
+	default Value apply(@NotNull List<Value> params) {
+		if (params.size() == 1 && params.getFirst() instanceof Value.KnownIntValue a)
+			return Values.valueOf(apply((byte) a.value()));
+		return Values.LONG_VALUE;
+	}
 }

@@ -7,6 +7,8 @@ import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CollectionUtil;
 import me.darknet.assembler.util.ElementMap;
+import me.darknet.assembler.util.ElementMapView;
+import me.darknet.assembler.util.ImmutableElementMap;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -14,17 +16,21 @@ import org.jetbrains.annotations.Nullable;
 public class ASTAnnotation extends ASTElement {
 
     private final ASTIdentifier classType;
-    private final ElementMap<ASTIdentifier, ASTElement> values;
+    private final ImmutableElementMap<ASTIdentifier, ASTElement> values;
     private final ASTNumber typeRef;
     private final ASTIdentifier typePath;
     private final boolean visible;
 
-    public ASTAnnotation(boolean visible, ASTIdentifier classType, ElementMap<ASTIdentifier, ASTElement> values) {
+    public ASTAnnotation(boolean visible, ASTIdentifier classType, ElementMapView<ASTIdentifier, ASTElement> values) {
         this(visible, classType, values, null, null);
     }
 
-    public ASTAnnotation(boolean visible, ASTIdentifier classType, ElementMap<ASTIdentifier, ASTElement> values, ASTNumber typeRef, ASTIdentifier typePath) {
-        super(ElementType.ANNOTATION, CollectionUtil.mergeNonNull(values.elements(), classType));
+    public ASTAnnotation(boolean visible, ASTIdentifier classType, ElementMapView<ASTIdentifier, ASTElement> values, ASTNumber typeRef, ASTIdentifier typePath) {
+        this(visible, classType, ImmutableElementMap.copyOf(values), typeRef, typePath);
+    }
+
+    private ASTAnnotation(boolean visible, ASTIdentifier classType, ImmutableElementMap<ASTIdentifier, ASTElement> values, ASTNumber typeRef, ASTIdentifier typePath) {
+        super(ElementType.ANNOTATION, CollectionUtil.mergeNonNull(values.elements(), classType, typeRef, typePath));
         this.visible = visible;
         this.classType = classType;
         this.values = values;
@@ -52,7 +58,7 @@ public class ASTAnnotation extends ASTElement {
         return classType;
     }
 
-    public @NotNull ElementMap<ASTIdentifier, ASTElement> values() {
+    public @NotNull ElementMapView<ASTIdentifier, ASTElement> values() {
         return values;
     }
 

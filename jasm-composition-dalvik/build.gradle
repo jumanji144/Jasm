@@ -1,0 +1,18 @@
+apply plugin: 'java-library'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = 'https://jitpack.io' }
+}
+
+dependencies {
+    api 'com.github.jumanji144.dex:dex-core:f9353e0f33' // 'me.darknet:dex-core:0.0.4-alpha'
+
+    api project(path: ':jasm-core')
+    testImplementation(testFixtures(project(path: ':jasm-core')))
+}
+
+test {
+    useJUnitPlatform()
+}

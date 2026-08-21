@@ -59,6 +59,12 @@ An element can be one of the following, with following interpretation:
 .signature "generic signature"
 ```
 
+### Deprecated
+```
+.deprecated
+```
+Marks the immediately following class, field, or method as deprecated.
+
 ## Class
 
 ### Super
@@ -90,6 +96,12 @@ and name must be an identifier. When `outer` isn't given `name` must also be not
 .sourcefile "SourceFile"
 ```
 Specifies the source file of the class.
+
+### Source Debug Extension
+```
+.source-debug-extension "SMAP or other debug payload"
+```
+Specifies the class `SourceDebugExtension` attribute payload.
 
 ### Outer class + method
 ```
@@ -124,6 +136,14 @@ Appends an internal type to the list of members this class is a nest host for.
 Appends an entry the list of the record class's components.
 
 ## Method
+
+### Declared Exceptions
+```
+.method public work ()V {
+    throws: { java/lang/Exception, java/io/IOException }
+}
+```
+Adds entries to the method `Exceptions` attribute. This is distinct from the existing `exceptions` key, which represents `Code` try/catch blocks.
 
 ### AnnotationDefault
 

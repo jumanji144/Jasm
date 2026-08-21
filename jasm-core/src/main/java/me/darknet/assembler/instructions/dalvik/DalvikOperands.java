@@ -8,7 +8,7 @@ import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.instructions.Operand;
 import me.darknet.assembler.instructions.Operands;
 import me.darknet.assembler.instructions.jvm.JvmOperands;
-import me.darknet.assembler.parser.processor.ASTProcessor;
+import me.darknet.assembler.parser.processor.ProcessorContext;
 
 public enum DalvikOperands implements Operands {
 
@@ -38,24 +38,37 @@ public enum DalvikOperands implements Operands {
         }
     }),
     HANDLE(JvmOperands::verifyHandle),
+    ARGS_ARRAY((context, element) -> {
+        // args array can be: register or array
+        ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "args array", element);
+        if (array == null)
+            return;
+        for (ASTElement value : array.values()) {
+            if (context.isNull(value, "args array element", array.location()))
+                continue;
+            DalvikOperands.verifyConstant(context, value);
+        }
+    }),
     REGISTER_ARRAY((context, element) -> {
         // register array can be: register or array
         ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "register array", element);
+        if (array == null)
+            return;
         for (ASTElement value : array.values()) {
             if (context.isNull(value, "register array element", array.location()))
-                return;
-            assert value != null;
-            if(value.type() != ElementType.NUMBER || value.type() != ElementType.IDENTIFIER)
+                continue;
+            if(value.type() != ElementType.IDENTIFIER)
                 context.throwUnexpectedElementError("register", value);
         }
     }),
     DATA_ARRAY((context, element) -> {
         // data array can be: number or array
         ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "data array", element);
+        if (array == null)
+            return;
         for (ASTElement value : array.values()) {
             if (context.isNull(value, "data array element", array.location()))
-                return;
-            assert value != null;
+                continue;
             if(value.type() != ElementType.NUMBER)
                 context.throwUnexpectedElementError("number", value);
         }
@@ -70,7 +83,7 @@ public enum DalvikOperands implements Operands {
         if (context.validateCorrect(object.value("first"), ElementType.NUMBER, "number", object))
             return;
 
-        ASTNumber min = object.value("min");
+        ASTNumber min = object.value("first");
 
         if (min.isFloatingPoint())
             context.throwUnexpectedElementError("integer literal", min);
@@ -90,7 +103,8 @@ public enum DalvikOperands implements Operands {
         ASTObject object = (ASTObject) element;
 
         // cases should be identifier
-        for (ASTElement elem : object.values().elements()) {
+        for (var pair : object.values().pairs()) {
+            ASTElement elem = pair.second();
             if (context.isNotType(elem, ElementType.IDENTIFIER, "identifier"))
                 return;
         }
@@ -107,7 +121,7 @@ public enum DalvikOperands implements Operands {
         return operand;
     }
 
-    static void verifyConstant(ASTProcessor.ParserContext ctx, ASTElement element) {
+    static void verifyConstant(ProcessorContext ctx, ASTElement element) {
         switch (element.type()) {
             case NUMBER, STRING, CHARACTER -> {
             }

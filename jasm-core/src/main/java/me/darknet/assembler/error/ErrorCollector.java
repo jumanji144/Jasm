@@ -15,30 +15,38 @@ public class ErrorCollector {
     private final List<Warn> warns = new ArrayList<>();
 
     public void addError(Error error) {
+        if (errors.contains(error))
+            return;
         errors.add(error);
     }
 
     public void addWarn(Warn warn) {
+        if (warns.contains(warn))
+            return;
         warns.add(warn);
     }
 
     public void addError(String message, Location location) {
-        errors.add(new Error(message, location));
+        addError(new Error(message, location));
     }
 
     public void addWarn(String message, Location location) {
-        warns.add(new Warn(message, location));
+        addWarn(new Warn(message, location));
     }
 
     public void addErrors(Collection<Error> errors) {
-        this.errors.addAll(errors);
+        errors.forEach(this::addError);
     }
 
     public void addWarnings(Collection<Warn> warns) {
-        this.warns.addAll(warns);
+       warns.forEach(this::addWarn);
     }
 
     public void removeAt(Location location) {
+        // Note: JvmAnalysisEngine.clearErrorsAt() is called before each instruction is analyzed.
+        // Since cleanup is currently line-based, a later instruction on the same source line
+        // may delete a warning emitted by an earlier instruction.
+        // - Instructions are generally put on separate lines so unless this isn't a huge concern.
         errors.removeIf(e -> e.getLocation().line() == location.line());
         warns.removeIf(e -> e.getLocation().line() == location.line());
     }

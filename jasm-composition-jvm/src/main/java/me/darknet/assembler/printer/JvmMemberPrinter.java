@@ -1,113 +1,128 @@
 package me.darknet.assembler.printer;
 
-import me.darknet.assembler.util.BlwModifiers;
-
-import dev.xdark.blw.annotation.Annotation;
-import dev.xdark.blw.classfile.Accessible;
-import dev.xdark.blw.classfile.Annotated;
-import dev.xdark.blw.classfile.Member;
-import dev.xdark.blw.classfile.Signed;
+import me.darknet.assembler.util.JvmModifiers;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.AnnotationNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.RecordComponentNode;
+import org.objectweb.asm.tree.TypeAnnotationNode;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 
-public record JvmMemberPrinter(@Nullable Annotated annotated, @Nullable Signed signed, @Nullable Accessible accessible, @NotNull Type type) {
+public final class JvmMemberPrinter {
+    private final List<AnnotationNode> visibleAnnotations;
+    private final List<AnnotationNode> invisibleAnnotations;
+    private final List<TypeAnnotationNode> visibleTypeAnnotations;
+    private final List<TypeAnnotationNode> invisibleTypeAnnotations;
+    private final String signature;
+    private final Integer access;
+    private final boolean deprecated;
+    private final Type type;
 
-    public JvmMemberPrinter(@Nullable Member<?> member, @NotNull Type type) {
-        this(member, member, member, type);
+    public JvmMemberPrinter(@NotNull ClassNode node, @NotNull Type type) {
+        this(node.visibleAnnotations, node.invisibleAnnotations, node.visibleTypeAnnotations, node.invisibleTypeAnnotations,
+                node.signature, node.access, (node.access & Opcodes.ACC_DEPRECATED) != 0, type);
+    }
+
+    public JvmMemberPrinter(@NotNull FieldNode node, @NotNull Type type) {
+        this(node.visibleAnnotations, node.invisibleAnnotations, node.visibleTypeAnnotations, node.invisibleTypeAnnotations,
+                node.signature, node.access, (node.access & Opcodes.ACC_DEPRECATED) != 0, type);
+    }
+
+    public JvmMemberPrinter(@NotNull MethodNode node, @NotNull Type type) {
+        this(node.visibleAnnotations, node.invisibleAnnotations, node.visibleTypeAnnotations, node.invisibleTypeAnnotations,
+                node.signature, node.access, (node.access & Opcodes.ACC_DEPRECATED) != 0, type);
+    }
+
+    public JvmMemberPrinter(@NotNull RecordComponentNode node) {
+        this(node.visibleAnnotations, node.invisibleAnnotations, node.visibleTypeAnnotations, node.invisibleTypeAnnotations,
+                node.signature, null, false, Type.CLASS);
+    }
+
+    private JvmMemberPrinter(@Nullable List<AnnotationNode> visibleAnnotations,
+                             @Nullable List<AnnotationNode> invisibleAnnotations,
+                             @Nullable List<TypeAnnotationNode> visibleTypeAnnotations,
+                             @Nullable List<TypeAnnotationNode> invisibleTypeAnnotations,
+                             @Nullable String signature,
+                             @Nullable Integer access,
+                             boolean deprecated,
+                             @NotNull Type type) {
+        this.visibleAnnotations = visibleAnnotations == null ? List.of() : visibleAnnotations;
+        this.invisibleAnnotations = invisibleAnnotations == null ? List.of() : invisibleAnnotations;
+        this.visibleTypeAnnotations = visibleTypeAnnotations == null ? List.of() : visibleTypeAnnotations;
+        this.invisibleTypeAnnotations = invisibleTypeAnnotations == null ? List.of() : invisibleTypeAnnotations;
+        this.signature = signature;
+        this.access = access;
+        this.deprecated = deprecated;
+        this.type = type;
     }
 
     public void printAttributes(PrintContext<?> ctx) {
-        if (annotated != null) {
-            printAnnos(ctx, annotated.visibleRuntimeAnnotations(), a ->  JvmAnnotationPrinter.forTopLevelAnno(a, true));
-            printAnnos(ctx, annotated.invisibleRuntimeAnnotations(), a ->  JvmAnnotationPrinter.forTopLevelAnno(a, false));
-            printAnnos(ctx, annotated.visibleRuntimeTypeAnnotations(), a ->  JvmAnnotationPrinter.forTopLevelAnno(a, true));
-            printAnnos(ctx, annotated.invisibleRuntimeTypeAnnotations(), a ->  JvmAnnotationPrinter.forTopLevelAnno(a, false));
+        printAnnos(ctx, visibleAnnotations, annotation -> JvmAnnotationPrinter.forTopLevelAnno(annotation, true));
+        printAnnos(ctx, invisibleAnnotations, annotation -> JvmAnnotationPrinter.forTopLevelAnno(annotation, false));
+        printAnnos(ctx, visibleTypeAnnotations, annotation -> JvmAnnotationPrinter.forTopLevelAnno(annotation, true));
+        printAnnos(ctx, invisibleTypeAnnotations, annotation -> JvmAnnotationPrinter.forTopLevelAnno(annotation, false));
+        if (deprecated) {
+            ctx.begin().element(".deprecated").line();
+            ctx.next();
         }
-        if (signed != null && signed.signature() != null) {
-            ctx.begin().element(".signature").string(signed.signature()).next();
+        if (signature != null) {
+            ctx.begin().element(".signature").string(signature).next();
         }
     }
 
-    private void printAnnos(PrintContext<?> ctx, List<? extends Annotation> annotations, Function<Annotation, JvmAnnotationPrinter> printerFunction) {
-	    for (Annotation annotation : annotations) {
-		    JvmAnnotationPrinter printer = printerFunction.apply(annotation);
-		    printer.print(ctx);
-		    ctx.next();
-	    }
+    private <A extends AnnotationNode> void printAnnos(PrintContext<?> ctx, List<A> annotations,
+                                                       Function<A, JvmAnnotationPrinter> printerFunction) {
+        for (A annotation : annotations) {
+            printerFunction.apply(annotation).print(ctx);
+            ctx.next();
+        }
     }
 
     public PrintContext<?> printDeclaration(PrintContext<?> ctx) {
-        if (accessible != null) {
+        if (access != null) {
             String elementName = switch (type) {
                 case CLASS -> ".class";
                 case FIELD -> ".field";
                 case METHOD -> ".method";
             };
             int modifierType = switch (type) {
-                case CLASS -> BlwModifiers.CLASS;
-                case FIELD -> BlwModifiers.FIELD;
-                case METHOD -> BlwModifiers.METHOD;
+                case CLASS -> JvmModifiers.CLASS;
+                case FIELD -> JvmModifiers.FIELD;
+                case METHOD -> JvmModifiers.METHOD;
             };
-            return ctx.begin().element(elementName)
-                    .print(BlwModifiers.modifiers(accessible.accessFlags(), modifierType));
+            return ctx.begin().element(elementName).print(JvmModifiers.modifiers(access, modifierType));
         }
         return ctx;
     }
 
-    /**
-     * @param index
-     *         Index into <i>all</i> annotations,
-     *         where the list is formed by {@code RuntimeVisibleAnnotations + RuntimeInvisibleAnnotations}.
-     *
-     * @return Printer for annotation. {@code null} if the index does not point to a known annotation.
-     */
     public @Nullable AnnotationPrinter printAnnotation(int index) {
-        if (annotated != null) {
-            // First check visible annotations.
-            List<Annotation> visibleAnnos = annotated.visibleRuntimeAnnotations();
-            int runtimeAnnotationCount = visibleAnnos.size();
-            if (index < runtimeAnnotationCount)
-                return new JvmAnnotationPrinter(visibleAnnos.get(index), true);
-
-            // Next check invisible annotations, offsetting the index by the number of visible annotations.
-            List<Annotation> invisibleAnnos = annotated.invisibleRuntimeAnnotations();
-            int targetInvisibleIndex = index - runtimeAnnotationCount;
-            if (targetInvisibleIndex < invisibleAnnos.size())
-                return new JvmAnnotationPrinter(invisibleAnnos.get(targetInvisibleIndex), false);
+        int visibleCount = visibleAnnotations.size();
+        if (index < visibleCount) {
+            return new JvmAnnotationPrinter(visibleAnnotations.get(index), true);
+        }
+        int invisibleIndex = index - visibleCount;
+        if (invisibleIndex < invisibleAnnotations.size()) {
+            return new JvmAnnotationPrinter(invisibleAnnotations.get(invisibleIndex), false);
         }
         return null;
     }
 
-    /**
-     * @param index
-     *         Index into the {@code RuntimeVisibleAnnotations} attribute.
-     *
-     * @return Printer for annotation. {@code null} if the index does not point to a known annotation.
-     */
     public @Nullable AnnotationPrinter printVisibleAnnotation(int index) {
-        if (annotated != null) {
-            List<Annotation> annotations = annotated.visibleRuntimeAnnotations();
-            if (index < annotations.size())
-                return new JvmAnnotationPrinter(annotations.get(index), true);
+        if (index < visibleAnnotations.size()) {
+            return new JvmAnnotationPrinter(visibleAnnotations.get(index), true);
         }
         return null;
     }
 
-    /**
-     * @param index
-     *         Index into the {@code RuntimeInvisibleAnnotations} attribute.
-     *
-     * @return Printer for annotation. {@code null} if the index does not point to a known annotation.
-     */
     public @Nullable AnnotationPrinter printInvisibleAnnotation(int index) {
-        if (annotated != null) {
-            List<Annotation> annotations = annotated.invisibleRuntimeAnnotations();
-            if (index < annotations.size())
-                return new JvmAnnotationPrinter(annotations.get(index), true);
+        if (index < invisibleAnnotations.size()) {
+            return new JvmAnnotationPrinter(invisibleAnnotations.get(index), false);
         }
         return null;
     }
@@ -118,3 +133,4 @@ public record JvmMemberPrinter(@Nullable Annotated annotated, @Nullable Signed s
         METHOD
     }
 }
+

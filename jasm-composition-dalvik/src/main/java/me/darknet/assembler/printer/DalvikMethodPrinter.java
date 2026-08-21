@@ -1,0 +1,156 @@
+package me.darknet.assembler.printer;
+
+import me.darknet.dex.tree.definitions.MethodMember;
+import me.darknet.dex.tree.definitions.code.Code;
+import me.darknet.dex.tree.definitions.debug.DebugInformation;
+import me.darknet.dex.tree.definitions.instructions.Label;
+import me.darknet.dex.tree.simulation.StraightForwardSimulation;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+
+public class DalvikMethodPrinter implements MethodPrinter {
+
+    private final MethodMember definition;
+    private final DalvikMemberPrinter memberPrinter;
+
+    public DalvikMethodPrinter(MethodMember definition) {
+        this.definition = definition;
+        this.memberPrinter = new DalvikMemberPrinter(definition, definition, DalvikMemberPrinter.Type.METHOD);
+    }
+
+    @Override
+    public @Nullable AnnotationPrinter annotation(int index) {
+        return memberPrinter.printAnnotation(index);
+    }
+
+    @Override
+    public @Nullable AnnotationPrinter visibleAnnotation(int index) {
+        return memberPrinter.printAnnotation(index);
+    }
+
+    @Override
+    public @Nullable AnnotationPrinter invisibleAnnotation(int index) {
+        return memberPrinter.printAnnotation(index);
+    }
+
+    private static String getLabelName(int index) {
+        StringBuilder label = new StringBuilder();
+
+        while (index >= 0) {
+            label.insert(0, (char) ('A' + index % 26));
+            index = (index / 26) - 1;
+        }
+
+        return label.toString();
+    }
+
+    @Override
+    public void print(PrintContext<?> ctx) {
+        memberPrinter.printAttributes(ctx);
+        var obj = memberPrinter.printDeclaration(ctx).literal(definition.getName()).print(" ")
+                .literal(definition.getType().descriptor()).print(" ").object();
+
+        var code = definition.getCode();
+        Map<Label, String> labelNames = code == null ? Map.of() : getLabelNames(code);
+
+        boolean hasPrior = false;
+        if (code != null && code.getIn() != 0) {
+            DebugInformation debug = code.getDebugInfo();
+            if (debug != null) {
+                List<String> params = debug.parameterNames();
+                PrintContext.ArrayPrint arr = obj.value("parameters").array();
+                for (int i = 0; i < code.getIn(); i++) {
+                    if (params != null && i < params.size()) {
+                        arr.print(params.get(i));
+                    } else {
+                        arr.print("p" + i);
+                    }
+                    if (i < code.getIn() - 1) arr.arg();
+                }
+                arr.end();
+                hasPrior = true;
+            }
+        }
+
+        if (code != null && !code.tryCatch().isEmpty()) {
+            if (hasPrior) obj.next();
+
+            PrintContext.ArrayPrint exceptions = obj.value("exceptions").array();
+            for (int i = 0; i < code.tryCatch().size(); i++) {
+                var tryCatch = code.tryCatch().get(i);
+                if (i > 0) {
+                    exceptions.arg();
+                }
+
+                exceptions.array()
+                        .print(labelNames.get(tryCatch.begin())).arg()
+                        .print(labelNames.get(tryCatch.end())).arg()
+                        .print(labelNames.get(tryCatch.handlers().getFirst().handler())).arg()
+                        .literal(tryCatch.handlers().getFirst().exceptionType().internalName())
+                        .end();
+            }
+            exceptions.end();
+            hasPrior = true;
+        }
+
+        if (code != null) {
+            if (hasPrior) obj.next();
+
+            var codeObj = obj.value("code").code();
+
+            Map<Integer, String> registers = getRegisterNames(code);
+
+            DalvikCodePrinter printer = new DalvikCodePrinter(codeObj, registers, labelNames);
+            StraightForwardSimulation simulation = new StraightForwardSimulation();
+
+            simulation.execute(printer, code);
+
+            codeObj.end();
+        }
+
+        obj.end();
+    }
+
+    private static @NotNull Map<Label, String> getLabelNames(@NotNull Code code) {
+        Map<Label, String> labelNames = new IdentityHashMap<>();
+        int labelIndex = 0;
+        for (var instruction : code.getInstructions()) {
+            if (instruction instanceof Label label) {
+                labelNames.put(label, getLabelName(labelIndex++));
+            }
+        }
+        return labelNames;
+    }
+
+    private static @NotNull Map<Integer, String> getRegisterNames(Code code) {
+        Map<Integer, String> registers = new HashMap<>();
+        DebugInformation debugInfo = code.getDebugInfo();
+        List<DebugInformation.LocalVariable> locals = debugInfo == null ? Collections.emptyList() : debugInfo.locals();
+        List<String> params = debugInfo == null ? Collections.emptyList() : debugInfo.parameterNames();
+
+        for (DebugInformation.LocalVariable local : locals) {
+            // intermittent name changes are not supported, so we just use the first name we see
+            registers.putIfAbsent(local.register(), local.name());
+        }
+
+        int paramBase = code.getRegisters() - code.getIn();
+
+        for (int i = 0; i < code.getIn(); i++) {
+            if (params != null && i < params.size()) {
+                registers.putIfAbsent(paramBase + i, params.get(i));
+                continue;
+            }
+            registers.putIfAbsent(paramBase + i, "p" + i);
+        }
+        for (int i = 0; i < code.getRegisters() - code.getIn(); i++) {
+            registers.putIfAbsent(i, "v" + (i));
+        }
+        return registers;
+    }
+}

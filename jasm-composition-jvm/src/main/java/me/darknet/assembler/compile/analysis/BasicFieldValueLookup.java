@@ -1,9 +1,9 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.code.instruction.FieldInstruction;
 import me.darknet.assembler.compile.analysis.jvm.FieldValueLookup;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.tree.FieldInsnNode;
 
 import java.io.File;
 import java.util.HashMap;
@@ -16,9 +16,9 @@ public class BasicFieldValueLookup implements FieldValueLookup {
     protected static final Map<String, Value> CONST_FIELDS = new HashMap<>();
 
     @Override
-    public @Nullable Value accept(@NotNull FieldInstruction instruction, Value.@Nullable ObjectValue context) {
+    public @Nullable Value accept(@NotNull FieldInsnNode instruction, Value.@Nullable ObjectValue context) {
         if (context == null) {
-            String field = instruction.owner().internalName() + "." + instruction.name();
+            String field = instruction.owner + "." + instruction.name;
             return CONST_FIELDS.get(field);
         }
         return null;

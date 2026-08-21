@@ -1,48 +1,37 @@
 package me.darknet.assembler.util;
 
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.ast.primitive.*;
+import me.darknet.assembler.ast.primitive.ASTArray;
+import me.darknet.assembler.ast.primitive.ASTCharacter;
+import me.darknet.assembler.ast.primitive.ASTEmpty;
+import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.helper.Handle;
-
-import dev.xdark.blw.constant.*;
-import dev.xdark.blw.type.*;
+import org.objectweb.asm.ConstantDynamic;
+import org.objectweb.asm.Type;
 
 import java.util.List;
 
 public class ConstantMapper {
 
-    public static MethodHandle methodHandleFromArray(ASTArray array) {
+    public static org.objectweb.asm.Handle methodHandleFromArray(ASTArray array) {
         Handle.Kind kind = Handle.Kind.from(array.values().getFirst().content());
         String name = array.<ASTIdentifier>value(1).literal();
         String descriptor = array.<ASTIdentifier>value(2).literal();
 
-        var split = name.split("\\.");
-        String className = split[0];
-        String methodName = split[1];
-
-        ObjectType owner = Types.instanceTypeFromInternalName(className);
-
-        // Despite the naming conventions, you can have a method handle to a field.
-        // Field types can be arrays, classes, or primitives.
-        // To keep things simple in this case we'll use type-reader directly rather than chaining
-        //  conditional type util calls.
-        Type methodType = kind.isField() ? new TypeReader(descriptor).read() : Types.methodType(descriptor);
-
-        // TODO: ITF
-        return new MethodHandle(kind.ordinal() + 1, owner, methodName, methodType, false);
+        int split = name.lastIndexOf('.');
+        String owner = name.substring(0, split);
+        String methodName = name.substring(split + 1);
+        return new org.objectweb.asm.Handle(kind.ordinal() + 1, owner, methodName, descriptor,
+                kind == Handle.Kind.INVOKE_INTERFACE);
     }
 
-    public static MethodHandle methodHandleFromHandle(Handle handle) {
-        var split = handle.name().split("\\.");
-        String className = split[0];
-        String methodName = split[1];
-
-        ObjectType owner = Types.instanceTypeFromInternalName(className);
-
-        Type methodType = handle.kind().isField() ?
-                new TypeReader(handle.descriptor()).read() : Types.methodType(handle.descriptor());
-
-        return new MethodHandle(handle.kind().ordinal() + 1, owner, methodName, methodType, false);
+    public static org.objectweb.asm.Handle methodHandleFromHandle(Handle handle) {
+        int split = handle.name().lastIndexOf('.');
+        String owner = handle.name().substring(0, split);
+        String methodName = handle.name().substring(split + 1);
+        return new org.objectweb.asm.Handle(handle.kind().ordinal() + 1, owner, methodName, handle.descriptor(),
+                handle.kind() == Handle.Kind.INVOKE_INTERFACE);
     }
 
     public static ConstantDynamic constantDynamicFromArray(ASTArray array) {
@@ -52,94 +41,51 @@ public class ConstantMapper {
         String name = nameElement instanceof ASTIdentifier ident ? ident.literal() :
                 nameElement instanceof ASTNumber number ? number.content() : null;
         String descriptor = typeElement instanceof ASTIdentifier ident ? ident.literal() : null;
-
-        if (name == null || descriptor == null)
+        if (name == null || descriptor == null) {
             throw new IllegalStateException("Invalid condy, name or type not an identifier");
+        }
 
-        MethodHandle bootstrapMethod = methodHandleFromArray(array.value(2));
-
+        org.objectweb.asm.Handle bootstrapMethod = methodHandleFromArray(array.value(2));
         ASTElement argsArray = array.value(3);
         ASTArray args = argsArray instanceof ASTArray ? (ASTArray) argsArray : ASTEmpty.EMPTY_ARRAY;
-
-        List<Constant> constantArgs = args.values().stream().map(ConstantMapper::fromConstant).toList();
-
-        ClassType type = new TypeReader(descriptor).requireClassType();
-
-        return new ConstantDynamic(name, type, bootstrapMethod, constantArgs);
+        Object[] constantArgs = args.values().stream().map(ConstantMapper::fromConstant).toArray();
+        return new ConstantDynamic(name, descriptor, bootstrapMethod, constantArgs);
     }
 
-    public static Constant fromConstant(ASTElement element) {
+    public static Object fromConstant(ASTElement element) {
         return switch (element.type()) {
             case CHARACTER -> {
                 ASTCharacter character = (ASTCharacter) element;
-                assert character.content() != null;
-                yield new OfInt(character.content().charAt(0));
+                String content = character.content();
+                if (content == null || content.isEmpty()) {
+                    throw new IllegalStateException("Character constant is missing content");
+                }
+                yield (int) content.charAt(0);
             }
             case NUMBER -> {
                 ASTNumber number = (ASTNumber) element;
                 if (number.isFloatingPoint()) {
                     if (number.isWide()) {
-                        yield new OfDouble(number.asDouble());
-                    } else {
-                        yield new OfFloat(number.asFloat());
+                        yield number.asDouble();
                     }
-                } else {
-                    if (number.isWide()) {
-                        yield new OfLong(number.asLong());
-                    } else {
-                        yield new OfInt(number.asInt());
-                    }
+                    yield number.asFloat();
                 }
+                if (number.isWide()) {
+                    yield number.asLong();
+                }
+                yield number.asInt();
             }
-            case STRING -> new OfString(element.value().content());
-            case IDENTIFIER -> {
-                ASTIdentifier identifier = (ASTIdentifier) element;
-                assert identifier.content() != null;
-                char first = identifier.content().charAt(0);
-                yield switch (first) {
-                    case 'L' -> {
-                        // if last is `;` then it's a class type, if not could be a short handle
-                        char last = identifier.content().charAt(identifier.content().length() - 1);
-                        if(last == ';') {
-                            yield new OfType(Types.instanceTypeFromDescriptor(identifier.literal()));
-                        } else {
-                            Handle handle = Handle.HANDLE_SHORTCUTS.get(identifier.literal());
-                            if (handle != null) {
-                                yield new OfMethodHandle(methodHandleFromHandle(handle));
-                            }
-                            throw new IllegalStateException("Unexpected value: " + first);
-                        }
-                    }
-                    case '(' -> new OfType(Types.methodType(identifier.literal()));
-                    case '[' -> new OfType(Types.arrayTypeFromDescriptor(identifier.literal()));
-                    default -> switch (identifier.literal().toLowerCase()) {
-                        case "true" -> new OfInt(1);
-                        case "false" -> new OfInt(0);
-                        case "nan", "nand" -> new OfDouble(Double.NaN);
-                        case "nanf" -> new OfFloat(Float.NaN);
-                        case "+infinity", "+infinityd", "infinity", "infinityd"
-                                -> new OfDouble(Double.POSITIVE_INFINITY);
-                        case "+infinityf", "infinityf" -> new OfFloat(Float.POSITIVE_INFINITY);
-                        case "-infinity", "-infinityd" -> new OfDouble(Double.NEGATIVE_INFINITY);
-                        case "-infinityf" -> new OfFloat(Float.NEGATIVE_INFINITY);
-                        default -> {
-                            // maybe is a short handle
-                            Handle handle = Handle.HANDLE_SHORTCUTS.get(identifier.literal());
-                            if (handle != null) {
-                                yield new OfMethodHandle(methodHandleFromHandle(handle));
-                            }
-                            throw new IllegalStateException("Unexpected value: " + first);
-                        }
-                    };
-                };
-            }
+            case STRING -> element.value().content();
+            case IDENTIFIER -> mapIdentifier((ASTIdentifier) element);
             case ARRAY -> {
                 ASTArray array = (ASTArray) element;
                 ASTElement last = array.values().getLast();
-                assert last != null;
+                if (last == null) {
+                    throw new IllegalStateException("Array constant is missing its trailing discriminator element");
+                }
                 yield switch (last.type()) {
-                    case ARRAY, EMPTY -> new OfDynamic(constantDynamicFromArray(array));
-                    case IDENTIFIER -> new OfMethodHandle(methodHandleFromArray(array));
+                    case ARRAY, EMPTY -> constantDynamicFromArray(array);
+                    case IDENTIFIER -> methodHandleFromArray(array);
                     default -> throw new IllegalStateException("Unexpected value: " + last.type());
                 };
             }
@@ -147,4 +93,43 @@ public class ConstantMapper {
         };
     }
 
+    private static Object mapIdentifier(ASTIdentifier identifier) {
+        String content = identifier.content();
+        if (content == null || content.isEmpty()) {
+            throw new IllegalStateException("Identifier constant is missing content");
+        }
+
+        char first = content.charAt(0);
+        return switch (first) {
+            case 'L' -> {
+                if (content.charAt(content.length() - 1) == ';') {
+                    yield Type.getType(identifier.literal());
+                }
+                Handle handle = Handle.HANDLE_SHORTCUTS.get(identifier.literal());
+                if (handle != null) {
+                    yield methodHandleFromHandle(handle);
+                }
+                throw new IllegalStateException("Unexpected value: " + first);
+            }
+            case '(' -> Type.getMethodType(identifier.literal());
+            case '[' -> Type.getType(identifier.literal());
+            default -> switch (identifier.literal().toLowerCase()) {
+                case "true" -> 1;
+                case "false" -> 0;
+                case "nan", "nand" -> Double.NaN;
+                case "nanf" -> Float.NaN;
+                case "+infinity", "+infinityd", "infinity", "infinityd" -> Double.POSITIVE_INFINITY;
+                case "+infinityf", "infinityf" -> Float.POSITIVE_INFINITY;
+                case "-infinity", "-infinityd" -> Double.NEGATIVE_INFINITY;
+                case "-infinityf" -> Float.NEGATIVE_INFINITY;
+                default -> {
+                    Handle handle = Handle.HANDLE_SHORTCUTS.get(identifier.literal());
+                    if (handle != null) {
+                        yield methodHandleFromHandle(handle);
+                    }
+                    throw new IllegalStateException("Unexpected value: " + first);
+                }
+            };
+        };
+    }
 }

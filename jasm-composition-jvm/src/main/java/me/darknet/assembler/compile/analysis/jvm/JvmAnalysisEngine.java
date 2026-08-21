@@ -1,321 +1,489 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import dev.xdark.blw.code.*;
-import dev.xdark.blw.type.*;
-import me.darknet.assembler.ast.primitive.ASTInstruction;
-import me.darknet.assembler.compile.analysis.AnalysisException;
-import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.VarCache;
-import me.darknet.assembler.compile.analysis.frame.Frame;
-import me.darknet.assembler.compile.analysis.frame.FrameMergeException;
-import me.darknet.assembler.compile.analysis.frame.FrameOps;
-
-import dev.xdark.blw.code.instruction.*;
-import dev.xdark.blw.simulation.ExecutionEngine;
-import me.darknet.assembler.compiler.InheritanceChecker;
-import me.darknet.assembler.error.ErrorCollector;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.NavigableMap;
-import java.util.TreeMap;
+
+import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.compile.analysis.MethodAnalysisResult;
+import me.darknet.assembler.compile.analysis.VarCache;
+import me.darknet.assembler.compile.analysis.frame.Frame;
+import me.darknet.assembler.compile.analysis.frame.FrameOps;
+import me.darknet.assembler.compiler.InheritanceChecker;
+import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.util.JvmTypeUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
 
 /**
  * Base outline for an engine intended for use in proper stack/local analysis.
- *
- * @see TypedJvmAnalysisEngine For basic type-tracking of stack/locals.
- * @see ValuedJvmAnalysisEngine For basic value-tracking of stack/locals.
  */
-public abstract class JvmAnalysisEngine<F extends Frame> implements ExecutionEngine, AnalysisResults, JavaOpcodes {
-    protected static final InstanceType METHOD_TYPE = Types.instanceType(MethodType.class);
-    protected static final InstanceType METHOD_HANDLE = Types.instanceType(MethodHandle.class);
-    protected static final InstanceType CLASS = Types.instanceType(Class.class);
+public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
+	protected static final Type METHOD_TYPE = JvmTypeUtils.METHOD_TYPE;
+	protected static final Type METHOD_HANDLE = JvmTypeUtils.METHOD_HANDLE;
+	protected static final Type CLASS = JvmTypeUtils.CLASS;
 
-    protected final NavigableMap<Integer, F> frames = new TreeMap<>();
-    protected final NavigableMap<Integer, F> terminalFrames = new TreeMap<>();
-    private final Map<ASTInstruction, CodeElement> astToElement = new IdentityHashMap<>();
-    private final Map<CodeElement, ASTInstruction> elementToAst = new IdentityHashMap<>();
-    protected final VarCache varCache;
-    protected InheritanceChecker checker;
-    protected ErrorCollector errorCollector;
+	protected final Map<AbstractInsnNode, Integer> allocationIdentities = new IdentityHashMap<>();
+	protected final VarCache varCache;
+	protected InheritanceChecker checker;
+	protected ErrorCollector errorCollector;
+	private MethodAnalysisResult result;
+	private AnalysisSession<F> session;
+	private Type analyzedReturnType = JvmTypeUtils.VOID;
+	private String analyzedOwner;
+	private String analyzedMethodName;
+	private int analyzedAccess;
+	private int nextAllocationIdentity;
 
-    protected AnalysisException analysisFailure;
-    protected F frame;
-    protected int frameIndex;
+	public JvmAnalysisEngine(@NotNull VarCache varCache) {
+		this.varCache = varCache;
+		this.result = new MethodAnalysisResult();
+	}
 
-    public JvmAnalysisEngine(@NotNull VarCache varCache) {
-        this.varCache = varCache;
-    }
+	/**
+	 * @return New frame operations instance for this engine.
+	 */
+	public abstract @NotNull FrameOps<?> newFrameOps();
 
-    public abstract FrameOps<?> newFrameOps();
+	/**
+	 * Execute analysis for the given instruction. Called on each instruction in the method being analyzed.
+	 *
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 *
+	 * @see JvmAnalysisRunner
+	 */
+	public abstract void execute(@NotNull AbstractInsnNode instruction);
 
-    @NotNull
-    public VarCache getVarCache() {
-        return varCache;
-    }
+	/**
+	 * @return Variable cache for this engine.
+	 */
+	@NotNull
+	public VarCache getVarCache() {
+		return varCache;
+	}
 
-    /**
-     * @param checker
-     *                Inheritance checker to use. Can be {@code null} to disable
-     *                capabilities surrounding {@code instanceof} and casting.
-     */
-    public void setChecker(InheritanceChecker checker) {
-        this.checker = checker;
-    }
+	/**
+	 * @param checker
+	 * 		Inheritance checker to associate with this engine.
+	 * 		This is used for reference type assignability checks.
+	 */
+	public void setChecker(InheritanceChecker checker) {
+		this.checker = checker;
+	}
 
-    /**
-     * @return Inheritance checker used. May be {@code null} if not assigned.
-     */
-    public @Nullable InheritanceChecker getChecker() {
-        return checker;
-    }
+	/**
+	 * @return Associated inheritance checker for this engine, or {@code null} if none is bound.
+	 */
+	public @Nullable InheritanceChecker getChecker() {
+		return checker;
+	}
 
-    /**
-     * @param errorCollector
-     *         Collector to dump error/warnings into.
-     */
-    public void setErrorCollector(ErrorCollector errorCollector) {
-        this.errorCollector = errorCollector;
-    }
+	/**
+	 * Set the result holder for this engine to write analysis results to.
+	 * At this point the result is not yet finalized. The engine will write to the result as it analyzes the method.
+	 *
+	 * @param result
+	 * 		Result to write analysis results to.
+	 *
+	 * @see JvmAnalysisRunner#execute(JvmAnalysisEngine, JvmAnalysisRunner.Info, MethodAnalysisResult)
+	 */
+	public void setResult(@NotNull MethodAnalysisResult result) {
+		this.result = result;
+	}
 
-    /**
-     * Clears errors and warnings at the location of the given code element.
-     * When we revisit code after frame merges, we want to clear old problems that
-     * may no longer be relevant with the new frame state.
-     *
-     * @param element
-     *         Element with a location to clear errors/warnings at.
-     */
-    public void clearErrorsAt(@NotNull CodeElement element) {
-        if (errorCollector == null)
-            return;
-        ASTInstruction ast = getCodeToAstMap().get(element);
-        if (ast != null)
-            errorCollector.removeAt(ast.location());
-    }
+	/**
+	 * The result is mutable and will be written to as the engine analyzes the method.
+	 *
+	 * @return Analysis result for the method being analyzed.
+	 */
+	public final @NotNull MethodAnalysisResult getResult() {
+		return result;
+	}
 
-    /**
-     * @param element
-     *         Origin of the warning.
-     * @param message
-     *         Warning message content.
-     */
-    public void warn(@NotNull CodeElement element, @NotNull String message) {
-        if (errorCollector == null)
-            return;
-        ASTInstruction ast = getCodeToAstMap().get(element);
-        if (ast != null)
-            errorCollector.addWarn(message, ast.location());
-    }
+	/**
+	 * Set the analysis session to this engine for analysis.
+	 *
+	 * @param session
+	 * 		Session to assign.
+	 */
+	public void setSession(@Nullable AnalysisSession<F> session) {
+		this.session = session;
+	}
 
-    /**
-     * @param element
-     *         Origin of the warning.
-     * @param message
-     *         Error message content.
-     */
-    protected void error(@NotNull CodeElement element, @NotNull String message) {
-        if (errorCollector == null)
-            return;
-        ASTInstruction ast = getCodeToAstMap().get(element);
-        if (ast != null)
-            errorCollector.addError(message + " @ " + ast.content(), ast.location());
-    }
+	/**
+	 * The session is mutable and will be written to as the engine analyzes the method.
+	 *
+	 * @return Analysis session for this engine.
+	 */
+	public @NotNull AnalysisSession<F> getSession() {
+		if (session == null)
+			throw new IllegalStateException("Analysis session not bound");
+		return session;
+	}
 
-    /**
-     * @param index
-     *              Key.
-     *
-     * @return Frame at index, or {@code null} if not present.
-     */
-    @Nullable
-    public F getFrame(int index) {
-        return frames.get(index);
-    }
+	/**
+	 * Set the method details of the analyzed method.
+	 *
+	 * @param returnType
+	 * 		Method return type.
+	 * @param owner
+	 * 		Method owner type.
+	 * @param methodName
+	 * 		Method name.
+	 * @param access
+	 * 		Method access flags.
+	 */
+	public void setMethodDetails(@NotNull Type returnType, @Nullable String owner, @Nullable String methodName, int access) {
+		this.analyzedReturnType = returnType;
+		this.analyzedOwner = owner;
+		this.analyzedMethodName = methodName;
+		this.analyzedAccess = access;
+		this.nextAllocationIdentity = 1;
+		this.allocationIdentities.clear();
+	}
 
-    /**
-     * @param frameIndex
-     *              Offset into {@link Code#elements()} where the frame.
-     * @param frame
-     *              Frame to set.
-     */
-    public void setActiveFrame(int frameIndex, @NotNull F frame) {
-        this.frameIndex = frameIndex;
-        this.frame = frame;
-    }
+	/**
+	 * @param owner
+	 * 		Type of the owner of the uninitialized type.
+	 *
+	 * @return New uninitialized type for the given owner.
+	 */
+	protected @NotNull Type newUninitializedType(@NotNull Type owner) {
+		return JvmTypeUtils.uninitializedType(owner, nextAllocationIdentity++);
+	}
 
-    /**
-     * @param index
-     *              Key.
-     * @param frame
-     *              Frame to put.
-     */
-    public void putFrame(int index, @NotNull F frame) {
-        frames.put(index, frame);
-    }
+	/**
+	 * Creates an uninitialized type whose allocation identity is stable across re-executions of the same
+	 * {@code new} instruction. Re-running the same allocation site must yield the same verifier marker,
+	 * otherwise re-visits during worklist analysis merge two distinct markers for one allocation and degrade
+	 * the value to {@code TOP}.
+	 *
+	 * @param owner
+	 * 		Type of the owner of the uninitialized type.
+	 * @param site
+	 * 		The {@code new} instruction that allocates this value.
+	 *
+	 * @return Uninitialized type for the given allocation site.
+	 */
+	protected @NotNull Type newUninitializedType(@NotNull Type owner, @NotNull AbstractInsnNode site) {
+		Integer identity = allocationIdentities.get(site);
+		if (identity == null) {
+			identity = nextAllocationIdentity++;
+			allocationIdentities.put(site, identity);
+		}
+		return JvmTypeUtils.uninitializedType(owner, identity);
+	}
 
-    /**
-     * @param checker
-     *              Inheritance checker to use for determining common super-types.
-     * @param index
-     *              Key.
-     * @param frame
-     *              Frame to put.
-     *
-     * @return {@code true} when the frame merge resulted in a change.
-     * {@code false} when the frame merge resulted in no change.
-     */
-    @SuppressWarnings("unchecked")
-    public boolean putAndMergeFrame(@NotNull InheritanceChecker checker, int index, @NotNull F frame) throws FrameMergeException {
-        F old = getFrame(index);
+	/**
+	 * @return Return type of the analyzed method.
+	 */
+	protected @NotNull Type analyzedReturnType() {
+		return analyzedReturnType;
+	}
 
-        if (old == null) {
-            putFrame(index, frame);
-            return true;
-        }
+	/**
+	 * @return Owner type of the analyzed method.
+	 */
+	protected @Nullable String analyzedOwner() {
+		return analyzedOwner;
+	}
 
-        F merged = (F) old.copy();
-        boolean changed = merged.merge(checker, frame);
-        putFrame(index, merged);
-        return changed;
-    }
+	/**
+	 * @return {@code true} if the analyzed method is a constructor, {@code false} otherwise.
+	 */
+	protected boolean isConstructor() {
+		return "<init>".equals(analyzedMethodName);
+	}
 
-    /**
-     * @param index
-     *              Key.
-     * @param frame
-     *              Frame to put.
-     */
-    public void markTerminal(int index, @NotNull F frame) {
-        terminalFrames.put(index, frame);
-    }
+	/**
+	 * @return Access flags of the analyzed method.
+	 */
+	protected int analyzedAccess() {
+		return analyzedAccess;
+	}
 
-    @Override
-    public void recordInstructionMapping(@Nullable ASTInstruction instruction, @NotNull CodeElement element) {
-        // Map code element to AST it originates from.
-        elementToAst.put(element, instruction);
+	/**
+	 * @return Current active frame for this engine.
+	 *
+	 * @throws IllegalStateException
+	 * 		When no active frame is bound to the engine.
+	 */
+	public final @NotNull F getCurrentFrame() {
+		F frame = getSession().frame();
+		if (frame == null)
+			throw new IllegalStateException("Active frame not bound");
+		return frame;
+	}
 
-        // Not all code elements have an associated AST.
-        // In some cases we will insert things like additional labels.
-        // We do not want to have nay null keys.
-        if (instruction != null)
-            astToElement.put(instruction, element);
-    }
+	/**
+	 * @param errorCollector
+	 * 		Error collector to associate with this engine.
+	 */
+	public void setErrorCollector(@Nullable ErrorCollector errorCollector) {
+		this.errorCollector = errorCollector;
+	}
 
-    @Override
-    public @NotNull Map<ASTInstruction, CodeElement> getAstToCodeMap() {
-        return astToElement;
-    }
+	/**
+	 * Clear any errors associated with the given instruction.
+	 *
+	 * @param instruction
+	 * 		Instruction to clear errors for.
+	 */
+	public void clearErrorsAt(@NotNull AbstractInsnNode instruction) {
+		if (errorCollector == null)
+			return;
+		ASTInstruction ast = getResult().getExecutableInstructionToAstMap().get(instruction);
+		if (ast != null)
+			errorCollector.removeAt(ast.location());
+	}
 
-    @Override
-    public @NotNull Map<CodeElement, ASTInstruction> getCodeToAstMap() {
-        return elementToAst;
-    }
+	/**
+	 * Add a warning message associated with the given instruction.
+	 *
+	 * @param instruction
+	 * 		Instruction to associate the warning with.
+	 * @param message
+	 * 		Warning message to add.
+	 */
+	public void warn(@NotNull AbstractInsnNode instruction, @NotNull String message) {
+		if (errorCollector == null)
+			return;
+		ASTInstruction ast = getResult().getExecutableInstructionToAstMap().get(instruction);
+		if (ast != null)
+			errorCollector.addWarn(message, ast.location());
+	}
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public @NotNull NavigableMap<Integer, Frame> frames() {
-        return (NavigableMap<Integer, Frame>) frames;
-    }
+	/**
+	 * Add an error message associated with the given instruction.
+	 *
+	 * @param instruction
+	 * 		Instruction to associate the error with.
+	 * @param message
+	 * 		Error message to add.
+	 */
+	protected void error(@NotNull AbstractInsnNode instruction, @NotNull String message) {
+		if (errorCollector == null)
+			return;
+		ASTInstruction ast = getResult().getExecutableInstructionToAstMap().get(instruction);
+		if (ast != null)
+			errorCollector.addError(message + " @ " + ast.content(), ast.location());
+	}
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public @NotNull NavigableMap<Integer, Frame> terminalFrames() {
-        return (NavigableMap<Integer, Frame>) terminalFrames;
-    }
+	/**
+	 * Validate that the input type can be used as the destination type.
+	 *
+	 * @param instruction
+	 * 		Instruction to associate the warning with.
+	 * @param inputType
+	 * 		Input type to validate.
+	 * @param destinationType
+	 * 		Destination type to validate against.
+	 * @param verb
+	 * 		Action verb to use in the warning message.
+	 * @param noun
+	 * 		Noun to use in the warning message.
+	 */
+	protected void validateTypeUse(@NotNull AbstractInsnNode instruction, @Nullable Type inputType,
+	                               @NotNull Type destinationType, @NotNull String verb, @NotNull String noun) {
+		if (inputType == null) {
+			if (JvmTypeUtils.isPrimitive(destinationType))
+				warn(instruction, "Cannot " + verb + " null value into primitive " + noun);
+			return;
+		}
 
-    @Override
-    public @Nullable AnalysisException getAnalysisFailure() {
-        return analysisFailure;
-    }
+		if (JvmTypeUtils.isUninitialized(inputType)) {
+			warn(instruction, "Cannot use uninitialized object as " + noun);
+			return;
+		}
 
-    @Override
-    public void setAnalysisFailure(@Nullable AnalysisException analysisFailure) {
-        this.analysisFailure = analysisFailure;
-    }
+		if (JvmTypeUtils.isPrimitive(inputType)) {
+			Type actual = JvmTypeUtils.verificationType(inputType);
+			Type expected = JvmTypeUtils.verificationType(destinationType);
+			if (!JvmTypeUtils.isPrimitive(destinationType) || !expected.equals(actual))
+				warn(instruction, "Cannot " + verb + " " + JvmTypeUtils.displayName(inputType)
+						+ " into " + noun + " of type " + destinationType.getDescriptor());
+			return;
+		}
 
-    @Override
-    public void execute(ConditionalJumpInstruction instruction) {
-        switch (instruction.opcode()) {
-            case IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE, IFNULL, IFNONNULL -> frame.pop(1);
-            case IF_ICMPEQ, IF_ICMPNE, IF_ICMPLT, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE, IF_ACMPEQ, IF_ACMPNE -> frame.pop(2);
-        }
-    }
+		if (!JvmTypeUtils.isReference(inputType) || !JvmTypeUtils.isReference(destinationType)
+				|| !isReferenceAssignable(inputType, destinationType))
+			warn(instruction, "Cannot " + verb + " " + JvmTypeUtils.displayName(inputType)
+					+ " into " + noun + " of type " + destinationType.getDescriptor());
+	}
 
-    @Override
-    public void execute(AllocateInstruction instruction) {
-        ObjectType type = instruction.type();
-        if (type instanceof ArrayType)
-            frame.pop(1); // pop array size off stack
-        frame.pushType(type);
-    }
+	/**
+	 * Warn when a local-variable store does not have enough values on the operand stack.
+	 *
+	 * @param instruction
+	 * 		Instruction to associate the warning with.
+	 * @param index
+	 * 		Local-variable index targeted by the instruction.
+	 * @param expected
+	 * 		Number of stack values required by the instruction.
+	 * @param actual
+	 * 		Number of values currently on the operand stack.
+	 */
+	protected void warnInvalidStoreStack(@NotNull AbstractInsnNode instruction, int index, int expected, int actual) {
+		String name = varCache.getVarName(index);
+		String local = name == null ? "local " + index : "local '" + name + "'";
+		warn(instruction, "Cannot store into " + local + ": expected " + expected
+				+ " value" + (expected == 1 ? "" : "s") + " on the operand stack, found " + actual);
+	}
 
-    @Override
-    public void execute(AllocateMultiDimArrayInstruction instruction) {
-        int dimensions = instruction.dimensions();
-        if (dimensions <= 0)
-            warn(instruction, "multianewarray must have > 0 dimensions");
-        frame.pop(dimensions); // pop n values off the stack that fill in the dimension sizes
-        frame.pushType(instruction.type());
-    }
+	/**
+	 * Validate that the input type can be used as the receiver type for the given owner.
+	 *
+	 * @param instruction
+	 * 		Instruction to associate the warning with.
+	 * @param inputType
+	 * 		Input type to validate.
+	 * @param owner
+	 * 		Owner type to validate against.
+	 * @param operation
+	 * 		Action verb to use in the warning message.
+	 */
+	protected void validateReceiver(@NotNull AbstractInsnNode instruction, @Nullable Type inputType,
+	                                @NotNull Type owner, @NotNull String operation) {
+		if (inputType == null) {
+			warn(instruction, "Cannot " + operation + " through 'null' reference");
+			return;
+		}
+		if (JvmTypeUtils.isUninitialized(inputType)) {
+			warn(instruction, "Cannot " + operation + " through uninitialized object");
+			return;
+		}
+		if (!JvmTypeUtils.isReference(inputType)) {
+			warn(instruction, "Cannot " + operation + " through non-reference value");
+			return;
+		}
+		if (!isReferenceAssignable(inputType, owner))
+			warn(instruction, "Receiver type " + inputType.getDescriptor()
+					+ " is not assignable to " + owner.getDescriptor());
+	}
 
-    @Override
-    public void execute(ImmediateJumpInstruction instruction) {
-        // no-op
-    }
+	/**
+	 * Validate that the input type can be used as the return value for the given expected type.
+	 *
+	 * @param instruction
+	 * 		Instruction to associate the warning with.
+	 * @param inputType
+	 * 		Input type to validate.
+	 * @param expected
+	 * 		Expected return type to validate against.
+	 */
+	protected void validateReturnValue(@NotNull AbstractInsnNode instruction, @Nullable Type inputType,
+	                                   @NotNull Type expected) {
+		if (JvmTypeUtils.isUninitialized(inputType)) {
+			warn(instruction, "Cannot return an uninitialized object");
+			return;
+		}
+		if (expected.equals(JvmTypeUtils.VOID)) {
+			if (inputType != null)
+				warn(instruction, "Void return requires an empty operand stack");
+		} else {
+			validateTypeUse(instruction, inputType, expected, "return", "return type");
+		}
+	}
 
-    @Override
-    public void execute(Instruction instruction) {
-        // no-op, nothing should hit here
-    }
+	/**
+	 * Validate that the given frame has an empty operand stack.
+	 *
+	 * @param instruction
+	 * 		Instruction to associate the warning with.
+	 * @param frame
+	 * 		Frame to validate.
+	 */
+	protected void validateEmptyStack(@NotNull AbstractInsnNode instruction, @NotNull Frame frame) {
+		if (frame instanceof me.darknet.assembler.compile.analysis.frame.TypedFrame typed && !typed.getStack().isEmpty())
+			warn(instruction, "Return instruction leaves values on the operand stack");
+		if (frame instanceof me.darknet.assembler.compile.analysis.frame.ValuedFrame valued && !valued.getStack().isEmpty())
+			warn(instruction, "Return instruction leaves values on the operand stack");
+	}
 
-    @Override
-    public void label(Label label) {
-        //no-op
-    }
+	/**
+	 * @param inputType
+	 * 		Type to check if it can be assigned to the destination type.
+	 * @param destinationType
+	 * 		Type to check if it can be assigned from the input type.
+	 *
+	 * @return {@code true} if the input type can be assigned to the destination type, {@code false} otherwise.
+	 */
+	private boolean isReferenceAssignable(@NotNull Type inputType, @NotNull Type destinationType) {
+		if (inputType.equals(destinationType))
+			return true;
 
-    /**
-     * @param element Element being validated.
-     * @param inputType Type use as input.
-     * @param destinationType Type use as destination. Example cases being a field or method parameter.
-     * @param verb Type use action.
-     * @param noun Destination name.
-     */
-    protected void validateTypeUse(@NotNull CodeElement element, @Nullable ClassType inputType,
-                                   @NotNull ClassType destinationType, @NotNull String verb, @NotNull String noun) {
-        switch (inputType) {
-            case PrimitiveType ignored -> {
-                if (destinationType instanceof InstanceType)
-                    warn(element, "Cannot " + verb + " primitive value into instance " + noun);
-                else if (destinationType instanceof ArrayType)
-                    warn(element, "Cannot " + verb + " primitive value into array " + noun);
-            }
-            case ArrayType arrayValueType -> {
-                switch (destinationType) {
-                    case InstanceType instanceDestinationType when !Types.OBJECT.equals(instanceDestinationType) ->
-                            warn(element, "Cannot " + verb + " array value into " + noun + " that is not 'java/lang/Object'");
-                    case PrimitiveType ignored ->
-                            warn(element, "Cannot " + verb + " array value into primitive " + noun);
-                    case ArrayType arrayDestinationType when !arrayDestinationType.equals(arrayValueType) ->
-                            warn(element, "Cannot " + verb + " array value into array " + noun + " of different component type or dimension");
-                    default -> {
-                    }
-                }
-            }
-            case InstanceType ignored -> {
-                if (destinationType instanceof PrimitiveType)
-                    warn(element, "Cannot " + verb + " instance value into primitive " + noun);
-                else if (destinationType instanceof ArrayType)
-                    warn(element, "Cannot " + verb + " instance value into array " + noun);
-            }
-            case null -> {
-                if (destinationType instanceof PrimitiveType)
-                    warn(element, "Cannot " + verb + " null value into primitive " + noun);
-            }
-            default -> {
-            }
-        }
-    }
+		if (inputType.getSort() == Type.ARRAY) {
+			if (destinationType.getSort() == Type.ARRAY)
+				return isArrayAssignable(inputType, destinationType);
+			if (destinationType.getSort() == Type.OBJECT)
+				return isAssignableViaChecker(inputType, destinationType) || isArraySupertype(destinationType);
+			return false;
+		}
+
+		if (inputType.getSort() == Type.OBJECT && destinationType.getSort() == Type.OBJECT)
+			return isAssignableViaChecker(inputType, destinationType) || destinationType.equals(JvmTypeUtils.OBJECT);
+
+		return false;
+	}
+
+	/**
+	 * @param inputType
+	 * 		Type to check if it can be assigned to the destination type.
+	 * @param destinationType
+	 * 		Type to check if it can be assigned from the input type.
+	 *
+	 * @return {@code true} if the input type can be assigned to the destination type, {@code false} otherwise.
+	 */
+	private boolean isArrayAssignable(@NotNull Type inputType, @NotNull Type destinationType) {
+		Type inputComponent = immediateComponentType(inputType);
+		Type destinationComponent = immediateComponentType(destinationType);
+		if (inputComponent.equals(destinationComponent))
+			return true;
+		if (JvmTypeUtils.isPrimitive(inputComponent) || JvmTypeUtils.isPrimitive(destinationComponent))
+			return false;
+		return isReferenceAssignable(inputComponent, destinationComponent);
+	}
+
+	/**
+	 * @param inputType
+	 * 		Type to check if it can be assigned to the destination type.
+	 * @param destinationType
+	 * 		Type to check if it can be assigned from the input type.
+	 *
+	 * @return {@code true} if the input type can be assigned to the destination type, {@code false} otherwise.
+	 */
+	private boolean isAssignableViaChecker(@NotNull Type inputType, @NotNull Type destinationType) {
+		return checker != null && checker.isSubclassOf(
+				JvmTypeUtils.internalName(inputType),
+				JvmTypeUtils.internalName(destinationType)
+		);
+	}
+
+	/**
+	 * @param type
+	 * 		Type to check if it is a supertype of an array.
+	 *
+	 * @return {@code true} if the type is a supertype of an array, {@code false} otherwise.
+	 */
+	private static boolean isArraySupertype(@NotNull Type type) {
+		String internalName = type.getInternalName();
+		return "java/lang/Object".equals(internalName) ||
+				"java/lang/Cloneable".equals(internalName) ||
+				"java/io/Serializable".equals(internalName);
+	}
+
+	/**
+	 * Take a descriptor like {@code [[I} and transform it to {@code [I}.
+	 *
+	 * @param arrayType
+	 * 		Array type to get the immediate component type of.
+	 *
+	 * @return Immediate component type of the array type.
+	 */
+	private static @NotNull Type immediateComponentType(@NotNull Type arrayType) {
+		return Type.getType(arrayType.getDescriptor().substring(1));
+	}
 }

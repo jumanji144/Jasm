@@ -1,11 +1,11 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.type.*;
+import me.darknet.assembler.util.JvmTypeUtils;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.Type;
 
 import java.io.*;
 import java.lang.reflect.*;
-import java.lang.reflect.Type;
 import java.net.*;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -45,21 +45,17 @@ public class Values {
     public static final Value.KnownDoubleValue DOUBLE_NAN = new Value.KnownDoubleValue(Double.NaN);
     private static final Value.KnownIntValue[] INT_VALUES;
     private static final Value.KnownLongValue[] LONG_VALUES;
-    public static final Value.IntValue INT_VALUE = new Value.UnnownIntValue();
+    public static final Value.IntValue INT_VALUE = new Value.UnknownIntValue();
     public static final Value.FloatValue FLOAT_VALUE = new Value.UnknownFloatValue();
     public static final Value.LongValue LONG_VALUE = new Value.UnknownLongValue();
     public static final Value.DoubleValue DOUBLE_VALUE = new Value.UnknownDoubleValue();
-    public static final Value.UnknownObjectValue OBJECT_VALUE = new Value.UnknownObjectValue(
-            Types.instanceType(Object.class)
-    );
-    public static final Value.UnknownObjectValue STRING_VALUE = new Value.UnknownObjectValue(
-            Types.instanceType(String.class)
-    );
+    public static final Value.UnknownObjectValue OBJECT_VALUE = new Value.UnknownObjectValue(JvmTypeUtils.OBJECT);
+    public static final Value.UnknownObjectValue STRING_VALUE = new Value.UnknownObjectValue(JvmTypeUtils.STRING);
+    public static final Value.TopValue TOP_VALUE = new Value.TopValue();
     public static final Value.NullValue NULL_VALUE = new Value.NullValue();
     public static final Value.VoidValue VOID_VALUE = new Value.VoidValue();
 
-    private Values() {
-    }
+    private Values() {}
 
     public static @NotNull Value.KnownIntValue valueOf(boolean v) {
         return v ? INT_1 : INT_0;
@@ -124,53 +120,54 @@ public class Values {
             return DOUBLE_1;
         if (v == -1)
             return DOUBLE_M1;
-        if (v == Float.MIN_VALUE)
+        if (v == Double.MIN_VALUE)
             return DOUBLE_MIN;
-        if (v == Float.MAX_VALUE)
+        if (v == Double.MAX_VALUE)
             return DOUBLE_MAX;
         if (Double.isNaN(v))
             return DOUBLE_NAN;
         return new Value.KnownDoubleValue(v);
     }
 
-    public static @NotNull Value valueOf(@NotNull ClassType type) {
-        if (type instanceof InstanceType instanceType) {
-            return valueOfInstance(instanceType);
-        } else if (type instanceof PrimitiveType primitiveType) {
-            if (primitiveType.kind() == PrimitiveKind.T_VOID)
+    public static @NotNull Value valueOf(@NotNull Type type) {
+        if (JvmTypeUtils.isTop(type))
+            return TOP_VALUE;
+        if (JvmTypeUtils.isPrimitive(type)) {
+            if (type.equals(JvmTypeUtils.VOID))
                 return VOID_VALUE;
-            return valueOfPrimitive(primitiveType);
-        } else if (type instanceof ArrayType arrayType) {
-            return valueOfArray(arrayType);
+            return valueOfPrimitive(type);
         }
-        throw new IllegalStateException("Unknown type: " + type);
+        if (type.getSort() == Type.ARRAY) {
+            return valueOfArray(type);
+        }
+        return valueOfInstance(type);
     }
 
-    public static @NotNull Value.PrimitiveValue valueOfPrimitive(@NotNull PrimitiveType primitiveType) {
-        return switch (primitiveType.kind()) {
-            case PrimitiveKind.T_BOOLEAN, PrimitiveKind.T_BYTE, PrimitiveKind.T_CHAR, PrimitiveKind.T_SHORT, PrimitiveKind.T_INT -> INT_VALUE;
-            case PrimitiveKind.T_FLOAT -> FLOAT_VALUE;
-            case PrimitiveKind.T_LONG -> LONG_VALUE;
-            case PrimitiveKind.T_DOUBLE -> DOUBLE_VALUE;
-            case PrimitiveKind.T_VOID -> throw new IllegalStateException("Illegal value of void type");
+    public static @NotNull Value.PrimitiveValue valueOfPrimitive(@NotNull Type primitiveType) {
+        return switch (primitiveType.getSort()) {
+            case Type.BOOLEAN, Type.BYTE, Type.CHAR, Type.SHORT, Type.INT -> INT_VALUE;
+            case Type.FLOAT -> FLOAT_VALUE;
+            case Type.LONG -> LONG_VALUE;
+            case Type.DOUBLE -> DOUBLE_VALUE;
+            case Type.VOID -> throw new IllegalStateException("Illegal value of void type");
             default -> throw new IllegalStateException("Unknown primitive type: " + primitiveType);
         };
     }
 
-    public static @NotNull Value.UnknownLengthArrayValue valueOfArray(@NotNull ArrayType arrayType) {
-        String desc = arrayType.descriptor();
+    public static @NotNull Value.UnknownLengthArrayValue valueOfArray(@NotNull Type arrayType) {
+        String desc = arrayType.getDescriptor();
         Value.UnknownLengthArrayValue value = ARRAY_VALUES.get(desc);
         if (value != null)
             return value;
         return new Value.UnknownLengthArrayValue(arrayType);
     }
 
-    public static @NotNull Value.KnownLengthArrayValue valueOfArray(@NotNull ArrayType arrayType, int length) {
+    public static @NotNull Value.KnownLengthArrayValue valueOfArray(@NotNull Type arrayType, int length) {
         return new Value.KnownLengthArrayValue(arrayType, length);
     }
 
-    public static @NotNull Value.ObjectValue valueOfInstance(@NotNull InstanceType instanceType) {
-        String name = instanceType.internalName();
+    public static @NotNull Value.ObjectValue valueOfInstance(@NotNull Type instanceType) {
+        String name = JvmTypeUtils.internalName(instanceType);
         Value.ObjectValue value = INSTANCE_VALUES.get(name);
         if (value != null)
             return value;
@@ -203,8 +200,8 @@ public class Values {
         for (String prim : prims) {
             String desc1 = "[" + prim;
             String desc2 = "[[" + prim;
-            ARRAY_VALUES.put(desc1, new Value.UnknownLengthArrayValue(Types.arrayTypeFromDescriptor(desc1)));
-            ARRAY_VALUES.put(desc2, new Value.UnknownLengthArrayValue(Types.arrayTypeFromDescriptor(desc2)));
+            ARRAY_VALUES.put(desc1, new Value.UnknownLengthArrayValue(Type.getType(desc1)));
+            ARRAY_VALUES.put(desc2, new Value.UnknownLengthArrayValue(Type.getType(desc2)));
         }
 
         // Instance types
@@ -217,7 +214,7 @@ public class Values {
                 StringBuffer.class, StringBuilder.class, Thread.class, Throwable.class, Void.class,
 
                 // java.lang.reflect
-                Constructor.class, Field.class, Member.class, Method.class, Type.class,
+                Constructor.class, Field.class, Member.class, Method.class, java.lang.reflect.Type.class,
 
                 // java.io
                 Closeable.class, DataInputStream.class, DataOutputStream.class, EOFException.class, File.class,
@@ -246,8 +243,8 @@ public class Values {
                 ScheduledFuture.class, TimeUnit.class
         );
         for (Class<?> cls : commonJdkTypes) {
-            InstanceType instanceType = Types.instanceType(cls);
-            INSTANCE_VALUES.put(instanceType.internalName(), new Value.UnknownObjectValue(instanceType));
+            Type instanceType = Type.getType(cls);
+            INSTANCE_VALUES.put(instanceType.getInternalName(), new Value.UnknownObjectValue(instanceType));
         }
     }
 }

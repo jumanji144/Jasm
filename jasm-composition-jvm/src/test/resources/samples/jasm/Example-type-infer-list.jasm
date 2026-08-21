@@ -36,10 +36,9 @@
             astore c
             goto G
         E:
-            new dev/xdark/blw/util/LazyList
+            new java/util/Vector
             dup
-            invokedynamic get ()Ljava/util/function/Supplier; LambdaMetafactory.metafactory { ()Ljava/lang/Object;, { invokestatic, simulation/Demo.lambda$main$0, ()Ljava/lang/Object; }, ()Ljava/lang/Object; }
-            invokespecial dev/xdark/blw/util/LazyList.<init> (Ljava/util/function/Supplier;)V
+            invokespecial java/util/Vector.<init> ()V
             astore c
             goto G
         F:

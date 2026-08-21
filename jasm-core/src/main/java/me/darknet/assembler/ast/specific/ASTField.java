@@ -16,6 +16,9 @@ public class ASTField extends ASTMember {
             @Nullable ASTValue value) {
         super(ElementType.FIELD, modifiers, name, descriptor);
         this.value = value;
+        if (value != null) {
+            addChild(value);
+        }
     }
 
     public @Nullable ASTValue getFieldValue() {

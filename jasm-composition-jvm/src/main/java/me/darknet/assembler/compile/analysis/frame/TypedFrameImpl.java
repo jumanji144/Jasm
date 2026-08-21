@@ -1,19 +1,26 @@
 package me.darknet.assembler.compile.analysis.frame;
 
-import dev.xdark.blw.type.ClassType;
-import dev.xdark.blw.type.Types;
 import me.darknet.assembler.compile.analysis.AnalysisUtils;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compiler.InheritanceChecker;
+import me.darknet.assembler.util.JvmTypeUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Type;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.TreeMap;
 
+/**
+ * Implementation of {@link TypedFrame}.
+ */
 public class TypedFrameImpl implements TypedFrame {
-	/** Do not use the {@link Types#OBJECT} - We want a new instance for identity comparison */
-	private static final ClassType NULL = Types.instanceTypeFromInternalName("java/lang/Object");
-	private final Deque<ClassType> stack;
+	private final Deque<Type> stack;
 	private final Map<Integer, Local> locals;
 
 	/**
@@ -24,7 +31,7 @@ public class TypedFrameImpl implements TypedFrame {
 	 * @param locals
 	 * 		Variable table.
 	 */
-	public TypedFrameImpl(@NotNull Deque<ClassType> stack, @NotNull Map<Integer, Local> locals) {
+	public TypedFrameImpl(@NotNull Deque<Type> stack, @NotNull Map<Integer, Local> locals) {
 		this.stack = stack;
 		this.locals = locals;
 	}
@@ -48,8 +55,8 @@ public class TypedFrameImpl implements TypedFrame {
 
 	@Override
 	public boolean merge(@NotNull InheritanceChecker checker, @NotNull Frame other) throws FrameMergeException {
-		if (other instanceof TypedFrameImpl simpleOther)
-			return merge(checker, simpleOther);
+		if (other instanceof TypedFrame typedOther)
+			return merge(checker, typedOther);
 		throw new FrameMergeException(this, other, "Cannot merge into differently typed frame");
 	}
 
@@ -69,64 +76,49 @@ public class TypedFrameImpl implements TypedFrame {
 	 */
 	public boolean merge(@NotNull InheritanceChecker checker, @NotNull TypedFrame other) throws FrameMergeException {
 		boolean changed = false;
-		for (Map.Entry<Integer, Local> entry : other.getLocals().entrySet()) {
-			int index = entry.getKey();
-			Local otherLocal = entry.getValue();
-			ClassType otherType = otherLocal.type();
-			ClassType ourType = getLocalType(index);
+		// Copy locals
+		Map<Integer, Local> allLocals = new TreeMap<>(getLocals());
+		allLocals.putAll(other.getLocals());
 
-			// Skip top-type entries
-			if (otherType == Types.VOID || ourType == Types.VOID)
-				continue;
-
-			if (!hasLocal(index)) {
-				// If we don't have the local, copy it from the other frame.
-				// We do not set 'changed' since expanding local variable scope is not going to change
-				// behavior of frames that previously passed analysis.
-				setLocal(index, otherLocal);
-			} else {
-				ClassType merged = AnalysisUtils.commonType(checker, ourType, otherType);
-				if (!Objects.equals(merged, ourType)) {
-					if (merged == null) {
-						// Value is explicitly 'null'
-						setLocal(index, new Local(index, otherLocal.name(), null));
-					} else {
-						// Value is some known type (we don't care if it *can* be null or not,
-						// just not provably null)
-						setLocal(index, otherLocal.adaptType(merged));
-					}
+		// Merge locals
+		for (Integer index : allLocals.keySet()) {
+			Local ourLocal = getLocal(index);
+			Local otherLocal = other.getLocal(index);
+			if (ourLocal == null || otherLocal == null) {
+				Local present = ourLocal == null ? otherLocal : ourLocal;
+				if (!JvmTypeUtils.isTop(present.type()) || ourLocal == null) {
+					setLocal(index, new Local(index, present.name(), JvmTypeUtils.TOP));
 					changed = true;
 				}
+				continue;
+			}
+
+			Type first = normalize(ourLocal.type());
+			Type second = normalize(otherLocal.type());
+			Type merged = mergeLocalType(checker, first, second, this, other);
+			if (!Objects.equals(merged, first)) {
+				setLocal(index, new Local(index, ourLocal.name(), merged));
+				changed = true;
 			}
 		}
 
-		Deque<ClassType> otherStack = other.getStack();
-		int stackSize = stack.size();
-		if (stackSize != otherStack.size())
+		// Prepare stack for merging, sanity check stack sizes
+		Deque<Type> otherStack = other.getStack();
+		if (stack.size() != otherStack.size())
 			throw new FrameMergeException(this, other,
-					"Stack size mismatch, " + stackSize + " != " + otherStack.size());
+					"Stack size mismatch, " + stack.size() + " != " + otherStack.size());
 
-		Deque<ClassType> newStack = new ArrayDeque<>(stackSize);
-		Iterator<ClassType> it1 = stack.iterator();
-		Iterator<ClassType> it2 = otherStack.iterator();
-		while (it1.hasNext() && it2.hasNext()) {
-			ClassType type1 = it1.next();
-			ClassType type2 = it2.next();
-			if (Objects.equals(type1, type2)) {
-				newStack.add(type1);
-				continue;
-			} else if (type1 == Types.VOID || type2 == Types.VOID) {
-				newStack.add(Types.VOID);
-				continue;
-			}
-			ClassType merged = AnalysisUtils.commonType(checker, type1, type2);
-			if (!Objects.equals(merged, type1)) {
+		// Merge stack
+		Deque<Type> newStack = new ArrayDeque<>(stack.size());
+		Iterator<Type> first = stack.iterator();
+		Iterator<Type> second = otherStack.iterator();
+		while (first.hasNext() && second.hasNext()) {
+			Type type1 = normalize(first.next());
+			Type type2 = normalize(second.next());
+			Type merged = mergeStackType(checker, type1, type2, this, other);
+			if (!Objects.equals(merged, type1))
 				changed = true;
-				it1.remove();
-				newStack.add(merged);
-			} else {
-				newStack.add(type1);
-			}
+			newStack.add(merged);
 		}
 		stack.clear();
 		stack.addAll(newStack);
@@ -135,7 +127,7 @@ public class TypedFrameImpl implements TypedFrame {
 
 	@NotNull
 	@Override
-	public Deque<ClassType> getStack() {
+	public Deque<Type> getStack() {
 		return stack;
 	}
 
@@ -151,39 +143,33 @@ public class TypedFrameImpl implements TypedFrame {
 	}
 
 	@Override
-	public void pushType(@Nullable ClassType type) {
-		if (type == null)
-			stack.push(NULL);
-		else
-			stack.push(type);
-		if (type == Types.LONG || type == Types.DOUBLE)
-			stack.push(Types.VOID);
+	public void pushType(@Nullable Type type) {
+		Type pushed = type == null ? JvmTypeUtils.NULL : JvmTypeUtils.verificationType(type);
+		stack.push(pushed);
+		if (JvmTypeUtils.isWide(type))
+			stack.push(JvmTypeUtils.VOID);
 	}
 
 	@Override
 	public void pushNull() {
-		pushType(NULL);
+		pushType(null);
 	}
 
 	@Nullable
 	@Override
-	public ClassType peek() {
+	public Type peek() {
 		if (stack.isEmpty())
 			throw new IllegalStateException("Cannot peek from empty stack");
-		ClassType type = stack.peek();
-		if (type == NULL)
-			return null;
-		return type;
+		Type type = stack.peek();
+		return JvmTypeUtils.isNullMarker(type) ? null : type;
 	}
 
 	@Nullable
 	@Override
-	public ClassType pop() {
+	public Type pop() {
 		try {
-			ClassType type = stack.pop();
-			if (type == NULL)
-				return null;
-			return type;
+			Type type = stack.pop();
+			return JvmTypeUtils.isNullMarker(type) ? null : type;
 		} catch (NoSuchElementException e) {
 			throw new IllegalStateException("Cannot pop from empty stack");
 		}
@@ -191,17 +177,10 @@ public class TypedFrameImpl implements TypedFrame {
 
 	@Override
 	public void pop(int n) {
-		for (int i = 0; i < n; i++) {
+		for (int i = 0; i < n; i++)
 			pop();
-		}
 	}
 
-	/**
-	 * @param frame
-	 * 		Frame to copy stack/locals from.
-	 *
-	 * @return Self.
-	 */
 	private TypedFrameImpl copyFrom(@NotNull TypedFrameImpl frame) {
 		locals.putAll(frame.locals);
 		stack.addAll(frame.stack);
@@ -220,23 +199,148 @@ public class TypedFrameImpl implements TypedFrame {
 			return true;
 		if (o == null || getClass() != o.getClass())
 			return false;
-
 		TypedFrameImpl frame = (TypedFrameImpl) o;
-
-		if (!stack.equals(frame.stack))
-			return false;
-		return locals.equals(frame.locals);
+		return stack.equals(frame.stack) && locals.equals(frame.locals);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = stack.hashCode();
-		result = 31 * result + locals.hashCode();
-		return result;
+		return 31 * stack.hashCode() + locals.hashCode();
 	}
 
 	@Override
 	public String toString() {
 		return "Stack:" + stack.size() + ", Locals:" + locals.size();
+	}
+
+	/**
+	 * @param type
+	 * 		Type to normalize.
+	 *
+	 * @return Normalized type, or {@code null} if the type is {@code null}, TOP, or NULL.
+	 */
+	private static @Nullable Type normalize(@Nullable Type type) {
+		if (type == null || JvmTypeUtils.isTop(type) || JvmTypeUtils.isNullMarker(type))
+			return type;
+		return JvmTypeUtils.verificationType(type);
+	}
+
+	/**
+	 * Stack type merging.
+	 *
+	 * @param checker
+	 * 		Inheritance checker to use for determining common super-types.
+	 * @param first
+	 * 		First type.
+	 * @param second
+	 * 		Second type.
+	 * @param primary
+	 * 		Frame the first type came from.
+	 * @param secondary
+	 * 		Frame the second type came from.
+	 *
+	 * @return Merged type.
+	 *
+	 * @throws FrameMergeException
+	 * 		When the types are incompatible.
+	 * @see #mergeType(InheritanceChecker, Type, Type, Frame, Frame)
+	 */
+	private static @NotNull Type mergeStackType(@NotNull InheritanceChecker checker,
+	                                            @Nullable Type first, @Nullable Type second,
+	                                            @NotNull Frame primary, @NotNull Frame secondary) throws FrameMergeException {
+		if (JvmTypeUtils.VOID.equals(first) || JvmTypeUtils.VOID.equals(second)) {
+			if (Objects.equals(first, second))
+				return JvmTypeUtils.VOID;
+			throw new FrameMergeException(primary, secondary, "Incompatible wide stack values");
+		}
+		return mergeType(checker, first, second, primary, secondary);
+	}
+
+	/**
+	 * Local variable type merging.
+	 *
+	 * @param checker
+	 * 		Inheritance checker to use for determining common super-types.
+	 * @param first
+	 * 		First type.
+	 * @param second
+	 * 		Second type.
+	 * @param primary
+	 * 		Frame the first type came from.
+	 * @param secondary
+	 * 		Frame the second type came from.
+	 *
+	 * @return Merged type.
+	 *
+	 * @throws FrameMergeException
+	 * 		When the types are incompatible.
+	 * @see #mergeType(InheritanceChecker, Type, Type, Frame, Frame)
+	 */
+	private static @Nullable Type mergeLocalType(@NotNull InheritanceChecker checker,
+	                                             @Nullable Type first, @Nullable Type second,
+	                                             @NotNull Frame primary, @NotNull Frame secondary) throws FrameMergeException {
+		// Locals can be TOP, NULL, or a defined type. If either is TOP, the result is TOP.
+		if (JvmTypeUtils.isTop(first) || JvmTypeUtils.isTop(second))
+			return JvmTypeUtils.TOP;
+
+		// Locals can be uninitialized, which is a special case.
+		// If either is uninitialized, the result is TOP unless they are equal.
+		if (JvmTypeUtils.isUninitialized(first) || JvmTypeUtils.isUninitialized(second))
+			return Objects.equals(first, second) ? first : JvmTypeUtils.TOP;
+
+		// A null local is a defined reference value. It must merge with the
+		// reference type from the other path, rather than being confused with
+		// an absent/TOP local.
+		if (first == null)
+			return second;
+		if (second == null)
+			return first;
+
+		return mergeType(checker, first, second, primary, secondary);
+	}
+
+	/**
+	 * Common logic for merging two types, used by both stack and local merges.
+	 *
+	 * @param checker
+	 * 		Inheritance checker to use for determining common super-types.
+	 * @param first
+	 * 		First type.
+	 * @param second
+	 * 		Second type.
+	 * @param primary
+	 * 		Frame the first type came from.
+	 * @param secondary
+	 * 		Frame the second type came from.
+	 *
+	 * @return Merged type.
+	 *
+	 * @throws FrameMergeException
+	 * 		When the types are incompatible.
+	 */
+	private static @NotNull Type mergeType(@NotNull InheritanceChecker checker,
+	                                       @Nullable Type first, @Nullable Type second,
+	                                       @NotNull Frame primary, @NotNull Frame secondary) throws FrameMergeException {
+		// If either type is TOP, the result is TOP.
+		if (JvmTypeUtils.isTop(first) || JvmTypeUtils.isTop(second))
+			return JvmTypeUtils.TOP;
+
+		// If either type is NULL, the result is the other type (or NULL if both are NULL).
+		if (JvmTypeUtils.isNullMarker(first))
+			return second == null || JvmTypeUtils.isNullMarker(second) ? JvmTypeUtils.NULL : second;
+		if (JvmTypeUtils.isNullMarker(second))
+			return first == null ? JvmTypeUtils.NULL : first;
+		if (Objects.equals(first, second))
+			return first == null ? JvmTypeUtils.NULL : first;
+
+		// If either type is null at this point (not handled by caller cases for stack/local merging) then we have a problem.
+		if (first == null || second == null)
+			throw new FrameMergeException(primary, secondary, "Incompatible verifier types");
+
+		// Merge and normalize the types using the inheritance checker.
+		Type merged = AnalysisUtils.commonType(checker, first, second);
+		if (merged == null)
+			throw new FrameMergeException(primary, secondary, "Incompatible verifier types: " + first + " != " + second);
+		return normalize(merged);
 	}
 }

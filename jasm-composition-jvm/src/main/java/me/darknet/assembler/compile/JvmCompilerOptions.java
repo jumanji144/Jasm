@@ -8,24 +8,33 @@ import me.darknet.assembler.compiler.ClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
-
-import dev.xdark.blw.version.JavaVersion;
+import me.darknet.assembler.compiler.TypeAwareness;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassWriter;
 
-public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
+import java.util.Objects;
 
+public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
+    private static final int DEFAULT_VERSION = 8;
+
+    // General class options
+    protected boolean reuseOverlayPool = true;
     protected int asmArgs;
-    protected JavaVersion version;
+    protected int version;
     protected JavaClassRepresentation overlay;
     protected String annotationPath;
+    protected TypeAwareness typeAwareness; // Optional, disabled by default to reduce warning noise.
     protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
     protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
-    private boolean doWriteVariables = true;
+    protected boolean verifyOutput = true;
+
+    // Variable writing options
+    protected JvmVariableMode variableTableMode = JvmVariableMode.ALWAYS_WRITE;
+    protected JvmVariableEmissionFilter variableFilter = JvmVariableEmissionFilter.ALWAYS;
 
     public JvmCompilerOptions() {
         this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
-        this.version = JavaVersion.V8;
+        this.version = DEFAULT_VERSION;
     }
 
     public JvmCompilerOptions computeFrames(boolean computeFrames) {
@@ -47,13 +56,22 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     }
 
     public JvmCompilerOptions version(int version) {
-        this.version = JavaVersion.jdkVersion(version);
+        this.version = version;
         return this;
     }
 
     public JvmCompilerOptions engineProvider(@NotNull JvmAnalysisEngineFactory engineProvider) {
         this.engineProvider = engineProvider;
         return this;
+    }
+
+    public JvmCompilerOptions verifyOutput(boolean verifyOutput) {
+        this.verifyOutput = verifyOutput;
+        return this;
+    }
+
+    public boolean verifyOutput() {
+        return verifyOutput;
     }
 
     public @NotNull JvmAnalysisEngine<?> createEngine(@NotNull VarCache varCache) {
@@ -64,7 +82,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
 
     @Override
     public int version() {
-        return this.version.majorVersion();
+        return this.version;
     }
 
     @Override
@@ -97,17 +115,46 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     }
 
     @Override
+    public TypeAwareness awareness() {
+        return typeAwareness;
+    }
+
+    @Override
+    public JvmCompilerOptions awareness(TypeAwareness awareness) {
+        this.typeAwareness = awareness;
+        return this;
+    }
+
+    @Override
     public JvmCompilerOptions inheritanceChecker(InheritanceChecker checker) {
         this.inheritanceChecker = checker;
         return this;
     }
 
-    public boolean doWriteVariables() {
-        return doWriteVariables;
+    public JvmVariableMode variableTableMode() {
+        return variableTableMode;
     }
 
-    public JvmCompilerOptions doWriteVariables(boolean doWriteVariables) {
-        this.doWriteVariables = doWriteVariables;
+    public JvmCompilerOptions variableTableMode(JvmVariableMode variableTableMode) {
+        this.variableTableMode = variableTableMode;
+        return this;
+    }
+
+    public boolean reuseOverlayPool() {
+        return reuseOverlayPool;
+    }
+
+    public JvmCompilerOptions reuseOverlayPool(boolean reuseOverlayPool) {
+        this.reuseOverlayPool = reuseOverlayPool;
+        return this;
+    }
+
+    public @NotNull JvmVariableEmissionFilter variableFilter() {
+        return variableFilter;
+    }
+
+    public JvmCompilerOptions variableFilter(@NotNull JvmVariableEmissionFilter writeVariableFilter) {
+        this.variableFilter = Objects.requireNonNull(writeVariableFilter, "variableFilter");
         return this;
     }
 }

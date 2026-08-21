@@ -1,15 +1,13 @@
 package me.darknet.assembler.printer;
 
-import dev.xdark.blw.classfile.Field;
-import dev.xdark.blw.constant.Constant;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.tree.FieldNode;
 
 public class JvmFieldPrinter implements FieldPrinter {
+    protected final FieldNode field;
+    protected final JvmMemberPrinter memberPrinter;
 
-    protected Field field;
-    protected JvmMemberPrinter memberPrinter;
-
-    public JvmFieldPrinter(Field field) {
+    public JvmFieldPrinter(FieldNode field) {
         this.field = field;
         this.memberPrinter = new JvmMemberPrinter(field, JvmMemberPrinter.Type.FIELD);
     }
@@ -18,14 +16,13 @@ public class JvmFieldPrinter implements FieldPrinter {
     public void print(PrintContext<?> ctx) {
         memberPrinter.printAttributes(ctx);
         memberPrinter.printDeclaration(ctx)
-                .literal(field.name())
+                .literal(field.name)
                 .print(" ")
-                .literal(field.type().descriptor())
+                .literal(field.desc)
                 .print(" ");
-        Constant constant = field.defaultValue();
-        if (constant != null) {
+        if (field.value != null) {
             ctx.print("{value: ");
-            constant.accept(new ConstantPrinter(ctx));
+            new JvmConstantPrinter(ctx).printConstant(field.value);
             ctx.print("}");
         }
     }

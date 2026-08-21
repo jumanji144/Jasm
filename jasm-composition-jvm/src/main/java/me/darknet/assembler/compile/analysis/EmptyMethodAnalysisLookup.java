@@ -1,8 +1,8 @@
 package me.darknet.assembler.compile.analysis;
 
-import dev.xdark.blw.classfile.MemberIdentifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.tree.MethodNode;
 
 import java.util.Collections;
 import java.util.Map;
@@ -25,7 +25,7 @@ public class EmptyMethodAnalysisLookup implements MethodAnalysisLookup {
     }
 
     @Override
-    public @NotNull Map<MemberIdentifier, AnalysisResults> allResults() {
+    public @NotNull Map<MethodNode, AnalysisResults> allResults() {
         return Collections.emptyMap();
     }
 
@@ -35,7 +35,7 @@ public class EmptyMethodAnalysisLookup implements MethodAnalysisLookup {
     }
 
     @Override
-    public @Nullable AnalysisResults results(MemberIdentifier identifier) {
+    public @Nullable AnalysisResults results(MethodNode method) {
         return null;
     }
 }

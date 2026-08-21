@@ -1,5 +1,5 @@
 apply plugin: 'java-library'
-apply plugin: 'jacoco'
+apply plugin: 'java-test-fixtures'
 
 repositories {
     mavenLocal()
@@ -8,21 +8,13 @@ repositories {
 }
 
 dependencies {
-    api 'com.github.jumanji144:blw:6fb9d1a828'
     implementation 'org.ow2.asm:asm:9.8'
     implementation 'org.ow2.asm:asm-util:9.8'
     api project(path: ':jasm-core')
+    testFixturesImplementation 'org.benf:cfr:0.152'
+    testFixturesImplementation 'org.ow2.asm:asm:9.8'
+    testFixturesImplementation 'org.ow2.asm:asm-util:9.8'
+    testFixturesImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.4'
+    testFixturesImplementation(testFixtures(project(path: ':jasm-core')))
+    testImplementation(testFixtures(project(path: ':jasm-core')))
 }
-
-test {
-    finalizedBy jacocoTestReport
-}
-
-jacocoTestReport {
-    reports {
-        xml.required = false
-        csv.required = false
-        html.required = true
-    }
-}
-

@@ -1,30 +1,26 @@
 package me.darknet.assembler.compile.analysis.jvm;
 
-import dev.xdark.blw.code.Code;
-import dev.xdark.blw.code.CodeElement;
-import dev.xdark.blw.code.Instruction;
-import dev.xdark.blw.code.Label;
-import dev.xdark.blw.simulation.ExecutionEngines;
-import dev.xdark.blw.simulation.Simulation;
-
-import java.util.List;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LineNumberNode;
+import org.objectweb.asm.tree.MethodNode;
 
 /**
- * A simulation which visits each {@link CodeElement} of a method in a linear
+ * A simulation which visits each ASM node of a method in a linear
  * fashion. The simulation is not for proper stack/local analysis.
  */
-public class IndexedStraightforwardSimulation implements Simulation<IndexedExecutionEngine, Code> {
-    @Override
-    public void execute(IndexedExecutionEngine engine, Code code) {
-        if (code == null) throw new IllegalStateException("Cannot analyze 'null' code");
-        List<CodeElement> elements = code.elements();
-        for (int i = 0; i < elements.size(); i++) {
+public class IndexedStraightforwardSimulation {
+    public void execute(IndexedExecutionEngine engine, MethodNode method) {
+        if (method == null) throw new IllegalStateException("Cannot analyze 'null' method");
+        InsnList instructions = method.instructions;
+        for (int i = 0; i < instructions.size(); i++) {
             engine.index(i);
-            CodeElement element = elements.get(i);
-            if (element instanceof Label label) {
+            AbstractInsnNode instruction = instructions.get(i);
+            if (instruction instanceof LabelNode label) {
                 engine.label(label);
-            } else if (element instanceof Instruction instruction) {
-                ExecutionEngines.execute(engine, instruction);
+            } else if (!(instruction instanceof LineNumberNode)) {
+                engine.execute(instruction);
             }
         }
     }

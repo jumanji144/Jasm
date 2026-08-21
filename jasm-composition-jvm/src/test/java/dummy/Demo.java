@@ -1,13 +1,12 @@
 package dummy;
 
-import dev.xdark.blw.util.LazyList;
-import me.darknet.assembler.compile.analysis.jvm.AnalysisSimulation;
+import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisRunner;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Dummy class used to test {@link AnalysisSimulation}'s frame merging capability.
+ * Dummy class used to test {@link JvmAnalysisRunner}'s frame merging capability.
  * The 'c' variable should be inferred to be a non-null list by the end.
  */
 public class Demo {
@@ -28,7 +27,7 @@ public class Demo {
 				c = new LinkedList();
 				break;
 			case 3:
-				c = new LazyList(() -> Collections.emptyList());
+				c = Collections.singletonList("lazy");
 				break;
 			case 4:
 				c = Collections.emptyList();

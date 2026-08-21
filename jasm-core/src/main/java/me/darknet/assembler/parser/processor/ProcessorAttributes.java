@@ -17,10 +17,13 @@ public class ProcessorAttributes {
     public final List<ASTAnnotation> visibleTypeAnnotations = new ArrayList<>();
     public final List<ASTAnnotation> invisibleTypeAnnotations = new ArrayList<>();
     public ASTString signature;
+    public boolean deprecated;
+    public ASTElement deprecatedAttribute;
 
     // class attributes
     public ASTIdentifier superName;
     public ASTString sourceFile;
+    public ASTString sourceDebugExtension;
     public ASTOuterMethod outerMethod;
     public ASTElement outerClass;
     public ASTIdentifier nestHost;
@@ -35,6 +38,8 @@ public class ProcessorAttributes {
 
     public @NotNull ProcessorAttributes clearGenericAttributes() {
         signature = null;
+        deprecated = false;
+        deprecatedAttribute = null;
         visibleAnnotations.clear();
         invisibleAnnotations.clear();
         visibleTypeAnnotations.clear();
@@ -57,10 +62,14 @@ public class ProcessorAttributes {
         // Same idea as annotations above
         if (signature != null && element instanceof ASTSigned signed)
             signed.setSignature(signature);
+        if (deprecated && element instanceof ASTMember member)
+            member.setDeprecated(true);
 
         if (element instanceof ASTClass clazz) {
             if (sourceFile != null)
                 clazz.setSourceFile(sourceFile);
+            if (sourceDebugExtension != null)
+                clazz.setSourceDebugExtension(sourceDebugExtension);
             if (superName != null)
                 clazz.setSuperName(superName);
             if (outerClass != null)

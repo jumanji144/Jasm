@@ -11,13 +11,13 @@ import java.util.List;
  * Static {@code long method(double)} executor.
  */
 public interface D2JStaticFunc extends StaticFunc {
-    long apply(double d);
+	long apply(double d);
 
-    @Override
-    @Nullable
-    default Value apply(@NotNull List<Value> params) {
-        if (params.size() == 1 && params.getFirst() instanceof Value.KnownDoubleValue a)
-            return Values.valueOf(apply(a.value()));
-        return Values.LONG_VALUE;
-    }
+	@Override
+	@Nullable
+	default Value apply(@NotNull List<Value> params) {
+		if (params.size() == 1 && params.getFirst() instanceof Value.KnownDoubleValue a)
+			return Values.valueOf(apply(a.value()));
+		return Values.LONG_VALUE;
+	}
 }

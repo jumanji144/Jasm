@@ -1,6 +1,7 @@
 package me.darknet.assembler.visitor;
 
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.util.CollectionUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,7 +12,7 @@ public class Modifiers {
     private static final List<String> validModifiers = List.of(
             "public", "private", "protected", "static", "final", "abstract", "strictfp", "transient", "volatile",
             "synchronized", "native", "varargs", "bridge", "synthetic", "enum", "annotation", "module", "super",
-            "interface", "record", "sealed", "open", "non-sealed"
+            "interface", "record", "sealed", "open", "non-sealed", "constructor"
     );
     private final List<ASTIdentifier> modifiers = new ArrayList<>();
 
@@ -28,7 +29,7 @@ public class Modifiers {
     }
 
     public List<ASTIdentifier> modifiers() {
-        return modifiers;
+        return CollectionUtil.immutableCopy(modifiers);
     }
 
     @Override

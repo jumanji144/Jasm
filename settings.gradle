@@ -1,5 +1,6 @@
 rootProject.name = 'Jasm'
 
 include 'jasm-core'
+include 'jasm-composition-dalvik'
 include 'jasm-composition-jvm'
 include 'jasm-cli'

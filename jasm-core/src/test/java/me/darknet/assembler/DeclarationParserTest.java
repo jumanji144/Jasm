@@ -3,14 +3,11 @@ package me.darknet.assembler;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
 import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.Result;
+import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.AstAssertions;
+import me.darknet.assembler.test.DiagnosticAssertions;
 import me.darknet.assembler.parser.DeclarationParser;
-import me.darknet.assembler.parser.Token;
-import me.darknet.assembler.parser.Tokenizer;
-import me.darknet.assembler.util.Location;
 
-import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,11 +17,8 @@ import java.util.function.Consumer;
 
 public class DeclarationParserTest {
 
-    @SuppressWarnings("unchecked")
-    public static <T> @NotNull T assertIs(Class<T> shouldBe, Object is) {
-        assertNotNull(is);
-        assertInstanceOf(shouldBe, is);
-        return (T) is;
+    public static <T> T assertIs(Class<T> shouldBe, Object is) {
+        return AstAssertions.assertIs(shouldBe, is);
     }
 
     @SuppressWarnings("unchecked")
@@ -39,25 +33,10 @@ public class DeclarationParserTest {
     }
 
     public static void parseString(String input, Consumer<List<ASTElement>> consumer) {
-        DeclarationParser parser = new DeclarationParser();
-        Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", input).get();
-        Assertions.assertNotNull(tokens);
-        Assertions.assertFalse(tokens.isEmpty());
-        Result<List<ASTElement>> result = parser.parseAny(tokens);
-        if (result.hasErr()) {
-            for (Error error : result.errors()) {
-                Location location = error.getLocation();
-                System.err.printf(
-                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
-                );
-                Throwable trace = new Throwable();
-                trace.setStackTrace(error.getInCodeSource());
-                trace.printStackTrace();
-            }
-            Assertions.fail();
-        }
-        consumer.accept(result.get());
+        consumer.accept(DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.parse(input),
+                "Failed to parse declaration input"
+        ));
     }
 
     @Test
@@ -184,6 +163,14 @@ public class DeclarationParserTest {
                     assertEquals("A", innerName.content());
                 }
         );
+        assertOne(".deprecated", ASTDeclaration.class, (result) -> {
+            assertEquals(".deprecated", result.keyword().content());
+            assertTrue(result.elements().isEmpty());
+        });
+        assertOne(".source-debug-extension \"SMAP\"", ASTDeclaration.class, (result) -> {
+            assertEquals(".source-debug-extension", result.keyword().content());
+            assertEquals("SMAP", result.element(0).content());
+        });
     }
 
     @Test
@@ -236,13 +223,87 @@ public class DeclarationParserTest {
     }
 
     @Test
+    public void testMethodBodyThrowsKey() {
+        assertOne(
+                ".method public test ()V { throws: { java/lang/Exception, java/io/IOException } }",
+                ASTDeclaration.class,
+                result -> {
+                    ASTObject body = assertIs(ASTObject.class, result.element(3));
+                    ASTArray declaredThrows = assertIs(ASTArray.class, body.value("throws"));
+                    assertEquals(2, declaredThrows.values().size());
+                    assertEquals("java/lang/Exception", declaredThrows.value(0).content());
+                    assertEquals("java/io/IOException", declaredThrows.value(1).content());
+                }
+        );
+    }
+
+    @Test
     public void testInvalidInput() {
-        DeclarationParser parser = new DeclarationParser();
-        Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", "{ test, 4.... { {").get();
-        Result<List<ASTElement>> result = parser.parseAny(tokens);
+        var result = AssemblyParseFixture.parse("{ test, 4.... { {");
         assertTrue(result.hasErr());
         assertEquals(2, result.errors().size());
+    }
+
+    @Test
+    public void testMissingClosingDelimitersReportStructuredErrors() {
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{test"),
+                "Missing array terminator should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{test: 10"),
+                "Missing object terminator should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{.sourcefile \"Source.java\""),
+                "Missing nested declaration terminator should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse(".method public main ()V { code: { aload_0"),
+                "Missing code terminator should produce an error"
+        );
+    }
+
+    @Test
+    public void testMissingObjectColonReportsStructuredError() {
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{test 10}"),
+                "Missing object colon should produce an error"
+        );
+    }
+
+    @Test
+    public void testMalformedMixedBoundariesReportStructuredErrors() {
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{ .decl foo"),
+                "Malformed nested declaration boundary should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{ key:"),
+                "Missing object value should produce an error"
+        );
+    }
+
+    @Test
+    public void testCommentOnlyInputProducesEmptyResults() {
+        var tokens = DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.tokenize("// only a comment"),
+                "Failed to tokenize comment-only input"
+        );
+
+        var any = new DeclarationParser().parseAny(tokens);
+        assertFalse(any.hasErr());
+        assertTrue(any.get().isEmpty());
+
+        var declarations = new DeclarationParser().parseDeclarations(tokens);
+        assertFalse(declarations.hasErr());
+        assertTrue(declarations.get().isEmpty());
+
+        var processed = AssemblyParseFixture.processDeclarations(
+                "<stdin>", "// only a comment", me.darknet.assembler.parser.BytecodeFormat.DEFAULT
+        );
+        assertFalse(processed.hasErr());
+        assertTrue(processed.get().isEmpty());
     }
 
 }

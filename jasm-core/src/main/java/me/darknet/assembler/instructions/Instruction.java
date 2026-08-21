@@ -2,7 +2,7 @@ package me.darknet.assembler.instructions;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
-import me.darknet.assembler.parser.processor.ASTProcessor;
+import me.darknet.assembler.parser.processor.ProcessorContext;
 import me.darknet.assembler.visitor.ASTInstructionVisitor;
 
 import org.jetbrains.annotations.Nullable;
@@ -19,7 +19,7 @@ public class Instruction<V extends ASTInstructionVisitor> {
         this.translator = translator;
     }
 
-    public void verify(ASTInstruction instruction, ASTProcessor.ParserContext context) {
+    public void verify(ASTInstruction instruction, ProcessorContext context) {
         if (instruction.arguments().size() != operands.length) {
             context.throwError(
                     "Expected " + operands.length + " operands, got " + instruction.arguments().size(),

@@ -1,385 +1,685 @@
 package me.darknet.assembler.printer;
 
-import dev.xdark.blw.annotation.Annotation;
-import dev.xdark.blw.annotation.Element;
-import dev.xdark.blw.classfile.AccessFlag;
-import dev.xdark.blw.classfile.Method;
-import dev.xdark.blw.code.Code;
-import dev.xdark.blw.code.CodeElement;
-import dev.xdark.blw.code.Label;
-import dev.xdark.blw.code.attribute.Local;
-import dev.xdark.blw.code.generic.GenericLabel;
-import dev.xdark.blw.code.instruction.VarInstruction;
-import dev.xdark.blw.type.ClassType;
-import dev.xdark.blw.type.PrimitiveType;
-import dev.xdark.blw.type.Type;
-import dev.xdark.blw.type.Types;
-import me.darknet.assembler.compile.analysis.jvm.IndexedStraightforwardSimulation;
+import me.darknet.assembler.compile.MethodVariableLayout;
 import me.darknet.assembler.helper.Variables;
-import me.darknet.assembler.util.BlwOpcodes;
 import me.darknet.assembler.util.EscapeUtil;
 import me.darknet.assembler.util.LabelUtil;
 import me.darknet.assembler.util.VarNaming;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.AnnotationNode;
+import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LocalVariableNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.VarInsnNode;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 
 public class JvmMethodPrinter implements MethodPrinter {
+	protected final MethodNode method;
+	protected final MethodNode printableMethod;
+	protected final JvmMemberPrinter memberPrinter;
+	protected final Type ownerType;
 
-    protected final Method method;
-    protected final JvmMemberPrinter memberPrinter;
+	public JvmMethodPrinter(@NotNull MethodNode method, @NotNull Type ownerType) {
+		this.method = method;
+		this.printableMethod = normalizeMethodBoundaries(method);
+		this.memberPrinter = new JvmMemberPrinter(method, JvmMemberPrinter.Type.METHOD);
+		this.ownerType = ownerType;
+	}
 
-    public JvmMethodPrinter(Method method) {
-        this.method = method;
-        this.memberPrinter = new JvmMemberPrinter(method, JvmMemberPrinter.Type.METHOD);
-    }
+	@Override
+	public void print(PrintContext<?> ctx) {
+		memberPrinter.printAttributes(ctx);
+		var obj = memberPrinter.printDeclaration(ctx).literal(method.name).print(" ")
+				.literal(method.desc).print(" ").object();
+		Variables variables = buildVariables(ctx);
+		MethodVariableLayout variableLayout = MethodVariableLayout.fromMethod(ownerType, printableMethod);
+		boolean hasPrior = !variables.parameters().isEmpty();
+		if (hasPrior) {
+			var arr = obj.value("parameters").array();
+			List<Variables.Parameter> parameterList = new ArrayList<>(variables.parameters().values());
+			arr.print(parameterList, (arrayCtx, parameter) -> arr.print(parameter.name()));
+			arr.end();
 
-    public @NotNull Variables buildVariables(PrintContext<?> ctx) {
-        Map<String, Type> nameToType = new HashMap<>();
-        List<Variables.Local> locals = new ArrayList<>();
-        boolean isStatic = (method.accessFlags() & AccessFlag.ACC_STATIC) != 0;
-        Code code = method.code();
-        if (code != null && !ctx.ignoreExistingVariableNames) {
-            for (Local local : code.localVariables()) {
-                // Transform local name to be legal
-                int index = local.index();
-                boolean isThis = !isStatic && index == 0;
-                String descriptor = local.type().descriptor();
-                Type varType = Types.typeFromDescriptor(descriptor);
-                ClassType varClassType = varType instanceof ClassType ct ? ct : Types.VOID;
-                String baseName = isThis ? "this" : local.name();
-                String name = isThis ? "this" : escapeVariableName(baseName, varClassType, index, isStatic);
-                boolean escaped = !baseName.equals(name);
+			Map<Integer, List<ParameterAnnotationEntry>> mergedParamAnnos = mergeParameterAnnotations();
+			if (!mergedParamAnnos.isEmpty()) {
+				obj.next();
+				Map<Integer, String> printedParameterNames = new HashMap<>();
+				for (MethodVariableLayout.SourceParameter parameter : variableLayout.sourceParameters()) {
+					Variables.Parameter printedParameter = variables.parameters().get(parameter.localSlot());
+					if (printedParameter != null) {
+						printedParameterNames.put(parameter.sourceIndex(), printedParameter.name());
+					}
+				}
+				var pannos = obj.value("parameter-annotations").object();
+				Iterator<Map.Entry<Integer, List<ParameterAnnotationEntry>>> pannosIt = mergedParamAnnos.entrySet().iterator();
+				while (pannosIt.hasNext()) {
+					var entry = pannosIt.next();
+					int sourceIndex = variableLayout.jvmParameterIndexToSourceIndex(entry.getKey());
+					String parameterName = printedParameterNames.get(sourceIndex);
+					if (parameterName == null)
+						continue;
 
-                // De-conflict variable names if two names of incompatible types occupy the same name.
-                //    int foo = 0       ---> foo
-                //    String foo = ""   ---> foo2
-                //    byte[] foo = ...  ---> foo3
-                Type existingVarType = nameToType.get(name);
-                if (requireTypeDeconflict(varType, existingVarType)) {
-                    // If we have an escaped name like "\\u0000" we cannot just append a number to it and call it a day.
-                    // In these cases we will revert the name back to an auto-generated value based on its index.
-                    if (escaped)
-                        name = VarNaming.name(local.index(), varClassType);
+					List<ParameterAnnotationEntry> annos = entry.getValue();
 
-                    int i = 2;
-                    String prefix = name;
-                    while (nameToType.get(name) != null)
-                        name = prefix + (i++);
-                }
+					var parr = pannos.value(parameterName).array();
 
-                int start = local.start().getIndex();
-                int end = local.end().getIndex();
+					Iterator<ParameterAnnotationEntry> annosIt = annos.iterator();
+					while (annosIt.hasNext()) {
+						ParameterAnnotationEntry anno = annosIt.next();
+						JvmAnnotationPrinter.forTopLevelAnno(anno.annotation(), anno.visible()).print(parr);
+						if (annosIt.hasNext()) {
+							parr.append(",");
+							pannos.newline();
+						}
+					}
 
-                // Expand the range of the variable if necessary.
-                // In many cases the range of the variable follows this example:
-                //
-                //  Variable[start=x, end=...]
-                //   - astore foo
-                //   - label x
-                //   - aload foo
-                //
-                // Thus we will want to move the 'start' backwards to reach to the first write.
-                int priorLabelOffset = findPriorLabelOffset(code, start);
-                int variableWriteInRange = getVariableWriteInRange(code, index, priorLabelOffset, start);
-                if (variableWriteInRange >= 0 && !isVariableInstructionInOtherScope(variableWriteInRange, code, local))
-                    start = variableWriteInRange;
+					parr.end();
+					if (pannosIt.hasNext()) {
+						pannos.append(",");
+						ctx.line();
+					}
+				}
+				pannos.end();
+			}
+		}
 
-                locals.add(new Variables.Local(index, start, end, name, descriptor));
-                nameToType.put(name, varType);
-            }
-        }
-        NavigableMap<Integer, Variables.Parameter> parameterNames = new TreeMap<>();
-        int parameterOffset = isStatic ? 0 : 1;
-        if (!isStatic) {
-            // TODO: May want to pass the declaring class's type so we don't just use object here
-            parameterNames.put(0, new Variables.Parameter(0, "this", "Ljava/lang/Object;"));
-        }
-        List<ClassType> parameterTypes = method.type().parameterTypes();
-        for (int i = 0; i < parameterTypes.size(); i++) {
-            int varSlot = i + parameterOffset;
-            ClassType type = parameterTypes.get(i);
-            String name = getParameterName(locals, varSlot, type);
-            parameterNames.put(varSlot, new Variables.Parameter(varSlot, name, type.descriptor()));
+		if (method.annotationDefault != null) {
+			if (hasPrior)
+				obj.next();
 
-            // Skip creating parameters for reserved slots
-            if (Types.category(type) > 1)
-                parameterOffset++;
-        }
-        return new Variables(parameterNames, locals);
-    }
+			obj.value("default-value");
+			JvmAnnotationPrinter.forElements().printElement(obj, method.annotationDefault);
+			hasPrior = true;
+		}
 
-    /**
-     * Used to check if an instruction <i>(xload/xstore)</i> is covered by a variable scope over than the given one.
-     *
-     * @param variableInstructionIndex
-     *         Index of variable instruction in {@link Code#elements()}.
-     * @param code
-     *         Code to check for other variable scopes.
-     * @param scope
-     *         The current variable scope.
-     *
-     * @return {@code true} when the given instruction index is covered by a different {@link Local} scope other than the given one.
-     * {@code false} when the given instruction index is not covered by a variable scope other than the given one.
-     */
-    private boolean isVariableInstructionInOtherScope(int variableInstructionIndex, @NotNull Code code, @NotNull Local scope) {
-        for (Local local : code.localVariables()) {
-            if (local == scope)
-                continue;
-            if (scope.index() == local.index()
-                    && variableInstructionIndex >= local.start().getIndex()
-                    && variableInstructionIndex <= local.end().getIndex())
-                return true;
-        }
-        return false;
-    }
+		if (method.exceptions != null && !method.exceptions.isEmpty()) {
+			if (hasPrior)
+				obj.next();
 
-    /**
-     * @param code
-     *         Code to check for other variable instructions in.
-     * @param variableIndex
-     *         Local variable index to filter variable instructions by.
-     * @param start
-     *         Start range in {@link Code#elements()}.
-     * @param end
-     *         End range in {@link Code#elements()}.
-     *
-     * @return Latest instruction index in {@link Code#elements()} of a variable instruction
-     * writing to the given variable index within the given range. Otherwise, {@code -1}.
-     */
-    private static int getVariableWriteInRange(@NotNull Code code, int variableIndex, int start, int end) {
-        List<CodeElement> elements = code.elements();
-        for (int i = end; i >= start; i--)
-            if (elements.get(i) instanceof VarInstruction varInsn
-                    && varInsn.variableIndex() == variableIndex
-                    && BlwOpcodes.isVarStore(varInsn.opcode()))
-                return i;
-        return -1;
-    }
+			var arr = obj.value("throws").array();
+			arr.print(method.exceptions, (arrayCtx, exceptionType) -> arr.literal(exceptionType));
+			arr.end();
+			hasPrior = true;
+		}
 
-    /**
-     * @param code
-     *         Code to check for labels.
-     * @param start
-     *         Start index of search.
-     *
-     * @return Latest index of a label before the given start
-     */
-    private static int findPriorLabelOffset(@NotNull Code code, int start) {
-        List<CodeElement> elements = code.elements();
-        for (int i = start - 1; i >= 0; i--) {
-            if (elements.get(i) instanceof Label)
-                return i;
-        }
-        return 0;
-    }
+		if ((method.access & (Opcodes.ACC_ABSTRACT | Opcodes.ACC_NATIVE)) == 0) {
+			if (hasPrior)
+				obj.next();
 
-    @Override
-    public void print(PrintContext<?> ctx) {
-        memberPrinter.printAttributes(ctx);
-        var obj = memberPrinter.printDeclaration(ctx).literal(method.name()).print(" ")
-                .literal(method.type().descriptor()).print(" ").object();
-        Variables variables = buildVariables(ctx);
-        boolean hasPrior = !variables.parameters().isEmpty();
-        if (hasPrior) {
-            var arr = obj.value("parameters").array();
-            List<Variables.Parameter> parameterList = new ArrayList<>(variables.parameters().values());
-            arr.print(parameterList, (arrayCtx, parameter) -> arr.print(parameter.name()));
-            arr.end();
+			// Print exception ranges
+			Map<LabelNode, String> labelNames = getLabelNames(ctx, printableMethod);
+			if (!printableMethod.tryCatchBlocks.isEmpty()) {
+				var arr = obj.value("exceptions").array();
+				arr.printIndented(printableMethod.tryCatchBlocks, (print, tcb) -> {
+					var exception = print.array();
+					String start = labelNames.get(tcb.start);
+					String end = labelNames.get(tcb.end);
+					String handler = labelNames.get(tcb.handler);
+					String type = tcb.type == null ? "*" : Type.getObjectType(tcb.type).getDescriptor();
+					exception.print(start).arg().print(end).arg().print(handler).arg().literal(type).end();
+				});
+				arr.end();
+				obj.next();
+			}
 
-            Map<Integer, List<Annotation>> visParamAnnos = method.visibleRuntimeParameterAnnotations();
-            Map<Integer, List<Annotation>> invisParamAnnos = method.invisibleRuntimeParameterAnnotations();
-            if (!visParamAnnos.isEmpty() || !invisParamAnnos.isEmpty()) {
-                Map<Integer, List<Annotation>> mergedParamAnnos = new TreeMap<>();
-                visParamAnnos.forEach((k,v) -> mergedParamAnnos.merge(k, new ArrayList<>(v), (a, b) -> {
-                    a.addAll(b);
-                    return a;
-                }));
-                invisParamAnnos.forEach((k,v) -> mergedParamAnnos.merge(k, new ArrayList<>(v), (a, b) -> {
-                    a.addAll(b);
-                    return a;
-                }));
+			// Print instructions
+			if (printableMethod.instructions != null) {
+				var code = obj.value("code").code();
+				new JvmInstructionPrinter(code, printableMethod.tryCatchBlocks, variables, labelNames).print(printableMethod.instructions);
+				code.end();
+			}
+		}
 
-                obj.next();
-                boolean isVirtual = !parameterList.isEmpty() && parameterList.getFirst().name().equals("this");
-                var pannos = obj.value("parameter-annotations").object();
-                var pannosIt = mergedParamAnnos.entrySet().iterator();
-                while (pannosIt.hasNext()) {
-                    var entry = pannosIt.next();
-                    int idx = entry.getKey() + (isVirtual ? 1 : 0);
-                    List<Annotation> annos = entry.getValue();
+		obj.end();
+	}
 
-                    var parameter = parameterList.get(idx);
-                    String parameterName = parameter.name();
-                    var parr = pannos.value(parameterName).array();
+	@Override
+	public @Nullable AnnotationPrinter annotation(int index) {
+		return memberPrinter.printAnnotation(index);
+	}
 
-                    Iterator<Annotation> annosIt = annos.iterator();
-                    while (annosIt.hasNext()) {
-                        Annotation anno = annosIt.next();
-                        boolean visible = visParamAnnos.containsKey(idx) && visParamAnnos.get(idx).contains(anno);
-                        new JvmAnnotationPrinter(anno, visible).print(parr);
-                        if (annosIt.hasNext()) {
-                            parr.append(",");
-                            pannos.newline();
-                        }
-                    }
+	@Override
+	public @Nullable AnnotationPrinter visibleAnnotation(int index) {
+		return memberPrinter.printVisibleAnnotation(index);
+	}
 
-                    parr.end();
-                    if (pannosIt.hasNext()) {
-                        pannos.append(",");
-                        ctx.line();
-                    }
-                }
-                pannos.end();
-            }
-        }
-        Element annotationDefault = method.annotationDefault();
-        if (annotationDefault != null) {
-            if (hasPrior) obj.next();
-            obj.value("default-value");
-            JvmAnnotationPrinter.forEmbeddedAnno(null).printElement(obj, annotationDefault);
-            hasPrior = true;
-        }
-        var methodCode = method.code();
-        if (methodCode != null) {
-            // Ensure there are labels at the absolute start/end of the method so variable ranges won't be wonky.
-            List<CodeElement> elements = methodCode.elements();
-            if (!elements.isEmpty() && !(elements.getFirst() instanceof Label))
-                elements.addFirst(new GenericLabel());
-            if (!elements.isEmpty() && !(elements.getLast() instanceof Label))
-                elements.add(new GenericLabel());
+	@Override
+	public @Nullable AnnotationPrinter invisibleAnnotation(int index) {
+		return memberPrinter.printInvisibleAnnotation(index);
+	}
 
-            // Separator between code and parameters element
-            if (hasPrior) obj.next();
+	/**
+	 * Builds the variable model used by instruction printing.
+	 */
+	public @NotNull Variables buildVariables(PrintContext<?> ctx) {
+		// Collect local variable information and parameter names, and allocate unique names for all variables.
+		boolean isStatic = (printableMethod.access & Opcodes.ACC_STATIC) != 0;
+		List<LocalInfo> localInfos = printableMethod.localVariables == null || ctx.ignoreExistingVariableNames
+				? List.of()
+				: collectLocalInfos(printableMethod, isStatic);
+		MethodVariableLayout variableLayout = MethodVariableLayout.fromMethod(ownerType, printableMethod);
 
-            // Populate label names
-            Map<Integer, String> labelNames = getLabelNames(ctx, elements);
+		// Tracking for used names.
+		NavigableMap<Integer, Variables.Parameter> parameterNames = new TreeMap<>();
+		Set<String> usedNames = new HashSet<>();
+		Map<LocalNameReuseKey, String> assignedLocalNames = new HashMap<>();
 
-            // Print exception ranges
-            if (!methodCode.tryCatchBlocks().isEmpty()) {
-                var arr = obj.value("exceptions").array();
-                arr.printIndented(methodCode.tryCatchBlocks(), (print, tcb) -> {
-                    var exception = print.array();
-                    String start = labelNames.get(tcb.start().getIndex());
-                    String end = labelNames.get(tcb.end().getIndex());
-                    String handler = labelNames.get(tcb.handler().getIndex());
+		// Allocate names for method parameters, using local variable information and method parameter metadata
+		// resolved by the shared parameter layout.
+		Map<String, String> parameterLocalNames = new HashMap<>();
+		for (MethodVariableLayout.SourceParameter parameter : variableLayout.sourceParameters()) {
+			int slot = parameter.localSlot();
+			Type type = parameter.type();
+			String rawName = parameter.receiver() ? "this" : variableLayout.sourceParameterName(parameter.sourceIndex());
+			String baseName = parameter.receiver() ? "this" : escapeVariableName(rawName, type, slot, isStatic);
+			String name = allocateUniqueName(baseName, slot, type, false, usedNames);
+			parameterNames.put(slot, new Variables.Parameter(slot, name, type.getDescriptor()));
+			parameterLocalNames.put(parameterLocalNameKey(slot, type.getDescriptor()), name);
+			assignedLocalNames.put(new LocalNameReuseKey(slot, baseName), name);
+		}
 
-                    String type = tcb.type() == null ? "*" : tcb.type().descriptor();
+		// Convert our local info models to the final variable models.
+		List<Variables.Local> locals = new ArrayList<>();
+		for (LocalInfo local : localInfos) {
+			String name;
+			if (!isStatic && local.index() == 0) {
+				name = "this";
+			} else {
+				String parameterName = parameterLocalNames.get(parameterLocalNameKey(local.index(), local.descriptor()));
+				name = Objects.requireNonNullElseGet(parameterName, () -> allocateUniqueName(local, usedNames, assignedLocalNames));
+			}
+			locals.add(new Variables.Local(local.index(), local.start(), local.end(), name, local.descriptor()));
+		}
 
-                    exception.print(start).arg()
-                            .print(end).arg()
-                            .print(handler).arg()
-                            .literal(type);
+		return new Variables(parameterNames, locals);
+	}
 
-                    exception.end();
-                });
+	/**
+	 * Combines visible and invisible parameter annotations into one slot-indexed view.
+	 */
+	private @NotNull Map<Integer, List<ParameterAnnotationEntry>> mergeParameterAnnotations() {
+		Map<Integer, List<ParameterAnnotationEntry>> merged = new TreeMap<>();
+		mergeParameterAnnotations(merged, method.visibleParameterAnnotations, true);
+		mergeParameterAnnotations(merged, method.invisibleParameterAnnotations, false);
+		return merged;
+	}
 
-                arr.end();
-                obj.next();
-            }
+	/**
+	 * Folds one parameter-annotation array into the merged view while retaining its visibility state for later printing.
+	 */
+	private static void mergeParameterAnnotations(@NotNull Map<Integer, List<ParameterAnnotationEntry>> merged,
+	                                              @Nullable List<AnnotationNode>[] annotations, boolean visible) {
+		if (annotations == null)
+			return;
 
-            // Print instructions
-            var code = obj.value("code").code();
-            InstructionPrinter printer = new InstructionPrinter(code, methodCode, variables, labelNames);
-            IndexedStraightforwardSimulation simulation = new IndexedStraightforwardSimulation();
-            simulation.execute(printer, method.code());
-            code.end();
-        }
+		for (int i = 0; i < annotations.length; i++) {
+			List<AnnotationNode> entries = annotations[i];
+			if (entries == null || entries.isEmpty())
+				continue;
 
-        obj.end();
-    }
+			List<ParameterAnnotationEntry> target = merged.computeIfAbsent(i, ignored -> new ArrayList<>());
+			for (AnnotationNode entry : entries)
+				target.add(new ParameterAnnotationEntry(entry, visible));
+		}
+	}
 
-    @Override
-    public @Nullable AnnotationPrinter annotation(int index) {
-        return memberPrinter.printAnnotation(index);
-    }
+	/**
+	 * Collects local metadata, but treats the local variable table as advisory rather than absolute truth.
+	 * <p>
+	 * The LVT frequently over/under-states scopes <i>(Especially horrid when inspecting Kotlin classes)</i>
+	 * or introduces alias-like entries <i>(Surprise, Kotlin also does this a lot)</i>, so we trim it toward
+	 * real writes and drop entries that would only invent extra printed variable names.
+	 *
+	 * @param isStatic
+	 *        {@code true} when the method is static, {@code false} otherwise.
+	 *
+	 * @return List of local variable information with adjusted scopes.
+	 */
+	private @NotNull List<LocalInfo> collectLocalInfos(@NotNull MethodNode methodView, boolean isStatic) {
+		List<LocalInfo> locals = new ArrayList<>();
+		for (LocalVariableNode local : methodView.localVariables) {
+			LocalRange range = sanitizeLocalRange(methodView.instructions, local);
+			if (range == null)
+				continue;
 
-    @Override
-    public @Nullable AnnotationPrinter visibleAnnotation(int index) {
-        return memberPrinter.printVisibleAnnotation(index);
-    }
+			int index = local.index;
+			boolean isThis = !isStatic && index == 0;
+			String descriptor = local.desc;
+			Type type = Type.getType(descriptor);
+			String originalName = isThis ? "this" : local.name;
+			String baseName = isThis ? "this" : escapeVariableName(originalName, type, index, isStatic);
+			boolean escaped = !isThis && !originalName.equals(baseName);
+			locals.add(new LocalInfo(index, range.start(), range.end(), baseName, descriptor, type, escaped));
+		}
 
-    @Override
-    public @Nullable AnnotationPrinter invisibleAnnotation(int index) {
-        return memberPrinter.printInvisibleAnnotation(index);
-    }
+		for (int i = 0; i < locals.size(); i++) {
+			LocalInfo local = locals.get(i);
+			if (local.end() <= local.start())
+				continue;
 
-    private static @NotNull String getParameterName(@NotNull List<Variables.Local> locals, int index, @NotNull ClassType type) {
-        String name = null;
+			int priorLabelOffset = findPriorLabelOffset(methodView.instructions, local.start());
+			int variableWriteInRange = getVariableWriteInRange(methodView.instructions, local.index(), priorLabelOffset, local.start());
+			if (variableWriteInRange >= 0 && !isVariableInstructionInOtherScope(variableWriteInRange, locals, local))
+				locals.set(i, local.withStart(variableWriteInRange));
+		}
 
-        // Search for parameter name in local variables, first reference of the index which matches the type.
-        for (Variables.Local local : locals) {
-            if (local.index() == index && local.descriptor().equals(type.descriptor())) {
-	            name = local.name();
-	            break;
-            }
-        }
+		return locals.stream().filter(local -> !isLoadOnlyAlias(methodView.instructions, locals, local)).toList();
+	}
 
-	    if (name == null)
-		    name = VarNaming.name(index, type);
-	    return name;
-    }
+	/**
+	 * Prevents the scope-repair heuristic from stealing a store that already belongs to another
+	 * scope for the same slot. Without this check, adjacent reused-slot locals can collapse into
+	 * one printed variable name which can be misleading at best, and invalid at worst.
+	 *
+	 * @param variableInstructionIndex
+	 * 		Index of variable instruction in {@link InsnList}.
+	 * @param locals
+	 * 		List of variable scopes to check against.
+	 * @param scope
+	 * 		The current variable scope.
+	 *
+	 * @return {@code true} when the given instruction index is covered by
+	 * a different {@link LocalInfo} scope other than the given one.
+	 * {@code false} when the given instruction index is not covered
+	 * by a variable scope other than the given one.
+	 */
+	private static boolean isVariableInstructionInOtherScope(int variableInstructionIndex,
+	                                                         @NotNull List<LocalInfo> locals,
+	                                                         @NotNull LocalInfo scope) {
+		for (LocalInfo local : locals) {
+			if (local == scope)
+				continue;
+			if (scope.index() == local.index()
+					&& variableInstructionIndex >= local.start()
+					&& variableInstructionIndex <= local.end())
+				return true;
+		}
+		return false;
+	}
 
-    private static Map<Integer, String> getLabelNames(PrintContext<?> ctx, List<CodeElement> elements) {
-        Map<Integer, String> labelNames = new HashMap<>();
-        int labelIndex = 0;
-        for (CodeElement element : elements) {
-            if (element instanceof Label label) {
-                String labelName = LabelUtil.getLabelName(labelIndex++);
-                if (ctx.labelPrefix != null) labelName = ctx.labelPrefix + labelName;
-                labelNames.put(label.getIndex(), labelName);
-            }
-        }
-        return labelNames;
-    }
+	/**
+	 * Finds the latest store before the declared start of a local.
+	 * <p>
+	 * This lets the printer expand sloppy debug ranges back to the point where the slot first
+	 * received the value that the source-level local actually represents.
+	 *
+	 * @param code
+	 * 		Code to check for other variable instructions in.
+	 * @param variableIndex
+	 * 		Local variable index to filter variable instructions by.
+	 * @param start
+	 * 		Start range in {@link InsnList}
+	 * @param end
+	 * 		End range in {@link InsnList}.
+	 *
+	 * @return Latest instruction index in {@link InsnList} of a variable instruction
+	 * writing to the given variable index within the given range. Otherwise, {@code -1}.
+	 */
+	private static int getVariableWriteInRange(@NotNull InsnList code, int variableIndex, int start, int end) {
+		if (code.size() == 0)
+			return -1;
 
-    private static boolean requireTypeDeconflict(@NotNull Type varType, @Nullable Type existingVarType) {
-        // If there is no existing type, no conflicts are possible.
-        if (existingVarType == null)
-            return false;
+		start = Math.max(0, Math.min(start, code.size() - 1));
+		end = Math.max(0, Math.min(end, code.size() - 1));
+		if (start > end)
+			return -1;
 
-        // If the var types are different (primitive vs class type) then we MUST deconflict.
-        if (varType.getClass() != existingVarType.getClass())
-            return true;
+		for (int i = end; i >= start; i--) {
+			AbstractInsnNode instruction = code.get(i);
+			if (instruction instanceof VarInsnNode varInsn
+					&& varInsn.var == variableIndex
+					&& isVarStore(varInsn.getOpcode())) {
+				return i;
+			}
+		}
 
-        // If the class types do not match we MUST deconflict.
-        if (varType instanceof ClassType varClass
-                && existingVarType instanceof ClassType existingClass
-                && !varClass.descriptor().equals(existingClass.descriptor()))
-            return true;
+		return -1;
+	}
 
-        // If the primitive types do not match we MUST deconflict.
-        return varType instanceof PrimitiveType varPrim
-                && existingVarType instanceof PrimitiveType existingPrim
-                && varPrim.kind() != existingPrim.kind();
-    }
+	private static boolean isVarStore(int opcode) {
+		return opcode == Opcodes.ISTORE || opcode == Opcodes.LSTORE || opcode == Opcodes.FSTORE
+				|| opcode == Opcodes.DSTORE || opcode == Opcodes.ASTORE;
+	}
 
-    private static @NotNull String escapeVariableName(@NotNull String name, @NotNull ClassType type, int index, boolean isStatic) {
-        // No fake 'this' name
-        if (name.equals("this") && !(index == 0 && !isStatic))
-            return VarNaming.name(index, type);
+	private static int findPriorLabelOffset(@NotNull InsnList code, int start) {
+		for (int i = start - 1; i >= 0; i--)
+			if (code.get(i) instanceof LabelNode)
+				return i;
+		return 0;
+	}
 
-        // No bs empty names
-        if (name.isBlank())
-            return VarNaming.name(index, type);
+	/**
+	 * Converts label boundaries into safe instruction indices and discards obviously broken ranges.
+	 * That results in later naming heuristics from trying to work with impossible scopes.
+	 *
+	 * @param code
+	 * 		Method code to check for label boundaries in.
+	 * @param local
+	 * 		Local variable metadata to sanitize the range of.
+	 */
+	private static @Nullable LocalRange sanitizeLocalRange(@NotNull InsnList code, @NotNull LocalVariableNode local) {
+		if (code.size() == 0)
+			return null;
 
-        // No bs long names
-        if (name.length() > 200)
-            return VarNaming.name(index, type);
+		int maxIndex = code.size() - 1;
+		int start = code.indexOf(local.start);
+		int end = code.indexOf(local.end);
+		if (start < 0 && end < 0)
+			return null;
 
-        // No bs descriptor chars in names
-        if (name.indexOf('/') >= 0 || name.indexOf('.') >= 0 || name.indexOf(';') >= 0 || name.indexOf('[') >= 0
-                || name.indexOf('<') >= 0 || name.indexOf('>') >= 0|| name.indexOf('-') >= 0)
-            return VarNaming.name(index, type);
+		if (start > maxIndex && end > maxIndex)
+			return null;
 
-		// Standard escaping
-        return EscapeUtil.escapeLiteral(name);
-    }
+		start = Math.max(0, Math.min(start, maxIndex));
+		end = Math.max(0, Math.min(end, maxIndex));
+		if (start > end)
+			return null;
+
+		return new LocalRange(start, end);
+	}
+
+	/**
+	 * Detects LVT entries that only read from a slot already introduced by an earlier scope.
+	 * Those aliases are <i>usually</i> redundant, and printing them as separate locals
+	 * creates source names the assembler later treats as distinct variables.
+	 */
+	private static boolean isLoadOnlyAlias(@NotNull InsnList code, @NotNull List<LocalInfo> locals, @NotNull LocalInfo local) {
+		// For our 'local' find the first instruction in its range that accesses the variable slot.
+		// If there are none, then this local is probably just a debug artifact, and we can ignore it.
+		int firstAccess = findFirstVariableAccessInRange(code, local.index(), local.start(), local.end());
+		if (firstAccess < 0)
+			return true;
+
+		// We only want to ignore load-only aliases, so if the first access is a store then
+		// this local is actually doing something and should be printed.
+		AbstractInsnNode instruction = code.get(firstAccess);
+		if (instruction instanceof VarInsnNode varInsn && isVarStore(varInsn.getOpcode()))
+			return false;
+
+		// If the first access is a load, then we check if there is an earlier local with
+		// an overlapping scope that introduces the same variable slot.
+		LocalInfo prior = locals.stream()
+				.filter(other -> other != local
+						&& other.index() == local.index()
+						&& other.start() < local.start())
+				.max(Comparator.comparingInt(LocalInfo::start))
+				.orElse(null);
+		if (prior == null)
+			return false;
+
+		// A non-overlapping entry is a continuation only when it carries the same
+		// name and descriptor. Kotlin commonly emits unrelated read-only aliases
+		// for the same slot. Retaining those would introduce misleading variables.
+		return prior.end() >= local.start()
+				|| !prior.descriptor().equals(local.descriptor())
+				|| !prior.baseName().equals(local.baseName());
+	}
+
+	/**
+	 * Finds the first instruction index in the given range that accesses the given variable slot.
+	 *
+	 * @param code
+	 * 		Method code to check for variable accesses in.
+	 * @param variableIndex
+	 * 		Variable slot index to look for.
+	 * @param start
+	 * 		Start range in {@link InsnList}.
+	 * @param end
+	 * 		End range in {@link InsnList}.
+	 *
+	 * @return Instruction index of first access to the given variable slot. Otherwise, {@code -1}.
+	 */
+	private static int findFirstVariableAccessInRange(@NotNull InsnList code, int variableIndex, int start, int end) {
+		if (code.size() == 0)
+			return -1;
+
+		start = Math.max(0, Math.min(start, code.size() - 1));
+		end = Math.max(0, Math.min(end, code.size() - 1));
+		if (start > end)
+			return -1;
+
+		for (int i = start; i <= end; i++) {
+			AbstractInsnNode instruction = code.get(i);
+			if (instruction instanceof VarInsnNode varInsn && varInsn.var == variableIndex)
+				return i;
+		}
+
+		return -1;
+	}
+
+	private static @NotNull String parameterLocalNameKey(int index, @NotNull String descriptor) {
+		return index + ":" + descriptor;
+	}
+
+	/**
+	 * Computes label names in encounter order.
+	 *
+	 * @param ctx
+	 * 		Print context to apply label prefix from.
+	 * @param method
+	 * 		Method to extract labels from.
+	 *
+	 * @return Map of label nodes to their printable names.
+	 */
+	private static @NotNull Map<LabelNode, String> getLabelNames(@NotNull PrintContext<?> ctx, @NotNull MethodNode method) {
+		InsnList instructions = method.instructions;
+		Map<LabelNode, String> labelNames = new IdentityHashMap<>();
+		int labelIndex = 0;
+		for (int i = 0; i < instructions.size(); i++) {
+			AbstractInsnNode instruction = instructions.get(i);
+			if (instruction instanceof LabelNode label) {
+				String labelName = LabelUtil.getLabelName(labelIndex++);
+				if (ctx.labelPrefix != null)
+					labelName = ctx.labelPrefix + labelName;
+				labelNames.put(label, labelName);
+			}
+		}
+		return labelNames;
+	}
+
+	/**
+	 * Ensures that the method's instruction list starts and ends with a label,
+	 * which is required for correct variable scope analysis.
+	 * <p>
+	 * <b>Example 1</b>: Some variable gets used before a label starts,
+	 * so you cannot give it a correct scope that actually includes the usage
+	 * since the earliest 'start' label is after the usage.
+	 * <pre>{@code
+	 *  ldc "foo"
+	 *  astore x // Written to before any label
+	 * A:
+	 *  aload x
+	 *  areturn
+	 * B:
+	 * }</pre>
+	 * <b>Example 2</b>: Some variable gets used but there's no label after that usage,
+	 * so you cannot give it a correct scope that actually includes the usage
+	 * since the furthest 'end' label is before the usage.
+	 * <pre>{@code
+	 * A:
+	 *  aload x
+	 *  return
+	 *  // No end label
+	 * }</pre>
+	 *
+	 * @param method
+	 * 		Method to normalize.
+	 *
+	 * @return Normalized method.
+	 */
+	private static @NotNull MethodNode normalizeMethodBoundaries(@NotNull MethodNode method) {
+		// Skip abstract/native methods. No code to normalize.
+		if ((method.access & (Opcodes.ACC_ABSTRACT | Opcodes.ACC_NATIVE)) != 0)
+			return method;
+
+		// Check if the method is already well-formed. If so, we can skip copying and just return the original.
+		boolean missingLeadingLabel = !(method.instructions.getFirst() instanceof LabelNode);
+		boolean missingTrailingLabel = !(method.instructions.getLast() instanceof LabelNode);
+		if (!missingLeadingLabel && !missingTrailingLabel)
+			return method;
+
+		// Gotta add our own labels I guess.
+		MethodNode normalized = copyMethod(method);
+		if (missingLeadingLabel) {
+			if (normalized.instructions.getFirst() == null)
+				normalized.instructions.add(new LabelNode());
+			else
+				normalized.instructions.insert(new LabelNode());
+		}
+		if (missingTrailingLabel)
+			normalized.instructions.add(new LabelNode());
+
+		return normalized;
+	}
+
+	/**
+	 * @param method
+	 * 		Original method to copy.
+	 *
+	 * @return Deep copy of the original method.
+	 */
+	private static @NotNull MethodNode copyMethod(@NotNull MethodNode method) {
+		MethodNode copy = new MethodNode(
+				method.access,
+				method.name,
+				method.desc,
+				method.signature,
+				method.exceptions == null ? null : method.exceptions.toArray(String[]::new)
+		);
+		method.accept(copy);
+		return copy;
+	}
+
+	/**
+	 * Computes a unique name for the given local, if it doesn't already have one assigned.
+	 *
+	 * @param local
+	 * 		Local variable information to allocate a name for.
+	 * @param usedNames
+	 * 		Set of already allocated names to avoid collisions with.
+	 * @param assignedLocalNames
+	 * 		Map of local variable index/baseName pairs to their already allocated names,
+	 * 		to allow name reuse when the same source-level local is split into multiple LVT entries.
+	 *
+	 * @return Unique name for the given local variable.
+	 */
+	private static @NotNull String allocateUniqueName(@NotNull LocalInfo local,
+	                                                  @NotNull Set<String> usedNames,
+	                                                  @NotNull Map<LocalNameReuseKey, String> assignedLocalNames) {
+		// Check if we've already allocated a name for a local with the same index and base name,
+		// which likely means it's the same source-level local with a split LVT entry.
+		// If so, we can reuse that name to avoid unnecessary renaming.
+		LocalNameReuseKey reuseKey = new LocalNameReuseKey(local.index(), local.baseName());
+		String prior = assignedLocalNames.get(reuseKey);
+		if (prior != null)
+			return prior;
+
+		// Otherwise, we need to allocate a new unique name for this local.
+		String allocated = allocateUniqueName(local.baseName(), local.index(), local.type(), local.escaped(), usedNames);
+		assignedLocalNames.put(reuseKey, allocated);
+		return allocated;
+	}
+
+	/**
+	 * Allocates a collision-free printable name. This can be the original supplied name, but
+	 * if that name is already taken by another variable, we will deconflict it by adding a suffix.
+	 * <p>
+	 * Escaped names use typed fallbacks as their prefix so clearly-bad debug names do not spread.
+	 *
+	 * @param baseName
+	 * 		Original name to allocate, if possible.
+	 * @param index
+	 * 		Local variable index.
+	 * @param type
+	 * 		Local variable type.
+	 * @param escaped
+	 * 		Whether the original name was escaped due to being suspicious/ugly.
+	 * @param usedNames
+	 * 		Set of already allocated names to avoid collisions with.
+	 *
+	 * @return Unique name for the variable, which may be the original name if it was not already taken,
+	 * or a modified name with a suffix if there was a collision.
+	 */
+	private static @NotNull String allocateUniqueName(@NotNull String baseName, int index, @NotNull Type type,
+	                                                  boolean escaped, @NotNull Set<String> usedNames) {
+		if (!usedNames.contains(baseName)) {
+			usedNames.add(baseName);
+			return baseName;
+		}
+
+		String prefix = escaped ? VarNaming.name(index, type) : baseName;
+		String candidate = prefix;
+		int suffix = 2;
+		while (usedNames.contains(candidate))
+			candidate = prefix + suffix++;
+
+		usedNames.add(candidate);
+		return candidate;
+	}
+
+	/**
+	 * Rejects local names that would be misleading or unparsable in printed JASM.
+	 *
+	 * @param name
+	 * 		Local variable name to escape.
+	 * @param type
+	 * 		Local variable type.
+	 * @param index
+	 * 		Local variable index.
+	 * @param isStatic
+	 *        {@code true} if the declaring method is static, {@code false} otherwise.
+	 *
+	 * @return Original name if it is ok, otherwise a sanitized fallback name based on the variable's type and index.
+	 */
+	private static @NotNull String escapeVariableName(@NotNull String name, @NotNull Type type, int index, boolean isStatic) {
+		if (name.equals("this") && !(index == 0 && !isStatic))
+			return VarNaming.name(index, type);
+
+		if (name.isBlank())
+			return VarNaming.name(index, type);
+
+		if (name.length() > 200)
+			return VarNaming.name(index, type);
+
+		if (name.indexOf('/') >= 0
+				|| name.indexOf('.') >= 0
+				|| name.indexOf(';') >= 0
+				|| name.indexOf('[') >= 0
+				|| name.indexOf('<') >= 0
+				|| name.indexOf('>') >= 0
+				|| name.indexOf('-') >= 0)
+			return VarNaming.name(index, type);
+
+		return EscapeUtil.escapeLiteral(name);
+	}
+
+	private record LocalInfo(int index, int start, int end, @NotNull String baseName, @NotNull String descriptor,
+	                         @NotNull Type type, boolean escaped) {
+		private @NotNull LocalInfo withStart(int newStart) {
+			return new LocalInfo(index, newStart, end, baseName, descriptor, type, escaped);
+		}
+	}
+
+	private record LocalNameReuseKey(int index, @NotNull String baseName) {}
+
+	private record LocalRange(int start, int end) {}
+
+	private record ParameterAnnotationEntry(@NotNull AnnotationNode annotation, boolean visible) {}
 }

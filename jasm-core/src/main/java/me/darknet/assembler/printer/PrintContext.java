@@ -264,6 +264,16 @@ public class PrintContext<T extends PrintContext<?>> {
             return this;
         }
 
+        public <E> ArrayPrint printArray(E[] array, BiConsumer<ArrayPrint, E> printer) {
+            for (int i = 0; i < array.length; i++) {
+                printer.accept(this, array[i]);
+                if (i < array.length - 1) {
+                    this.arg();
+                }
+            }
+            return this;
+        }
+
         public <E> ArrayPrint printIndented(Iterable<E> iterable, BiConsumer<ArrayPrint, E> printer) {
             Iterator<E> iterator = iterable.iterator();
             if (iterator.hasNext()) {
