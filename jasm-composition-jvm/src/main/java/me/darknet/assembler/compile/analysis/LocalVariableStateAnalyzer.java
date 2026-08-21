@@ -352,7 +352,7 @@ public final class LocalVariableStateAnalyzer {
 	 */
 	private static @NotNull Map<Integer, String> sourceVariableNames(@NotNull AnalysisResults results) {
 		Map<Integer, String> names = new TreeMap<>();
-		for (Map.Entry<AbstractInsnNode, ASTInstruction> entry : results.getInstructionToAstMap().entrySet()) {
+		for (Map.Entry<AbstractInsnNode, ASTInstruction> entry : results.getExecutableInstructionToAstMap().entrySet()) {
 			int index;
 			AbstractInsnNode instruction = entry.getKey();
 			if (instruction instanceof VarInsnNode variable) {

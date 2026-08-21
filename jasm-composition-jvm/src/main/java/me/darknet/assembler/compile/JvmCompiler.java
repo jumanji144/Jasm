@@ -118,7 +118,7 @@ public class JvmCompiler implements Compiler {
 					if (failure != null) {
 						AbstractInsnNode instruction = failure.getInstruction();
 						if (instruction != null) {
-							ASTInstruction targetInsn = analysisResults.getInstructionToAstMap().get(instruction);
+							ASTInstruction targetInsn = analysisResults.getExecutableInstructionToAstMap().get(instruction);
 							if (targetInsn != null) {
 								Location location = targetInsn.location();
 								collector.addError(failure.getMessage(), location);
@@ -338,8 +338,10 @@ public class JvmCompiler implements Compiler {
 	}
 
 	/**
-	 * Maps the instructions in the given method to the AST instructions in the given analysis result,
-	 * so we can correlate analysis failures to the original AST instructions.
+	 * Maps the executable instructions in the given method to the AST instructions in the given
+	 * analysis result, so we can correlate analysis failures to the original AST instructions.
+	 * Labels and line markers are recorded separately during emission since they can be dropped
+	 * from the final class when nothing references them.
 	 *
 	 * @param result
 	 * 		Analysis result containing the AST instructions to map to.
@@ -347,18 +349,20 @@ public class JvmCompiler implements Compiler {
 	 * 		Method to map the instructions of.
 	 */
 	private static void mapAstInstructions(@NotNull MethodAnalysisResult result, @NotNull MethodNode method) {
-		List<ASTInstruction> astInstructions = result.getOrderedAstInstructions();
-		if (astInstructions.isEmpty())
-			return;
-
+		List<ASTInstruction> astInstructions = result.getExecutableAstInstructions();
 		int astIndex = 0;
+		int index = 0;
 		for (AbstractInsnNode instruction = method.instructions.getFirst();
-		     instruction != null && astIndex < astInstructions.size();
-		     instruction = instruction.getNext()) {
+		     instruction != null;
+		     instruction = instruction.getNext(), index++) {
+
+			// Record the position of every instruction so frames can be resolved by instruction instance lookups later.
+			result.recordInstructionIndex(instruction, index);
 			if (!isExecutable(instruction))
 				continue;
-			ASTInstruction astInstruction = astInstructions.get(astIndex++);
-			result.recordInstructionMapping(astInstruction, instruction);
+
+			if (astIndex < astInstructions.size())
+				result.recordExecutableInstructionMapping(astInstructions.get(astIndex++), instruction);
 		}
 	}
 
@@ -385,7 +389,7 @@ public class JvmCompiler implements Compiler {
 
 		AbstractInsnNode instruction = failure.getInstruction();
 		if (instruction != null) {
-			ASTInstruction targetInsn = result.getInstructionToAstMap().get(instruction);
+			ASTInstruction targetInsn = result.getExecutableInstructionToAstMap().get(instruction);
 			if (targetInsn != null) {
 				collector.addError(failure.getMessage(), targetInsn.location());
 				return;

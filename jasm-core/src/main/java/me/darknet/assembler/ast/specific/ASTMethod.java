@@ -123,11 +123,10 @@ public class ASTMethod extends ASTMember {
             List<ASTInstruction> localAstInstructions = code.instructions();
             List<Instruction<?>> localIrInstructions = instructions;
             for (ASTInstruction instruction : localAstInstructions) {
+                instructionVisitor.visitInstruction(instruction);
                 if (instruction instanceof ASTLabel lab) {
                     instructionVisitor.visitLabel(lab.identifier());
                 } else {
-                    if (!instruction.identifier().content().equals("line"))
-                        instructionVisitor.visitInstruction(instruction);
                     localIrInstructions.get(instructionIndex++).transform(instruction, instructionVisitor);
                 }
             }

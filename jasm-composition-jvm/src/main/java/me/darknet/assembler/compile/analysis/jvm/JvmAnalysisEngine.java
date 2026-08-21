@@ -235,7 +235,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	public void clearErrorsAt(@NotNull AbstractInsnNode instruction) {
 		if (errorCollector == null)
 			return;
-		ASTInstruction ast = getResult().getInstructionToAstMap().get(instruction);
+		ASTInstruction ast = getResult().getExecutableInstructionToAstMap().get(instruction);
 		if (ast != null)
 			errorCollector.removeAt(ast.location());
 	}
@@ -251,7 +251,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	public void warn(@NotNull AbstractInsnNode instruction, @NotNull String message) {
 		if (errorCollector == null)
 			return;
-		ASTInstruction ast = getResult().getInstructionToAstMap().get(instruction);
+		ASTInstruction ast = getResult().getExecutableInstructionToAstMap().get(instruction);
 		if (ast != null)
 			errorCollector.addWarn(message, ast.location());
 	}
@@ -267,7 +267,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	protected void error(@NotNull AbstractInsnNode instruction, @NotNull String message) {
 		if (errorCollector == null)
 			return;
-		ASTInstruction ast = getResult().getInstructionToAstMap().get(instruction);
+		ASTInstruction ast = getResult().getExecutableInstructionToAstMap().get(instruction);
 		if (ast != null)
 			errorCollector.addError(message + " @ " + ast.content(), ast.location());
 	}

@@ -155,15 +155,15 @@ public class JvmVerify {
 		if (failure.executableInstructionIndex() >= 0) {
 			AbstractInsnNode methodInstruction = executableInstructionAt(method, failure.executableInstructionIndex());
 			if (methodInstruction != null) {
-				ASTInstruction astInstruction = results.getInstructionToAstMap().get(methodInstruction);
+				ASTInstruction astInstruction = results.getExecutableInstructionToAstMap().get(methodInstruction);
 				if (astInstruction != null && astInstruction.location() != null)
 					return astInstruction.location();
 			}
 
 			if (results instanceof MethodAnalysisResult methodResult) {
-				List<ASTInstruction> orderedInstructions = methodResult.getOrderedAstInstructions();
-				if (failure.executableInstructionIndex() < orderedInstructions.size()) {
-					ASTInstruction astInstruction = orderedInstructions.get(failure.executableInstructionIndex());
+				List<ASTInstruction> executableInstructions = methodResult.getExecutableAstInstructions();
+				if (failure.executableInstructionIndex() < executableInstructions.size()) {
+					ASTInstruction astInstruction = executableInstructions.get(failure.executableInstructionIndex());
 					if (astInstruction != null && astInstruction.location() != null)
 						return astInstruction.location();
 				}
@@ -181,7 +181,7 @@ public class JvmVerify {
 	 */
 	private static @NotNull Location firstMethodLocation(@NotNull AnalysisResults results) {
 		if (results instanceof MethodAnalysisResult methodResult) {
-			return methodResult.getOrderedAstInstructions().stream()
+			return methodResult.getExecutableAstInstructions().stream()
 					.filter(Objects::nonNull)
 					.map(ASTInstruction::location)
 					.filter(Objects::nonNull)
@@ -189,7 +189,7 @@ public class JvmVerify {
 					.orElse(Location.UNKNOWN);
 		}
 
-		return results.getInstructionToAstMap().values().stream()
+		return results.getExecutableInstructionToAstMap().values().stream()
 				.filter(Objects::nonNull)
 				.map(ASTInstruction::location)
 				.filter(Objects::nonNull)
@@ -252,7 +252,7 @@ public class JvmVerify {
 	 * @param executableInstructionIndex
 	 * 		Instruction index in {@link MethodNode} of the instruction that caused the verification failure, or {@code -1} if unknown.
 	 *
-	 * @see AnalysisResults#getInstructionToAstMap()
+	 * @see AnalysisResults#getExecutableInstructionToAstMap()
 	 */
 	private record VerificationFailure(@NotNull String message, int executableInstructionIndex) {}
 
