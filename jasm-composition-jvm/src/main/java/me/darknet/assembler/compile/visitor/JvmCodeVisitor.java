@@ -307,7 +307,12 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	public void visitLabel(@NotNull ASTIdentifier label) {
 		String labelName = label.content();
 		if (definedLabels.add(labelName)) {
-			add(getOrCreateLabel(labelName));
+			LabelNode node = getOrCreateLabel(labelName);
+			add(node);
+			// Labels can be dropped from the final class when nothing references
+			// them, so record the source mapping here while the node still exists.
+			if (currentInstructionAst instanceof ASTLabel astLabel)
+				analysisResult.recordLabelMapping(astLabel, node);
 		} else {
 			errorCollector.addError("Label '" + labelName + "' already defined", label.location());
 		}
@@ -317,7 +322,13 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	public void visitLineNumber(ASTNumber line) {
 		LabelNode label = new LabelNode();
 		add(label);
-		add(new LineNumberNode(line.asInt(), label));
+		LineNumberNode lineNode = new LineNumberNode(line.asInt(), label);
+		add(lineNode);
+
+		// Line markers survive into the final class, but recording here keeps the
+		// source mapping next to the same pass that creates the node.
+		if (currentInstructionAst != null)
+			analysisResult.recordLineNumberMapping(currentInstructionAst, lineNode);
 	}
 
 	@Override
@@ -387,9 +398,9 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 			// Only record non-metadata instructions for analysis.
 			// Inclusion of metadata instructions can cause mismatches in AST <-> bytecode mapping.
 			if (currentInstructionAst != null && instruction.getOpcode() >= 0)
-				analysisResult.recordOrderedInstruction(currentInstructionAst);
+				analysisResult.recordExecutableInstruction(currentInstructionAst);
 		} else {
-			errorCollector.addError("Instruction emitted/visted multiple times: "
+			errorCollector.addError("Instruction emitted/visited multiple times: "
 					+ instruction.getClass().getSimpleName(), currentInstructionAst.location());
 		}
 	}

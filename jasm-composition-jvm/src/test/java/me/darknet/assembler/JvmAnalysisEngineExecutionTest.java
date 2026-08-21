@@ -155,7 +155,7 @@ class JvmAnalysisEngineExecutionTest {
             ASTInstruction astInstruction) {
         MethodAnalysisResult result = new MethodAnalysisResult();
         if (astInstruction != null) {
-            result.recordInstructionMapping(astInstruction, instruction);
+            result.recordExecutableInstructionMapping(astInstruction, instruction);
         }
 
 	    AnalysisSession<Frame> session = new AnalysisSession<>(result);

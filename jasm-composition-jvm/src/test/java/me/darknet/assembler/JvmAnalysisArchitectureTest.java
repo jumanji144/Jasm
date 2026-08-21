@@ -1,5 +1,7 @@
 package me.darknet.assembler;
 
+import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.VarCache;
@@ -11,6 +13,9 @@ import me.darknet.assembler.test.JvmCompilation;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.AbstractInsnNode;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -95,6 +100,66 @@ class JvmAnalysisArchitectureTest {
         assertFalse(results.getAstToInstructionMap().isEmpty());
         assertFalse(results.getInstructionToAstMap().isEmpty());
         results.getAstToInstructionMap().forEach((ast, element) -> assertSame(ast, results.getInstructionToAstMap().get(element)));
+    }
+
+    @Test
+    void labelAndLineNumberMappingsRemainAvailableToConsumers() {
+        String source = BinarySampleFixture.jvmSample("Example-anewarray-array.jasm").read();
+        TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+
+        JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
+        AnalysisResults results = compilation.requireSuccess().analysisLookup().results("exampleMethod", "()V");
+        assertNotNull(results);
+
+        // Every source label must resolve to a LabelNode and back.
+        List<String> labelNames = results.getAstToLabelMap().keySet().stream()
+                .map(label -> label.identifier().content())
+                .sorted()
+                .toList();
+        assertEquals(List.of("A", "B", "C", "D"), labelNames);
+        results.getAstToLabelMap().forEach((ast, node) -> assertSame(ast, results.getLabelToAstMap().get(node)));
+
+        // Every "line <number>" marker must resolve to a LineNumberNode and back.
+        List<Integer> lineNumbers = results.getAstToLineNumberMap().values().stream()
+                .map(node -> node.line)
+                .sorted()
+                .toList();
+        assertEquals(List.of(3, 4, 5), lineNumbers);
+        results.getAstToLineNumberMap().forEach((ast, node) -> assertSame(ast, results.getLineNumberToAstMap().get(node)));
+
+        // 8 executable instructions + 4 labels + 3 line markers must all be present.
+        assertEquals(15, results.getAstToInstructionMap().size());
+        results.getAstToInstructionMap().forEach((ast, node) -> assertSame(ast, results.getInstructionToAstMap().get(node)));
+    }
+
+    @Test
+    void framesResolveDirectlyFromInstructionsAndAst() {
+        String source = BinarySampleFixture.jvmSample("Example-anewarray-array.jasm").read();
+        TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+
+        JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
+        AnalysisResults results = compilation.requireSuccess().analysisLookup().results("exampleMethod", "()V");
+        assertNotNull(results);
+
+        // Each executable instruction resolves to the frame before it, by node and by AST.
+        for (Map.Entry<ASTInstruction, AbstractInsnNode> entry : results.getAstToExecutableInstructionMap().entrySet()) {
+            ASTInstruction ast = entry.getKey();
+            AbstractInsnNode node = entry.getValue();
+            Integer index = results.getInstructionIndex(node);
+            assertNotNull(index, "Expected an index for " + ast.content());
+            Frame frame = results.getFrame(node);
+            assertNotNull(frame, "Expected a frame for " + ast.content());
+            assertSame(frame, results.frames().floorEntry(index).getValue());
+            assertSame(frame, results.getFrame(ast));
+        }
+
+        // Labels and line markers have no frame of their own.
+        for (ASTLabel label : results.getAstToLabelMap().keySet())
+            assertNull(results.getFrame(label));
+        for (ASTInstruction line : results.getAstToLineNumberMap().keySet())
+            assertNull(results.getFrame(line));
     }
 
     @Test
