@@ -3,6 +3,7 @@ package me.darknet.assembler.instructions.dalvik;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTArray;
+import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.instructions.Operand;
@@ -61,18 +62,7 @@ public enum DalvikOperands implements Operands {
                 context.throwUnexpectedElementError("register", value);
         }
     }),
-    DATA_ARRAY((context, element) -> {
-        // data array can be: number or array
-        ASTArray array = context.validateEmptyableElement(element, ElementType.ARRAY, "data array", element);
-        if (array == null)
-            return;
-        for (ASTElement value : array.values()) {
-            if (context.isNull(value, "data array element", array.location()))
-                continue;
-            if(value.type() != ElementType.NUMBER)
-                context.throwUnexpectedElementError("number", value);
-        }
-    }),
+    DATA_ARRAY(DalvikOperands::verifyDataArray),
     PACKED_SWITCH((context, element) -> {
         ASTObject object = context.validateObject(element, "packed switch", element, "first", "targets");
 
@@ -121,11 +111,56 @@ public enum DalvikOperands implements Operands {
         return operand;
     }
 
-    static void verifyConstant(ProcessorContext ctx, ASTElement element) {
-        switch (element.type()) {
-            case NUMBER, STRING, CHARACTER -> {
+    static void verifyDataArray(ProcessorContext context, ASTElement element) {
+        if (element == null)
+            return;
+
+        if (element.type() == ElementType.ARRAY) {
+            ASTArray array = (ASTArray) element;
+            for (ASTElement value : array.values()) {
+                if (context.isNull(value, "data array element", array.location())) {
+                    continue;
+                }
+                if (value.type() != ElementType.NUMBER) {
+                    context.throwUnexpectedElementError("number", value);
+                }
             }
+            return;
+        }
+        if (element.type() != ElementType.OBJECT) {
+            context.throwUnexpectedElementError("data array or payload object", element);
+            return;
+        }
+
+        ASTObject payload = context.validateObject(element, "data payload", element, "width", "values");
+        if (payload == null) {
+            return;
+        }
+        ASTNumber width = context.validateElement(payload.value("width"), ElementType.NUMBER, "data element width", payload);
+        if (width != null && (width.isFloatingPoint() || (width.asInt() != 1 && width.asInt() != 2 && width.asInt() != 4 && width.asInt() != 8))) {
+            context.throwUnexpectedElementError("element width 1, 2, 4, or 8", width);
+        }
+        ASTArray values = context.validateEmptyableElement(payload.value("values"), ElementType.ARRAY, "data payload values", payload);
+        if (values != null) {
+            for (ASTElement value : values.values()) {
+                if (context.isNull(value, "data payload value", values.location())) {
+                    continue;
+                }
+                if (value.type() != ElementType.NUMBER) {
+                    context.throwUnexpectedElementError("number", value);
+                }
+            }
+        }
+    }
+
+    private static void verifyConstant(ProcessorContext ctx, ASTElement element) {
+        switch (element.type()) {
+            case NUMBER, STRING, CHARACTER, BOOL, ENUM -> {}
+            case DECLARATION -> verifyDeclarationConstant(ctx, element);
             case IDENTIFIER -> {
+                if ("null".equalsIgnoreCase(element.content()))
+                    return;
+
                 // must be class or method type
                 char first = element.content().charAt(0);
                 // TODO: maybe replace with actual descriptor verification?
@@ -133,11 +168,44 @@ public enum DalvikOperands implements Operands {
                     case 'L', '(', '[' -> {
                         return;
                     }
+                    default -> {
+                        // Bare identifiers are internal-name type constants in Dalvik argument arrays.
+                        return;
+                    }
                 }
-                ctx.throwUnexpectedElementError("class, method or array descriptor", element);
             }
             case ARRAY -> // only handle
                     JvmOperands.verifyHandle(ctx, element);
         }
+    }
+
+    private static void verifyDeclarationConstant(ProcessorContext ctx, ASTElement element) {
+        if (!(element instanceof ASTDeclaration declaration) || declaration.keyword() == null) {
+            ctx.throwUnexpectedElementError("enum or member constant", element);
+            return;
+        }
+
+        String keyword = declaration.keyword().content();
+        int size = declaration.elements().size();
+        boolean validEnum = ".enum".equals(keyword) && (size == 2 || size == 3);
+        boolean validMember = ".member".equals(keyword) && size == 3;
+        if (!validEnum && !validMember) {
+            ctx.throwUnexpectedElementError("enum or member constant", element);
+            return;
+        }
+
+        for (ASTElement value : declaration.elements()) {
+            if (contextIsNotIdentifier(ctx, value, element)) {
+                return;
+            }
+        }
+    }
+
+    private static boolean contextIsNotIdentifier(ProcessorContext ctx, ASTElement value, ASTElement parent) {
+        if (value == null || value.type() != ElementType.IDENTIFIER) {
+            ctx.throwUnexpectedElementError("constant identifier", value == null ? parent : value);
+            return true;
+        }
+        return false;
     }
 }

@@ -6,8 +6,10 @@ import me.darknet.assembler.instructions.DefaultOperands;
 import me.darknet.assembler.instructions.Instructions;
 import me.darknet.assembler.visitor.ASTDalvikInstructionVisitor;
 
+/**
+ * Registers all Dalvik instructions with their respective operand types and visitors.
+ */
 public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor> {
-
     public static final DalvikInstructions INSTANCE = new DalvikInstructions();
 
     @Override
@@ -67,7 +69,7 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
         register("filled-new-array/range", ops(DalvikOperands.REGISTER_ARRAY, DalvikOperands.CLASS_TYPE),
                 (inst, visitor) -> visitor.visitFilledNewArray(inst.argumentArray(0), inst.argument(1)));
         register("fill-array-data", ops(DefaultOperands.LITERAL, DalvikOperands.DATA_ARRAY),
-                (inst, visitor) -> visitor.visitFillArrayData(inst.argument(0), inst.argumentArray(1)));
+                (inst, visitor) -> visitor.visitFillArrayData(inst.argument(0), inst.argument(1, ASTElement.class)));
         register("throw", ops(DefaultOperands.LITERAL),
                 (inst, visitor) -> visitor.visitThrow(inst.argument(0)));
         register("goto", ops(DefaultOperands.LABEL),
@@ -77,6 +79,28 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
         register("sparse-switch", ops(DefaultOperands.LITERAL, DalvikOperands.SPARSE_SWITCH),
                 (inst, visitor) -> visitor.visitSparseSwitch(inst.argument(0), inst.argumentObject(1)));
         registerCmp("cmpl-float", "cmpg-float", "cmpl-double", "cmpg-double", "cmp-long");
+        registerBinaryOperation(
+                "add-int", "sub-int", "mul-int", "div-int", "rem-int", "and-int", "or-int", "xor-int",
+                "shl-int", "shr-int", "ushr-int", "add-long", "sub-long", "mul-long", "div-long", "rem-long",
+                "and-long", "or-long", "xor-long", "shl-long", "shr-long", "ushr-long", "add-float",
+                "sub-float", "mul-float", "div-float", "rem-float", "add-double", "sub-double", "mul-double",
+                "div-double", "rem-double"
+        );
+        registerBinary2AddrOperation(
+                "add-int/2addr", "sub-int/2addr", "mul-int/2addr", "div-int/2addr", "rem-int/2addr",
+                "and-int/2addr", "or-int/2addr", "xor-int/2addr", "shl-int/2addr", "shr-int/2addr",
+                "ushr-int/2addr", "add-long/2addr", "sub-long/2addr", "mul-long/2addr", "div-long/2addr",
+                "rem-long/2addr", "and-long/2addr", "or-long/2addr", "xor-long/2addr", "shl-long/2addr",
+                "shr-long/2addr", "ushr-long/2addr", "add-float/2addr", "sub-float/2addr", "mul-float/2addr",
+                "div-float/2addr", "rem-float/2addr", "add-double/2addr", "sub-double/2addr", "mul-double/2addr",
+                "div-double/2addr", "rem-double/2addr"
+        );
+        registerBinaryLiteralOperation(
+                "add-int/lit16", "rsub-int", "mul-int/lit16", "div-int/lit16", "rem-int/lit16",
+                "and-int/lit16", "or-int/lit16", "xor-int/lit16", "add-int/lit8", "rsub-int/lit8",
+                "mul-int/lit8", "div-int/lit8", "rem-int/lit8", "and-int/lit8", "or-int/lit8", "xor-int/lit8",
+                "shl-int/lit8", "shr-int/lit8", "ushr-int/lit8"
+        );
         registerIf("if-eq", "if-ne", "if-lt", "if-ge", "if-gt", "if-le");
         registerIfZero("if-eqz", "if-nez", "if-ltz", "if-gez", "if-gtz", "if-lez");
         registerArrayOperation("aget", "aget-object", "aget-wide", "aget-boolean", "aget-byte",
@@ -104,6 +128,28 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
         register("line", ops(DefaultOperands.INTEGER), (inst, visitor) -> visitor.visitLineNumber(inst.argument(0, ASTNumber.class)));
 
 
+    }
+
+    void registerBinaryOperation(String... names) {
+        for (String name : names) {
+            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL, DefaultOperands.LITERAL),
+                    (inst, visitor) -> visitor.visitBinaryOperation(inst.argument(0), inst.argument(1), inst.argument(2)));
+        }
+    }
+
+    void registerBinary2AddrOperation(String... names) {
+        for (String name : names) {
+            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL),
+                    (inst, visitor) -> visitor.visitBinary2AddrOperation(inst.argument(0), inst.argument(1)));
+        }
+    }
+
+    void registerBinaryLiteralOperation(String... names) {
+        for (String name : names) {
+            register(name, ops(DefaultOperands.LITERAL, DefaultOperands.LITERAL, DefaultOperands.NUMBER),
+                    (inst, visitor) -> visitor.visitBinaryLiteralOperation(
+                            inst.argument(0), inst.argument(1), inst.argument(2, ASTNumber.class)));
+        }
     }
 
     void registerCmp(String... names) {
@@ -179,5 +225,4 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
                     (inst, visitor) -> visitor.visitUnaryOperation(inst.argument(0), inst.argument(1)));
         }
     }
-
 }

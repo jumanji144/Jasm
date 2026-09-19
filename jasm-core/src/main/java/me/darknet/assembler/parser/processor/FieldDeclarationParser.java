@@ -1,8 +1,10 @@
 package me.darknet.assembler.parser.processor;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.primitive.ASTBool;
 import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTValue;
@@ -43,16 +45,17 @@ final class FieldDeclarationParser {
 		int descIndex = lastIndex;
 		int nameIndex = lastIndex - 1;
 		ASTElement last = elements.get(lastIndex);
-		ASTValue value = null;
+		ASTElement value = null;
 		if (last instanceof ASTObject object) {
 			descIndex = lastIndex - 1;
 			nameIndex = lastIndex - 2;
 			ASTElement fieldValue = object.values().get("value");
-			if (!(fieldValue instanceof ASTValue) || object.values().size() != 1) {
+			if (!(fieldValue instanceof ASTValue) && !(fieldValue instanceof ASTIdentifier)
+					&& !(fieldValue instanceof ASTDeclaration) || object.values().size() != 1) {
 				context.throwUnexpectedElementError("field value", fieldValue == null ? last : fieldValue);
 				return null;
 			}
-			value = (ASTValue) fieldValue;
+			value = normalizeFieldValue(fieldValue);
 		} else if (!(last instanceof ASTIdentifier)) {
 			context.throwUnexpectedElementError("field descriptor or field value", last == null ? declaration : last);
 			return null;
@@ -70,5 +73,18 @@ final class FieldDeclarationParser {
 
 		Modifiers modifiers = ModifierParser.parseModifiers(context, nameIndex, declaration);
 		return new ASTField(modifiers, name, desc, value).accept(context.state().collectAttributes());
+	}
+
+	private static ASTElement normalizeFieldValue(ASTElement value) {
+		if (!(value instanceof ASTIdentifier identifier))
+			return value;
+		return switch (identifier.content().toLowerCase()) {
+			case "true", "false" -> new ASTBool(identifier.value());
+			case "nan", "nand", "nanf",
+					"+infinity", "+infinityd", "infinity", "infinityd",
+					"+infinityf", "infinityf", "-infinity", "-infinityd", "-infinityf" ->
+					new ASTNumber(identifier.value());
+			default -> value;
+		};
 	}
 }

@@ -9,8 +9,10 @@ import me.darknet.assembler.instructions.DefaultOperands;
 import me.darknet.assembler.instructions.Instructions;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 
+/**
+ * Registers all JVM instructions with their respective operand types and visitors.
+ */
 public class JvmInstructions extends Instructions<ASTJvmInstructionVisitor> {
-
     public final static JvmInstructions INSTANCE = new JvmInstructions();
 
     private JvmInstructions() {

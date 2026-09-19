@@ -14,6 +14,7 @@ import java.util.List;
  */
 final class ClassDeclarationParser {
     private ClassDeclarationParser() {}
+
     /**
      * @param registry
      * 		Registry to register the parser in.
@@ -56,6 +57,7 @@ final class ClassDeclarationParser {
                 "field",
                 "method",
                 "annotation",
+                "system-annotation",
                 "visible-annotation",
                 "invisible-annotation",
                 "type-visible-annotation",

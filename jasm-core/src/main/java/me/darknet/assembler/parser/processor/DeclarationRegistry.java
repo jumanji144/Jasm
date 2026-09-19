@@ -5,6 +5,7 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -50,6 +51,13 @@ public final class DeclarationRegistry {
 	 */
 	public void register(@NotNull String keyword, @NotNull DeclarationHandler handler) {
 		handlers.put(keyword, handler);
+	}
+
+	/**
+	 * @return Set of keywords that have registered handlers.
+	 */
+	public @NotNull Set<String> getKeywords() {
+		return Set.copyOf(handlers.keySet());
 	}
 
 	/**

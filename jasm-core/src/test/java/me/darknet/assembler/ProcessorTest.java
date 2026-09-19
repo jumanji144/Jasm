@@ -1,6 +1,5 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.error.Error;
 import me.darknet.assembler.helper.Processor;
 import me.darknet.assembler.parser.BytecodeFormat;
@@ -17,6 +16,18 @@ public class ProcessorTest {
     // TODO: This is more of a processor pipeline test than a test of the small 'Processor' helper class
     //  - Maybe move this someplace else? Or rename to 'ParserPipelineTest' or something?
     //  - If we rename it, that pipeline probably can have additional tests added to it.
+
+    @Test
+    public void testSynchronousResultProcessesDalvikSource() {
+        var result = Processor.processSourceResult(
+                ".class public Example {}",
+                "<stdin>",
+                BytecodeFormat.DALVIK
+        );
+
+        assertTrue(result.isOk(), result.errors()::toString);
+        assertEquals(1, result.get().size());
+    }
 
     @Test
     public void testTokenizerErrorsShortCircuitProcessing() {

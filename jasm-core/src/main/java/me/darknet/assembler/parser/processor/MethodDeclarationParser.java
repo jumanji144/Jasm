@@ -58,7 +58,7 @@ final class MethodDeclarationParser {
 			return null;
 
 		List<ASTIdentifier> parameters = Collections.emptyList();
-		ASTElement parametersElement = body.values().get("parameters");
+		ASTElement parametersElement = body.values().get(ProcessorKeywords.PARAMETERS);
 		if (parametersElement != null) {
 			ASTArray parameterArray = context.validateEmptyableElement(
 					parametersElement, ElementType.ARRAY, "method parameters", declaration
@@ -71,7 +71,7 @@ final class MethodDeclarationParser {
 		Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations = parseParameterAnnotations(context, declaration, body);
 		List<ASTIdentifier> declaredExceptions = parseDeclaredExceptions(context, declaration, body);
 
-		ASTElement defaultValueElement = body.values().get("default-value");
+		ASTElement defaultValueElement = body.values().get(ProcessorKeywords.DEFAULT_VALUE);
 		if (defaultValueElement != null) {
 			context.enterState(ProcessorFlag.IN_ANNOTATION);
 			AnnotationDeclarationParser.validateElementValue(context, defaultValueElement);
@@ -82,11 +82,11 @@ final class MethodDeclarationParser {
 
 		ASTCode code = null;
 		List<Instruction<?>> instructions = new ArrayList<>();
-		ASTElement codeElement = body.values().get("code");
+		ASTElement codeElement = body.values().get(ProcessorKeywords.CODE);
 		if (codeElement != null) {
 			code = context.validateEmptyableElement(codeElement, ElementType.CODE, "method code", declaration);
 			if (code != null) {
-				for (ASTInstruction instruction : code.instructions()) {
+				for (ASTInstruction instruction : code.getInstructions()) {
 					if (instruction == null || instruction instanceof ASTLabel) {
 						continue;
 					}
@@ -117,7 +117,7 @@ final class MethodDeclarationParser {
 		}
 
 		Modifiers modifiers = ModifierParser.parseModifiers(context, nameIndex, declaration);
-		return new ASTMethod(
+		ASTMethod method = new ASTMethod(
 				modifiers,
 				name,
 				desc,
@@ -129,7 +129,9 @@ final class MethodDeclarationParser {
 				code,
 				instructions,
 				context.getFormat()
-		).accept(context.state().collectAttributes());
+		);
+		method.setRegisterCount(registerCount);
+		return method.accept(context.state().collectAttributes());
 	}
 
 	/**
@@ -145,7 +147,7 @@ final class MethodDeclarationParser {
 	 */
 	private static Map<ASTIdentifier, List<ASTAnnotation>> parseParameterAnnotations(ProcessorContext context,
 	                                                                                 ASTDeclaration declaration, ASTObject body) {
-		ASTElement parameterAnnotationsElement = body.values().get("parameter-annotations");
+		ASTElement parameterAnnotationsElement = body.values().get(ProcessorKeywords.PARAMETER_ANNOTATIONS);
 		if (parameterAnnotationsElement == null) {
 			return new IdentityHashMap<>();
 		}
@@ -251,7 +253,7 @@ final class MethodDeclarationParser {
 	 */
 	private static List<ASTIdentifier> parseDeclaredExceptions(ProcessorContext context, ASTDeclaration declaration,
 	                                                           ASTObject body) {
-		ASTElement throwsElement = body.values().get("throws");
+		ASTElement throwsElement = body.values().get(ProcessorKeywords.THROWS);
 		if (throwsElement == null)
 			return Collections.emptyList();
 
@@ -275,7 +277,7 @@ final class MethodDeclarationParser {
 	 * @return List of parsed exceptions. If the exceptions list is invalid, an empty list is returned and errors are reported to the context.
 	 */
 	private static List<ASTException> parseExceptions(ProcessorContext context, ASTDeclaration declaration, ASTObject body) {
-		ASTElement exceptionsElement = body.values().get("exceptions");
+		ASTElement exceptionsElement = body.values().get(ProcessorKeywords.EXCEPTIONS);
 		if (exceptionsElement == null) {
 			return new ArrayList<>();
 		}
