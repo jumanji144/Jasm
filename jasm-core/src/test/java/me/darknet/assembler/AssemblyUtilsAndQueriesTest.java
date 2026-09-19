@@ -88,7 +88,7 @@ class AssemblyUtilsAndQueriesTest {
 		assertEquals("beta", inferred.identity().name());
 		assertEquals(2, variables.writesOf(inferred.identity()).size());
 
-		ASTIdentifier alpha = method.parameters().getFirst();
+		ASTIdentifier alpha = method.getParameters().getFirst();
 		Resolution declarationResolution = AssemblyQueries.resolveAt(ast, alpha.range().start());
 		assertInstanceOf(VariableDeclarationResolution.class, declarationResolution);
 
@@ -436,7 +436,7 @@ class AssemblyUtilsAndQueriesTest {
 		assertTrue(labels.usages().stream().allMatch(LabelUsage::resolved));
 		assertEquals(4, labels.usages().stream().filter(usage -> usage.kind() == LabelReferenceKind.SWITCH_CASE).count());
 
-		ASTInstruction ifEq = method.code().instructions().stream()
+		ASTInstruction ifEq = method.getCode().getInstructions().stream()
 				.filter(instruction -> "if-eq".equals(instruction.identifier().content()))
 				.findFirst()
 				.orElseThrow();
@@ -464,10 +464,10 @@ class AssemblyUtilsAndQueriesTest {
 		List<ASTElement> ast = processed(source, BytecodeFormat.DALVIK);
 		ASTMethod method = onlyMethod(ast);
 
-		assertTypeResolution(ast, method.code().instructions().get(0).argument(1, ASTIdentifier.class));
-		assertTypeResolution(ast, method.code().instructions().get(1).argument(1, ASTIdentifier.class));
-		assertTypeResolution(ast, method.code().instructions().get(3).argument(1, ASTIdentifier.class));
-		assertTypeResolution(ast, method.code().instructions().get(4).argument(2, ASTIdentifier.class));
+		assertTypeResolution(ast, method.getCode().getInstructions().get(0).argument(1, ASTIdentifier.class));
+		assertTypeResolution(ast, method.getCode().getInstructions().get(1).argument(1, ASTIdentifier.class));
+		assertTypeResolution(ast, method.getCode().getInstructions().get(3).argument(1, ASTIdentifier.class));
+		assertTypeResolution(ast, method.getCode().getInstructions().get(4).argument(2, ASTIdentifier.class));
 	}
 
 	@Test
@@ -514,7 +514,7 @@ class AssemblyUtilsAndQueriesTest {
 		ASTLabel start = AssemblyUtils.findLabelDeclaration(method, "Start");
 		assertNotNull(start);
 
-		ASTInstruction switchInstruction = method.code().instructions().stream()
+		ASTInstruction switchInstruction = method.getCode().getInstructions().stream()
 				.filter(instruction -> "tableswitch".equals(instruction.identifier().content()))
 				.findFirst()
 				.orElseThrow();
@@ -580,11 +580,11 @@ class AssemblyUtilsAndQueriesTest {
 		List<ASTElement> ast = processed(source);
 		ASTMethod method = onlyMethod(ast);
 
-		ASTInstruction gotoInstruction = method.code().instructions().stream()
+		ASTInstruction gotoInstruction = method.getCode().getInstructions().stream()
 				.filter(instruction -> "goto".equals(instruction.identifier().content()))
 				.findFirst()
 				.orElseThrow();
-		ASTInstruction switchInstruction = method.code().instructions().stream()
+		ASTInstruction switchInstruction = method.getCode().getInstructions().stream()
 				.filter(instruction -> "tableswitch".equals(instruction.identifier().content()))
 				.findFirst()
 				.orElseThrow();

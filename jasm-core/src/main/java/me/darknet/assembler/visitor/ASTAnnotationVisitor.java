@@ -44,7 +44,7 @@ public interface ASTAnnotationVisitor {
                     ASTAnnotationArrayVisitor.accept(arrayVisitor, array, collector);
                 }
                 case ASTAnnotation annotation -> {
-                    ASTAnnotationVisitor anno = visitor.visitAnnotationValue(key, annotation.classType());
+                    ASTAnnotationVisitor anno = visitor.visitAnnotationValue(key, annotation.getClassType());
                     annotation.accept(collector, anno);
                 }
                 case null, default -> {

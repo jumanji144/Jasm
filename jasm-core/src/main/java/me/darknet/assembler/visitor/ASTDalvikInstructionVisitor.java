@@ -6,6 +6,9 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 
+/**
+ * Visitor interface for Dalvik instructions.
+ */
 public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	/**
 	 * Visits a {@code nop} instruction, which does nothing.
@@ -146,20 +149,10 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	 *
 	 * @param to
 	 * 		The array to fill
-	 * @param array
-	 * 		The array data to fill with
+	 * @param data
+	 * 		The array data to fill with, optionally including an explicit element width
 	 */
-	void visitFillArrayData(ASTIdentifier to, ASTArray array);
-
-	/**
-	 * Visits a {@code fill-array-data-payload} instruction, which contains the data to fill an array with.
-	 *
-	 * @param elementWidth
-	 * 		The width of each element
-	 * @param elements
-	 * 		The elements to fill the array with
-	 */
-	void visitFillArrayDataPayload(ASTNumber elementWidth, ASTArray elements);
+	void visitFillArrayData(ASTIdentifier to, ASTElement data);
 
 	/**
 	 * Visits a {@code throw} instruction, which throws an exception.
@@ -184,12 +177,10 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	 * 		The register containing the switch selector
 	 * @param packedSwitchObject
 	 * 		An object structured like the following:
-	 * 		<pre>
-	 *            {<br>
-	 * 		     first: number,<br>
-	 * 		     targets: { label, label, label, ... }<br>
-	 *            }
-	 * 		</pre>
+	 * 		<pre>{@code {
+	 *        first: number,
+	 *        targets: { label, label, label, ... }
+	 *      }}</pre>
 	 * 		Number elements correspond to ASTNumber, label elements correspond to ASTIdentifier
 	 */
 	void visitPackedSwitch(ASTIdentifier register, ASTObject packedSwitchObject);
@@ -201,13 +192,11 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	 * 		The register containing the switch selector
 	 * @param sparseSwitchObject
 	 * 		An object structured like the following:
-	 * 		<pre>
-	 *            {<br>
-	 * 		     number: label,<br>
-	 * 		     number: label,<br>
-	 * 		     ...<br>
-	 *            }
-	 * 		</pre>
+	 * 		<pre>{@code {
+	 *        number: label,
+	 *        number: label,
+	 *        ...
+	 *      }}</pre>
 	 * 		Number elements correspond to ASTNumber, label elements correspond to ASTIdentifier
 	 */
 	void visitSparseSwitch(ASTIdentifier register, ASTObject sparseSwitchObject);
@@ -245,6 +234,40 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	 * 		The label to jump to
 	 */
 	void visitIfZero(ASTIdentifier a, ASTIdentifier label);
+
+	/**
+	 * Visits a three-register binary operation.
+	 *
+	 * @param to
+	 * 		The destination register.
+	 * @param from1
+	 * 		The first source register.
+	 * @param from2
+	 * 		The second source register.
+	 */
+	void visitBinaryOperation(ASTIdentifier to, ASTIdentifier from1, ASTIdentifier from2);
+
+	/**
+	 * Visits a two-address binary operation.
+	 *
+	 * @param a
+	 * 		The destination and first source register.
+	 * @param b
+	 * 		The second source register.
+	 */
+	void visitBinary2AddrOperation(ASTIdentifier a, ASTIdentifier b);
+
+	/**
+	 * Visits a binary operation with an integer literal.
+	 *
+	 * @param to
+	 * 		The destination register.
+	 * @param from
+	 * 		The source register.
+	 * @param constant
+	 * 		The signed operation literal.
+	 */
+	void visitBinaryLiteralOperation(ASTIdentifier to, ASTIdentifier from, ASTNumber constant);
 
 	/**
 	 * Visits an array operation instruction, which performs an operation on an array.

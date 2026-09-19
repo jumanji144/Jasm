@@ -20,7 +20,7 @@ public class ASTInner extends ASTElement implements ASTAccessed {
             ASTIdentifier innerClass) {
         super(
                 ElementType.INNER_CLASS,
-                CollectionUtil.mergeNonNull(modifiers.modifiers(), name, innerClass, outerClass)
+                CollectionUtil.mergeNonNull(modifiers.getModifiers(), name, innerClass, outerClass)
         );
         this.modifiers = modifiers;
         this.name = name;

@@ -46,7 +46,7 @@ public class ASTProcessorTest {
             assertNotNull(field);
             assertEquals("a", field.getName().content());
             assertEquals("I", field.getDescriptor().content());
-            List<ASTIdentifier> modifiers = field.getModifiers().modifiers();
+            List<ASTIdentifier> modifiers = field.getModifiers().getModifiers();
             assertEquals(3, modifiers.size());
             assertEquals("public", modifiers.get(0).content());
             assertEquals("static", modifiers.get(1).content());
@@ -67,7 +67,7 @@ public class ASTProcessorTest {
         assertOne(".field public static final a I", ASTField.class, (field) -> {
             assertEquals("a", field.getName().content());
             assertEquals("I", field.getDescriptor().content());
-            List<ASTIdentifier> modifiers = field.getModifiers().modifiers();
+            List<ASTIdentifier> modifiers = field.getModifiers().getModifiers();
             assertEquals(3, modifiers.size());
             assertEquals("public", modifiers.get(0).content());
             assertEquals("static", modifiers.get(1).content());
@@ -76,7 +76,7 @@ public class ASTProcessorTest {
         assertOne(".field public static final a I {value: 10}", ASTField.class, (field) -> {
             assertEquals("a", field.getName().content());
             assertEquals("I", field.getDescriptor().content());
-            List<ASTIdentifier> modifiers = field.getModifiers().modifiers();
+            List<ASTIdentifier> modifiers = field.getModifiers().getModifiers();
             assertEquals(3, modifiers.size());
             assertEquals("public", modifiers.get(0).content());
             assertEquals("static", modifiers.get(1).content());
@@ -97,9 +97,9 @@ public class ASTProcessorTest {
                 (method) -> {
                     assertEquals("main", method.getName().content());
                     assertEquals("([Ljava/lang/String;)V", method.getDescriptor().content());
-                    assertNotNull(method.parameters());
-                    assertEquals(1, method.parameters().size());
-                    assertEquals("args", method.parameters().getFirst().content());
+                    assertNotNull(method.getParameters());
+                    assertEquals(1, method.getParameters().size());
+                    assertEquals("args", method.getParameters().getFirst().content());
                 }
         );
     }
@@ -107,22 +107,22 @@ public class ASTProcessorTest {
     @Test
     public void testAnnotation() {
         assertOne(".annotation java/lang/Deprecated {}", ASTAnnotation.class, (annotation) -> {
-            assertEquals("java/lang/Deprecated", annotation.classType().content());
+            assertEquals("java/lang/Deprecated", annotation.getClassType().content());
         });
         assertOne(".annotation java/lang/Deprecated { value: \"Hello World\" }", ASTAnnotation.class, (annotation) -> {
-            assertEquals("java/lang/Deprecated", annotation.classType().content());
-            assertNotNull(annotation.values());
-            assertEquals(1, annotation.values().size());
-            assertEquals("Hello World", annotation.value("value").content());
+            assertEquals("java/lang/Deprecated", annotation.getClassType().content());
+            assertNotNull(annotation.getValueMap());
+            assertEquals(1, annotation.getValueMap().size());
+            assertEquals("Hello World", annotation.getValue("value").content());
         });
         assertOne(
                 ".annotation java/lang/annotation/Retention { value: .enum java/lang/annotation/RetentionPolicy"
                         + " RUNTIME }",
                 ASTAnnotation.class, (annotation) -> {
-                    assertEquals("java/lang/annotation/Retention", annotation.classType().content());
-                    assertNotNull(annotation.values());
-                    assertEquals(1, annotation.values().size());
-                    ASTEnum enumValue = assertIs(ASTEnum.class, annotation.value("value"));
+                    assertEquals("java/lang/annotation/Retention", annotation.getClassType().content());
+                    assertNotNull(annotation.getValueMap());
+                    assertEquals(1, annotation.getValueMap().size());
+                    ASTEnum enumValue = assertIs(ASTEnum.class, annotation.getValue("value"));
                     assertEquals("java/lang/annotation/RetentionPolicy", enumValue.enumOwner().content());
                     assertEquals("RUNTIME", enumValue.enumFieldName().content());
                 }
@@ -131,10 +131,10 @@ public class ASTProcessorTest {
                 ".annotation java/lang/annotation/Target { value: { .enum java/lang/annotation/ElementType FIELD,"
                         + " .enum java/lang/annotation/ElementType METHOD } }",
                 ASTAnnotation.class, (annotation) -> {
-                    assertEquals("java/lang/annotation/Target", annotation.classType().content());
-                    assertNotNull(annotation.values());
-                    assertEquals(1, annotation.values().size());
-                    ASTArray array = assertIs(ASTArray.class, annotation.value("value"));
+                    assertEquals("java/lang/annotation/Target", annotation.getClassType().content());
+                    assertNotNull(annotation.getValueMap());
+                    assertEquals(1, annotation.getValueMap().size());
+                    ASTArray array = assertIs(ASTArray.class, annotation.getValue("value"));
                     assertEquals(2, array.values().size());
                     ASTEnum enumValue = assertIs(ASTEnum.class, array.value(0));
                     assertEquals("java/lang/annotation/ElementType", enumValue.enumOwner().content());
@@ -151,14 +151,14 @@ public class ASTProcessorTest {
         assertOne(
                 ".annotation java/lang/annotation/Annotation { value: .annotation java/lang/annotation/Annotation { value: 100 } }",
                 ASTAnnotation.class, (annotation) -> {
-                    assertEquals("java/lang/annotation/Annotation", annotation.classType().content());
-                    assertNotNull(annotation.values());
-                    assertEquals(1, annotation.values().size());
-                    ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.value("value"));
-                    assertEquals("java/lang/annotation/Annotation", subAnnotation.classType().content());
-                    assertNotNull(subAnnotation.values());
-                    assertEquals(1, subAnnotation.values().size());
-                    assertEquals("100", subAnnotation.value("value").content());
+                    assertEquals("java/lang/annotation/Annotation", annotation.getClassType().content());
+                    assertNotNull(annotation.getValueMap());
+                    assertEquals(1, annotation.getValueMap().size());
+                    ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.getValue("value"));
+                    assertEquals("java/lang/annotation/Annotation", subAnnotation.getClassType().content());
+                    assertNotNull(subAnnotation.getValueMap());
+                    assertEquals(1, subAnnotation.getValueMap().size());
+                    assertEquals("100", subAnnotation.getValue("value").content());
                 }
         );
 
@@ -167,15 +167,15 @@ public class ASTProcessorTest {
                         + " notNull: .annotation org/jetbrains/annotations/NotNull {}, "
                         + " values: { \"Hello, world!\", \"Hello, world!\" }, " + " value: \"Hello, world!\" " + "}",
                 ASTAnnotation.class, (annotation) -> {
-                    assertEquals("me/darknet/assembler/PrinterTest$TestAnnotation", annotation.classType().content());
-                    assertNotNull(annotation.values());
-                    assertEquals(4, annotation.values().size());
-                    assertEquals("15", annotation.value("number").content());
-                    ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.value("notNull"));
-                    assertEquals("org/jetbrains/annotations/NotNull", subAnnotation.classType().content());
-                    assertNotNull(subAnnotation.values());
-                    assertEquals(0, subAnnotation.values().size());
-                    ASTArray array = assertIs(ASTArray.class, annotation.value("values"));
+                    assertEquals("me/darknet/assembler/PrinterTest$TestAnnotation", annotation.getClassType().content());
+                    assertNotNull(annotation.getValueMap());
+                    assertEquals(4, annotation.getValueMap().size());
+                    assertEquals("15", annotation.getValue("number").content());
+                    ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.getValue("notNull"));
+                    assertEquals("org/jetbrains/annotations/NotNull", subAnnotation.getClassType().content());
+                    assertNotNull(subAnnotation.getValueMap());
+                    assertEquals(0, subAnnotation.getValueMap().size());
+                    ASTArray array = assertIs(ASTArray.class, annotation.getValue("values"));
                     assertEquals(2, array.values().size());
                     // assert that all elements are not null
                     for (ASTElement element : array.values()) {
@@ -183,7 +183,7 @@ public class ASTProcessorTest {
                     }
                     assertEquals("Hello, world!", array.value(0).content());
                     assertEquals("Hello, world!", array.value(1).content());
-                    assertEquals("Hello, world!", annotation.value("value").content());
+                    assertEquals("Hello, world!", annotation.getValue("value").content());
                 }
         );
     }
@@ -293,9 +293,9 @@ public class ASTProcessorTest {
         assertTrue(method.isDeprecated());
         assertEquals(
                 List.of("java/lang/Exception", "java/io/IOException"),
-                method.declaredExceptions().stream().map(ASTIdentifier::content).toList()
+                method.getDeclaredExceptions().stream().map(ASTIdentifier::content).toList()
         );
-        assertEquals(1, method.exceptions().size(), "try/catch exceptions should remain separate");
+        assertEquals(1, method.getExceptionHandlers().size(), "try/catch exceptions should remain separate");
     }
 
     @Test
@@ -313,7 +313,7 @@ public class ASTProcessorTest {
 
         assertEquals("CSig", clazz.getSignature().content());
         assertEquals(1, clazz.getVisibleAnnotations().size());
-        assertEquals("pkg/ClassAnno", clazz.getVisibleAnnotations().getFirst().classType().content());
+        assertEquals("pkg/ClassAnno", clazz.getVisibleAnnotations().getFirst().getClassType().content());
 
         List<ASTRecordComponent> components = clazz.getRecordComponents();
         assertEquals(1, components.size());
@@ -322,7 +322,7 @@ public class ASTProcessorTest {
         assertEquals("Ljava/lang/String;", component.getComponentDescriptor().content());
         assertEquals("RC", component.getSignature().content());
         assertEquals(1, component.getVisibleAnnotations().size());
-        assertEquals("pkg/ComponentAnno", component.getVisibleAnnotations().getFirst().classType().content());
+        assertEquals("pkg/ComponentAnno", component.getVisibleAnnotations().getFirst().getClassType().content());
 
         List<ASTInner> inners = clazz.getInners();
         assertEquals(1, inners.size());
@@ -345,20 +345,20 @@ public class ASTProcessorTest {
                 ASTMethod.class
         );
 
-        assertEquals(List.of("this", "name", "count"), method.parameters().stream().map(ASTIdentifier::content).toList());
-        assertEquals(2, method.parameterAnnotations().size());
+        assertEquals(List.of("this", "name", "count"), method.getParameters().stream().map(ASTIdentifier::content).toList());
+        assertEquals(2, method.getParameterAnnotations().size());
 
-        ASTAnnotation visible = findParameterAnnotation(method.parameterAnnotations(), "name");
-        ASTAnnotation invisible = findParameterAnnotation(method.parameterAnnotations(), "count");
+        ASTAnnotation visible = findParameterAnnotation(method.getParameterAnnotations(), "name");
+        ASTAnnotation invisible = findParameterAnnotation(method.getParameterAnnotations(), "count");
 
         assertNotNull(visible);
         assertNotNull(invisible);
         assertTrue(visible.isVisible());
         assertFalse(invisible.isVisible());
-        assertEquals("Visible", visible.classType().content());
-        assertEquals("Hidden", invisible.classType().content());
-        assertEquals("a", visible.value("value").content());
-        assertEquals("b", invisible.value("value").content());
+        assertEquals("Visible", visible.getClassType().content());
+        assertEquals("Hidden", invisible.getClassType().content());
+        assertEquals("a", visible.getValue("value").content());
+        assertEquals("b", invisible.getValue("value").content());
     }
 
     @Test
@@ -395,12 +395,12 @@ public class ASTProcessorTest {
         ASTAnnotation invisible = field.getInvisibleTypeAnnotations().getFirst();
         assertTrue(visible.isTypeAnnotation());
         assertTrue(invisible.isTypeAnnotation());
-        assertEquals("TypeVisible", visible.classType().content());
-        assertEquals("TypeHidden", invisible.classType().content());
-        assertEquals("0", visible.typeRef().content());
-        assertEquals("ROOT", visible.typePath().content());
-        assertEquals("1", invisible.typeRef().content());
-        assertEquals("LEAF", invisible.typePath().content());
+        assertEquals("TypeVisible", visible.getClassType().content());
+        assertEquals("TypeHidden", invisible.getClassType().content());
+        assertEquals("0", visible.getTypeRef().content());
+        assertEquals("ROOT", visible.getTypePath().content());
+        assertEquals("1", invisible.getTypeRef().content());
+        assertEquals("LEAF", invisible.getTypePath().content());
     }
 
     private static <T extends ASTElement> T onlyProcessed(String input, Class<T> type) {

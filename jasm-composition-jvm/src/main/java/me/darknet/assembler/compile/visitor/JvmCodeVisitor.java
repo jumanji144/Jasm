@@ -125,12 +125,12 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitIntInsn(ASTNumber operand) {
+	public void visitIntInsn(@NotNull ASTNumber operand) {
 		add(new IntInsnNode(opcode, operand.asInt()));
 	}
 
 	@Override
-	public void visitNewArrayInsn(ASTIdentifier type) {
+	public void visitNewArrayInsn(@NotNull ASTIdentifier type) {
 		int operand = switch (type.content()) {
 			case "boolean" -> T_BOOLEAN;
 			case "char" -> T_CHAR;
@@ -146,12 +146,12 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitLdcInsn(ASTElement constant) {
+	public void visitLdcInsn(@NotNull ASTElement constant) {
 		add(new LdcInsnNode(ConstantMapper.fromConstant(constant)));
 	}
 
 	@Override
-	public void visitVarInsn(ASTIdentifier var) {
+	public void visitVarInsn(@NotNull ASTIdentifier var) {
 		String name = var.literal();
 		boolean wide = opcode == LSTORE || opcode == DSTORE || opcode == LLOAD || opcode == DLOAD;
 		int index = varCache.getOrCreate(name, wide);
@@ -170,7 +170,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitIincInsn(ASTIdentifier var, ASTNumber increment) {
+	public void visitIincInsn(@NotNull ASTIdentifier var, @NotNull ASTNumber increment) {
 		int index = varCache.getOrCreate(var.literal(), false);
 		var variable = varCache.getFirstByIndex(index);
 		if (variable != null) {
@@ -180,13 +180,13 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitJumpInsn(ASTIdentifier label) {
+	public void visitJumpInsn(@NotNull ASTIdentifier label) {
 		recordLabelReference(currentInstructionAst, label.content());
 		add(new JumpInsnNode(opcode, getOrCreateLabel(label.content())));
 	}
 
 	@Override
-	public void visitTypeInsn(ASTIdentifier type) {
+	public void visitTypeInsn(@NotNull ASTIdentifier type) {
 		String literal = type.literal();
 		if (opcode == NEW) {
 			add(new TypeInsnNode(opcode, adaptDescToInternalName("new", literal)));
@@ -200,7 +200,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitLookupSwitchInsn(ASTObject lookupSwitchObject) {
+	public void visitLookupSwitchInsn(@NotNull ASTObject lookupSwitchObject) {
 		ASTIdentifier defaultLabel = lookupSwitchObject.value("default");
 		if (defaultLabel == null) {
 			errorCollector.addError("Lookup switch is missing default label", currentInstructionAst.location());
@@ -230,7 +230,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitTableSwitchInsn(ASTObject tableSwitchObject) {
+	public void visitTableSwitchInsn(@NotNull ASTObject tableSwitchObject) {
 		ASTNumber min = tableSwitchObject.value("min");
 		if (min == null) {
 			errorCollector.addError("Table switch is missing minimum key", currentInstructionAst.location());
@@ -261,14 +261,14 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitFieldInsn(ASTIdentifier path, ASTIdentifier descriptor) {
+	public void visitFieldInsn(@NotNull ASTIdentifier path, @NotNull ASTIdentifier descriptor) {
 		String literal = path.literal();
 		int split = literal.lastIndexOf('.');
 		add(new FieldInsnNode(opcode, literal.substring(0, split), literal.substring(split + 1), descriptor.literal()));
 	}
 
 	@Override
-	public void visitMethodInsn(ASTIdentifier path, ASTIdentifier descriptor) {
+	public void visitMethodInsn(@NotNull ASTIdentifier path, @NotNull ASTIdentifier descriptor) {
 		String literal = path.literal();
 		int split = literal.lastIndexOf('.');
 		boolean itf = currentInstructionAst.identifier().content().endsWith("interface");
@@ -276,7 +276,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTElement bsm, ASTArray bsmArgs) {
+	public void visitInvokeDynamicInsn(@NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor, @NotNull ASTElement bsm, @NotNull ASTArray bsmArgs) {
 		Handle handle;
 		if (bsm instanceof ASTIdentifier identifier) {
 			handle = Handle.HANDLE_SHORTCUTS.get(identifier.content());
@@ -294,7 +294,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitMultiANewArrayInsn(ASTIdentifier descriptor, ASTNumber numDimensions) {
+	public void visitMultiANewArrayInsn(@NotNull ASTIdentifier descriptor, @NotNull ASTNumber numDimensions) {
 		String literal = descriptor.literal();
 		String actualDescriptor = literal.startsWith("[") ? literal : '[' + asFieldDescriptor(literal);
 		if (!literal.startsWith("[")) {
@@ -319,7 +319,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitLineNumber(ASTNumber line) {
+	public void visitLineNumber(@NotNull ASTNumber line) {
 		LabelNode label = new LabelNode();
 		add(label);
 		LineNumberNode lineNode = new LineNumberNode(line.asInt(), label);

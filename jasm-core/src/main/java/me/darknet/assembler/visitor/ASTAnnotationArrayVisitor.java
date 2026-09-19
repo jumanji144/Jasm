@@ -33,7 +33,7 @@ public interface ASTAnnotationArrayVisitor {
                 case ASTIdentifier identifier -> visitor.visitTypeValue(identifier);
                 case ASTEnum astEnum -> visitor.visitEnumValue(astEnum.enumOwner(), astEnum.enumFieldName());
                 case ASTAnnotation annotation -> {
-                    ASTAnnotationVisitor anno = visitor.visitAnnotationValue(annotation.classType());
+                    ASTAnnotationVisitor anno = visitor.visitAnnotationValue(annotation.getClassType());
                     annotation.accept(collector, anno);
                 }
                 case ASTArray astArray -> {

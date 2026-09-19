@@ -204,7 +204,7 @@ public class JvmModifiers {
     }
 
     public static int getModifiers(Modifiers modifiers, int type) {
-        return modifiers.modifiers().stream().map(it -> modifier(it.content(), type)).reduce(0, (a, b) -> a | b);
+        return modifiers.getModifiers().stream().map(it -> modifier(it.content(), type)).reduce(0, (a, b) -> a | b);
     }
 }
 

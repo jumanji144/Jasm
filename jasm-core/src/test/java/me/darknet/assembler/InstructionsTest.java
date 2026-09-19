@@ -23,8 +23,8 @@ public class InstructionsTest {
                 ASTMethod.class, (method) -> {
                     assertEquals("stub", method.getName().content());
                     assertEquals("()V", method.getDescriptor().content());
-                    assertNotNull(method.code());
-                    consumer.accept(method.code());
+                    assertNotNull(method.getCode());
+                    consumer.accept(method.getCode());
                 }
         );
     }
@@ -48,7 +48,7 @@ public class InstructionsTest {
                 new String[] { "ldc \"Hello World\"", "getstatic java/lang/System.out Ljava/io/PrintStream;", "swap",
                         "invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V", "return" },
                 BytecodeFormat.JVM, (code) -> {
-                    List<ASTInstruction> instructions = code.instructions();
+                    List<ASTInstruction> instructions = code.getInstructions();
                     assertEquals(5, instructions.size());
                     assertEquals("ldc", instructions.get(0).identifier().content());
                     assertEquals("Hello World", instructions.get(0).arguments().getFirst().content());
@@ -81,7 +81,7 @@ public class InstructionsTest {
                         "ldc \"Hello World\"", "L3:", "invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V",
                         "return", "L4:" },
                 BytecodeFormat.JVM, (code) -> {
-                    List<ASTInstruction> instructions = code.instructions();
+                    List<ASTInstruction> instructions = code.getInstructions();
                     assertEquals(8, instructions.size());
                     assertEquals("L1", instructions.get(0).identifier().content());
                     assertEquals("getstatic", instructions.get(1).identifier().content());
@@ -98,7 +98,7 @@ public class InstructionsTest {
     @Test
     public void testLdc() {
         assertCode(new String[] { "ldc Ljava/lang/String;", }, BytecodeFormat.JVM, (code) -> {
-            List<ASTInstruction> instructions = code.instructions();
+            List<ASTInstruction> instructions = code.getInstructions();
             assertEquals(1, instructions.size());
             assertEquals("ldc", instructions.getFirst().identifier().content());
             assertEquals("Ljava/lang/String;", instructions.getFirst().arguments().getFirst().content());
@@ -111,7 +111,7 @@ public class InstructionsTest {
                 new String[] { "tableswitch { min: 10," + "max: 20," + "default: L1," + "cases: {" + "L2," + "L4,"
                         + "L8" + "}" + "}", },
                 BytecodeFormat.JVM, (code) -> {
-                    List<ASTInstruction> instructions = code.instructions();
+                    List<ASTInstruction> instructions = code.getInstructions();
                     assertEquals(1, instructions.size());
                     assertEquals("tableswitch", instructions.getFirst().identifier().content());
                 }
@@ -123,7 +123,7 @@ public class InstructionsTest {
         assertCode(
                 new String[] { "lookupswitch {" + "0: L2," + "1: L4," + "2: L8," + "default: L10" + "}", },
                 BytecodeFormat.JVM, (code) -> {
-                    List<ASTInstruction> instructions = code.instructions();
+                    List<ASTInstruction> instructions = code.getInstructions();
                     assertEquals(1, instructions.size());
                     assertEquals("lookupswitch", instructions.getFirst().identifier().content());
                 }
@@ -134,7 +134,7 @@ public class InstructionsTest {
     public void testWeirdStrings() {
         assertCode(
                 new String[] { "ldc \":\"" }, BytecodeFormat.JVM, (code) -> {
-                    List<ASTInstruction> instructions = code.instructions();
+                    List<ASTInstruction> instructions = code.getInstructions();
                     assertEquals(1, instructions.size());
                     assertEquals("ldc", instructions.getFirst().identifier().content());
                     assertEquals(":", instructions.getFirst().arguments().getFirst().content());

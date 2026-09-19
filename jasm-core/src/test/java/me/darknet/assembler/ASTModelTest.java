@@ -76,15 +76,15 @@ public class ASTModelTest {
         assertEquals(1, clazz.contents().size());
         assertThrows(UnsupportedOperationException.class, () -> clazz.contents().add(field));
         assertThrows(UnsupportedOperationException.class, () -> clazz.children().add(field));
-        assertThrows(UnsupportedOperationException.class, () -> field.getModifiers().modifiers().add(id("static", 20)));
+        assertThrows(UnsupportedOperationException.class, () -> field.getModifiers().getModifiers().add(id("static", 20)));
 
         ElementMap<ASTIdentifier, ASTElement> values = new ElementMap<>();
         values.put(id("value", 30), num("1", 37));
         ASTAnnotation annotation = new ASTAnnotation(true, id("pkg/Anno", 45), values);
         values.put(id("other", 55), num("2", 61));
 
-        assertEquals(1, annotation.values().size());
-        assertThrows(UnsupportedOperationException.class, () -> annotation.values().pairs().clear());
+        assertEquals(1, annotation.getValueMap().size());
+        assertThrows(UnsupportedOperationException.class, () -> annotation.getValueMap().pairs().clear());
     }
 
     @Test
@@ -149,10 +149,10 @@ public class ASTModelTest {
 
         ASTAnnotation annotation = new ASTAnnotation(true, id("pkg/Anno", 0), values);
 
-        assertEquals(1, annotation.values().size());
-        assertSame(key, annotation.values().key("value"));
-        assertSame(number, annotation.values().get("value"));
-        assertEquals(2, annotation.values().elements().size());
+        assertEquals(1, annotation.getValueMap().size());
+        assertSame(key, annotation.getValueMap().key("value"));
+        assertSame(number, annotation.getValueMap().get("value"));
+        assertEquals(2, annotation.getValueMap().elements().size());
     }
 
     @Test

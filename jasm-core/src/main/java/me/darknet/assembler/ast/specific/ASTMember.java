@@ -15,6 +15,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Common AST model of a class member, such as a field or method.
+ */
 public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, ASTAnnotated {
     private final @NotNull ASTIdentifier name;
     private final @NotNull ASTIdentifier descriptor;
@@ -28,21 +31,41 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 
     public ASTMember(@NotNull ElementType type, @NotNull Modifiers modifiers, @NotNull ASTIdentifier name,
             @NotNull ASTIdentifier descriptor) {
-        super(type, CollectionUtil.merge(modifiers.modifiers(), name, descriptor));
+        super(type, CollectionUtil.merge(modifiers.getModifiers(), name, descriptor));
         this.modifiers = modifiers;
         this.name = name;
         this.descriptor = descriptor;
     }
 
+	/**
+	 * @return Name identifier of the member.
+	 */
     @NotNull
     public ASTIdentifier getName() {
         return name;
     }
 
+	/**
+	 * @return Descriptor identifier of the member.
+	 */
     @NotNull
     public ASTIdentifier getDescriptor() {
         return descriptor;
     }
+
+	/**
+	 * @return {@code true} if the member is marked as deprecated, {@code false} otherwise.
+	 */
+	public boolean isDeprecated() {
+		return deprecated;
+	}
+
+	/**
+	 * @param deprecated {@code true} to mark the member as deprecated, {@code false} otherwise.
+	 */
+	public void setDeprecated(boolean deprecated) {
+		this.deprecated = deprecated;
+	}
 
     @Override
     public @NotNull Modifiers getModifiers() {
@@ -58,14 +81,6 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
     public void setSignature(@Nullable ASTString signature) {
         replaceChild(this.signature, signature);
 	    this.signature = signature;
-    }
-
-    public boolean isDeprecated() {
-        return deprecated;
-    }
-
-    public void setDeprecated(boolean deprecated) {
-        this.deprecated = deprecated;
     }
 
 	@Override
@@ -141,14 +156,22 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
             collector.addError("Unable to process member", null);
             return;
         }
-		for (ASTAnnotation annotation : visibleAnnotations)
-			annotation.accept(collector, visitor.visitVisibleAnnotation(annotation.classType()));
-		for (ASTAnnotation annotation : invisibleAnnotations)
-			annotation.accept(collector, visitor.visitInvisibleAnnotation(annotation.classType()));
+		for (ASTAnnotation annotation : visibleAnnotations) {
+			if (annotation.isSystem())
+				annotation.accept(collector, visitor.visitSystemAnnotation(annotation.getClassType()));
+			else
+				annotation.accept(collector, visitor.visitVisibleAnnotation(annotation.getClassType()));
+		}
+		for (ASTAnnotation annotation : invisibleAnnotations) {
+			if (annotation.isSystem())
+				annotation.accept(collector, visitor.visitSystemAnnotation(annotation.getClassType()));
+			else
+				annotation.accept(collector, visitor.visitInvisibleAnnotation(annotation.getClassType()));
+		}
 		for (ASTAnnotation annotation : visibleTypeAnnotations)
-			annotation.accept(collector, visitor.visitVisibleTypeAnnotation(annotation.classType(), annotation.typeRef(), annotation.typePath()));
+			annotation.accept(collector, visitor.visitVisibleTypeAnnotation(annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()));
 		for (ASTAnnotation annotation : invisibleTypeAnnotations)
-			annotation.accept(collector, visitor.visitInvisibleTypeAnnotation(annotation.classType(), annotation.typeRef(), annotation.typePath()));
+			annotation.accept(collector, visitor.visitInvisibleTypeAnnotation(annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()));
 
 		if (signature != null)
             visitor.visitSignature(signature);

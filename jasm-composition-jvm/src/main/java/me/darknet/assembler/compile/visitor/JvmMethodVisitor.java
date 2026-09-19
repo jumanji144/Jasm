@@ -5,11 +5,9 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.compile.MethodVariableLayout;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.error.ErrorCollectionException;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.Pair;
-import me.darknet.assembler.util.VarNaming;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
@@ -96,7 +94,7 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 	}
 
 	@Override
-	public void visitParameter(int index, ASTIdentifier name) {
+	public void visitParameter(int index, @NotNull ASTIdentifier name) {
 		variableLayout.setSourceParameterName(index, name.literal());
 
 		ParameterNode methodParameter = variableLayout.createMethodParameter(index);

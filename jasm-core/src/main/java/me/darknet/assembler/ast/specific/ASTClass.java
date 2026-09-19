@@ -184,16 +184,16 @@ public class ASTClass extends ASTMember {
             ASTRecordComponentVisitor componentVisitor = visitor.visitRecordComponent(recordComponent.getComponentType(),
                     recordComponent.getComponentDescriptor(), recordComponent.getSignature());
             for (ASTAnnotation annotation : recordComponent.getVisibleAnnotations()) {
-                annotation.accept(collector, componentVisitor.visitVisibleAnnotation(annotation.classType()));
+                annotation.accept(collector, componentVisitor.visitVisibleAnnotation(annotation.getClassType()));
             }
             for (ASTAnnotation annotation : recordComponent.getInvisibleAnnotations()) {
-                annotation.accept(collector, componentVisitor.visitInvisibleAnnotation(annotation.classType()));
+                annotation.accept(collector, componentVisitor.visitInvisibleAnnotation(annotation.getClassType()));
             }
             for (ASTAnnotation annotation : recordComponent.getVisibleTypeAnnotations()) {
-                annotation.accept(collector, componentVisitor.visitVisibleTypeAnnotation(annotation.classType(), annotation.typeRef(), annotation.typePath()));
+                annotation.accept(collector, componentVisitor.visitVisibleTypeAnnotation(annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()));
             }
             for (ASTAnnotation annotation : recordComponent.getInvisibleTypeAnnotations()) {
-                annotation.accept(collector, componentVisitor.visitInvisibleTypeAnnotation(annotation.classType(), annotation.typeRef(), annotation.typePath()));
+                annotation.accept(collector, componentVisitor.visitInvisibleTypeAnnotation(annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()));
             }
         }
 

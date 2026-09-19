@@ -5,6 +5,7 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTCode;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.instructions.Instruction;
@@ -19,7 +20,11 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
+/**
+ * AST model of a method declaration.
+ */
 public class ASTMethod extends ASTMember {
 
     private final List<ASTIdentifier> parameters;
@@ -30,6 +35,7 @@ public class ASTMethod extends ASTMember {
     private final ASTCode code;
     private final List<Instruction<?>> instructions;
     private final BytecodeFormat format;
+    private @Nullable ASTNumber registerCount;
 
     public ASTMethod(Modifiers modifiers, ASTIdentifier name, ASTIdentifier descriptor, List<ASTIdentifier> parameters,
                      Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations,
@@ -54,37 +60,70 @@ public class ASTMethod extends ASTMember {
         if (code != null) addChild(code);
     }
 
+    /**
+     * @return Default annotation value for this method, or {@code null} when not present.
+     */
     public @Nullable ASTElement getAnnotationDefaultValue() {
         return defaultValue;
     }
 
-    public List<ASTIdentifier> parameters() {
+    /**
+     * @return List of parameter names for this method.
+     */
+    public List<ASTIdentifier> getParameters() {
         return parameters;
     }
 
-    public Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations() {
+    /**
+     * @return Map of parameter names to their annotations.
+     */
+    public Map<ASTIdentifier, List<ASTAnnotation>> getParameterAnnotations() {
         return parameterAnnotations;
     }
 
-    public List<ASTIdentifier> declaredExceptions() {
+    /**
+     * @return List of thrown exceptions declared by this method.
+     */
+    public List<ASTIdentifier> getDeclaredExceptions() {
         return declaredExceptions;
     }
 
-    public List<ASTException> exceptions() {
+    /**
+     * @return List of try-catch handlers for this method.
+     */
+    public List<ASTException> getExceptionHandlers() {
         return exceptions;
     }
 
-    public ASTCode code() {
+    /**
+     * @return AST code model for this method, or {@code null} when the method is abstract or native.
+     */
+    public ASTCode getCode() {
         return code;
     }
 
-    public List<Instruction<?>> instructions() {
-        return instructions;
+    /**
+     * @return Explicit Dalvik register count, or {@code null} for non-Dalvik methods or when omitted.
+     */
+    public @Nullable ASTNumber getRegisterCount() {
+        return registerCount;
     }
+
+	/**
+	 * @param registerCount
+	 * 		Explicit Dalvik register count, or {@code null} for non-Dalvik methods or when omitted.
+	 */
+	public void setRegisterCount(@Nullable ASTNumber registerCount) {
+		replaceChild(this.registerCount, registerCount);
+		this.registerCount = registerCount;
+	}
 
     @SuppressWarnings("UnnecessaryLocalVariable")
     public void accept(ErrorCollector collector, ASTMethodVisitor visitor) {
         super.accept(collector, visitor);
+
+        if (registerCount != null)
+            visitor.visitRegisterCount(registerCount.asInt());
 
         List<ASTIdentifier> localParams = parameters;
         for (int i = 0; i < localParams.size(); i++)
@@ -100,9 +139,9 @@ public class ASTMethod extends ASTMember {
                 return;
             for (ASTAnnotation annotation : annos) {
                 if (annotation.isVisible())
-                    annotation.accept(collector, visitor.visitVisibleParameterAnnotation(jvmParameterIndex, annotation.classType()));
+                    annotation.accept(collector, visitor.visitVisibleParameterAnnotation(jvmParameterIndex, annotation.getClassType()));
                 else
-                    annotation.accept(collector, visitor.visitInvisibleParameterAnnotation(jvmParameterIndex, annotation.classType()));
+                    annotation.accept(collector, visitor.visitInvisibleParameterAnnotation(jvmParameterIndex, annotation.getClassType()));
             }
         });
 
@@ -120,7 +159,7 @@ public class ASTMethod extends ASTMember {
         };
         if (instructionVisitor != null) {
             int instructionIndex = 0;
-            List<ASTInstruction> localAstInstructions = code.instructions();
+            List<ASTInstruction> localAstInstructions = code.getInstructions();
             List<Instruction<?>> localIrInstructions = instructions;
             for (ASTInstruction instruction : localAstInstructions) {
                 instructionVisitor.visitInstruction(instruction);
@@ -146,7 +185,7 @@ public class ASTMethod extends ASTMember {
     protected int findSourceParameterIndex(String name) {
         for (int i = 0; i < parameters.size(); i++) {
             ASTIdentifier parameter = parameters.get(i);
-            if (parameter.content().equals(name))
+            if (Objects.equals(name, parameter.content()))
                 return i;
         }
         return -1;

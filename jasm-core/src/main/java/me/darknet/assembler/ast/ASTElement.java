@@ -14,6 +14,9 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+/**
+ * Base AST model.
+ */
 public class ASTElement {
     private static final Comparator<ASTElement> SORT_POS = (o1, o2) -> {
         Location l1 = o1.location();

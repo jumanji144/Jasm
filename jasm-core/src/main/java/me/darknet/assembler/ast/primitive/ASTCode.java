@@ -6,9 +6,10 @@ import me.darknet.assembler.util.CollectionUtil;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Iterator;
 import java.util.List;
 
-public class ASTCode extends ASTElement {
+public class ASTCode extends ASTElement implements Iterable<@NotNull ASTInstruction> {
 
     private final List<@NotNull ASTInstruction> instructions;
 
@@ -17,8 +18,12 @@ public class ASTCode extends ASTElement {
         this.instructions = CollectionUtil.immutableCopy(instructions);
     }
 
-    public List<@NotNull ASTInstruction> instructions() {
+    public List<@NotNull ASTInstruction> getInstructions() {
         return instructions;
     }
 
+    @Override
+    public @NotNull Iterator<@NotNull ASTInstruction> iterator() {
+        return getInstructions().iterator();
+    }
 }

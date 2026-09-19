@@ -49,10 +49,20 @@ public final class AssemblyUtils {
 	 */
 	@Nullable
 	public static ASTLabel getLabelDeclaration(@NotNull ASTMethod method, @NotNull String target) {
-		for (ASTInstruction instruction : method.code().instructions())
+		for (ASTInstruction instruction : method.getCode().getInstructions())
 			if (instruction instanceof ASTLabel label && Objects.equals(label.identifier().content(), target))
 				return label;
 		return null;
+	}
+
+	/**
+	 * @param name
+	 * 		Instruction name to check.
+	 *
+	 * @return {@code true} if the instruction is a flow control instruction.
+	 */
+	public static boolean isFlowControlInstruction( @Nullable String name) {
+		return isFlowControlInstruction(BytecodeFormat.JVM, name) || isFlowControlInstruction(BytecodeFormat.DALVIK, name);
 	}
 
 	/**
@@ -71,6 +81,16 @@ public final class AssemblyUtils {
 	}
 
 	/**
+	 * @param name
+	 * 		Instruction name to check.
+	 *
+	 * @return {@code true} if the instruction is a switch instruction.
+	 */
+	public static boolean isSwitchInstruction(@Nullable String name) {
+		return isSwitchInstruction(BytecodeFormat.JVM, name) || isSwitchInstruction(BytecodeFormat.DALVIK, name);
+	}
+
+	/**
 	 * @param format
 	 * 		Bytecode format to check against.
 	 * @param name
@@ -83,6 +103,16 @@ public final class AssemblyUtils {
 			case JVM -> JVM_SWITCH_INSNS.contains(name);
 			case DALVIK -> DALVIK_SWITCH_INSNS.contains(name);
 		};
+	}
+
+	/**
+	 * @param name
+	 * 		Instruction name to check.
+	 *
+	 * @return {@code true} if the instruction is a type reference.
+	 */
+	public static boolean isTypeReferenceInstruction(@Nullable String name) {
+		return isTypeReferenceInstruction(BytecodeFormat.JVM, name) || isTypeReferenceInstruction(BytecodeFormat.DALVIK, name);
 	}
 
 	/**
@@ -248,10 +278,10 @@ public final class AssemblyUtils {
 	 * @return Label declaration with the given name, or {@code null} if not found.
 	 */
 	public static @Nullable ASTLabel findLabelDeclaration(@NotNull ASTMethod method, @NotNull String name) {
-		if (method.code() == null)
+		if (method.getCode() == null)
 			return null;
 
-		for (ASTInstruction instruction : method.code().instructions())
+		for (ASTInstruction instruction : method.getCode().getInstructions())
 			if (instruction instanceof ASTLabel label && name.equals(label.identifier().literal()))
 				return label;
 		return null;

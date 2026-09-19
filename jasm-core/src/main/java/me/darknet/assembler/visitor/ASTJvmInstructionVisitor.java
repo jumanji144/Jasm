@@ -5,11 +5,15 @@ import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
+import org.jetbrains.annotations.NotNull;
 
+/**
+ * Visitor interface for visiting JVM instructions.
+ */
 public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 
 	/**
-	 * Indicates that the instruction should be a no arg instruction
+	 * Visits a no-operand instruction.
 	 */
 	void visitInsn();
 
@@ -19,7 +23,7 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 * @param operand
 	 * 		The operand, which is an integer with no decimal point
 	 */
-	void visitIntInsn(ASTNumber operand);
+	void visitIntInsn(@NotNull ASTNumber operand);
 
 	/**
 	 * Visit a {@code newarray} instruction.
@@ -28,7 +32,7 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 * 		The operand, which is one of the following: boolean, char, float,
 	 * 		double, byte, short, int, long
 	 */
-	void visitNewArrayInsn(ASTIdentifier type);
+	void visitNewArrayInsn(@NotNull ASTIdentifier type);
 
 	/**
 	 * Visit an {@code ldc} instruction.
@@ -38,7 +42,7 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 *
 	 * @see me.darknet.assembler.helper.Constant#from(ASTElement)
 	 */
-	void visitLdcInsn(ASTElement constant);
+	void visitLdcInsn(@NotNull ASTElement constant);
 
 	/**
 	 * Visit a variable instruction.
@@ -48,7 +52,7 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 * 		parameter. Note that the variable name does not correspond to a
 	 * 		unique index, but rather to the name of the variable.
 	 */
-	void visitVarInsn(ASTIdentifier var);
+	void visitVarInsn(@NotNull ASTIdentifier var);
 
 	/**
 	 * Visit an integer increment instruction.
@@ -58,7 +62,7 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 * @param increment
 	 * 		The increment value
 	 */
-	void visitIincInsn(ASTIdentifier var, ASTNumber increment);
+	void visitIincInsn(@NotNull ASTIdentifier var, @NotNull ASTNumber increment);
 
 	/**
 	 * Visit a jump instruction.
@@ -66,7 +70,7 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 * @param label
 	 * 		The label to jump to
 	 */
-	void visitJumpInsn(ASTIdentifier label);
+	void visitJumpInsn(@NotNull ASTIdentifier label);
 
 	/**
 	 * Visit a type instruction.
@@ -74,47 +78,37 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 * @param type
 	 * 		The type to load
 	 */
-	void visitTypeInsn(ASTIdentifier type);
+	void visitTypeInsn(@NotNull ASTIdentifier type);
 
 	/**
 	 * Visit a {@code lookupswitch} instruction.
 	 *
 	 * @param lookupSwitchObject
 	 * 		An object structured like the following:
-	 *
-	 * 		<pre>
-	 *                                                { <br>
-	 * 						                             default: label <br>
-	 * 						                             number: label <br>
-	 * 						                             number: label <br>
-	 * 						                             ... <br>
-	 *                                                }
-	 * 						                          </pre>
-	 * 		<p>
-	 * 		Number elements correspond to ASTNumber, label
-	 * 		elements correspond to ASTIdentifier
+	 * 		<pre>{@code {
+	 * 		       default: label
+	 * 		       number: label
+	 * 		       number: label
+	 * 		       ...
+	 *             }}</pre>
+	 * 		Number elements correspond to ASTNumber, label elements correspond to ASTIdentifier
 	 */
-	void visitLookupSwitchInsn(ASTObject lookupSwitchObject);
+	void visitLookupSwitchInsn(@NotNull ASTObject lookupSwitchObject);
 
 	/**
 	 * Visit a {@code tableswitch} instruction.
 	 *
 	 * @param tableSwitchObject
 	 * 		An object structured like the following:
-	 *
-	 * 		<pre>
-	 *                                               { <br>
-	 * 						                            min: number <br>
-	 * 						                            max: number <br>
-	 * 						                            cases: [ label, label, label, ... ] <br>
-	 * 						                            default: label <br>
-	 *                                               }
-	 * 						                         </pre>
-	 * 		<p>
-	 * 		Number correspond to ASTNumber, [ ] correspond to
-	 * 		ASTArray, label elements correspond to ASTIdentifier
+	 * 		<pre>{@code {
+	 * 				  min: number
+	 * 				  max: number
+	 * 				  cases: [ label, label, label, ... ]
+	 * 				  default: label
+	 *             }}</pre>
+	 * 		Number correspond to ASTNumber, [ ] correspond to ASTArray, label elements correspond to ASTIdentifier
 	 */
-	void visitTableSwitchInsn(ASTObject tableSwitchObject);
+	void visitTableSwitchInsn(@NotNull ASTObject tableSwitchObject);
 
 	/**
 	 * Visit a field instruction.
@@ -125,7 +119,7 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 * @param descriptor
 	 * 		The descriptor of the field
 	 */
-	void visitFieldInsn(ASTIdentifier path, ASTIdentifier descriptor);
+	void visitFieldInsn(@NotNull ASTIdentifier path, @NotNull ASTIdentifier descriptor);
 
 	/**
 	 * Visit a method instruction.
@@ -136,10 +130,10 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 * @param descriptor
 	 * 		The descriptor of the method
 	 *
-	 * @note The existence of {@code invokexinterface}, which corresponds to the {@code itf}
+	 * @implNote The existence of {@code invokexinterface}, which corresponds to the {@code itf}
 	 * flag on the instruction being {@code true}
 	 */
-	void visitMethodInsn(ASTIdentifier path, ASTIdentifier descriptor);
+	void visitMethodInsn(@NotNull ASTIdentifier path, @NotNull ASTIdentifier descriptor);
 
 	/**
 	 * Visit an {@code invokedynamic} instruction.
@@ -158,7 +152,10 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 * 		The bootstrap method arguments, see
 	 *        {@link me.darknet.assembler.helper.Constant#from(ASTElement)}
 	 */
-	void visitInvokeDynamicInsn(ASTIdentifier name, ASTIdentifier descriptor, ASTElement bsm, ASTArray bsmArgs);
+	void visitInvokeDynamicInsn(@NotNull ASTIdentifier name,
+	                            @NotNull ASTIdentifier descriptor,
+	                            @NotNull ASTElement bsm,
+	                            @NotNull ASTArray bsmArgs);
 
 	/**
 	 * Visit a {@code multianewarray} instruction.
@@ -168,6 +165,6 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	 * @param numDimensions
 	 * 		The number of dimensions
 	 */
-	void visitMultiANewArrayInsn(ASTIdentifier descriptor, ASTNumber numDimensions);
+	void visitMultiANewArrayInsn(@NotNull ASTIdentifier descriptor, @NotNull ASTNumber numDimensions);
 
 }
