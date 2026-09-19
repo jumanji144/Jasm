@@ -73,10 +73,14 @@ public class DalvikConstantPrinter {
             case IntConstant(int value) -> ctx.print(Integer.toString(value));
             case LongConstant(long value) -> ctx.print(value + "L");
             case ShortConstant(short value) -> ctx.print(Short.toString(value));
+            case NullConstant ignored -> ctx.print("null");
             case StringConstant(String value) -> ctx.string(value);
-            case TypeConstant(Type type) -> ctx.literal(type.descriptor());
+            case TypeConstant(Type type) -> ctx.literal(
+                    type instanceof InstanceType instanceType ? instanceType.internalName() : type.descriptor()
+            );
             case HandleConstant(Handle handle) -> printHandle(handle, ctx);
-            case MemberConstant(InstanceType owner, MemberIdentifier member) -> ctx.literal(owner.internalName())
+            case MemberConstant(InstanceType owner, MemberIdentifier member) -> ctx.element(".member")
+                    .literal(owner.internalName())
                     .print(" ")
                     .literal(member.name())
                     .print(" ")

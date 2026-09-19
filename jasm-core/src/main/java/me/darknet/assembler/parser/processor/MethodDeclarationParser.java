@@ -8,6 +8,7 @@ import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTLabel;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTException;
@@ -65,6 +66,18 @@ final class MethodDeclarationParser {
 			);
 			if (parameterArray != null) {
 				parameters = context.validateArray(parameterArray, ElementType.IDENTIFIER, "method parameter", declaration);
+			}
+		}
+
+		ASTNumber registerCount = null;
+		ASTElement registerCountElement = body.values().get(ProcessorKeywords.REGISTERS);
+		if (registerCountElement != null) {
+			registerCount = context.validateElement(
+					registerCountElement, ElementType.NUMBER, "method register count", declaration
+			);
+			if (registerCount != null && (registerCount.isFloatingPoint() || registerCount.asLong() < 0
+					|| registerCount.asLong() > Integer.MAX_VALUE)) {
+				context.throwError("Method register count must be a nonnegative integer", registerCount.location());
 			}
 		}
 

@@ -27,7 +27,7 @@ public record DalvikAnnotationPrinter(Annotation annotation) implements Annotati
 
         ctx.begin().element(token).literal(part.type().internalName()).print(" ");
         if (part.elements().isEmpty()) {
-            ctx.print("{}");
+            ctx.print("{}").newline();
             return;
         }
 
@@ -35,12 +35,13 @@ public record DalvikAnnotationPrinter(Annotation annotation) implements Annotati
         obj.print(new Iterable<>() {
             @Override
             public @NotNull Iterator<Map.Entry<String, Constant>> iterator() {
-                return part.elements().entrySet().iterator();
+                return part.elements().entrySet().stream()
+                        .sorted(Map.Entry.comparingByKey())
+                        .iterator();
             }
         }, this::printEntry);
         obj.end();
-
-        ctx.append(".end annotation\n");
+        ctx.newline();
     }
 
     private void printAnnotation(PrintContext<?> ctx, AnnotationPart part) {

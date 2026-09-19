@@ -24,18 +24,76 @@ public class DalvikCodePrinter implements ExecutionEngine {
     }
 
     private static String opcode(Instruction instruction) {
-        if (instruction instanceof InvokeCustomInstruction invokeCustomInstruction && invokeCustomInstruction.isRange()) {
-            return "invoke-custom/range";
+        if (instruction instanceof InvokeCustomInstruction invokeCustomInstruction) {
+            return invokeCustomInstruction.isRange() ? "invoke-custom/range" : "invoke-custom";
         }
-        String opcode = OpcodeNames.name(instruction.opcode());
-        if (opcode.endsWith("-range")) {
-            return opcode.substring(0, opcode.length() - "-range".length()) + "/range";
+        if (instruction instanceof InvokeInstruction invokeInstruction) {
+            if (invokeInstruction.opcode() == Opcodes.INVOKE_POLYMORPHIC) {
+                throw new IllegalStateException("invoke-polymorphic is not supported by the current dex-core backend");
+            }
+            String name = OpcodeNames.name(invokeInstruction.opcode());
+            return invokeInstruction.isRange() ? name + "/range" : name;
         }
-        return opcode;
+        if (instruction instanceof MoveInstruction) {
+            return "move";
+        }
+        if (instruction instanceof MoveWideInstruction) {
+            return "move-wide";
+        }
+        if (instruction instanceof MoveObjectInstruction) {
+            return "move-object";
+        }
+        if (instruction instanceof ConstInstruction) {
+            return "const";
+        }
+        if (instruction instanceof ConstWideInstruction) {
+            return "const-wide";
+        }
+        if (instruction instanceof ConstStringInstruction) {
+            return "const-string";
+        }
+        if (instruction instanceof GotoInstruction) {
+            return "goto";
+        }
+
+        String name = OpcodeNames.name(instruction.opcode());
+        if (name == null) {
+            throw new IllegalStateException("Unsupported Dalvik opcode: 0x" + Integer.toHexString(instruction.opcode()));
+        }
+        return normalizeEncodedOpcode(name);
+    }
+
+    private static String normalizeEncodedOpcode(String name) {
+        return switch (name) {
+            case "move-from16", "move-16" -> "move";
+            case "move-wide-from16", "move-wide-16" -> "move-wide";
+            case "move-object-from16", "move-object-16" -> "move-object";
+            case "const-4", "const-16", "const-high16" -> "const";
+            case "const-wide-16", "const-wide-32", "const-wide-high16" -> "const-wide";
+            case "goto-16", "goto-32" -> "goto";
+            default -> {
+                if (name.endsWith("-2addr")) {
+                    yield name.substring(0, name.length() - 6) + "/2addr";
+                }
+                if (name.endsWith("-lit8")) {
+                    yield name.substring(0, name.length() - 5) + "/lit8";
+                }
+                if (name.endsWith("-lit16")) {
+                    yield name.substring(0, name.length() - 6) + "/lit16";
+                }
+                yield name.endsWith("-range")
+                        ? name.substring(0, name.length() - "-range".length()) + "/range"
+                        : name;
+            }
+        };
     }
 
     private String register(int register) {
-        return registers.get(register);
+        String name = registers.get(register);
+        if (name == null) {
+            throw new IllegalStateException("No name assigned to Dalvik register v" + register);
+        }
+        return name;
     }
 
     @Override
@@ -160,35 +218,35 @@ public class DalvikCodePrinter implements ExecutionEngine {
 
     @Override
     public void execute(FillArrayDataInstruction fillArrayDataInstruction) {
-        PrintContext.ArrayPrint arrayPrint = this.ctx.instruction(opcode(fillArrayDataInstruction))
+        PrintContext.ObjectPrint object = this.ctx.instruction(opcode(fillArrayDataInstruction))
                 .print(register(fillArrayDataInstruction.array())).arg()
-                .array();
+                .object();
+        int elementSize = fillArrayDataInstruction.elementSize();
+        object.value("width").print(String.valueOf(elementSize)).next();
+        PrintContext.ArrayPrint values = object.value("values").array();
 
-        // build the correct number type for the print size
-        List<Number> prints = new ArrayList<>();
+        // Print raw little-endian bits so payload width and floating-point values survive a round trip.
         ByteBuffer buffer = ByteBuffer.wrap(fillArrayDataInstruction.data()).order(ByteOrder.LITTLE_ENDIAN);
-        int printSize = fillArrayDataInstruction.elementSize();
+        boolean first = true;
         while (buffer.hasRemaining()) {
-            switch (printSize) {
-                case 1 -> prints.add(buffer.get());
-                case 2 -> prints.add(buffer.getShort());
-                case 4 -> prints.add(buffer.getInt());
-                case 8 -> prints.add(buffer.getLong());
-                default -> throw new IllegalStateException("Unexpected value: " + printSize);
+            if (!first) {
+                values.arg();
             }
+            values.print(rawArrayValue(buffer, elementSize));
+            first = false;
         }
-        arrayPrint.print(prints, (ap, num) -> {
-            // hex
-            if (num instanceof Byte || num instanceof Short || num instanceof Integer) {
-                ap.print(String.format("0x%X", num));
-            } else if (num instanceof Long) {
-                ap.print(String.format("0x%XL", num));
-            } else {
-                throw new IllegalStateException("Unexpected number type: " + num.getClass());
-            }
-        });
+        values.end();
+        object.end();
+    }
 
-        arrayPrint.end();
+    private static String rawArrayValue(ByteBuffer buffer, int elementSize) {
+        return switch (elementSize) {
+            case 1 -> String.format(Locale.ROOT, "0x%02X", buffer.get() & 0xff);
+            case 2 -> String.format(Locale.ROOT, "0x%04X", Short.toUnsignedInt(buffer.getShort()));
+            case 4 -> String.format(Locale.ROOT, "0x%08X", buffer.getInt());
+            case 8 -> String.format(Locale.ROOT, "0x%016X", buffer.getLong());
+            default -> throw new IllegalStateException("Unexpected value: " + elementSize);
+        };
     }
 
     private void printRegisterArray(PrintContext.ArrayPrint arrayPrint, int[] registers) {
@@ -199,7 +257,6 @@ public class DalvikCodePrinter implements ExecutionEngine {
             }
         }
     }
-
 
     @Override
     public void execute(FilledNewArrayInstruction filledNewArrayInstruction) {

@@ -121,7 +121,9 @@ public class DalvikModifiers implements AccessFlags {
             case "strict" -> ACC_STRICT;
             case "annotation" -> ACC_ANNOTATION;
             case "enum" -> ACC_ENUM;
+            case "constructor" -> ACC_CONSTRUCTOR;
             case "synchronized" -> ACC_SYNCHRONIZED;
+            case "declared-synchronized" -> ACC_DECLARED_SYNCHRONIZED;
             case "bridge" -> ACC_BRIDGE;
             case "varargs" -> ACC_VARARGS;
             default -> 0;
@@ -191,7 +193,7 @@ public class DalvikModifiers implements AccessFlags {
     }
 
     public static int getModifiers(Modifiers modifiers, int type) {
-        return modifiers.modifiers().stream().map(it -> modifier(it.content(), type)).reduce(0, (a, b) -> a | b);
+        return modifiers.getModifiers().stream().map(it -> modifier(it.content(), type)).reduce(0, (a, b) -> a | b);
     }
 
 }

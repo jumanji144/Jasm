@@ -2,20 +2,20 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.compile.DalvikClassResult;
 import me.darknet.assembler.compile.DalvikCompiler;
+import me.darknet.assembler.compile.DalvikCompilerOptions;
 import me.darknet.assembler.compiler.ClassResult;
 import me.darknet.assembler.compiler.CompilerOptions;
+import me.darknet.assembler.compiler.EmptyInheritanceChecker;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.error.Warn;
 import me.darknet.assembler.parser.BytecodeFormat;
-import me.darknet.assembler.printer.DalvikClassPrinter;
-import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.DalvikDexFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
 import me.darknet.assembler.test.SourceNormalization;
-import me.darknet.dex.file.DexHeader;
-import me.darknet.dex.io.Input;
 import me.darknet.dex.tree.DexFile;
 import me.darknet.dex.tree.definitions.ClassDefinition;
+import me.darknet.dex.tree.type.Types;
 import org.junit.jupiter.api.function.ThrowingConsumer;
 
 import java.io.IOException;
@@ -63,59 +63,54 @@ public class TestUtils {
 
     public static void processSample(byte[] dexFile, String className, ThrowingConsumer<String> outputConsumer,
                                      Consumer<List<Warn>> warningConsumer) {
-        Input input = Input.wrap(dexFile);
         try {
-            DexHeader header = DexHeader.CODEC.read(input);
-            DexFile file = DexFile.CODEC.map(header, header.map());
-
+            DexFile file = DalvikDexFixture.readDex(dexFile);
             ClassDefinition classDef = file.definitions()
                     .stream()
                     .filter(def -> def.getType().internalName().equals(className))
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("Class not found: " + className));
 
-            DalvikClassPrinter printer = new DalvikClassPrinter(classDef);
-            PrintContext<?> ctx = new PrintContext<>("\t");
-            printer.print(ctx);
-
-            String output = ctx.toString();
-
             if (outputConsumer != null) {
-                outputConsumer.accept(normalize(output));
+                outputConsumer.accept(normalize(DalvikDexFixture.print(classDef)));
             }
-
         } catch (IOException e) {
             fail("Failed to read dex header", e);
         } catch (Throwable e) {
-            // Consumer should fail instead of us handling it generically here
+            // Consumer should fail instead of us handling it generically here.
             fail("Error processing dex file: " + e.getMessage(), e);
         }
     }
 
     public static void processSampleFile(byte[] dexFile, ThrowingConsumer<String> outputConsumer) {
-        Input input = Input.wrap(dexFile);
         try {
-            DexHeader header = DexHeader.CODEC.read(input);
-            DexFile file = DexFile.CODEC.map(header, header.map());
-
+            DexFile file = DalvikDexFixture.readDex(dexFile);
             for (ClassDefinition definition : file.definitions()) {
-                DalvikClassPrinter printer = new DalvikClassPrinter(definition);
-                PrintContext<?> ctx = new PrintContext<>("\t");
-                printer.print(ctx);
-
-                String output = ctx.toString();
-
                 if (outputConsumer != null) {
-                    outputConsumer.accept(normalize(output));
+                    outputConsumer.accept(normalize(DalvikDexFixture.print(definition)));
                 }
             }
-
         } catch (IOException e) {
             fail("Failed to read dex header", e);
         } catch (Throwable e) {
-            // Consumer should fail instead of us handling it generically here
+            // Consumer should fail instead of us handling it generically here.
             fail("Error processing dex file: " + e.getMessage(), e);
         }
+    }
+
+    public static DalvikCompilerOptions options() {
+        return new DalvikCompilerOptions()
+                .version(35)
+                .inheritanceChecker(EmptyInheritanceChecker.INSTANCE);
+    }
+
+    public static DalvikCompilerOptions overlayOptions(String internalName) {
+        ClassDefinition overlay = new ClassDefinition(
+                Types.instanceTypeFromInternalName(internalName),
+                Types.instanceTypeFromInternalName("java/lang/Object"),
+                DalvikModifiers.ACC_PUBLIC
+        );
+        return options().overlay(new DalvikClassRepresentation(overlay));
     }
 
     public static String normalize(String input) {

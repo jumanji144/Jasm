@@ -22,9 +22,11 @@ import org.jetbrains.annotations.NotNull;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
@@ -32,9 +34,14 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     private ASTInstruction currentInstructionAst;
     private Kind currentInstructionKind = Kind.NORMAL;
     private final Map<String, Integer> registerMap = new LinkedHashMap<>();
+    private final Set<Integer> usedRegisters = new HashSet<>();
     private final Map<String, Label> labels = new LinkedHashMap<>();
     private final List<TryCatch> tryCatches = new ArrayList<>();
+    private final int registerLimit;
+    private final int parameterBase;
+    private int nextLocalRegister;
     private int registerCount;
+    private int outRegisters;
     private int pendingLineNumber = Label.UNASSIGNED;
 
     enum Kind {
@@ -44,35 +51,82 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
         RESULT
     }
 
-    public DalvikCodeVisitor(CodeBuilder codeBuilder, Map<String, Integer> initialRegisterMap) {
+    public DalvikCodeVisitor(CodeBuilder codeBuilder, Map<String, Integer> initialRegisterMap,
+                             int registerLimit, int parameterBase) {
         this.codeBuilder = codeBuilder;
+        this.registerLimit = registerLimit;
+        this.parameterBase = parameterBase;
         initialRegisterMap.forEach((name, index) -> {
             registerMap.put(name, index);
+            usedRegisters.add(index);
             registerCount = Math.max(registerCount, index + 1);
         });
+        if (registerLimit >= 0) {
+            registerCount = Math.max(registerCount, registerLimit);
+        }
     }
 
     public int getRegisterIndex(String registerName) {
+        Integer numericRegister = parseNumericRegister(registerName);
+        if (numericRegister != null) {
+            ensureRegisterAllowed(numericRegister);
+            usedRegisters.add(numericRegister);
+            registerCount = Math.max(registerCount, numericRegister + 1);
+            return numericRegister;
+        }
+
         Integer existing = registerMap.get(registerName);
         if (existing != null) {
             return existing;
         }
 
-        int index = registerCount;
+        int index = nextLocalRegister;
+        while (usedRegisters.contains(index) || (parameterBase >= 0 && index >= parameterBase)) {
+            index++;
+        }
+        ensureRegisterAllowed(index);
         registerMap.put(registerName, index);
+        usedRegisters.add(index);
+        nextLocalRegister = index + 1;
         registerCount = Math.max(registerCount, index + 1);
         return index;
     }
 
-    public int registerCount() {
+    private static Integer parseNumericRegister(String registerName) {
+        if (registerName.length() < 2 || registerName.charAt(0) != 'v') {
+            return null;
+        }
+        for (int i = 1; i < registerName.length(); i++) {
+            if (!Character.isDigit(registerName.charAt(i))) {
+                return null;
+            }
+        }
+        try {
+            return Integer.parseInt(registerName.substring(1));
+        } catch (NumberFormatException exception) {
+            throw new IllegalStateException("Invalid register name: " + registerName, exception);
+        }
+    }
+
+    private void ensureRegisterAllowed(int index) {
+        if (index < 0 || (registerLimit >= 0 && index >= registerLimit)) {
+            throw new IllegalStateException("Register exceeds declared register count: v" + index);
+        }
+    }
+
+    public int getRegisterCount() {
         return registerCount;
     }
 
-    public int outRegisters() {
-        return 0;
+    public int getOutRegisters() {
+        return outRegisters;
     }
 
-    public List<TryCatch> tryCatches() {
+    private void updateOutRegisters(int count) {
+        outRegisters = Math.max(outRegisters, count);
+    }
+
+    public List<TryCatch> getTryCatches() {
         return List.copyOf(tryCatches);
     }
 
@@ -86,11 +140,11 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
         codeBuilder.add(instruction);
     }
 
-    private @NotNull Label label(@NotNull String name) {
+    private @NotNull Label getLabel(@NotNull String name) {
         return labels.computeIfAbsent(name, ignored -> new Label());
     }
 
-    private @NotNull String opcodeName() {
+    private @NotNull String getCurrentOpName() {
         return currentInstructionAst.identifier().content();
     }
 
@@ -120,6 +174,13 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
         return Types.instanceTypeFromInternalName(literal);
     }
 
+    private static int argumentWordCount(int[] registers, boolean range) {
+        if (range) {
+            return registers[1] - registers[0] + 1;
+        }
+        return registers.length;
+    }
+
     private int[] parseRegisters(@NotNull ASTArray registers, boolean range) {
         List<ASTElement> values = registers.values();
         int[] parsed = new int[values.size()];
@@ -129,6 +190,9 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
         if (range && parsed.length != 2) {
             throw new IllegalStateException("Range instructions require first and last register bounds");
+        }
+        if (range && parsed[1] < parsed[0]) {
+            throw new IllegalStateException("Range instruction register bounds are reversed");
         }
 
         return parsed;
@@ -322,7 +386,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     }
 
     @Override
-    public void visitInstruction(ASTInstruction instruction) {
+    public void visitInstruction(@NotNull ASTInstruction instruction) {
         currentInstructionAst = instruction;
         // parse optional suffix
         currentInstructionKind = Kind.NORMAL;
@@ -429,6 +493,22 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
                 }
                 addInstruction(new ConstTypeInstruction(toIndex, parseClassType(constValue)));
             }
+            case "const-method-handle" -> {
+                Constant constant = DalvikConstantMapper.fromConstant(value);
+                if (!(constant instanceof HandleConstant handle)) {
+                    throw new IllegalStateException("const-method-handle requires a method handle");
+                }
+                addInstruction(new ConstMethodHandleInstruction(toIndex, handle.handle()));
+            }
+            case "const-method-type" -> {
+                if (!(value instanceof ASTIdentifier constValue)) {
+                    throw new IllegalStateException("const-method-type requires a method descriptor");
+                }
+                addInstruction(new ConstMethodTypeInstruction(
+                        toIndex,
+                        Types.methodTypeFromDescriptor(constValue.literal())
+                ));
+            }
         }
     }
 
@@ -484,9 +564,13 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
     @Override
     public void visitFilledNewArray(ASTArray args, ASTIdentifier type) {
-        int[] registers = parseRegisters(args, opcodeName().endsWith("/range"));
+        int[] registers = parseRegisters(args, getCurrentOpName().endsWith("/range"));
         ClassType arrayType = parseClassType(type);
-        if (opcodeName().endsWith("/range")) {
+        int registerCount = getCurrentOpName().endsWith("/range")
+                ? registers[1] - registers[0] + 1
+                : registers.length;
+        updateOutRegisters(registerCount);
+        if (getCurrentOpName().endsWith("/range")) {
             int first = registers[0];
             int last = registers[1];
             addInstruction(new FilledNewArrayInstruction(arrayType, last - first + 1, first));
@@ -496,18 +580,37 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     }
 
     @Override
-    public void visitFillArrayData(ASTIdentifier to, ASTArray array) {
-        int elementWidth = inferArrayElementWidth(array);
+    public void visitFillArrayData(ASTIdentifier to, ASTElement data) {
+        ArrayData arrayData = parseArrayData(data);
         addInstruction(new FillArrayDataInstruction(
                 getRegisterIndex(to.literal()),
-                encodeArrayData(array, elementWidth),
-                elementWidth
+                encodeArrayData(arrayData.values(), arrayData.elementWidth()),
+                arrayData.elementWidth()
         ));
     }
 
-    @Override
-    public void visitFillArrayDataPayload(ASTNumber elementWidth, ASTArray elements) {
+    private static ArrayData parseArrayData(ASTElement data) {
+        if (data instanceof ASTArray array) {
+            return new ArrayData(array, inferArrayElementWidth(array));
+        }
+        if (!(data instanceof ASTObject payload)) {
+            throw new IllegalStateException("fill-array-data requires an array or payload object");
+        }
 
+        ASTElement widthElement = payload.value("width");
+        ASTElement valuesElement = payload.value("values");
+        if (!(widthElement instanceof ASTNumber width) || width.isFloatingPoint()) {
+            throw new IllegalStateException("fill-array-data width must be an integer");
+        }
+        if (!(valuesElement instanceof ASTArray values)) {
+            throw new IllegalStateException("fill-array-data values must be an array");
+        }
+
+        int elementWidth = width.asInt();
+        if (elementWidth != 1 && elementWidth != 2 && elementWidth != 4 && elementWidth != 8) {
+            throw new IllegalStateException("fill-array-data width must be 1, 2, 4, or 8");
+        }
+        return new ArrayData(values, elementWidth);
     }
 
     @Override
@@ -517,7 +620,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
     @Override
     public void visitGoto(ASTIdentifier label) {
-        addInstruction(new GotoInstruction(label(label.literal())));
+        addInstruction(new GotoInstruction(getLabel(label.literal())));
     }
 
     @Override
@@ -533,7 +636,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
             if (!(target instanceof ASTIdentifier identifier)) {
                 throw new IllegalStateException("packed-switch targets must be labels");
             }
-            targetLabels.add(label(identifier.literal()));
+            targetLabels.add(getLabel(identifier.literal()));
         }
 
         addInstruction(new PackedSwitchInstruction(
@@ -551,7 +654,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
             if (!(target instanceof ASTIdentifier identifier)) {
                 throw new IllegalStateException("sparse-switch targets must be labels");
             }
-            targets.put(parseSwitchKey(pair.first().literal()), label(identifier.literal()));
+            targets.put(parseSwitchKey(pair.first().literal()), getLabel(identifier.literal()));
         }
 
         addInstruction(new SparseSwitchInstruction(
@@ -563,13 +666,13 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     @Override
     public void visitCmp(ASTIdentifier to, ASTIdentifier from1, ASTIdentifier from2) {
         addInstruction(new CompareInstruction(
-                switch (opcodeName()) {
+                switch (getCurrentOpName()) {
                     case "cmpl-float" -> CMPL_FLOAT;
                     case "cmpg-float" -> CMPG_FLOAT;
                     case "cmpl-double" -> CMPL_DOUBLE;
                     case "cmpg-double" -> CMPG_DOUBLE;
                     case "cmp-long" -> CMP_LONG;
-                    default -> throw new IllegalStateException("Unsupported compare opcode: " + opcodeName());
+                    default -> throw new IllegalStateException("Unsupported compare opcode: " + getCurrentOpName());
                 },
                 getRegisterIndex(to.literal()),
                 getRegisterIndex(from1.literal()),
@@ -578,46 +681,185 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     }
 
     @Override
+    public void visitBinaryOperation(ASTIdentifier to, ASTIdentifier from1, ASTIdentifier from2) {
+        addInstruction(new BinaryInstruction(
+                binaryOpcode(getCurrentOpName()),
+                getRegisterIndex(to.literal()),
+                getRegisterIndex(from1.literal()),
+                getRegisterIndex(from2.literal())
+        ));
+    }
+
+    @Override
+    public void visitBinary2AddrOperation(ASTIdentifier a, ASTIdentifier b) {
+        addInstruction(new Binary2AddrInstruction(
+                binary2AddrOpcode(getCurrentOpName()),
+                getRegisterIndex(a.literal()),
+                getRegisterIndex(b.literal())
+        ));
+    }
+
+    @Override
+    public void visitBinaryLiteralOperation(ASTIdentifier to, ASTIdentifier from, ASTNumber constant) {
+        String opcode = getCurrentOpName();
+        long value = constant.isFloatingPoint() ? Long.MIN_VALUE : constant.asLong();
+        boolean wideLiteral = opcode.endsWith("/lit16") || opcode.equals("rsub-int");
+        long minimum = wideLiteral ? Short.MIN_VALUE : Byte.MIN_VALUE;
+        long maximum = wideLiteral ? Short.MAX_VALUE : Byte.MAX_VALUE;
+        if (value < minimum || value > maximum) {
+            throw new IllegalStateException(opcode + " literal is outside its signed range");
+        }
+
+        addInstruction(new BinaryLiteralInstruction(
+                binaryLiteralOpcode(opcode),
+                getRegisterIndex(to.literal()),
+                getRegisterIndex(from.literal()),
+                (int) value
+        ));
+    }
+
+    private static int binaryOpcode(String opcode) {
+        return switch (opcode) {
+            case "add-int" -> ADD_INT;
+            case "sub-int" -> SUB_INT;
+            case "mul-int" -> MUL_INT;
+            case "div-int" -> DIV_INT;
+            case "rem-int" -> REM_INT;
+            case "and-int" -> AND_INT;
+            case "or-int" -> OR_INT;
+            case "xor-int" -> XOR_INT;
+            case "shl-int" -> SHL_INT;
+            case "shr-int" -> SHR_INT;
+            case "ushr-int" -> USHR_INT;
+            case "add-long" -> ADD_LONG;
+            case "sub-long" -> SUB_LONG;
+            case "mul-long" -> MUL_LONG;
+            case "div-long" -> DIV_LONG;
+            case "rem-long" -> REM_LONG;
+            case "and-long" -> AND_LONG;
+            case "or-long" -> OR_LONG;
+            case "xor-long" -> XOR_LONG;
+            case "shl-long" -> SHL_LONG;
+            case "shr-long" -> SHR_LONG;
+            case "ushr-long" -> USHR_LONG;
+            case "add-float" -> ADD_FLOAT;
+            case "sub-float" -> SUB_FLOAT;
+            case "mul-float" -> MUL_FLOAT;
+            case "div-float" -> DIV_FLOAT;
+            case "rem-float" -> REM_FLOAT;
+            case "add-double" -> ADD_DOUBLE;
+            case "sub-double" -> SUB_DOUBLE;
+            case "mul-double" -> MUL_DOUBLE;
+            case "div-double" -> DIV_DOUBLE;
+            case "rem-double" -> REM_DOUBLE;
+            default -> throw new IllegalStateException("Unsupported binary opcode: " + opcode);
+        };
+    }
+
+    private static int binary2AddrOpcode(String opcode) {
+        return switch (opcode) {
+            case "add-int/2addr" -> ADD_INT_2ADDR;
+            case "sub-int/2addr" -> SUB_INT_2ADDR;
+            case "mul-int/2addr" -> MUL_INT_2ADDR;
+            case "div-int/2addr" -> DIV_INT_2ADDR;
+            case "rem-int/2addr" -> REM_INT_2ADDR;
+            case "and-int/2addr" -> AND_INT_2ADDR;
+            case "or-int/2addr" -> OR_INT_2ADDR;
+            case "xor-int/2addr" -> XOR_INT_2ADDR;
+            case "shl-int/2addr" -> SHL_INT_2ADDR;
+            case "shr-int/2addr" -> SHR_INT_2ADDR;
+            case "ushr-int/2addr" -> USHR_INT_2ADDR;
+            case "add-long/2addr" -> ADD_LONG_2ADDR;
+            case "sub-long/2addr" -> SUB_LONG_2ADDR;
+            case "mul-long/2addr" -> MUL_LONG_2ADDR;
+            case "div-long/2addr" -> DIV_LONG_2ADDR;
+            case "rem-long/2addr" -> REM_LONG_2ADDR;
+            case "and-long/2addr" -> AND_LONG_2ADDR;
+            case "or-long/2addr" -> OR_LONG_2ADDR;
+            case "xor-long/2addr" -> XOR_LONG_2ADDR;
+            case "shl-long/2addr" -> SHL_LONG_2ADDR;
+            case "shr-long/2addr" -> SHR_LONG_2ADDR;
+            case "ushr-long/2addr" -> USHR_LONG_2ADDR;
+            case "add-float/2addr" -> ADD_FLOAT_2ADDR;
+            case "sub-float/2addr" -> SUB_FLOAT_2ADDR;
+            case "mul-float/2addr" -> MUL_FLOAT_2ADDR;
+            case "div-float/2addr" -> DIV_FLOAT_2ADDR;
+            case "rem-float/2addr" -> REM_FLOAT_2ADDR;
+            case "add-double/2addr" -> ADD_DOUBLE_2ADDR;
+            case "sub-double/2addr" -> SUB_DOUBLE_2ADDR;
+            case "mul-double/2addr" -> MUL_DOUBLE_2ADDR;
+            case "div-double/2addr" -> DIV_DOUBLE_2ADDR;
+            case "rem-double/2addr" -> REM_DOUBLE_2ADDR;
+            default -> throw new IllegalStateException("Unsupported two-address opcode: " + opcode);
+        };
+    }
+
+    private static int binaryLiteralOpcode(String opcode) {
+        return switch (opcode) {
+            case "add-int/lit16" -> ADD_INT_LIT16;
+            case "rsub-int" -> RSUB_INT;
+            case "mul-int/lit16" -> MUL_INT_LIT16;
+            case "div-int/lit16" -> DIV_INT_LIT16;
+            case "rem-int/lit16" -> REM_INT_LIT16;
+            case "and-int/lit16" -> AND_INT_LIT16;
+            case "or-int/lit16" -> OR_INT_LIT16;
+            case "xor-int/lit16" -> XOR_INT_LIT16;
+            case "add-int/lit8" -> ADD_INT_LIT8;
+            case "rsub-int/lit8" -> RSUB_INT_LIT8;
+            case "mul-int/lit8" -> MUL_INT_LIT8;
+            case "div-int/lit8" -> DIV_INT_LIT8;
+            case "rem-int/lit8" -> REM_INT_LIT8;
+            case "and-int/lit8" -> AND_INT_LIT8;
+            case "or-int/lit8" -> OR_INT_LIT8;
+            case "xor-int/lit8" -> XOR_INT_LIT8;
+            case "shl-int/lit8" -> SHL_INT_LIT8;
+            case "shr-int/lit8" -> SHR_INT_LIT8;
+            case "ushr-int/lit8" -> USHR_INT_LIT8;
+            default -> throw new IllegalStateException("Unsupported literal opcode: " + opcode);
+        };
+    }
+
+    @Override
     public void visitIf(ASTIdentifier a, ASTIdentifier b, ASTIdentifier label) {
-        int opcode = switch (opcodeName()) {
+        int opcode = switch (getCurrentOpName()) {
             case "if-eq" -> IF_EQ;
             case "if-ne" -> IF_NE;
             case "if-lt" -> IF_LT;
             case "if-ge" -> IF_GE;
             case "if-gt" -> IF_GT;
             case "if-le" -> IF_LE;
-            default -> throw new IllegalStateException("Unsupported branch opcode: " + opcodeName());
+            default -> throw new IllegalStateException("Unsupported branch opcode: " + getCurrentOpName());
         };
         addInstruction(new BranchInstruction(
                 opcode - IF_EQ,
                 getRegisterIndex(a.literal()),
                 getRegisterIndex(b.literal()),
-                label(label.literal())
+                getLabel(label.literal())
         ));
     }
 
     @Override
     public void visitIfZero(ASTIdentifier a, ASTIdentifier label) {
-        int opcode = switch (opcodeName()) {
+        int opcode = switch (getCurrentOpName()) {
             case "if-eqz" -> IF_EQZ;
             case "if-nez" -> IF_NEZ;
             case "if-ltz" -> IF_LTZ;
             case "if-gez" -> IF_GEZ;
             case "if-gtz" -> IF_GTZ;
             case "if-lez" -> IF_LEZ;
-            default -> throw new IllegalStateException("Unsupported zero-branch opcode: " + opcodeName());
+            default -> throw new IllegalStateException("Unsupported zero-branch opcode: " + getCurrentOpName());
         };
         addInstruction(new BranchZeroInstruction(
                 opcode - IF_EQZ,
                 getRegisterIndex(a.literal()),
-                label(label.literal())
+                getLabel(label.literal())
         ));
     }
 
     @Override
     public void visitArrayOperation(ASTIdentifier array, ASTIdentifier index, ASTIdentifier value) {
         addInstruction(new ArrayInstruction(
-                switch (opcodeName()) {
+                switch (getCurrentOpName()) {
                     case "aget" -> AGET - AGET;
                     case "aget-wide" -> AGET_WIDE - AGET;
                     case "aget-object" -> AGET_OBJECT - AGET;
@@ -632,7 +874,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
                     case "aput-byte" -> APUT_BYTE - AGET;
                     case "aput-char" -> APUT_CHAR - AGET;
                     case "aput-short" -> APUT_SHORT - AGET;
-                    default -> throw new IllegalStateException("Unsupported array opcode: " + opcodeName());
+                    default -> throw new IllegalStateException("Unsupported array opcode: " + getCurrentOpName());
                 },
                 getRegisterIndex(array.literal()),
                 getRegisterIndex(index.literal()),
@@ -644,7 +886,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     public void visitVirtualFieldOperation(ASTIdentifier value, ASTIdentifier instance, ASTIdentifier path, ASTIdentifier descriptor) {
         MemberPath member = parseMemberPath(path);
         addInstruction(new InstanceFieldInstruction(
-                switch (opcodeName()) {
+                switch (getCurrentOpName()) {
                     case "iget" -> IGET - IGET;
                     case "iget-wide" -> IGET_WIDE - IGET;
                     case "iget-object" -> IGET_OBJECT - IGET;
@@ -659,7 +901,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
                     case "iput-byte" -> IPUT_BYTE - IGET;
                     case "iput-char" -> IPUT_CHAR - IGET;
                     case "iput-short" -> IPUT_SHORT - IGET;
-                    default -> throw new IllegalStateException("Unsupported instance field opcode: " + opcodeName());
+                    default -> throw new IllegalStateException("Unsupported instance field opcode: " + getCurrentOpName());
                 },
                 getRegisterIndex(value.literal()),
                 getRegisterIndex(instance.literal()),
@@ -673,7 +915,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     public void visitStaticFieldOperation(ASTIdentifier value, ASTIdentifier path, ASTIdentifier descriptor) {
         MemberPath member = parseMemberPath(path);
         addInstruction(new StaticFieldInstruction(
-                switch (opcodeName()) {
+                switch (getCurrentOpName()) {
                     case "sget" -> SGET - SGET;
                     case "sget-wide" -> SGET_WIDE - SGET;
                     case "sget-object" -> SGET_OBJECT - SGET;
@@ -688,7 +930,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
                     case "sput-byte" -> SPUT_BYTE - SGET;
                     case "sput-char" -> SPUT_CHAR - SGET;
                     case "sput-short" -> SPUT_SHORT - SGET;
-                    default -> throw new IllegalStateException("Unsupported static field opcode: " + opcodeName());
+                    default -> throw new IllegalStateException("Unsupported static field opcode: " + getCurrentOpName());
                 },
                 getRegisterIndex(value.literal()),
                 Types.instanceTypeFromInternalName(member.owner()),
@@ -700,7 +942,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     @Override
     public void visitInvoke(ASTArray registers, ASTIdentifier method, ASTIdentifier descriptor) {
         MemberPath member = parseMemberPath(method);
-        int opcode = switch (opcodeName()) {
+        int opcode = switch (getCurrentOpName()) {
             case "invoke-virtual" -> INVOKE_VIRTUAL;
             case "invoke-super" -> INVOKE_SUPER;
             case "invoke-direct" -> INVOKE_DIRECT;
@@ -711,12 +953,14 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
             case "invoke-direct/range" -> INVOKE_DIRECT_RANGE;
             case "invoke-static/range" -> INVOKE_STATIC_RANGE;
             case "invoke-interface/range" -> INVOKE_INTERFACE_RANGE;
-            default -> throw new IllegalStateException("Unsupported invoke opcode: " + opcodeName());
+            default -> throw new IllegalStateException("Unsupported invoke opcode: " + getCurrentOpName());
         };
-        int[] registerValues = parseRegisters(registers, opcodeName().endsWith("/range"));
+        boolean range = getCurrentOpName().endsWith("/range");
+        int[] registerValues = parseRegisters(registers, range);
         ReferenceType owner = parseReferenceType(member.owner());
         MethodType methodType = parseMethodType(descriptor);
-        if (opcodeName().endsWith("/range")) {
+        updateOutRegisters(argumentWordCount(registerValues, range));
+        if (range) {
             int first = registerValues[0];
             int last = registerValues[1];
             addInstruction(InvokeInstruction.range(opcode, owner, member.name(), methodType, last - first + 1, first));
@@ -727,11 +971,12 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
     @Override
     public void visitInvokeCustom(ASTArray registers, ASTIdentifier name, ASTIdentifier type, ASTElement handle, ASTArray arguments) {
-        boolean range = opcodeName().endsWith("/range");
+        boolean range = getCurrentOpName().endsWith("/range");
         int[] registerValues = parseRegisters(registers, range);
         var bootstrapHandle = parseHandle(handle);
         MethodType methodType = parseMethodType(type);
         List<Constant> bootstrapArguments = parseConstants(arguments);
+        updateOutRegisters(argumentWordCount(registerValues, range));
         if (range) {
             int first = registerValues[0];
             int last = registerValues[1];
@@ -762,7 +1007,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     @Override
     public void visitUnaryOperation(ASTIdentifier to, ASTIdentifier from) {
         addInstruction(new UnaryInstruction(
-                switch (opcodeName()) {
+                switch (getCurrentOpName()) {
                     case "neg-int" -> NEG_INT;
                     case "not-int" -> NOT_INT;
                     case "neg-long" -> NEG_LONG;
@@ -784,7 +1029,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
                     case "int-to-byte" -> INT_TO_BYTE;
                     case "int-to-char" -> INT_TO_CHAR;
                     case "int-to-short" -> INT_TO_SHORT;
-                    default -> throw new IllegalStateException("Unsupported unary opcode: " + opcodeName());
+                    default -> throw new IllegalStateException("Unsupported unary opcode: " + getCurrentOpName());
                 },
                 getRegisterIndex(from.literal()),
                 getRegisterIndex(to.literal())
@@ -793,7 +1038,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
     @Override
     public void visitLabel(@NotNull ASTIdentifier label) {
-        Label target = label(label.literal());
+        Label target = getLabel(label.literal());
         if (pendingLineNumber != Label.UNASSIGNED && target.lineNumber() == Label.UNASSIGNED) {
             target.lineNumber(pendingLineNumber);
             pendingLineNumber = Label.UNASSIGNED;
@@ -802,17 +1047,29 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
     }
 
     @Override
-    public void visitLineNumber(ASTNumber line) {
+    public void visitLineNumber(@NotNull ASTNumber line) {
         pendingLineNumber = line.asInt();
     }
 
     @Override
     public void visitException(@NotNull ASTIdentifier start, @NotNull ASTIdentifier end, @NotNull ASTIdentifier handler, @NotNull ASTIdentifier type) {
-        tryCatches.add(new TryCatch(
-                label(start.literal()),
-                label(end.literal()),
-                List.of(new Handler(label(handler.literal()), parseInstanceType(type)))
-        ));
+        Label begin = getLabel(start.literal());
+        Label finish = getLabel(end.literal());
+        Handler parsedHandler = new Handler(
+                getLabel(handler.literal()),
+                "*".equals(type.literal()) ? null : parseInstanceType(type)
+        );
+        for (int i = 0; i < tryCatches.size(); i++) {
+            TryCatch existing = tryCatches.get(i);
+            if (existing.begin() != begin || existing.end() != finish) {
+                continue;
+            }
+            List<Handler> handlers = new ArrayList<>(existing.handlers());
+            handlers.add(parsedHandler);
+            tryCatches.set(i, new TryCatch(begin, finish, List.copyOf(handlers)));
+            return;
+        }
+        tryCatches.add(new TryCatch(begin, finish, List.of(parsedHandler)));
     }
 
     @Override
@@ -824,6 +1081,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
             pendingLineNumber = Label.UNASSIGNED;
         }
     }
+
+    private record ArrayData(ASTArray values, int elementWidth) {}
 
     private record MemberPath(String owner, String name) {}
 }

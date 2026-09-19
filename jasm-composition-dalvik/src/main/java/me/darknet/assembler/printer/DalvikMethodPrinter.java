@@ -8,7 +8,6 @@ import me.darknet.dex.tree.simulation.StraightForwardSimulation;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -53,6 +52,9 @@ public class DalvikMethodPrinter implements MethodPrinter {
     @Override
     public void print(PrintContext<?> ctx) {
         memberPrinter.printAttributes(ctx);
+        if (definition.getSignature() != null) {
+            ctx.begin().element(".signature").string(definition.getSignature()).next();
+        }
         var obj = memberPrinter.printDeclaration(ctx).literal(definition.getName()).print(" ")
                 .literal(definition.getType().descriptor()).print(" ").object();
 
@@ -60,21 +62,42 @@ public class DalvikMethodPrinter implements MethodPrinter {
         Map<Label, String> labelNames = code == null ? Map.of() : getLabelNames(code);
 
         boolean hasPrior = false;
-        if (code != null && code.getIn() != 0) {
-            DebugInformation debug = code.getDebugInfo();
-            if (debug != null) {
-                List<String> params = debug.parameterNames();
-                PrintContext.ArrayPrint arr = obj.value("parameters").array();
-                for (int i = 0; i < code.getIn(); i++) {
-                    if (params != null && i < params.size()) {
-                        arr.print(params.get(i));
-                    } else {
-                        arr.print("p" + i);
+        if (code != null) {
+            obj.value("registers").print(String.valueOf(code.getRegisters()));
+            hasPrior = true;
+
+            int parameterCount = definition.getType().parameterTypes().size();
+            if (parameterCount > 0) {
+                obj.next();
+                PrintContext.ArrayPrint parameters = obj.value("parameters").array();
+                List<String> names = definition.getParameterNames() == null
+                        ? List.of()
+                        : definition.getParameterNames();
+                DebugInformation debug = code.getDebugInfo();
+                List<String> debugNames = debug == null ? List.of() : debug.parameterNames();
+                for (int i = 0; i < parameterCount; i++) {
+                    String name = i < names.size() ? names.get(i) : null;
+                    if (name == null && i < debugNames.size()) {
+                        name = debugNames.get(i);
                     }
-                    if (i < code.getIn() - 1) arr.arg();
+                    parameters.print(name == null ? "p" + i : name);
+                    if (i < parameterCount - 1) {
+                        parameters.arg();
+                    }
                 }
-                arr.end();
-                hasPrior = true;
+                parameters.end();
+            }
+
+            if (!definition.getThrownTypes().isEmpty()) {
+                obj.next();
+                PrintContext.ArrayPrint thrownTypes = obj.value("throws").array();
+                for (int i = 0; i < definition.getThrownTypes().size(); i++) {
+                    thrownTypes.literal(definition.getThrownTypes().get(i));
+                    if (i < definition.getThrownTypes().size() - 1) {
+                        thrownTypes.arg();
+                    }
+                }
+                thrownTypes.end();
             }
         }
 
@@ -82,18 +105,23 @@ public class DalvikMethodPrinter implements MethodPrinter {
             if (hasPrior) obj.next();
 
             PrintContext.ArrayPrint exceptions = obj.value("exceptions").array();
-            for (int i = 0; i < code.tryCatch().size(); i++) {
-                var tryCatch = code.tryCatch().get(i);
-                if (i > 0) {
-                    exceptions.arg();
+            boolean firstHandler = true;
+            for (var tryCatch : code.tryCatch()) {
+                if (tryCatch.handlers().isEmpty()) {
+                    throw new IllegalStateException("Cannot print a try-catch entry without handlers");
                 }
-
-                exceptions.array()
-                        .print(labelNames.get(tryCatch.begin())).arg()
-                        .print(labelNames.get(tryCatch.end())).arg()
-                        .print(labelNames.get(tryCatch.handlers().getFirst().handler())).arg()
-                        .literal(tryCatch.handlers().getFirst().exceptionType().internalName())
-                        .end();
+                for (var handler : tryCatch.handlers()) {
+                    if (!firstHandler) {
+                        exceptions.arg();
+                    }
+                    exceptions.array()
+                            .print(labelNames.get(tryCatch.begin())).arg()
+                            .print(labelNames.get(tryCatch.end())).arg()
+                            .print(labelNames.get(handler.handler())).arg()
+                            .literal(handler.exceptionType() == null ? "*" : handler.exceptionType().internalName())
+                            .end();
+                    firstHandler = false;
+                }
             }
             exceptions.end();
             hasPrior = true;
@@ -128,8 +156,9 @@ public class DalvikMethodPrinter implements MethodPrinter {
         return labelNames;
     }
 
-    private static @NotNull Map<Integer, String> getRegisterNames(Code code) {
-        Map<Integer, String> registers = new HashMap<>();
+    private static @NotNull Map<Integer, String> getRegisterNames(@NotNull Code code) {
+        // TODO: Implement proper register name resolution using debug information, similar to how we do for JVM impl.
+        /*
         DebugInformation debugInfo = code.getDebugInfo();
         List<DebugInformation.LocalVariable> locals = debugInfo == null ? Collections.emptyList() : debugInfo.locals();
         List<String> params = debugInfo == null ? Collections.emptyList() : debugInfo.parameterNames();
@@ -150,7 +179,13 @@ public class DalvikMethodPrinter implements MethodPrinter {
         }
         for (int i = 0; i < code.getRegisters() - code.getIn(); i++) {
             registers.putIfAbsent(i, "v" + (i));
+         */
+
+        Map<Integer, String> registers = new HashMap<>();
+        for (int i = 0; i < code.getRegisters(); i++) {
+            registers.put(i, "v" + i);
         }
         return registers;
     }
 }
+

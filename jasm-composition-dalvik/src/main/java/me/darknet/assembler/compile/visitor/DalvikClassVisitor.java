@@ -9,7 +9,11 @@ import me.darknet.assembler.ast.specific.ASTOuterMethod;
 import me.darknet.assembler.visitor.*;
 import me.darknet.dex.tree.definitions.ClassDefinition;
 import me.darknet.dex.tree.definitions.FieldMember;
+import me.darknet.dex.tree.definitions.InnerClass;
+import me.darknet.dex.tree.definitions.MemberIdentifier;
 import me.darknet.dex.tree.definitions.MethodMember;
+import me.darknet.dex.tree.definitions.annotation.Annotation;
+import me.darknet.dex.tree.definitions.annotation.AnnotationProcessing;
 import me.darknet.dex.tree.type.ClassType;
 import me.darknet.dex.tree.type.MethodType;
 import me.darknet.dex.tree.type.Type;
@@ -36,37 +40,61 @@ public record DalvikClassVisitor(ClassDefinition definition) implements ASTClass
 
     @Override
     public void visitOuterClass(@Nullable ASTElement outerClass) {
-
+        if (outerClass == null) {
+            definition.setEnclosingClass(null);
+            return;
+        }
+        if (!(outerClass instanceof ASTIdentifier identifier)) {
+            throw new IllegalStateException("Expected an outer class identifier");
+        }
+        definition.setEnclosingClass(Types.instanceTypeFromInternalName(identifier.literal()));
     }
 
     @Override
     public void visitOuterMethod(@Nullable ASTOuterMethod outerMethod) {
-
+        if (outerMethod == null) {
+            definition.setEnclosingMethod(null);
+            return;
+        }
+        definition.setEnclosingMethod(new MemberIdentifier(
+                outerMethod.getMethodName().literal(),
+                Types.methodTypeFromDescriptor(outerMethod.getMethodDesc().literal())
+        ));
     }
 
     @Override
     public void visitPermittedSubclass(@NotNull ASTIdentifier subclass) {
-
+        throw new IllegalStateException("Dalvik permitted-subclass metadata is not supported by the current dex tree");
     }
 
     @Override
     public void visitNestHost(@Nullable ASTIdentifier nestHost) {
-
+        if (nestHost != null) {
+            throw new IllegalStateException("Dalvik nest metadata is not supported by the current dex tree");
+        }
     }
 
     @Override
     public void visitNestMember(@NotNull ASTIdentifier nestMember) {
-
+        throw new IllegalStateException("Dalvik nest metadata is not supported by the current dex tree");
     }
 
     @Override
     public ASTRecordComponentVisitor visitRecordComponent(@NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor, @Nullable ASTString signature) {
-        return null;
+        throw new IllegalStateException("Dalvik record components are not supported by the current dex tree");
     }
 
     @Override
     public void visitInnerClass(@NotNull Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass, @Nullable ASTIdentifier innerClass) {
-
+        if (innerClass == null || outerClass == null) {
+            throw new IllegalStateException("Dalvik inner classes require inner and outer class identifiers");
+        }
+        definition.addInnerClass(new InnerClass(
+                innerClass.literal(),
+                outerClass.literal(),
+                name == null ? null : name.literal(),
+                DalvikModifiers.getClassModifiers(modifiers)
+        ));
     }
 
     @Override
@@ -91,31 +119,51 @@ public record DalvikClassVisitor(ClassDefinition definition) implements ASTClass
 
     @Override
     public void visitSignature(@Nullable ASTString signature) {
-
+        definition.setSignature(signature == null ? null : signature.content());
     }
 
     @Override
     public void visitEnd() {
-
     }
 
     @Override
-    public ASTAnnotationVisitor visitVisibleAnnotation(ASTIdentifier classType) {
-        return null;
+    public ASTAnnotationVisitor visitVisibleAnnotation(@NotNull ASTIdentifier classType) {
+        return new DalvikAnnotationVisitor(DalvikAnnotationVisitor.RUNTIME, classType, this::acceptAnnotation);
     }
 
     @Override
-    public ASTAnnotationVisitor visitInvisibleAnnotation(ASTIdentifier classType) {
-        return null;
+    public ASTAnnotationVisitor visitInvisibleAnnotation(@NotNull ASTIdentifier classType) {
+        return new DalvikAnnotationVisitor(DalvikAnnotationVisitor.BUILD, classType, this::acceptAnnotation);
+    }
+
+    @Override
+    public ASTAnnotationVisitor visitSystemAnnotation(@NotNull ASTIdentifier classType) {
+        return new DalvikAnnotationVisitor(DalvikAnnotationVisitor.SYSTEM, classType, this::acceptAnnotation);
     }
 
     @Override
     public ASTAnnotationVisitor visitVisibleTypeAnnotation(@NotNull ASTIdentifier classType, @NotNull ASTNumber typeRef, @Nullable ASTIdentifier typePath) {
-        return null;
+        throw new IllegalStateException("Dalvik type annotations are not supported by the current dex tree");
     }
 
     @Override
     public ASTAnnotationVisitor visitInvisibleTypeAnnotation(@NotNull ASTIdentifier classType, @NotNull ASTNumber typeRef, @Nullable ASTIdentifier typePath) {
-        return null;
+        throw new IllegalStateException("Dalvik type annotations are not supported by the current dex tree");
+    }
+
+    private void acceptAnnotation(Annotation annotation) {
+        if (annotation.visibility() == Annotation.VISIBILITY_SYSTEM) {
+            switch (AnnotationProcessing.processAttribute(java.util.Map.of(), definition, annotation.annotation())) {
+                case CONSUMED -> {
+                    return;
+                }
+                case ERROR -> throw new IllegalStateException(
+                        "Invalid class annotation: " + annotation.annotation().type().internalName()
+                );
+                case PRESERVE -> {
+                }
+            }
+        }
+        definition.addAnnotation(annotation);
     }
 }

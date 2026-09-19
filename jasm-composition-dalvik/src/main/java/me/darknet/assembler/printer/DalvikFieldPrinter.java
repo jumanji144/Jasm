@@ -32,6 +32,9 @@ public class DalvikFieldPrinter implements FieldPrinter {
     @Override
     public void print(PrintContext<?> ctx) {
         memberPrinter.printAttributes(ctx);
+        if (definition.getSignature() != null) {
+            ctx.begin().element(".signature").string(definition.getSignature()).next();
+        }
         memberPrinter.printDeclaration(ctx).literal(definition.getName()).print(" ").literal(definition.getType().descriptor())
                 .print(" ");
         Constant constant = definition.getStaticValue();
