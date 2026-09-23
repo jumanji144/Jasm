@@ -1,5 +1,8 @@
 package me.darknet.assembler.compiler;
 
+/**
+ * Inheritance checker that resolves classes through a {@link ClassLoader} and Java reflection.
+ */
 public class ReflectiveInheritanceChecker implements InheritanceChecker {
     public static final ReflectiveInheritanceChecker INSTANCE =
             new ReflectiveInheritanceChecker(ReflectiveInheritanceChecker.class.getClassLoader());

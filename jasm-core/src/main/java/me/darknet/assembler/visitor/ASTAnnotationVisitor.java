@@ -15,6 +15,9 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 
+/**
+ * Visitor for annotation element values, including nested annotations, arrays, types, and enums.
+ */
 public interface ASTAnnotationVisitor {
     void visitValue(ASTIdentifier name, ASTValue value);
 

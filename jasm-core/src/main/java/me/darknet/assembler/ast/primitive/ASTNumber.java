@@ -4,6 +4,9 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.specific.ASTValue;
 import me.darknet.assembler.parser.Token;
 
+/**
+ * Numeric literal node supporting integer and floating-point source spellings.
+ */
 public class ASTNumber extends ASTValue {
 
 	/**

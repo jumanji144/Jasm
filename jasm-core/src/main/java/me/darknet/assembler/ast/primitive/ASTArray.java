@@ -9,6 +9,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
+/**
+ * Array literal node containing an ordered list of source elements from a {@code { ... }} expression.
+ */
 public class ASTArray extends ASTElement {
 
     private final List<@Nullable ASTElement> values;

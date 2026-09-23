@@ -4,6 +4,9 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 
+/**
+ * Enum constant reference node containing its owner, field name, and optional field type.
+ */
 public class ASTEnum extends ASTElement {
 
     private final ASTIdentifier enumOwner;

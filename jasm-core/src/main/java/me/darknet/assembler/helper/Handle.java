@@ -11,8 +11,21 @@ import java.lang.invoke.TypeDescriptor;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Method-handle descriptor used to resolve a handle constant or shortcut.
+ *
+ * @param kind
+ *     Operation kind represented by this handle.
+ * @param name
+ *     Owner and member name referenced by the handle.
+ * @param descriptor
+ *     JVM descriptor for the referenced field or method.
+ */
 public record Handle(Kind kind, String name, String descriptor) {
 
+    /**
+     * Mapping of source keywords to handle kinds, used to parse a handle from an array.
+     */
     public static Map<String, Kind> KINDS = Map.of(
             "getfield", Kind.GET_FIELD, "getstatic", Kind.GET_STATIC, "putfield", Kind.PUT_FIELD, "putstatic",
             Kind.PUT_STATIC, "invokevirtual", Kind.INVOKE_VIRTUAL, "invokestatic", Kind.INVOKE_STATIC, "invokespecial",

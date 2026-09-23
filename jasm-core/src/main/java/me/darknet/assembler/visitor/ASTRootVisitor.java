@@ -2,6 +2,9 @@ package me.darknet.assembler.visitor;
 
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 
+/**
+ * Root visitor for top-level annotations, classes, fields, and methods.
+ */
 public interface ASTRootVisitor {
 
     // TODO: This method is never called in our tests.

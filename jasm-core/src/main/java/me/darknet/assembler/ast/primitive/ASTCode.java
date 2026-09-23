@@ -9,6 +9,9 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Code block node containing an ordered sequence of {@link ASTInstruction} nodes.
+ */
 public class ASTCode extends ASTElement implements Iterable<@NotNull ASTInstruction> {
 
     private final List<@NotNull ASTInstruction> instructions;

@@ -4,6 +4,9 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 
+/**
+ * Exception-handler declaration node containing protected-range labels, a handler label, and an exception type.
+ */
 public class ASTException extends ASTElement {
 
     private final ASTIdentifier start;

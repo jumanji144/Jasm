@@ -3,6 +3,12 @@ package me.darknet.assembler.cli;
 import me.darknet.assembler.cli.commands.MainCommand;
 import picocli.CommandLine;
 
+/**
+ * Process entry point for the Jasm command-line application.
+ * <p>
+ * Builds a Picocli {@link CommandLine} around {@link MainCommand}; this class is the jar's
+ * {@code Main-Class}.
+ */
 public class JasmCli {
 	public static void main(String[] args) {
 		CommandLine commandLine = new CommandLine(new MainCommand());

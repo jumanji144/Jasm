@@ -9,6 +9,9 @@ import me.darknet.assembler.visitor.Modifiers;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Inner-class metadata node containing its optional name, outer class, inner class, and access modifiers.
+ */
 public class ASTInner extends ASTElement implements ASTAccessed {
 
     private final @Nullable ASTIdentifier name;

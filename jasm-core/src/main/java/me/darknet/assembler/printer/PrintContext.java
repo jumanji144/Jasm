@@ -9,6 +9,9 @@ import java.io.Writer;
 import java.util.Iterator;
 import java.util.function.BiConsumer;
 
+/**
+ * Shared source-emission context with indentation, escaping, and builders for objects, declaration objects, arrays, and code.
+ */
 @SuppressWarnings("unchecked")
 public class PrintContext<T extends PrintContext<?>> {
 

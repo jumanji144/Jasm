@@ -8,6 +8,9 @@ import me.darknet.assembler.util.ImmutableElementMap;
 
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Object literal node containing identifier-keyed source values.
+ */
 public class ASTObject extends ASTElement {
 
     private final ImmutableElementMap<ASTIdentifier, @Nullable ASTElement> values;

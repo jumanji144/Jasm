@@ -4,6 +4,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Utilities for escaping and unescaping source strings and literals.
+ */
 public class EscapeUtil {
 
     private static final Map<Character, String> BASE_ESCAPE_MAP = new HashMap<>(

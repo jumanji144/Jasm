@@ -16,6 +16,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Class declaration node containing class members and class-level metadata such as interfaces, nesting, and record components.
+ */
 public class ASTClass extends ASTMember {
     private final @NotNull List<ASTElement> contents;
     private @NotNull List<ASTIdentifier> interfaces = Collections.emptyList();

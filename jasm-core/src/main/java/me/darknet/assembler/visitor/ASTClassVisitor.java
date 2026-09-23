@@ -7,6 +7,9 @@ import me.darknet.assembler.ast.specific.ASTOuterMethod;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Visitor for class declarations and their class, field, method, and record-component members.
+ */
 public interface ASTClassVisitor extends ASTDeclarationVisitor {
 	default void visitSourceDebugExtension(@Nullable ASTString sourceDebugExtension) {}
 

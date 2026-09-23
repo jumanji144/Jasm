@@ -11,6 +11,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Record-component node containing its name, descriptor, optional signature, and annotations.
+ */
 public class ASTRecordComponent extends ASTElement implements ASTAnnotated, ASTSigned {
     private List<ASTAnnotation> visibleAnnotations = Collections.emptyList();
     private List<ASTAnnotation> invisibleAnnotations = Collections.emptyList();

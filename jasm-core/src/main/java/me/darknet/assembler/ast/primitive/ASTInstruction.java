@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+/**
+ * Instruction node containing a mnemonic identifier and its source operands.
+ */
 public class ASTInstruction extends ASTElement {
 
     private final ASTIdentifier identifier;

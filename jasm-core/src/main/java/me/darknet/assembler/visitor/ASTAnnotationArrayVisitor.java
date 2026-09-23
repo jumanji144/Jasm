@@ -10,6 +10,9 @@ import me.darknet.assembler.ast.specific.ASTValue;
 import me.darknet.assembler.error.ErrorCollector;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Visitor for annotation array values, including nested annotations, types, enums, and arrays.
+ */
 public interface ASTAnnotationArrayVisitor {
     void visitValue(ASTValue value);
 

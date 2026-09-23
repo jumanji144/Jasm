@@ -5,6 +5,14 @@ import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 
+/**
+ * Constant value tagged with its assembler constant type.
+ *
+ * @param type
+ * 		Kind of constant represented by this value.
+ * @param value
+ * 		Underlying constant value.
+ */
 public record Constant(Type type, Object value) {
 
     /**
@@ -39,6 +47,9 @@ public record Constant(Type type, Object value) {
         };
     }
 
+    /**
+     * Categories of constant values represented by a {@link Constant}.
+     */
     public enum Type {
         String,
         Number,

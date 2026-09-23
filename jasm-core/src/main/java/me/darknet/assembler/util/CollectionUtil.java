@@ -5,6 +5,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
+/**
+ * Utilities for creating, merging, filtering, and safely copying collections.
+ */
 public class CollectionUtil {
 
     public static <T> List<T> fromArray(@Nullable T[] array) {
