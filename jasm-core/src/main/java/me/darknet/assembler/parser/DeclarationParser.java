@@ -3,11 +3,12 @@ package me.darknet.assembler.parser;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.*;
-import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.error.DiagnosticSink;
+import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
-import me.darknet.assembler.util.Pair;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -22,70 +23,51 @@ public class DeclarationParser {
 
     private ParserContext ctx;
 
-    /**
-     * Parse all declarations from the given tokens, this will only try to parse
-     * declarations. Result for this method will always be a list of
-     * {@link ASTDeclaration} or null if parsing that element failed.
-     *
-     * @param tokens
-     *               the tokens to parse
-     *
-     * @return {@link ParsingResult} of the parsing
-     */
-    public ParsingResult<List<@Nullable ASTElement>> parseDeclarations(Collection<Token> tokens) {
-        if (tokens.isEmpty()) {
-            return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
-        }
-        Pair<List<Token>, Collection<Token>> filtered = filterComments(tokens);
-        if (filtered.second().isEmpty()) {
-            return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), filtered.first());
-        }
-        this.ctx = new ParserContext(this, new ArrayList<>(filtered.second()));
-        List<ASTElement> declarations = new ArrayList<>();
-        while (!this.ctx.done()) {
+	/**
+	 * Parse all declarations from the given tokens, preserving partial AST recovery when syntax errors occur.
+	 *
+	 * @param tokens
+	 * 		the tokens to parse
+	 *
+	 * @return the parsed declarations and syntax diagnostics
+	 */
+    public Outcome<List<@Nullable ASTElement>> parseDeclarations(Collection<Token> tokens) {
+        List<Token> filtered = filterComments(tokens);
+        if (filtered.isEmpty())
+            return Outcome.success(List.of());
+        this.ctx = new ParserContext(this, filtered);
+        List<@Nullable ASTElement> declarations = new ArrayList<>();
+        while (!this.ctx.done())
             declarations.add(parseDeclaration());
-        }
-        return new ParsingResult<>(declarations, ctx.errorCollector.getErrors(), filtered.first());
+        return Outcome.of(declarations, ctx.diagnostics.diagnostics());
     }
 
-    /**
-     * Parse any element from the given tokens, this will try to parse any element.
-     * Results for this method can only include objects from
-     * {@link me.darknet.assembler.ast.primitive} and {@link ASTDeclaration}
-     *
-     * @param tokens
-     *               the tokens to parse
-     *
-     * @return {@link ParsingResult} of the parsing
-     */
-    public ParsingResult<List<@Nullable ASTElement>> parseAny(Collection<Token> tokens) {
-        if (tokens.isEmpty()) {
-            return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
-        }
-        Pair<List<Token>, Collection<Token>> filtered = filterComments(tokens);
-        if (filtered.second().isEmpty()) {
-            return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), filtered.first());
-        }
-        this.ctx = new ParserContext(this, new ArrayList<>(filtered.second()));
-        List<ASTElement> result = new ArrayList<>();
-        while (!this.ctx.done()) {
-            ASTElement element = parse();
-            result.add(element);
-        }
-        return new ParsingResult<>(result, ctx.errorCollector.getErrors(), filtered.first());
+	/**
+	 * Parse any supported element from the given tokens, preserving partial AST recovery.
+	 *
+	 * @param tokens
+	 * 		the tokens to parse
+	 *
+	 * @return the parsed elements and syntax diagnostics
+	 */
+    public Outcome<List<@Nullable ASTElement>> parseAny(Collection<Token> tokens) {
+        List<Token> filtered = filterComments(tokens);
+        if (filtered.isEmpty())
+            return Outcome.success(List.of());
+        this.ctx = new ParserContext(this, filtered);
+        List<@Nullable ASTElement> result = new ArrayList<>();
+        while (!this.ctx.done())
+            result.add(parse());
+        return Outcome.of(result, ctx.diagnostics.diagnostics());
     }
 
-    private Pair<List<Token>, Collection<Token>> filterComments(Collection<Token> tokens) {
-        List<Token> filtered = new ArrayList<>();
-        List<Token> comments = new ArrayList<>();
+    private List<Token> filterComments(Collection<Token> tokens) {
+        List<Token> filtered = new ArrayList<>(tokens.size());
         for (Token token : tokens) {
-            if (token.type().equals(TokenType.COMMENT)) {
-                comments.add(token);
-            } else {
+            if (token.type() != TokenType.COMMENT)
                 filtered.add(token);
-            }
         }
-        return new Pair<>(comments, filtered);
+        return filtered;
     }
 
     private @Nullable ASTElement parseOperator(Token token) {
@@ -162,7 +144,7 @@ public class DeclarationParser {
             case OPERATOR -> {
                 return parseOperator(token);
             }
-            default -> ctx.errorCollector.addError(new Error("Unexpected token " + token.content(), token.location()));
+            default -> ctx.throwError(DiagnosticCode.UNEXPECTED_TOKEN, "Unexpected token " + token.content(), token.location());
         }
         return null;
     }
@@ -436,7 +418,7 @@ public class DeclarationParser {
 
         private final DeclarationParser parser;
         private final List<Token> tokens;
-        private final ErrorCollector errorCollector = new ErrorCollector();
+        private final DiagnosticSink diagnostics = new DiagnosticSink(DiagnosticPhase.SYNTAX);
         private int idx = 0;
         private Token latest;
 
@@ -522,27 +504,21 @@ public class DeclarationParser {
                 }
             }
             if (!valid) {
-                errorCollector.addError(
-                        new Error(
-                                "Expected one of " + Arrays.toString(validTypes) + " but got " + element.type(),
-                                element.value().location()
-                        )
-                );
+                diagnostics.error(DiagnosticCode.UNEXPECTED_TOKEN,
+                        "Expected one of " + Arrays.toString(validTypes) + " but got " + element.type(),
+                        element.value().location());
                 return null;
             }
             return element;
         }
 
-        public void throwError(Error error) {
-            errorCollector.addError(error);
+        public void throwError(DiagnosticCode code, String message, Location location) {
+            diagnostics.error(code, message, location);
         }
 
         public void throwEofError(String expected) {
-            if (latest == null) {
-                throwError(new Error("Expected '" + expected + "' but got EOF", new Location(-1, -1, 0, "")));
-                return;
-            }
-            throwError(new Error("Expected '" + expected + "' but got EOF", latest.location()));
+            Location location = latest == null ? new Location(-1, -1, 0, "") : latest.location();
+            throwError(DiagnosticCode.UNEXPECTED_TOKEN, "Expected '" + expected + "' but got EOF", location);
         }
 
         public void throwExpectedError(String expected, String got) {
@@ -550,7 +526,7 @@ public class DeclarationParser {
                 throwEofError(expected);
                 return;
             }
-            throwError(new Error("Expected '" + expected + "' but got '" + got + "'", latest.location()));
+            throwError(DiagnosticCode.UNEXPECTED_TOKEN, "Expected '" + expected + "' but got '" + got + "'", latest.location());
         }
 
         public void throwUnexpectedError(String got) {
@@ -558,9 +534,7 @@ public class DeclarationParser {
                 throwEofError("any token");
                 return;
             }
-            throwError(new Error("Unexpected token '" + got + "'", latest.location()));
+            throwError(DiagnosticCode.UNEXPECTED_TOKEN, "Unexpected token '" + got + "'", latest.location());
         }
-
     }
-
 }

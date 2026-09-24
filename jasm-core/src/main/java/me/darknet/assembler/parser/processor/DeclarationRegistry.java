@@ -2,6 +2,7 @@ package me.darknet.assembler.parser.processor;
 
 import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.error.DiagnosticCode;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
@@ -15,7 +16,7 @@ public final class DeclarationRegistry {
 	private static final DeclarationHandler DEFAULT_HANDLER = (context, declaration) -> {
 		ASTIdentifier keyword = declaration.keyword();
 		String content = keyword == null ? "<missing>" : keyword.content();
-		context.throwError("Unknown declaration: " + content, declaration.location());
+		context.throwError(DiagnosticCode.UNKNOWN_DECLARATION, "Unknown declaration: " + content, declaration.location());
 		return null;
 	};
 

@@ -1,14 +1,16 @@
 package me.darknet.assembler;
 
+import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.compile.DalvikClassResult;
 import me.darknet.assembler.compile.DalvikCompiler;
 import me.darknet.assembler.compile.DalvikCompilerOptions;
+import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
 import me.darknet.assembler.compiler.ClassResult;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.EmptyInheritanceChecker;
+import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.error.Warn;
-import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.DalvikDexFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
@@ -32,13 +34,13 @@ public class TestUtils {
     public static void processDalvik(String source, CompilerOptions<?> options,
                                      ThrowingConsumer<DalvikClassResult> outputConsumer,
                                      Consumer<List<Warn>> warningConsumer) {
-        Result<List<me.darknet.assembler.ast.ASTElement>> astResult =
-                AssemblyParseFixture.processDeclarations("<test>", source, BytecodeFormat.DALVIK);
-        if (astResult.hasErr()) {
+        Outcome<List<ASTElement>> astResult =
+                AssemblyParseFixture.processDeclarations("<test>", source, DalvikTargetContext.INSTANCE);
+        if (astResult.hasErrors()) {
             fail("Failed to parse Dalvik class\n" + DiagnosticAssertions.formatErrors(astResult.errors()));
         }
 
-        Result<? extends ClassResult> compilation = new DalvikCompiler().compile(astResult.get(), options);
+        Result<? extends ClassResult> compilation = new DalvikCompiler().compile(astResult.requireValue(), options);
         if (compilation.hasErr()) {
             fail("Failed to compile Dalvik class\n" + DiagnosticAssertions.formatErrors(compilation.errors()));
         }
@@ -118,8 +120,8 @@ public class TestUtils {
     }
 
     public static void assertParsesDalvik(String source) {
-        var result = AssemblyParseFixture.processDeclarations("<test>", source, BytecodeFormat.DALVIK);
-        if (result.hasErr()) {
+        var result = AssemblyParseFixture.processDeclarations("<test>", source, DalvikTargetContext.INSTANCE);
+        if (result.hasErrors()) {
             fail("Failed to parse Dalvik class\n" + DiagnosticAssertions.formatErrors(result.errors()));
         }
     }

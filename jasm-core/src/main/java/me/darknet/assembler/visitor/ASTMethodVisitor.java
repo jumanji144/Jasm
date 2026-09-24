@@ -3,7 +3,7 @@ package me.darknet.assembler.visitor;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.error.DiagnosticSink;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -21,14 +21,6 @@ public interface ASTMethodVisitor extends ASTDeclarationVisitor {
 	void visitParameter(int index, @NotNull ASTIdentifier name);
 
 	/**
-	 * Visits the total Dalvik register count when it is explicitly declared.
-	 *
-	 * @param registers
-	 * 		The total register count.
-	 */
-	default void visitRegisterCount(int registers) {}
-
-	/**
 	 * Visits a declared exception type.
 	 *
 	 * @param exceptionType
@@ -39,50 +31,39 @@ public interface ASTMethodVisitor extends ASTDeclarationVisitor {
 	/**
 	 * Visits the default value of an annotation method.
 	 *
+	 * @param sink
+	 * 		Sink to report problems to.
 	 * @param defaultValue
 	 * 		The default value.
 	 */
-	void visitAnnotationDefaultValue(ASTElement defaultValue);
+	void visitAnnotationDefaultValue(@NotNull DiagnosticSink sink, ASTElement defaultValue);
 
 	/**
-	 * Visits the method body.
+	 * Visits the method body through the neutral instruction visitor protocol.
 	 *
 	 * @param collector
-	 * 		Error collector to report errors to.
+	 * 		Diagnostic sink to report errors to.
 	 *
 	 * @return Visitor for the method body, or {@code null} if the method body is not supported.
 	 */
-	default ASTJvmInstructionVisitor visitJvmCode(@NotNull ErrorCollector collector) {
+	default ASTInstructionVisitor visitCode(@NotNull DiagnosticSink collector) {
 		return null;
 	}
 
 	/**
-	 * Visits the method body.
-	 *
-	 * @param collector
-	 * 		Error collector to report errors to.
-	 *
-	 * @return Visitor for the method body, or {@code null} if the method body is not supported.
-	 */
-	default ASTDalvikInstructionVisitor visitDalvikCode(@NotNull ErrorCollector collector) {
-		return null;
-	}
-
-	/**
-	 * Visits a parameter annotation with its source-syntax visibility.
+	 * Visits an annotation attached to one method parameter.
 	 *
 	 * @param visibility
-	 * 		Visibility represented by the annotation's source syntax.
+	 * 		Visibility requested by the source keyword.
 	 * @param index
-	 * 		The zero-based JVM parameter index emitted by the current AST traversal; an instance receiver is excluded.
+	 * 		Source parameter index, including a receiver when present.
 	 * @param classType
 	 * 		The annotation type.
 	 *
-	 * @return Visitor for the annotation.
-	 * @throws UnsupportedOperationException if parameter annotations are unsupported.
+	 * @return Visitor for the annotation, or {@code null} if the annotation is not supported.
 	 */
 	default ASTAnnotationVisitor visitParameterAnnotation(@NotNull AnnotationVisibility visibility, int index,
-	                                                       @NotNull ASTIdentifier classType) {
+	                                                      @NotNull ASTIdentifier classType) {
 		throw new UnsupportedOperationException("Target does not support parameter annotations");
 	}
 }

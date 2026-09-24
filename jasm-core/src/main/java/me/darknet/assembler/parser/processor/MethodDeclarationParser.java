@@ -5,16 +5,19 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTCode;
 import me.darknet.assembler.ast.primitive.ASTDeclaration;
+import me.darknet.assembler.ast.primitive.ASTEmpty;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.ast.primitive.ASTInstruction;
-import me.darknet.assembler.ast.primitive.ASTLabel;
-import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTException;
 import me.darknet.assembler.ast.specific.ASTMethod;
-import me.darknet.assembler.instructions.Instruction;
+import me.darknet.assembler.descriptor.DescriptorForm;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.target.AnnotationCapability;
+import me.darknet.assembler.target.MethodAttributeParser;
+import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.visitor.Modifiers;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,23 +72,11 @@ final class MethodDeclarationParser {
 			}
 		}
 
-		ASTNumber registerCount = null;
-		ASTElement registerCountElement = body.values().get(ProcessorKeywords.REGISTERS);
-		if (registerCountElement != null) {
-			registerCount = context.validateElement(
-					registerCountElement, ElementType.NUMBER, "method register count", declaration
-			);
-			if (registerCount != null && (registerCount.isFloatingPoint() || registerCount.asLong() < 0
-					|| registerCount.asLong() > Integer.MAX_VALUE)) {
-				context.throwError("Method register count must be a nonnegative integer", registerCount.location());
-			}
-		}
-
 		Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations = parseParameterAnnotations(context, declaration, body);
 		List<ASTIdentifier> declaredExceptions = parseDeclaredExceptions(context, declaration, body);
 
 		ASTElement defaultValueElement = body.values().get(ProcessorKeywords.DEFAULT_VALUE);
-		if (defaultValueElement != null) {
+		if (defaultValueElement != null && context.supports(AnnotationCapability.ANNOTATION_DEFAULT_VALUES, defaultValueElement)) {
 			context.enterState(ProcessorFlag.IN_ANNOTATION);
 			AnnotationDeclarationParser.validateElementValue(context, defaultValueElement);
 			context.leaveState(ProcessorFlag.IN_ANNOTATION);
@@ -94,40 +85,18 @@ final class MethodDeclarationParser {
 		List<ASTException> exceptions = parseExceptions(context, declaration, body);
 
 		ASTCode code = null;
-		List<Instruction<?>> instructions = new ArrayList<>();
 		ASTElement codeElement = body.values().get(ProcessorKeywords.CODE);
-		if (codeElement != null) {
+		if (codeElement != null)
 			code = context.validateEmptyableElement(codeElement, ElementType.CODE, "method code", declaration);
-			if (code != null) {
-				for (ASTInstruction instruction : code.getInstructions()) {
-					if (instruction == null || instruction instanceof ASTLabel) {
-						continue;
-					}
-					Instruction<?> parsed = context.getInstructions().get(instruction.identifier().content());
-					if (parsed == null) {
-						context.throwError(
-								"Unknown instruction: " + instruction.identifier().content(),
-								instruction.identifier().location()
-						);
-						continue;
-					}
-					parsed.verify(instruction, context);
-					instructions.add(parsed);
-				}
-			}
-		}
+
+		ElementMap<ASTIdentifier, @Nullable ASTElement> methodAttributes = parseMethodAttributes(context, declaration, body);
 
 		int nameIndex = lastIndex - 2;
 		int descIndex = lastIndex - 1;
-		ASTIdentifier name = context.validateIdentifier(
-				context.declarationElement(declaration, nameIndex), "method name", declaration
-		);
-		ASTIdentifier desc = context.validateIdentifier(
-				context.declarationElement(declaration, descIndex), "method descriptor", declaration
-		);
-		if (name == null || desc == null) {
+		ASTIdentifier name = context.validateIdentifier(context.declarationElement(declaration, nameIndex), "method name", declaration);
+		ASTIdentifier desc = context.validateDescriptor(context.declarationElement(declaration, descIndex), DescriptorForm.METHOD, "method descriptor", declaration);
+		if (name == null || desc == null)
 			return null;
-		}
 
 		Modifiers modifiers = ModifierParser.parseModifiers(context, nameIndex, declaration);
 		ASTMethod method = new ASTMethod(
@@ -140,11 +109,26 @@ final class MethodDeclarationParser {
 				defaultValueElement,
 				exceptions,
 				code,
-				instructions,
-				context.getFormat()
+				methodAttributes
 		);
-		method.setRegisterCount(registerCount);
-		return method.accept(context.state().collectAttributes());
+		return method.accept(context.state().collectGenericAttributes());
+	}
+
+	private static ElementMap<ASTIdentifier, @Nullable ASTElement> parseMethodAttributes(ProcessorContext context, ASTDeclaration declaration, ASTObject body) {
+		ElementMap<ASTIdentifier, @Nullable ASTElement> attributes = new ElementMap<>();
+		for (var pair : body.values().pairs()) {
+			ASTIdentifier key = pair.first();
+			if (ProcessorKeywords.getCommonMethodBodyKeywords().contains(key.content()))
+				continue;
+			MethodAttributeParser parser = context.getTarget().methodAttributes().get(key.content());
+			if (parser == null) {
+				context.throwError(DiagnosticCode.UNSUPPORTED_FORM, "Method attribute '" + key.content() + "' is not supported by this target", key.location());
+				continue;
+			}
+			parser.parse(context, pair.second(), declaration);
+			attributes.put(key, pair.second());
+		}
+		return attributes;
 	}
 
 	/**
@@ -164,31 +148,29 @@ final class MethodDeclarationParser {
 		if (parameterAnnotationsElement == null) {
 			return new IdentityHashMap<>();
 		}
+		if (!context.supports(AnnotationCapability.PARAMETER_ANNOTATIONS, parameterAnnotationsElement))
+			return new IdentityHashMap<>();
 
-		ASTObject parameterAnnotationsObject = context.validateEmptyableElement(
-				parameterAnnotationsElement,
-				ElementType.OBJECT,
-				"parameter annotations",
-				declaration
-		);
-		if (parameterAnnotationsObject == null) {
+		ASTObject parameterAnnotationsObject;
+		if (parameterAnnotationsElement.type() == ElementType.EMPTY) {
+			parameterAnnotationsObject = ASTEmpty.EMPTY_OBJECT;
+		} else if (parameterAnnotationsElement.type() == ElementType.OBJECT) {
+			parameterAnnotationsObject = (ASTObject) parameterAnnotationsElement;
+		} else {
+			context.throwError(DiagnosticCode.PAYLOAD_SHAPE, "Expected parameter annotations object", parameterAnnotationsElement.location());
 			return new IdentityHashMap<>();
 		}
 
 		Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations = new IdentityHashMap<>();
 		context.enterState(ProcessorFlag.SKIP_PENDING_ANNOTATION);
 		for (var pair : parameterAnnotationsObject.values().pairs()) {
-			ASTIdentifier parameter = context.validateMaybeIdentifier(
-					pair.first(), "parameter annotation target", declaration
-			);
-			if (parameter == null) {
+			ASTIdentifier parameter = context.validateMaybeIdentifier(pair.first(), "parameter annotation target", declaration);
+			if (parameter == null)
 				continue;
-			}
 
 			List<ASTAnnotation> collected = collectParameterAnnotations(context, declaration, pair.second());
-			if (!collected.isEmpty()) {
+			if (!collected.isEmpty())
 				parameterAnnotations.put(parameter, collected);
-			}
 		}
 		context.leaveState(ProcessorFlag.SKIP_PENDING_ANNOTATION);
 		return parameterAnnotations;
@@ -208,13 +190,17 @@ final class MethodDeclarationParser {
 	private static List<ASTAnnotation> collectParameterAnnotations(ProcessorContext context, ASTDeclaration declaration,
 	                                                               ASTElement annotationList) {
 		List<ASTAnnotation> collected = new ArrayList<>();
+		if (annotationList == null) {
+			context.throwError(DiagnosticCode.PAYLOAD_SHAPE, "Expected parameter annotation list", declaration.location());
+			return collected;
+		}
 		if (annotationList instanceof ASTDeclaration singleAnnotation) {
 			if (singleAnnotation.keyword() == null) {
 				for (ASTElement element : singleAnnotation.elements()) {
-					ASTDeclaration nestedDeclaration = context.validateElement(
-							element, ElementType.DECLARATION, "parameter annotation", declaration
-					);
-					if (nestedDeclaration == null) {
+					if (!(element instanceof ASTDeclaration nestedDeclaration)) {
+						context.throwError(DiagnosticCode.PAYLOAD_SHAPE,
+								"Expected parameter annotation declaration",
+								element == null ? singleAnnotation.location() : element.location());
 						continue;
 					}
 					ASTAnnotation annotation = AnnotationDeclarationParser.parseEmbeddedAnnotation(context, nestedDeclaration);
@@ -231,18 +217,21 @@ final class MethodDeclarationParser {
 			return collected;
 		}
 
-		ASTArray annotations = context.validateEmptyableElement(
-				annotationList, ElementType.ARRAY, "parameter annotation list", declaration
-		);
-		if (annotations == null) {
+		ASTArray annotations;
+		if (annotationList.type() == ElementType.EMPTY) {
+			annotations = ASTEmpty.EMPTY_ARRAY;
+		} else if (annotationList.type() == ElementType.ARRAY) {
+			annotations = (ASTArray) annotationList;
+		} else {
+			context.throwError(DiagnosticCode.PAYLOAD_SHAPE, "Expected parameter annotation list array", annotationList.location());
 			return collected;
 		}
 
 		for (ASTElement element : annotations.values()) {
-			ASTDeclaration annotationDeclaration = context.validateElement(
-					element, ElementType.DECLARATION, "parameter annotation", declaration
-			);
-			if (annotationDeclaration == null) {
+			if (!(element instanceof ASTDeclaration annotationDeclaration)) {
+				context.throwError(DiagnosticCode.PAYLOAD_SHAPE,
+						"Expected parameter annotation declaration",
+						element == null ? annotations.location() : element.location());
 				continue;
 			}
 			ASTAnnotation annotation = AnnotationDeclarationParser.parseEmbeddedAnnotation(context, annotationDeclaration);
@@ -276,7 +265,10 @@ final class MethodDeclarationParser {
 		if (array == null)
 			return Collections.emptyList();
 
-		return context.validateArray(array, ElementType.IDENTIFIER, "declared exception type", declaration);
+		List<ASTIdentifier> types = context.validateArray(array, ElementType.IDENTIFIER, "declared exception type", declaration);
+		return types.stream()
+				.filter(type -> !context.isNotDescriptor(type, DescriptorForm.INTERNAL_NAME, "declared exception name"))
+				.toList();
 	}
 
 	/**
@@ -337,7 +329,7 @@ final class MethodDeclarationParser {
 		ASTIdentifier start = context.validateIdentifier(array.value(0), "exception start", array);
 		ASTIdentifier end = context.validateIdentifier(array.value(1), "exception end", array);
 		ASTIdentifier handler = context.validateIdentifier(array.value(2), "exception handler", array);
-		ASTIdentifier type = context.validateIdentifier(array.value(3), "exception type", array);
+		ASTIdentifier type = context.validateDescriptor(array.value(3), DescriptorForm.INTERNAL_NAME, "exception handler type", array);
 		if (start == null || end == null || handler == null || type == null)
 			return null;
 		return new ASTException(start, end, handler, type);

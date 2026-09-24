@@ -2,10 +2,11 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
-import me.darknet.assembler.error.Error;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
 import me.darknet.assembler.test.AssemblyParseFixture;
-import me.darknet.assembler.test.AstAssertions;
 import me.darknet.assembler.test.DiagnosticAssertions;
+import me.darknet.assembler.test.FixtureTarget;
 import me.darknet.assembler.parser.DeclarationParser;
 
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,8 @@ import java.util.function.Consumer;
 public class DeclarationParserTest {
 
     public static <T> T assertIs(Class<T> shouldBe, Object is) {
-        return AstAssertions.assertIs(shouldBe, is);
+        assertNotNull(is);
+        return assertInstanceOf(shouldBe, is);
     }
 
     @SuppressWarnings("unchecked")
@@ -33,7 +35,7 @@ public class DeclarationParserTest {
     }
 
     public static void parseString(String input, Consumer<List<ASTElement>> consumer) {
-        consumer.accept(DiagnosticAssertions.requireOk(
+        consumer.accept(DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.parse(input),
                 "Failed to parse declaration input"
         ));
@@ -240,7 +242,10 @@ public class DeclarationParserTest {
     @Test
     public void testInvalidInput() {
         var result = AssemblyParseFixture.parse("{ test, 4.... { {");
-        assertTrue(result.hasErr());
+        DiagnosticAssertions.assertHasError(result, DiagnosticCode.UNEXPECTED_TOKEN,
+                "Malformed declaration input should report a syntax diagnostic");
+        DiagnosticAssertions.assertPhase(result.diagnostics(), DiagnosticPhase.SYNTAX,
+                "Malformed declaration input should be reported in the syntax phase");
         assertEquals(2, result.errors().size());
     }
 
@@ -287,26 +292,30 @@ public class DeclarationParserTest {
     @Test
     public void testCommentOnlyInputProducesEmptyResults() {
         String source = "// first\n// second";
-        var tokens = DiagnosticAssertions.requireOk(
+        var tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize(source),
                 "Failed to tokenize comment-only input"
         );
 
         var any = new DeclarationParser().parseAny(tokens);
-        assertFalse(any.hasErr());
-        assertTrue(any.get().isEmpty());
-        assertEquals(tokens, any.comments());
+        assertTrue(any.isSuccess(), "Comment-only input should parse successfully");
+        assertTrue(DiagnosticAssertions.requireSuccess(any, "Comment-only input should have no syntax diagnostics").isEmpty());
 
         var declarations = new DeclarationParser().parseDeclarations(tokens);
-        assertFalse(declarations.hasErr());
-        assertTrue(declarations.get().isEmpty());
-        assertEquals(tokens, declarations.comments());
+        assertTrue(declarations.isSuccess(), "Comment-only declarations should parse successfully");
+        assertTrue(DiagnosticAssertions.requireSuccess(
+                declarations,
+                "Comment-only declarations should have no syntax diagnostics"
+        ).isEmpty());
 
         var processed = AssemblyParseFixture.processDeclarations(
-                "<stdin>", source, me.darknet.assembler.parser.BytecodeFormat.DEFAULT
+                "<stdin>", source, FixtureTarget.JVM.context()
         );
-        assertFalse(processed.hasErr());
-        assertTrue(processed.get().isEmpty());
+        assertTrue(processed.isSuccess(), "Comment-only input should process successfully");
+        assertTrue(DiagnosticAssertions.requireSuccess(
+                processed,
+                "Comment-only input should have no target diagnostics"
+        ).isEmpty());
     }
 
 }

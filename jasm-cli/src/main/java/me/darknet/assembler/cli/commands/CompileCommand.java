@@ -15,12 +15,18 @@ import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.EmptyInheritanceChecker;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
+import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
+import me.darknet.assembler.backend.jvm.JvmTargetContext;
+import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.error.Error;
+import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.error.Result;
+import me.darknet.assembler.error.Severity;
 import me.darknet.assembler.error.Warn;
 import me.darknet.assembler.helper.Processor;
 import me.darknet.assembler.io.DalvikDexIO;
 import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.target.TargetContext;
 import me.darknet.dex.tree.DexFile;
 import me.darknet.dex.tree.definitions.ClassDefinition;
 import picocli.CommandLine;
@@ -261,14 +267,19 @@ public class CompileCommand implements Callable<Integer> {
     }
 
     private ClassRepresentation compileUnit(SourceUnit unit) {
-        Result<List<ASTElement>> parsed = Processor.processSourceResult(
-                unit.code(), unit.sourceName(), MainCommand.target
+        TargetContext target = switch (MainCommand.target) {
+            case JVM -> JvmTargetContext.INSTANCE;
+            case DALVIK -> DalvikTargetContext.INSTANCE;
+            default -> throw failure("Unknown target: " + MainCommand.target);
+        };
+        Outcome<List<ASTElement>> parsed = Processor.processSourceResult(
+                unit.code(), unit.sourceName(), target
         );
-        printWarnings(parsed.getWarns());
-        if (parsed.hasErr()) {
-            throw failure("Failed to parse source file:\n" + formatErrors(parsed.errors()));
+        printParserWarnings(parsed.diagnostics());
+        if (parsed.hasErrors()) {
+            throw failure("Failed to parse source file:\n" + formatDiagnostics(parsed.errors()));
         }
-        List<ASTElement> ast = parsed.get();
+        List<ASTElement> ast = parsed.requireValue();
         validateAst(ast);
 
         Result<? extends ClassResult> compileResult = compiler.compile(ast, options);
@@ -328,6 +339,17 @@ public class CompileCommand implements Callable<Integer> {
 
     private static String formatErrors(List<Error> errors) {
         return String.join("\n", errors.stream().map(String::valueOf).toList());
+    }
+
+    private static String formatDiagnostics(List<Diagnostic> diagnostics) {
+        return String.join("\n", diagnostics.stream().map(String::valueOf).toList());
+    }
+
+    private void printParserWarnings(List<Diagnostic> diagnostics) {
+        for (Diagnostic diagnostic : diagnostics) {
+            if (diagnostic.severity() == Severity.WARNING)
+                commandSpec.commandLine().getErr().println(diagnostic);
+        }
     }
 
     private void printWarnings(Iterable<Warn> warnings) {

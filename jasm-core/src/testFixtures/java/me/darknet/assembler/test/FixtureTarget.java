@@ -62,7 +62,6 @@ public final class FixtureTarget implements AssemblyTarget {
             methodAttributes = dalvik ? dalvikAttributes() : MethodAttributeRegistry.empty();
             annotationCapabilities = capability -> dalvik
                     ? capability != AnnotationCapability.TYPE_ANNOTATIONS
-                            && capability != AnnotationCapability.PARAMETER_ANNOTATIONS
                     : capability != AnnotationCapability.SYSTEM_VISIBILITY;
         }
 
@@ -97,9 +96,22 @@ public final class FixtureTarget implements AssemblyTarget {
                     ASTNumber source = context.validateElement(value, ElementType.NUMBER, "method register count", declaration);
                     if (source == null)
                         return null;
-                    if (source.isFloatingPoint() || source.asLong() < 0 || source.asLong() > Integer.MAX_VALUE)
+                    if (source.isFloatingPoint()) {
                         context.throwError("Method register count must be a nonnegative integer", source.location());
-                    return new FixtureMethodData(source.asInt(), source);
+                        return null;
+                    }
+                    long count;
+                    try {
+                        count = source.asLong();
+                    } catch (NumberFormatException exception) {
+                        context.throwError("Method register count must be a nonnegative integer", source.location());
+                        return null;
+                    }
+                    if (count < 0 || count > Integer.MAX_VALUE) {
+                        context.throwError("Method register count must be a nonnegative integer", source.location());
+                        return null;
+                    }
+                    return new FixtureMethodData((int) count, source);
                 }
             });
             return registry;

@@ -4,11 +4,14 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.ast.specific.ASTInner;
 import me.darknet.assembler.ast.specific.ASTOuterMethod;
 import me.darknet.assembler.ast.specific.ASTRecordComponent;
+import me.darknet.assembler.descriptor.DescriptorForm;
+import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.visitor.Modifiers;
 
 import java.util.List;
@@ -19,11 +22,33 @@ import java.util.List;
 final class ClassAttributeParsers {
 	private ClassAttributeParsers() {}
 
+	private static ASTElement parseVersion(ProcessorContext context, ASTDeclaration declaration) {
+		if (declaration.elements().size() != 1) {
+			context.throwError(DiagnosticCode.MALFORMED_DECLARATION, "Expected one class version value", declaration.location());
+			return null;
+		}
+		ASTNumber version = context.validateElement(context.declarationElement(declaration, 0), ElementType.NUMBER, "class version", declaration);
+		if (version == null)
+			return null;
+		try {
+			long value = version.asLong();
+			if (!version.isFloatingPoint() && value >= 1 && value <= 211) {
+				context.state().setVersion(version);
+				return version;
+			}
+		} catch (NumberFormatException ignored) {
+			// The source token is retained in the diagnostic location below.
+		}
+		context.throwError(DiagnosticCode.MALFORMED_DECLARATION, "Class version must be an integer from 1 through 211", version.location());
+		return null;
+	}
+
 	/**
 	 * @param registry
 	 * 		Registry to register the parsers in.
 	 */
 	static void register(DeclarationRegistry registry) {
+		registry.register("version", ClassAttributeParsers::parseVersion);
 		registry.register("deprecated", ClassAttributeParsers::parseDeprecated);
 		registry.register("signature", ClassAttributeParsers::parseSignature);
 		registry.register("sourcefile", ClassAttributeParsers::parseSourceFile);
@@ -116,8 +141,8 @@ final class ClassAttributeParsers {
 	 * @return Parsed super class attribute, or {@code null} if the declaration is invalid.
 	 */
 	private static ASTElement parseSuper(ProcessorContext context, ASTDeclaration declaration) {
-		ASTIdentifier superName = context.validateElement(
-				context.declarationElement(declaration, 0), ElementType.IDENTIFIER, "super name", declaration
+		ASTIdentifier superName = context.validateDescriptor(
+				context.declarationElement(declaration, 0), DescriptorForm.INTERNAL_NAME, "super name", declaration
 		);
 		if (superName != null)
 			context.state().setSuperName(superName);
@@ -133,8 +158,8 @@ final class ClassAttributeParsers {
 	 * @return Parsed implemented interface attribute, or {@code null} if the declaration is invalid.
 	 */
 	private static ASTElement parseImplements(ProcessorContext context, ASTDeclaration declaration) {
-		ASTIdentifier interfaceName = context.validateElement(
-				context.declarationElement(declaration, 0), ElementType.IDENTIFIER, "interface name", declaration
+		ASTIdentifier interfaceName = context.validateDescriptor(
+				context.declarationElement(declaration, 0), DescriptorForm.INTERNAL_NAME, "interface name", declaration
 		);
 		if (interfaceName != null)
 			context.state().addInterface(interfaceName);
@@ -150,8 +175,8 @@ final class ClassAttributeParsers {
 	 * @return Parsed permitted subclass attribute, or {@code null} if the declaration is invalid.
 	 */
 	private static ASTElement parsePermittedSubclass(ProcessorContext context, ASTDeclaration declaration) {
-		ASTIdentifier subclassName = context.validateElement(
-				context.declarationElement(declaration, 0), ElementType.IDENTIFIER, "interface name", declaration
+		ASTIdentifier subclassName = context.validateDescriptor(
+				context.declarationElement(declaration, 0), DescriptorForm.INTERNAL_NAME, "permitted subclass name", declaration
 		);
 		if (subclassName != null)
 			context.state().addPermittedSubclass(subclassName);
@@ -167,12 +192,8 @@ final class ClassAttributeParsers {
 	 * @return Parsed record component attribute, or {@code null} if the declaration is invalid.
 	 */
 	private static ASTElement parseRecordComponent(ProcessorContext context, ASTDeclaration declaration) {
-		ASTIdentifier name = context.validateElement(
-				context.declarationElement(declaration, 0), ElementType.IDENTIFIER, "record component name", declaration
-		);
-		ASTIdentifier desc = context.validateElement(
-				context.declarationElement(declaration, 1), ElementType.IDENTIFIER, "record component desc", declaration
-		);
+		ASTIdentifier name = context.validateElement(context.declarationElement(declaration, 0), ElementType.IDENTIFIER, "record component name", declaration);
+		ASTIdentifier desc = context.validateDescriptor(context.declarationElement(declaration, 1), DescriptorForm.FIELD, "record component descriptor", declaration);
 		if (name == null || desc == null)
 			return null;
 		ASTRecordComponent recordComponent = new ASTRecordComponent(name, desc);
@@ -190,8 +211,8 @@ final class ClassAttributeParsers {
 	 * @return Parsed outer class attribute, or {@code null} if the declaration is invalid.
 	 */
 	private static ASTElement parseOuterClass(ProcessorContext context, ASTDeclaration declaration) {
-		ASTIdentifier className = context.validateElement(
-				context.declarationElement(declaration, 0), ElementType.IDENTIFIER, "outer class", declaration
+		ASTIdentifier className = context.validateDescriptor(
+				context.declarationElement(declaration, 0), DescriptorForm.INTERNAL_NAME, "outer class name", declaration
 		);
 		if (className != null)
 			context.state().setOuterClass(className);
@@ -210,8 +231,8 @@ final class ClassAttributeParsers {
 		ASTIdentifier methodName = context.validateElement(
 				context.declarationElement(declaration, 0), ElementType.IDENTIFIER, "outer method name", declaration
 		);
-		ASTIdentifier methodDesc = context.validateElement(
-				context.declarationElement(declaration, 1), ElementType.IDENTIFIER, "outer method desc", declaration
+		ASTIdentifier methodDesc = context.validateDescriptor(
+				context.declarationElement(declaration, 1), DescriptorForm.METHOD, "outer method descriptor", declaration
 		);
 		if (methodName == null || methodDesc == null)
 			return null;
@@ -229,8 +250,8 @@ final class ClassAttributeParsers {
 	 * @return Parsed nest host attribute, or {@code null} if the declaration is invalid.
 	 */
 	private static ASTElement parseNestHost(ProcessorContext context, ASTDeclaration declaration) {
-		ASTIdentifier nestHost = context.validateElement(
-				context.declarationElement(declaration, 0), ElementType.IDENTIFIER, "nest host", declaration
+		ASTIdentifier nestHost = context.validateDescriptor(
+				context.declarationElement(declaration, 0), DescriptorForm.INTERNAL_NAME, "nest host", declaration
 		);
 		if (nestHost != null)
 			context.state().setNestHost(nestHost);
@@ -246,8 +267,8 @@ final class ClassAttributeParsers {
 	 * @return Parsed nest member attribute, or {@code null} if the declaration is invalid.
 	 */
 	private static ASTElement parseNestMember(ProcessorContext context, ASTDeclaration declaration) {
-		ASTIdentifier nestMember = context.validateElement(
-				context.declarationElement(declaration, 0), ElementType.IDENTIFIER, "nest member", declaration
+		ASTIdentifier nestMember = context.validateDescriptor(
+				context.declarationElement(declaration, 0), DescriptorForm.INTERNAL_NAME, "nest member", declaration
 		);
 		if (nestMember != null) {
 			context.state().addNestMember(nestMember);
@@ -282,8 +303,12 @@ final class ClassAttributeParsers {
 
 		Modifiers modifiers = ModifierParser.parseModifiers(context, bodyIndex, declaration);
 		ASTIdentifier name = context.validateMaybeIdentifier(body.values().get("name"), "inner class name", declaration);
-		ASTIdentifier inner = context.validateIdentifier(body.values().get("inner"), "inner class type", declaration);
-		ASTIdentifier outer = context.validateMaybeIdentifier(body.values().get("outer"), "outer class type", declaration);
+		ASTIdentifier inner = context.validateDescriptor(
+				body.values().get("inner"), DescriptorForm.INTERNAL_NAME, "inner class name", body
+		);
+		ASTIdentifier outer = context.validateMaybeIdentifier(body.values().get("outer"), "outer class type", body);
+		if (outer != null && context.isNotDescriptor(outer, DescriptorForm.INTERNAL_NAME, "outer class name"))
+			outer = null;
 		if (inner == null)
 			return null;
 

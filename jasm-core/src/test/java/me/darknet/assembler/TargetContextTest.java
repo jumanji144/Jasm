@@ -104,7 +104,7 @@ class TargetContextTest {
         assertTrue(jvm.supports(AnnotationCapability.ANNOTATION_DEFAULT_VALUES));
         assertTrue(dalvik.supports(AnnotationCapability.SYSTEM_VISIBILITY));
         assertFalse(dalvik.supports(AnnotationCapability.TYPE_ANNOTATIONS));
-        assertFalse(dalvik.supports(AnnotationCapability.PARAMETER_ANNOTATIONS));
+        assertTrue(dalvik.supports(AnnotationCapability.PARAMETER_ANNOTATIONS));
         assertTrue(dalvik.supports(AnnotationCapability.ANNOTATION_DEFAULT_VALUES));
         assertEquals("system visibility", AnnotationCapability.SYSTEM_VISIBILITY.displayName());
     }

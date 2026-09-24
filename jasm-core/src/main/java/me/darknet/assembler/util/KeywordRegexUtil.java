@@ -1,12 +1,10 @@
 package me.darknet.assembler.util;
 
-import me.darknet.assembler.instructions.Instructions;
-import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.parser.processor.DeclarationRegistry;
 import me.darknet.assembler.parser.processor.ProcessorKeywords;
+import me.darknet.assembler.target.TargetContext;
 import me.darknet.assembler.visitor.Modifiers;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,78 +37,17 @@ public final class KeywordRegexUtil {
 	}
 
 	/**
-	 * Builds the keyword expression for a bytecode format.
+	 * Builds the keyword expression from common JASM keywords and the active target's services.
 	 *
-	 * @param format
-	 * 		Bytecode format whose instruction names should be included.
-	 *      When {@code null}, keywords for all supported formats are included.
+	 * @param target
+	 * 		Target providing instruction and method-attribute keywords.
 	 *
-	 * @return A word-boundary regular expression matching the keywords for {@code format}.
-	 *
-	 * @throws NullPointerException
-	 * 		If {@code format} is {@code null}.
+	 * @return A word-boundary regular expression matching the target's JASM keywords.
 	 */
-	public static @NotNull String getKeywordRegex(@Nullable BytecodeFormat format) {
+	public static @NotNull String getKeywordRegex(@NotNull TargetContext target) {
 		Set<String> keywords = getCommonKeywords();
-
-		if (format == null || format == BytecodeFormat.DALVIK)
-			keywords.addAll(ProcessorKeywords.getDalvikOnlyKeywords());
-		// if (format == null || format == BytecodeFormat.JVM)
-		// 	keywords.addAll(ProcessorKeywords.getJvmOnlyKeywords());
-
-		if (format == null) {
-			Instructions<?> dinsn = BytecodeFormat.DALVIK.getInstructions();
-			Instructions<?> jinsn = BytecodeFormat.JVM.getInstructions();
-			for (String instruction : dinsn.getInstructionNames())
-				keywords.add(canonicalInstructionName(BytecodeFormat.DALVIK, instruction));
-			for (String instruction : jinsn.getInstructionNames())
-				keywords.add(canonicalInstructionName(BytecodeFormat.JVM, instruction));
-		} else {
-			for (String instruction : format.getInstructions().getInstructionNames())
-				keywords.add(canonicalInstructionName(format, instruction));
-		}
-
+		keywords.addAll(target.keywordNames());
 		return getKeywordRegex(keywords);
-	}
-
-	private static @NotNull String canonicalInstructionName(@NotNull BytecodeFormat format, @NotNull String instruction) {
-		if (format != BytecodeFormat.JVM)
-			return instruction;
-
-		// Strip trailing wide suffixes from instructions.
-		return switch (instruction) {
-			case "goto_w" -> "goto";
-			case "jsr_w" -> "jsr";
-			case "ldc_w", "ldc2_w" -> "ldc";
-			default -> instruction;
-		};
-	}
-
-	/**
-	 * Builds the keyword expression for all supported formats.
-	 *
-	 * @return A word-boundary regular expression matching all JASM keywords.
-	 */
-	public static @NotNull String getKeywordRegex() {
-		return getKeywordRegex((BytecodeFormat) null);
-	}
-
-	/**
-	 * Builds the keyword expression for the JVM format.
-	 *
-	 * @return A word-boundary regular expression matching JVM JASM keywords.
-	 */
-	public static @NotNull String getJvmKeywordRegex() {
-		return getKeywordRegex(BytecodeFormat.JVM);
-	}
-
-	/**
-	 * Builds the keyword expression for the Dalvik format.
-	 *
-	 * @return A word-boundary regular expression matching Dalvik JASM keywords.
-	 */
-	public static @NotNull String getDalvikKeywordRegex() {
-		return getKeywordRegex(BytecodeFormat.DALVIK);
 	}
 
 	/**
@@ -151,7 +88,7 @@ public final class KeywordRegexUtil {
 	}
 
 	private static @NotNull String getKeywordBoundary(boolean useWordBoundaries,
-			String nonWordCharacters, boolean leading) {
+	                                                  String nonWordCharacters, boolean leading) {
 		String boundary = useWordBoundaries
 				? "\\b"
 				: leading ? "(?<!\\w)" : "(?!\\w)";

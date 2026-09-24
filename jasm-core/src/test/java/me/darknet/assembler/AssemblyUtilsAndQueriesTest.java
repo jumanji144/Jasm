@@ -10,7 +10,6 @@ import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTInner;
 import me.darknet.assembler.ast.specific.ASTMethod;
-import me.darknet.assembler.error.Result;
 import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.query.AssemblyQueries;
 import me.darknet.assembler.query.AssemblyUtils;
@@ -36,6 +35,8 @@ import me.darknet.assembler.query.resolution.TypeReferenceResolution;
 import me.darknet.assembler.query.resolution.VariableDeclarationResolution;
 import me.darknet.assembler.query.resolution.VariableReferenceResolution;
 import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.DiagnosticAssertions;
+import me.darknet.assembler.test.FixtureTarget;
 import me.darknet.assembler.util.Location;
 import org.junit.jupiter.api.Test;
 
@@ -427,7 +428,7 @@ class AssemblyUtilsAndQueriesTest {
 				  }
 				}
 				""";
-		List<ASTElement> ast = processed(source, BytecodeFormat.DALVIK);
+		List<ASTElement> ast = processed(source, FixtureTarget.DALVIK);
 		ASTMethod method = onlyMethod(ast);
 
 		LabelQueryResult labels = AssemblyQueries.labels(method, BytecodeFormat.DALVIK);
@@ -461,7 +462,7 @@ class AssemblyUtilsAndQueriesTest {
 				  }
 				}
 				""";
-		List<ASTElement> ast = processed(source, BytecodeFormat.DALVIK);
+		List<ASTElement> ast = processed(source, FixtureTarget.DALVIK);
 		ASTMethod method = onlyMethod(ast);
 
 		assertTypeResolution(ast, method.getCode().getInstructions().get(0).argument(1, ASTIdentifier.class));
@@ -616,17 +617,17 @@ class AssemblyUtilsAndQueriesTest {
 	}
 
 	private static List<ASTElement> processed(String source) {
-		return processed(source, BytecodeFormat.JVM);
+		return processed(source, FixtureTarget.JVM);
 	}
 
-	private static List<ASTElement> processed(String source, BytecodeFormat format) {
-		Result<List<ASTElement>> result = AssemblyParseFixture.processDeclarations(
-				"AssemblyQueriesTest.jasm",
-				source,
-				format
+	private static List<ASTElement> processed(String source, FixtureTarget target) {
+		return DiagnosticAssertions.requireSuccess(
+				AssemblyParseFixture.processDeclarations(
+						"AssemblyQueriesTest.jasm",
+						source,
+						target.context()
+				),
+				"Failed to process query source"
 		);
-		if (result.hasErr())
-			fail(result.errors().toString());
-		return result.get();
 	}
 }

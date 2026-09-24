@@ -1,10 +1,10 @@
 package me.darknet.assembler.test;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.backend.jvm.JvmTargetContext;
 import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compiler.CompilerOptions;
-import me.darknet.assembler.parser.BytecodeFormat;
 import org.junit.jupiter.api.Assertions;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.CheckClassAdapter;
@@ -42,11 +42,11 @@ public final class JvmAssemblerFixture {
 	 * @return A {@link JvmCompilation} containing the results of compiling the given source code with the given options.
 	 */
 	public static JvmCompilation compileJvm(String sourceName, String source, CompilerOptions<?> options) {
-		var astResult = AssemblyParseFixture.processDeclarations(sourceName, source, BytecodeFormat.JVM);
-		if (astResult.hasErr())
+		var astResult = AssemblyParseFixture.processDeclarations(sourceName, source, JvmTargetContext.INSTANCE);
+		if (astResult.hasErrors())
 			return JvmCompilation.from(sourceName, source, astResult, null);
 
-		List<ASTElement> ast = DiagnosticAssertions.requireOk(astResult, "Failed to prepare AST for JVM compilation");
+		List<ASTElement> ast = DiagnosticAssertions.requireSuccess(astResult, "Failed to prepare AST for JVM compilation");
 		JvmCompiler compiler = new JvmCompiler();
 		var compileResult = compiler.compile(ast, options);
 		if (compileResult.isOk()) {

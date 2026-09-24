@@ -18,13 +18,9 @@ public final class ProcessorKeywords {
     public static final String EXCEPTIONS = "exceptions";
     /** Method bytecode body key. */
     public static final String CODE = "code";
-    /** Dalvik method register count key. */
-    public static final String REGISTERS = "registers";
-
     private static final Set<String> COMMON_METHOD_BODY_KEYWORDS = Set.of(
             PARAMETERS, PARAMETER_ANNOTATIONS, THROWS, DEFAULT_VALUE, EXCEPTIONS, CODE
     );
-    private static final Set<String> DALVIK_ONLY_KEYWORDS = Set.of(REGISTERS);
 
     private ProcessorKeywords() {}
 
@@ -35,10 +31,4 @@ public final class ProcessorKeywords {
         return COMMON_METHOD_BODY_KEYWORDS;
     }
 
-    /**
-     * @return Immutable set of keywords used only by the Dalvik format.
-     */
-    public static Set<String> getDalvikOnlyKeywords() {
-        return DALVIK_ONLY_KEYWORDS;
-    }
 }

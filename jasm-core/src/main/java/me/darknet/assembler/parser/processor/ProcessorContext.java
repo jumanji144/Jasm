@@ -8,12 +8,17 @@ import me.darknet.assembler.ast.primitive.ASTEmpty;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTLiteral;
 import me.darknet.assembler.ast.primitive.ASTObject;
-import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.ErrorCollector;
-import me.darknet.assembler.error.Warn;
-import me.darknet.assembler.instructions.Instructions;
-import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.ast.specific.ASTAnnotation;
+import me.darknet.assembler.descriptor.DescriptorForm;
+import me.darknet.assembler.descriptor.DescriptorParser;
+import me.darknet.assembler.descriptor.DescriptorSyntaxException;
+import me.darknet.assembler.error.Diagnostic;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.parser.Stateful;
+import me.darknet.assembler.target.AnnotationCapability;
+import me.darknet.assembler.target.TargetContext;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
 
@@ -25,22 +30,24 @@ import java.util.List;
  * Context for processing an AST.
  */
 public class ProcessorContext extends Stateful<ProcessorFlag> {
-	private final ErrorCollector errorCollector = new ErrorCollector();
-	private final BytecodeFormat format;
-	private final Instructions<?> instructions;
+	private final DiagnosticSink diagnostics;
+	private final TargetContext target;
+	private final DiagnosticCode defaultDiagnosticCode;
 	private final DeclarationRegistry registry;
 	private ProcessingState state = new ProcessingState();
 
 	/**
-	 * @param format
-	 * 		Format to process the AST for.
-	 * @param registry
-	 * 		Registry of declaration handlers to use when processing the AST.
+	 * @param target Target services used to process declarations.
+	 * @param registry Declaration handlers used to process declarations.
+	 * @param phase Phase assigned to diagnostics from this context.
+	 * @param defaultDiagnosticCode Code assigned when a more specific code does not apply.
 	 */
-	public ProcessorContext(BytecodeFormat format, DeclarationRegistry registry) {
-		this.format = format;
-		this.instructions = format.getInstructions();
+	public ProcessorContext(TargetContext target, DeclarationRegistry registry, DiagnosticPhase phase,
+	                        DiagnosticCode defaultDiagnosticCode) {
+		this.target = target;
 		this.registry = registry;
+		this.diagnostics = new DiagnosticSink(phase);
+		this.defaultDiagnosticCode = defaultDiagnosticCode;
 	}
 
 	/**
@@ -59,17 +66,32 @@ public class ProcessorContext extends Stateful<ProcessorFlag> {
 	}
 
 	/**
-	 * @return List of errors that occurred during processing the AST, in the order they were added to the context.
+	 * @return A snapshot of every diagnostic reported by this context.
 	 */
-	List<Error> getErrors() {
-		return errorCollector.getErrors();
+	public List<Diagnostic> diagnostics() {
+		return diagnostics.diagnostics();
 	}
 
 	/**
-	 * @return List of warnings that occurred during processing the AST, in the order they were added to the context.
+	 * @return {@code true} when this context has reported an error.
 	 */
-	List<Warn> getWarns() {
-		return errorCollector.getWarns();
+	public boolean hasErrors() {
+		return diagnostics.hasErrors();
+	}
+
+	/**
+	 * @return Target services used to process the AST.
+	 */
+	public TargetContext getTarget() {
+		return target;
+	}
+
+	void reportUnattachedAttributes() {
+		for (ASTElement attribute : state.getPendingAttributes()) {
+			if (attribute instanceof ASTAnnotation && state.getResult().contains(attribute))
+				continue;
+			throwError(DiagnosticCode.MALFORMED_DECLARATION, "Unattached attribute", attribute.location());
+		}
 	}
 
 	/**
@@ -100,15 +122,73 @@ public class ProcessorContext extends Stateful<ProcessorFlag> {
 	}
 
 	/**
-	 * Add an error with the given message and location to the context.
+	 * Add an error with the context's default code.
 	 *
-	 * @param message
-	 * 		Error message.
-	 * @param location
-	 * 		Location of the error.
+	 * @param message Human-readable error message.
+	 * @param location Source location of the error.
 	 */
 	public void throwError(String message, Location location) {
-		errorCollector.addError(new Error(message, location));
+		throwError(defaultDiagnosticCode, message, location);
+	}
+
+	/**
+	 * Add an error with a specific code.
+	 *
+	 * @param code Stable diagnostic code.
+	 * @param message Human-readable error message.
+	 * @param location Source location of the error.
+	 */
+	public void throwError(DiagnosticCode code, String message, Location location) {
+		diagnostics.error(code, message, location);
+	}
+
+	/**
+	 * Validate a descriptor or internal name and report its parser reason on failure.
+	 *
+	 * @param identifier Candidate descriptor literal.
+	 * @param form Required descriptor form.
+	 * @param description Description used in the diagnostic.
+	 * @return {@code true} when the value is not valid for {@code form}.
+	 */
+	public boolean isNotDescriptor(ASTIdentifier identifier, DescriptorForm form, String description) {
+		try {
+			DescriptorParser.parse(identifier.literal(), form);
+			return false;
+		} catch (DescriptorSyntaxException exception) {
+			throwError(DiagnosticCode.INVALID_DESCRIPTOR,
+					"Invalid " + description + ": " + exception.detail(), identifier.location());
+			return true;
+		}
+	}
+
+	/**
+	 * Validate an identifier as the requested descriptor form.
+	 *
+	 * @param element Source element to validate.
+	 * @param form Required descriptor form.
+	 * @param description Description used in diagnostics.
+	 * @param parent Parent element used when the source element is absent.
+	 * @return The validated identifier, or {@code null} when it is absent or malformed.
+	 */
+	public ASTIdentifier validateDescriptor(ASTElement element, DescriptorForm form, String description,
+	                                        ASTElement parent) {
+		ASTIdentifier identifier = validateIdentifier(element, description, parent);
+		if (identifier == null || isNotDescriptor(identifier, form, description))
+			return null;
+		return identifier;
+	}
+
+	/**
+	 * Report a denied target capability at its source construct.
+	 *
+	 * @return {@code true} when the target supports the capability.
+	 */
+	public boolean supports(AnnotationCapability capability, ASTElement source) {
+		if (target.annotationCapabilities().supports(capability))
+			return true;
+		throwError(DiagnosticCode.UNSUPPORTED_CAPABILITY,
+					"Target does not support " + capability.displayName(), source.location());
+		return false;
 	}
 
 	/**
@@ -289,16 +369,24 @@ public class ProcessorContext extends Stateful<ProcessorFlag> {
 	 * @return The given element cast to an object if it is an object with the expected keys, or {@code null} otherwise.
 	 */
 	public ASTObject validateObject(ASTElement element, String description, ASTElement parent, String... expectedKeys) {
-		if (isNull(element, description, parent.location()))
+		if (element == null) {
+			throwError(DiagnosticCode.PAYLOAD_SHAPE, "Expected " + description + " but got nothing", parent.location());
 			return null;
-		if (isNotType(element, ElementType.OBJECT, description))
+		}
+		if (element.type() != ElementType.OBJECT) {
+			throwError(DiagnosticCode.PAYLOAD_SHAPE,
+					"Expected " + description + " object but got " + element.type().name().toLowerCase(),
+					element.location());
 			return null;
+		}
 		ASTObject object = (ASTObject) element;
 		if (object.values().size() != expectedKeys.length)
-			throwError("Expected " + expectedKeys.length + " keys in " + description, object.location());
+			throwError(DiagnosticCode.PAYLOAD_SHAPE,
+					"Expected " + expectedKeys.length + " keys in " + description, object.location());
 		for (String expectedKey : expectedKeys) {
 			if (!object.values().containsKey(expectedKey)) {
-				throwError("Expected key '" + expectedKey + "' in " + description, object.location());
+				throwError(DiagnosticCode.PAYLOAD_SHAPE,
+						"Expected key '" + expectedKey + "' in " + description, object.location());
 				return null;
 			}
 		}
@@ -390,7 +478,11 @@ public class ProcessorContext extends Stateful<ProcessorFlag> {
 				}
 			}
 			if (!found) {
-				throwUnexpectedElementError(expected, element);
+				if (!registry.getKeywords().contains(keyword)) {
+					parseDeclaration(declaration);
+				} else {
+					throwUnexpectedElementError(expected, element);
+				}
 				continue;
 			}
 			ASTElement parsedDeclaration = parseDeclaration(declaration);
@@ -398,6 +490,7 @@ public class ProcessorContext extends Stateful<ProcessorFlag> {
 				nestedState.add(parsedDeclaration);
 			}
 		}
+		outerState.fillPendingAttributes(nestedState);
 		swapState(outerState);
 		return nestedState.getResult();
 	}
@@ -443,18 +536,5 @@ public class ProcessorContext extends Stateful<ProcessorFlag> {
 		throwError(actual.type().name().toLowerCase() + " '" + actual.content() + "' is " + state, actual.location());
 	}
 
-	/**
-	 * @return Instructions for the bytecode format this context is processing the AST for.
-	 */
-	public Instructions<?> getInstructions() {
-		return instructions;
-	}
-
-	/**
-	 * @return Bytecode format this context is processing the AST for.
-	 */
-	public BytecodeFormat getFormat() {
-		return format;
-	}
 
 }

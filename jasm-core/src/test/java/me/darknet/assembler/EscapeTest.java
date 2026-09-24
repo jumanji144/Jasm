@@ -22,7 +22,7 @@ public class EscapeTest {
     )
     public void testStringEscape(String input) {
         String escaped = EscapeUtil.escapeString(input);
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize("\"" + escaped + "\""),
                 "Failed to tokenize escaped string literal"
         );
@@ -46,7 +46,7 @@ public class EscapeTest {
                             """ }
     )
     public void testLiteralEscape(String input) {
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize(EscapeUtil.escapeLiteral(input)),
                 "Failed to tokenize escaped literal"
         );

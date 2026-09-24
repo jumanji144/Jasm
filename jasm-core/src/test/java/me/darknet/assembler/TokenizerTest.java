@@ -1,8 +1,10 @@
 package me.darknet.assembler;
 
+import me.darknet.assembler.ast.primitive.ASTNumber;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.TokenType;
-import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
 
@@ -17,7 +19,7 @@ public class TokenizerTest {
 
     @Test
     public void testStringTokenizer() {
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize("{ \"Hello World\", type: \"java/lang/HelloWorld\" }"),
                 "Failed to tokenize string input"
         );
@@ -33,7 +35,7 @@ public class TokenizerTest {
 
     @Test
     public void testStringEscaping() {
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize("\"Hello \\u0020World\\\"\\\\\""),
                 "Failed to tokenize escaped string input"
         );
@@ -43,7 +45,7 @@ public class TokenizerTest {
 
     @Test
     public void testNumbers() {
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize("0 -10 10f 10.16F 10.161616D 10L 0xDEADBEEF 0E10 0.3e10f 6.02214076e23"),
                 "Failed to tokenize numeric input"
         );
@@ -66,7 +68,7 @@ public class TokenizerTest {
     @Test
     public void testBinaryNumberWithSeparators() {
         var result = AssemblyParseFixture.parse("0b1_0");
-        List<me.darknet.assembler.ast.ASTElement> elements = DiagnosticAssertions.requireOk(
+        List<me.darknet.assembler.ast.ASTElement> elements = DiagnosticAssertions.requireSuccess(
                 result,
                 "Failed to parse binary number with separators"
         );
@@ -83,7 +85,7 @@ public class TokenizerTest {
                 "#0B01111111110000000000000000000000",
                 "#0b0111111111111000000000000000000000000000000000000000000000000001"
         );
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize(String.join(" ", expected)),
                 "Failed to tokenize raw floating-point bit patterns"
         );
@@ -102,7 +104,7 @@ public class TokenizerTest {
                 "#0b01111111_11000000_00000000_00000000",
                 "#0b0111111111111000_0000000000000000_0000000000000000_0000000000000001"
         );
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize(String.join(" ", expected)),
                 "Failed to tokenize raw floating-point bit-pattern separators"
         );
@@ -133,13 +135,20 @@ public class TokenizerTest {
                 "#0b" + "0".repeat(31) + "2"
         )) {
             var result = AssemblyParseFixture.tokenize(input);
-            DiagnosticAssertions.assertHasErrors(
+            DiagnosticAssertions.assertHasError(
                     result,
+                    DiagnosticCode.INVALID_LITERAL,
                     "Malformed raw floating-point bit pattern should produce an error: " + input
             );
-            Assertions.assertEquals(1, result.get().size());
-            Assertions.assertSame(TokenType.IDENTIFIER, result.get().getFirst().type());
-            Assertions.assertEquals(input, result.get().getFirst().content());
+            DiagnosticAssertions.assertPhase(
+                    result.diagnostics(),
+                    DiagnosticPhase.LEXER,
+                    "Malformed raw floating-point bit pattern should be a lexer diagnostic"
+            );
+            List<Token> recovered = result.requireValue();
+            Assertions.assertEquals(1, recovered.size());
+            Assertions.assertSame(TokenType.IDENTIFIER, recovered.getFirst().type());
+            Assertions.assertEquals(input, recovered.getFirst().content());
         }
     }
 
@@ -147,15 +156,18 @@ public class TokenizerTest {
     public void testMalformedHexadecimalFloatsReportStructuredErrors() {
         for (String input : List.of("0xp1", "0x.p1")) {
             var result = AssemblyParseFixture.tokenize(input);
-            DiagnosticAssertions.assertHasErrors(result,
-                    "Malformed hexadecimal float should produce an error: " + input);
-            Assertions.assertTrue(result.get().isEmpty());
+            DiagnosticAssertions.assertHasError(
+                    result,
+                    DiagnosticCode.INVALID_LITERAL,
+                    "Malformed hexadecimal float should produce an error: " + input
+            );
+            Assertions.assertTrue(result.requireValue().isEmpty());
         }
     }
 
     @Test
     public void testCharacterLiteralMustContainExactlyOneCharacter() {
-        List<Token> valid = DiagnosticAssertions.requireOk(
+        List<Token> valid = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize("'a'"),
                 "Failed to tokenize valid character literal"
         );
@@ -163,9 +175,12 @@ public class TokenizerTest {
 
         for (String input : List.of("''", "'ab'")) {
             var result = AssemblyParseFixture.tokenize(input);
-            DiagnosticAssertions.assertHasErrors(result,
-                    "Malformed character literal should produce an error: " + input);
-            Assertions.assertTrue(result.get().isEmpty());
+            DiagnosticAssertions.assertHasError(
+                    result,
+                    DiagnosticCode.INVALID_LITERAL,
+                    "Malformed character literal should produce an error: " + input
+            );
+            Assertions.assertTrue(result.requireValue().isEmpty());
         }
     }
 
@@ -177,7 +192,7 @@ public class TokenizerTest {
                             + "\t\tiload b\n" + "\t\tiadd\n" + "\t\tireturn\t\n" + "\t}\n" + "}" }
     )
     public void testTokenizer(String input) {
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize(input),
                 "Failed to tokenize parameterized input"
         );
@@ -186,7 +201,7 @@ public class TokenizerTest {
 
     @Test
     public void testSingleLineComment() {
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize("// This is a comment\n"),
                 "Failed to tokenize single-line comment"
         );
@@ -197,7 +212,7 @@ public class TokenizerTest {
 
     @Test
     public void testMultiLineComment() {
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize("/* This is a comment\n * with multiple lines\n */"),
                 "Failed to tokenize multi-line comment"
         );
@@ -208,7 +223,7 @@ public class TokenizerTest {
 
     @Test
     public void testSingleLineCommentAtEof() {
-        List<Token> tokens = DiagnosticAssertions.requireOk(
+        List<Token> tokens = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.tokenize("// This is a comment"),
                 "Failed to tokenize single-line comment at EOF"
         );
@@ -220,40 +235,50 @@ public class TokenizerTest {
     @Test
     public void testTrailingSlashReportsStructuredError() {
         var result = AssemblyParseFixture.tokenize("/");
-        DiagnosticAssertions.assertHasErrors(result, "Trailing slash should produce an error");
-        Assertions.assertTrue(result.get().isEmpty());
+        DiagnosticAssertions.assertHasError(result, DiagnosticCode.UNEXPECTED_TOKEN,
+                "Trailing slash should produce an error");
+        DiagnosticAssertions.assertPhase(result.diagnostics(), DiagnosticPhase.LEXER,
+                "Trailing slash should be a lexer diagnostic");
+        Assertions.assertTrue(result.requireValue().isEmpty());
     }
 
     @Test
     public void testUnterminatedMultilineCommentReportsStructuredError() {
         var result = AssemblyParseFixture.tokenize("/* This comment never ends");
-        DiagnosticAssertions.assertHasErrors(result, "Unterminated multiline comment should produce an error");
-        Assertions.assertTrue(result.get().isEmpty());
+        DiagnosticAssertions.assertHasError(result, DiagnosticCode.UNTERMINATED_LITERAL,
+                "Unterminated multiline comment should produce an error");
+        DiagnosticAssertions.assertPhase(result.diagnostics(), DiagnosticPhase.LEXER,
+                "Unterminated multiline comment should be a lexer diagnostic");
+        Assertions.assertTrue(result.requireValue().isEmpty());
     }
 
     @Test
     public void testUnterminatedStringAtEofReportsStructuredError() {
         var result = AssemblyParseFixture.tokenize("\"Hello");
-        DiagnosticAssertions.assertHasErrors(result, "Unterminated string should produce an error");
-        Assertions.assertTrue(result.get().isEmpty());
+        DiagnosticAssertions.assertHasError(result, DiagnosticCode.UNTERMINATED_LITERAL,
+                "Unterminated string should produce an error");
+        Assertions.assertTrue(result.requireValue().isEmpty());
     }
 
     @Test
     public void testUnterminatedCharacterAtEofReportsStructuredError() {
         var result = AssemblyParseFixture.tokenize("'a");
-        DiagnosticAssertions.assertHasErrors(result, "Unterminated character should produce an error");
-        Assertions.assertTrue(result.get().isEmpty());
+        DiagnosticAssertions.assertHasError(result, DiagnosticCode.UNTERMINATED_LITERAL,
+                "Unterminated character should produce an error");
+        Assertions.assertTrue(result.requireValue().isEmpty());
     }
 
     @Test
     public void testInvalidUnicodeEscapeReportsStructuredError() {
         var truncated = AssemblyParseFixture.tokenize("\"\\u12\"");
-        DiagnosticAssertions.assertHasErrors(truncated, "Truncated unicode escape should produce an error");
-        Assertions.assertTrue(truncated.get().isEmpty());
+        DiagnosticAssertions.assertHasError(truncated, DiagnosticCode.INVALID_ESCAPE,
+                "Truncated unicode escape should produce an error");
+        Assertions.assertTrue(truncated.requireValue().isEmpty());
 
         var nonHex = AssemblyParseFixture.tokenize("\"\\u00ZZ\"");
-        DiagnosticAssertions.assertHasErrors(nonHex, "Non-hex unicode escape should produce an error");
-        Assertions.assertTrue(nonHex.get().isEmpty());
+        DiagnosticAssertions.assertHasError(nonHex, DiagnosticCode.INVALID_ESCAPE,
+                "Non-hex unicode escape should produce an error");
+        Assertions.assertTrue(nonHex.requireValue().isEmpty());
     }
 
 }

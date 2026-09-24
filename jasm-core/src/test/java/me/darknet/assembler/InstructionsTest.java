@@ -15,7 +15,8 @@ import me.darknet.assembler.instructions.MemberPath;
 import me.darknet.assembler.instructions.OperandValues;
 import me.darknet.assembler.instructions.PayloadSchema;
 import me.darknet.assembler.instructions.SwitchKey;
-import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.TokenType;
 import me.darknet.assembler.parser.processor.DeclarationRegistry;
@@ -24,6 +25,7 @@ import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Range;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
+import me.darknet.assembler.test.FixtureTarget;
 
 import org.junit.jupiter.api.Test;
 
@@ -34,9 +36,9 @@ import java.util.function.Consumer;
 
 public class InstructionsTest {
 
-    public static void assertCode(String[] instructions, BytecodeFormat format, Consumer<ASTCode> consumer) {
+    public static void assertCode(String[] instructions, FixtureTarget target, Consumer<ASTCode> consumer) {
         assertOne(
-                ".method stub ()V {\n" + "code: {" + String.join("\n", instructions) + "\n}}\n", format,
+                ".method stub ()V {\n" + "code: {" + String.join("\n", instructions) + "\n}}\n", target,
                 ASTMethod.class, (method) -> {
                     assertEquals("stub", method.getName().content());
                     assertEquals("()V", method.getDescriptor().content());
@@ -46,10 +48,10 @@ public class InstructionsTest {
         );
     }
 
-    public static <T extends ASTElement> void assertOne(String input, BytecodeFormat format, Class<T> clazz,
+    public static <T extends ASTElement> void assertOne(String input, FixtureTarget target, Class<T> clazz,
             Consumer<T> consumer) {
-        List<ASTElement> results = DiagnosticAssertions.requireOk(
-                AssemblyParseFixture.processAst("<stdin>", input, format),
+        List<ASTElement> results = DiagnosticAssertions.requireSuccess(
+                AssemblyParseFixture.processAst("<stdin>", input, target.context()),
                 "Failed to process instruction input"
         );
         assertEquals(1, results.size());
@@ -64,7 +66,7 @@ public class InstructionsTest {
         assertCode(
                 new String[] { "ldc \"Hello World\"", "getstatic java/lang/System.out Ljava/io/PrintStream;", "swap",
                         "invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V", "return" },
-                BytecodeFormat.JVM, (code) -> {
+                FixtureTarget.JVM, (code) -> {
                     List<ASTInstruction> instructions = code.getInstructions();
                     assertEquals(5, instructions.size());
                     assertEquals("ldc", instructions.get(0).identifier().content());
@@ -86,7 +88,7 @@ public class InstructionsTest {
         assertCode(
                 new String[] {
                         "invokedynamic foo (Ljava/lang/String;)V {invokestatic, me/darknet/assembler/InstructionsTest.bar, (Ljava/lang/String;)V} {}", },
-                BytecodeFormat.JVM, (code) -> {
+                FixtureTarget.JVM, (code) -> {
                 }
         );
     }
@@ -97,7 +99,7 @@ public class InstructionsTest {
                 new String[] { "L1:", "getstatic java/lang/System.out Ljava/io/PrintStream;", "L2:",
                         "ldc \"Hello World\"", "L3:", "invokevirtual java/io/PrintStream.println (Ljava/lang/String;)V",
                         "return", "L4:" },
-                BytecodeFormat.JVM, (code) -> {
+                FixtureTarget.JVM, (code) -> {
                     List<ASTInstruction> instructions = code.getInstructions();
                     assertEquals(8, instructions.size());
                     assertEquals("L1", instructions.get(0).identifier().content());
@@ -114,7 +116,7 @@ public class InstructionsTest {
 
     @Test
     public void testLdc() {
-        assertCode(new String[] { "ldc Ljava/lang/String;", }, BytecodeFormat.JVM, (code) -> {
+        assertCode(new String[] { "ldc Ljava/lang/String;", }, FixtureTarget.JVM, (code) -> {
             List<ASTInstruction> instructions = code.getInstructions();
             assertEquals(1, instructions.size());
             assertEquals("ldc", instructions.getFirst().identifier().content());
@@ -127,7 +129,7 @@ public class InstructionsTest {
         assertCode(
                 new String[] { "tableswitch { min: 10," + "max: 20," + "default: L1," + "cases: {" + "L2," + "L4,"
                         + "L8" + "}" + "}", },
-                BytecodeFormat.JVM, (code) -> {
+                FixtureTarget.JVM, (code) -> {
                     List<ASTInstruction> instructions = code.getInstructions();
                     assertEquals(1, instructions.size());
                     assertEquals("tableswitch", instructions.getFirst().identifier().content());
@@ -139,7 +141,7 @@ public class InstructionsTest {
     public void testLookupSwitch() {
         assertCode(
                 new String[] { "lookupswitch {" + "0: L2," + "1: L4," + "2: L8," + "default: L10" + "}", },
-                BytecodeFormat.JVM, (code) -> {
+                FixtureTarget.JVM, (code) -> {
                     List<ASTInstruction> instructions = code.getInstructions();
                     assertEquals(1, instructions.size());
                     assertEquals("lookupswitch", instructions.getFirst().identifier().content());
@@ -150,7 +152,7 @@ public class InstructionsTest {
     @Test
     public void testWeirdStrings() {
         assertCode(
-                new String[] { "ldc \":\"" }, BytecodeFormat.JVM, (code) -> {
+                new String[] { "ldc \":\"" }, FixtureTarget.JVM, (code) -> {
                     List<ASTInstruction> instructions = code.getInstructions();
                     assertEquals(1, instructions.size());
                     assertEquals("ldc", instructions.getFirst().identifier().content());
@@ -265,7 +267,7 @@ public class InstructionsTest {
     }
 
     private static ASTObject object(String source) {
-        List<ASTElement> elements = DiagnosticAssertions.requireOk(
+        List<ASTElement> elements = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.parse(source), "Failed to parse payload object");
         assertEquals(1, elements.size());
         return assertInstanceOf(ASTObject.class, elements.getFirst());
@@ -275,13 +277,14 @@ public class InstructionsTest {
         private final List<String> messages = new java.util.ArrayList<>();
 
         private RecordingContext() {
-            super(BytecodeFormat.JVM, DeclarationRegistry.createDefault());
+            super(FixtureTarget.JVM.context(), DeclarationRegistry.createDefault(),
+                    DiagnosticPhase.TARGET_VALIDATION, DiagnosticCode.MALFORMED_DECLARATION);
         }
 
         @Override
-        public void throwError(String message, Location location) {
+        public void throwError(DiagnosticCode code, String message, Location location) {
             messages.add(message);
-            super.throwError(message, location);
+            super.throwError(code, message, location);
         }
     }
 

@@ -4,6 +4,7 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTObject;
+import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.parser.processor.ProcessorContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -51,8 +52,12 @@ public record PayloadSchema(@NotNull String description,
 	 * @return Verified payload object, or {@code null} after reporting why it is not one.
 	 */
 	public @Nullable ASTObject validate(@NotNull ProcessorContext context, @NotNull ASTElement element) {
-		if (context.isNotType(element, ElementType.OBJECT, description))
+		if (element.type() != ElementType.OBJECT) {
+			context.throwError(DiagnosticCode.PAYLOAD_SHAPE,
+					"Expected " + description + " object but got " + element.type().name().toLowerCase(),
+					element.location());
 			return null;
+		}
 		ASTObject object = (ASTObject) element;
 
 		if (caseKeys == null) {
@@ -64,7 +69,7 @@ public record PayloadSchema(@NotNull String description,
 			for (Field field : fields) {
 				if (!field.required() || object.values().containsKey(field.key()))
 					continue;
-				context.throwError("Expected key '" + field.key() + "' in " + description, object.location());
+				context.throwError(DiagnosticCode.PAYLOAD_SHAPE, "Expected key '" + field.key() + "' in " + description, object.location());
 				return null;
 			}
 		}
@@ -73,7 +78,7 @@ public record PayloadSchema(@NotNull String description,
 			ASTElement value = object.value(field.key());
 			if (value == null) {
 				if (field.required()) {
-					context.isNull(null, field.expected(), object.location());
+					context.throwError(DiagnosticCode.PAYLOAD_SHAPE, "Expected " + field.expected(), object.location());
 					return null;
 				}
 				continue;

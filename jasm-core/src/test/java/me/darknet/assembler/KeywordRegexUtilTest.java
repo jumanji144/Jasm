@@ -1,8 +1,8 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.parser.processor.DeclarationRegistry;
 import me.darknet.assembler.parser.processor.ProcessorKeywords;
+import me.darknet.assembler.test.FixtureTarget;
 import me.darknet.assembler.util.KeywordRegexUtil;
 import me.darknet.assembler.visitor.Modifiers;
 import org.junit.jupiter.api.Test;
@@ -18,24 +18,11 @@ public class KeywordRegexUtilTest {
 
 	@Test
 	public void matchesRegisteredJvmKeywords() {
-		String sourceJvm = KeywordRegexUtil.getJvmKeywordRegex();
-		Pattern pattern = Pattern.compile(sourceJvm);
+		var target = FixtureTarget.JVM.context();
+		Pattern pattern = Pattern.compile(KeywordRegexUtil.getKeywordRegex(target));
 
-		for (String keyword : BytecodeFormat.JVM.getInstructions().getInstructionNames()) {
-			if (!keyword.endsWith("_w"))
-				assertMatches(pattern, keyword);
-		}
-
-		// Ensure that the non-_w variants of goto, jsr, and ldc are matched by the JVM regex
-		assertMatches(pattern, "goto");
-		assertMatches(pattern, "jsr");
-		assertMatches(pattern, "ldc");
-
-		// Ensure that the _w variants are not matched by the JVM regex
-		assertFalse(pattern.matcher("goto_w").find());
-		assertFalse(pattern.matcher("jsr_w").find());
-		assertFalse(pattern.matcher("ldc_w").find());
-		assertFalse(pattern.matcher("ldc2_w").find());
+		for (String keyword : target.keywordNames())
+			assertMatches(pattern, keyword);
 
 		for (String keyword : DeclarationRegistry.createDefault().getKeywords())
 			assertMatches(pattern, keyword);
@@ -51,16 +38,15 @@ public class KeywordRegexUtilTest {
 
 	@Test
 	public void matchesRegisteredDalvikKeywords() {
-		Pattern pattern = Pattern.compile(KeywordRegexUtil.getDalvikKeywordRegex());
+		var target = FixtureTarget.DALVIK.context();
+		Pattern pattern = Pattern.compile(KeywordRegexUtil.getKeywordRegex(target));
 
-		for (String keyword : BytecodeFormat.DALVIK.getInstructions().getInstructionNames())
-			assertMatches(pattern, keyword);
-
-		for (String keyword : ProcessorKeywords.getDalvikOnlyKeywords())
+		for (String keyword : target.keywordNames())
 			assertMatches(pattern, keyword);
 
 		assertFalse(pattern.matcher("aconst_null").find());
-		assertFalse(Pattern.compile(KeywordRegexUtil.getJvmKeywordRegex()).matcher("registers").find());
+		assertFalse(Pattern.compile(KeywordRegexUtil.getKeywordRegex(FixtureTarget.JVM.context()))
+				.matcher("registers").find());
 	}
 
 	/**
@@ -68,7 +54,7 @@ public class KeywordRegexUtilTest {
 	 */
 	@Test
 	public void matchesCompleteDalvikInstructionNames() {
-		Pattern pattern = Pattern.compile(KeywordRegexUtil.getDalvikKeywordRegex());
+		Pattern pattern = Pattern.compile(KeywordRegexUtil.getKeywordRegex(FixtureTarget.DALVIK.context()));
 
 		for (String instruction : List.of("move", "move-result", "move-result-object")) {
 			var matcher = pattern.matcher(instruction);

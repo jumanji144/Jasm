@@ -1,19 +1,25 @@
 package me.darknet.assembler;
 
+import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.compile.DalvikClassResult;
 import me.darknet.assembler.compile.DalvikCompiler;
+import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
+import me.darknet.assembler.compiler.ClassResult;
+import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.error.Result;
-import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.io.DalvikDexIO;
 import me.darknet.assembler.printer.DalvikClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
 import me.darknet.dex.file.instructions.Opcodes;
+import me.darknet.dex.tree.DexFile;
 import me.darknet.dex.tree.definitions.ClassDefinition;
 import me.darknet.dex.tree.definitions.instructions.ConstMethodHandleInstruction;
 import me.darknet.dex.tree.definitions.instructions.ConstMethodTypeInstruction;
 import me.darknet.dex.tree.definitions.constant.NullConstant;
 import me.darknet.dex.tree.definitions.instructions.FillArrayDataInstruction;
+import me.darknet.dex.tree.type.InstanceType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -210,11 +216,11 @@ class DalvikCompilerTest {
             String printed = TestUtils.normalize(context.toString());
             assertTrue(printed.contains(".visible-annotation demo/Marker"), printed);
             assertTrue(printed.contains(".invisible-annotation demo/Hidden"), printed);
-            var reparsed = AssemblyParseFixture.processDeclarations("<test>", printed, BytecodeFormat.DALVIK);
-            assertFalse(reparsed.hasErr(), printed + "\n" + DiagnosticAssertions.formatErrors(reparsed.errors()));
+            var reparsed = AssemblyParseFixture.processDeclarations("<test>", printed, DalvikTargetContext.INSTANCE);
+            assertFalse(reparsed.hasErrors(), printed + "\n" + DiagnosticAssertions.formatErrors(reparsed.errors()));
 
-            byte[] bytes = me.darknet.assembler.io.DalvikDexIO.write(definitionToDex(definition));
-            ClassDefinition reread = me.darknet.assembler.io.DalvikDexIO.read(bytes).definitions().getFirst();
+            byte[] bytes = DalvikDexIO.write(definitionToDex(definition));
+            ClassDefinition reread = DalvikDexIO.read(bytes).definitions().getFirst();
             assertEquals(3, reread.getAnnotations().size());
             assertEquals(1, reread.getField("value", "Ljava/lang/String;").getAnnotations().size());
         });
@@ -250,8 +256,8 @@ class DalvikCompilerTest {
         assertEquals(List.of("wide"), method.getCode().getDebugInfo().parameterNames());
         assertEquals(2, method.getCode().getDebugInfo().lineNumbers().size());
 
-        byte[] encoded = me.darknet.assembler.io.DalvikDexIO.write(definitionToDex(definition));
-        ClassDefinition reread = me.darknet.assembler.io.DalvikDexIO.read(encoded).definitions().getFirst();
+        byte[] encoded = DalvikDexIO.write(definitionToDex(definition));
+        ClassDefinition reread = DalvikDexIO.read(encoded).definitions().getFirst();
         var rereadMethod = reread.getMethod("wide", "(J)J");
         assertEquals(2, rereadMethod.getCode().getIn());
         assertEquals(2, rereadMethod.getCode().getOut());
@@ -259,8 +265,8 @@ class DalvikCompilerTest {
         assertEquals(List.of("wide"), rereadMethod.getCode().getDebugInfo().parameterNames());
     }
 
-    private static me.darknet.dex.tree.DexFile definitionToDex(ClassDefinition definition) {
-        return new me.darknet.dex.tree.DexFile(35, List.of(definition));
+    private static DexFile definitionToDex(ClassDefinition definition) {
+        return new  DexFile(35, List.of(definition));
     }
 
     @Test
@@ -282,7 +288,7 @@ class DalvikCompilerTest {
             assertEquals("()V", definition.getEnclosingMethod().descriptor());
             assertEquals(1, definition.getInnerClasses().size());
             assertEquals(List.of("Example$Inner$Child"), definition.getMemberClasses().stream()
-                    .map(type -> type.internalName()).toList());
+                    .map(InstanceType::internalName).toList());
 
             DalvikClassPrinter printer = new DalvikClassPrinter(definition);
             PrintContext<?> context = new PrintContext<>("\t");
@@ -293,8 +299,8 @@ class DalvikCompilerTest {
             assertTrue(printed.contains(".inner public"), printed);
             TestUtils.assertParsesDalvik(printed);
 
-            byte[] bytes = me.darknet.assembler.io.DalvikDexIO.write(definitionToDex(definition));
-            ClassDefinition reread = me.darknet.assembler.io.DalvikDexIO.read(bytes).definitions().getFirst();
+            byte[] bytes = DalvikDexIO.write(definitionToDex(definition));
+            ClassDefinition reread = DalvikDexIO.read(bytes).definitions().getFirst();
             assertEquals(definition.getSignature(), reread.getSignature());
             assertEquals(definition.getEnclosingClass(), reread.getEnclosingClass());
             assertEquals(definition.getEnclosingMethod(), reread.getEnclosingMethod());
@@ -491,7 +497,7 @@ class DalvikCompilerTest {
 
     @Test
     void rejectsInvokePolymorphicUntilBackendSupportExists() {
-        Result<java.util.List<me.darknet.assembler.ast.ASTElement>> astResult =
+        Outcome<List<ASTElement>> astResult =
                 AssemblyParseFixture.processDeclarations("<test>", """
                         .method public static test ()V {
                             code: {
@@ -499,11 +505,10 @@ class DalvikCompilerTest {
                                 return-void
                             }
                         }
-                        """, BytecodeFormat.DALVIK);
-        assertFalse(astResult.hasErr(), DiagnosticAssertions.formatErrors(astResult.errors()));
+                        """, DalvikTargetContext.INSTANCE);
+        assertFalse(astResult.hasErrors(), DiagnosticAssertions.formatErrors(astResult.errors()));
 
-        Result<? extends me.darknet.assembler.compiler.ClassResult> compilation =
-                new DalvikCompiler().compile(astResult.get(), TestUtils.overlayOptions("top/level/OverlayExample"));
+        Result<? extends ClassResult> compilation = new DalvikCompiler().compile(astResult.requireValue(), TestUtils.overlayOptions("top/level/OverlayExample"));
         assertTrue(compilation.hasErr(), "invoke-polymorphic should fail until the backend supports it");
         assertTrue(DiagnosticAssertions.formatErrors(compilation.errors()).contains("invoke-polymorphic is not supported"),
                 DiagnosticAssertions.formatErrors(compilation.errors()));

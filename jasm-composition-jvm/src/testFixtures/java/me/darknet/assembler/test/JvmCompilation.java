@@ -3,7 +3,9 @@ package me.darknet.assembler.test;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JavaCompileResult;
+import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.error.Error;
+import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.error.Warn;
 import org.junit.jupiter.api.Assertions;
@@ -33,7 +35,7 @@ import java.util.List;
 public record JvmCompilation(
 		String sourceName,
 		String source,
-		Result<List<ASTElement>> astResult,
+		Outcome<List<ASTElement>> astResult,
 		Result<JavaCompileResult> compileResult,
 		List<Error> errors,
 		List<Warn> warnings
@@ -113,12 +115,14 @@ public record JvmCompilation(
 	 *
 	 * @return Resulting compilation of the given assembly source, including any errors or warnings from both AST processing and compilation.
 	 */
-	public static JvmCompilation from(String sourceName, String source, Result<List<ASTElement>> astResult, Result<JavaCompileResult> compileResult) {
+	public static JvmCompilation from(String sourceName, String source, Outcome<List<ASTElement>> astResult, Result<JavaCompileResult> compileResult) {
 		List<Error> errors = new ArrayList<>();
 		List<Warn> warnings = new ArrayList<>();
 		if (astResult != null) {
-			errors.addAll(astResult.errors());
-			warnings.addAll(astResult.getWarns());
+			for (Diagnostic diagnostic : astResult.errors())
+				errors.add(new Error(diagnostic.message(), diagnostic.location()));
+			for (Diagnostic diagnostic : astResult.warnings())
+				warnings.add(new Warn(diagnostic.message(), diagnostic.location()));
 		}
 		if (compileResult != null) {
 			errors.addAll(compileResult.errors());

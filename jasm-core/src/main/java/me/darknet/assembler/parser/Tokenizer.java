@@ -1,7 +1,9 @@
 package me.darknet.assembler.parser;
 
-import me.darknet.assembler.error.ErrorCollector;
-import me.darknet.assembler.error.Result;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.error.DiagnosticSink;
+import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Range;
 
@@ -83,7 +85,7 @@ public class Tokenizer {
                 }
             }
             case '\n' -> {
-                ctx.throwError("Unterminated string");
+                ctx.throwError(DiagnosticCode.UNTERMINATED_LITERAL, "Unterminated string");
                 ctx.discardToken();
                 ctx.leaveString();
                 ctx.next();
@@ -104,7 +106,7 @@ public class Tokenizer {
             if (nextChar == null) {
                 ctx.collectToken();
                 ctx.markTokenStart();
-                ctx.throwError("Unexpected trailing '/'");
+                ctx.throwError(DiagnosticCode.UNEXPECTED_TOKEN, "Unexpected trailing '/'");
                 ctx.discardToken();
                 ctx.next();
                 return;
@@ -157,7 +159,7 @@ public class Tokenizer {
                 }
             }
             case '\n' -> {
-                ctx.throwError("Unterminated character");
+                ctx.throwError(DiagnosticCode.UNTERMINATED_LITERAL, "Unterminated character");
                 ctx.discardToken();
                 ctx.leaveCharacter();
                 ctx.next();
@@ -166,7 +168,7 @@ public class Tokenizer {
         }
     }
 
-    public Result<List<Token>> tokenize(String source, String input) {
+    public Outcome<List<Token>> tokenize(String source, String input) {
         TokenizerContext ctx = new TokenizerContext();
         ctx.input = input;
         ctx.buffer = new StringBuilder();
@@ -191,22 +193,22 @@ public class Tokenizer {
             ctx.collectToken();
             ctx.leaveComment();
         } else if (ctx.isMultilineComment()) {
-            ctx.throwError("Unterminated multiline comment");
+            ctx.throwError(DiagnosticCode.UNTERMINATED_LITERAL, "Unterminated multiline comment");
             ctx.discardToken();
             ctx.leaveMultilineComment();
         } else if (ctx.isString()) {
-            ctx.throwError("Unterminated string");
+            ctx.throwError(DiagnosticCode.UNTERMINATED_LITERAL, "Unterminated string");
             ctx.discardToken();
             ctx.leaveString();
         } else if (ctx.isCharacter()) {
-            ctx.throwError("Unterminated character");
+            ctx.throwError(DiagnosticCode.UNTERMINATED_LITERAL, "Unterminated character");
             ctx.discardToken();
             ctx.leaveCharacter();
         }
 
         ctx.collectToken();
 
-        return new Result<>(ctx.tokens, ctx.errors.getErrors(), ctx.errors.getWarns());
+        return Outcome.of(ctx.tokens, ctx.diagnostics.diagnostics());
     }
 
     private static class TokenizerContext {
@@ -223,7 +225,7 @@ public class Tokenizer {
         private boolean inMultilineComment;
         private boolean inComment;
         private StringBuilder buffer;
-        private final ErrorCollector errors = new ErrorCollector();
+        private final DiagnosticSink diagnostics = new DiagnosticSink(DiagnosticPhase.LEXER);
         private final List<Token> tokens = new ArrayList<>();
 
         private String input, source;
@@ -324,12 +326,12 @@ public class Tokenizer {
             return inMultilineComment;
         }
 
-        public void throwError(String message) {
-            errors.addError(message, new Location(line, column, 0, source));
+        public void throwError(DiagnosticCode code, String message) {
+            diagnostics.error(code, message, new Location(line, column, 0, source));
         }
 
-        public void throwError(String message, int errorLine, int errorColumn) {
-            errors.addError(message, new Location(errorLine, errorColumn, 0, source));
+        public void throwError(DiagnosticCode code, String message, int errorLine, int errorColumn) {
+            diagnostics.error(code, message, new Location(errorLine, errorColumn, 0, source));
         }
 
         private static final String DECIMAL_DIGITS = "\\d(?:[\\d_]*\\d)?";
@@ -397,12 +399,12 @@ public class Tokenizer {
             } else {
                 TokenType type = getType(content);
                 if (type == TokenType.IDENTIFIER && MALFORMED_HEX_FLOAT_PATTERN.matcher(content).matches()) {
-                    errors.addError("Invalid hexadecimal floating-point literal", location);
+                    diagnostics.error(DiagnosticCode.INVALID_LITERAL, "Invalid hexadecimal floating-point literal", location);
                     discardToken();
                     return;
                 }
                 if (type == TokenType.IDENTIFIER && content.startsWith("#")) {
-                    errors.addError("Invalid raw floating-point bit-pattern literal", location);
+                    diagnostics.error(DiagnosticCode.INVALID_LITERAL, "Invalid raw floating-point bit-pattern literal", location);
                 }
                 tokens.add(new Token(range, location, type, content));
             }
@@ -420,7 +422,7 @@ public class Tokenizer {
 
         public void validateCharacterLiteral() {
             if (buffer.length() != 1) {
-                errors.addError("Character literal must contain exactly one character",
+                diagnostics.error(DiagnosticCode.INVALID_LITERAL, "Character literal must contain exactly one character",
                         new Location(tokenStartLine, tokenStartColumn, Math.max(0, index - tokenStartIndex), source));
                 tokenInvalid = true;
             }
@@ -433,7 +435,7 @@ public class Tokenizer {
             int escapeLine = line;
             int escapeColumn = Math.max(1, column - 1);
             if (!hasCurrent()) {
-                throwError("Incomplete escape sequence", escapeLine, escapeColumn);
+                throwError(DiagnosticCode.INVALID_ESCAPE, "Incomplete escape sequence", escapeLine, escapeColumn);
                 tokenInvalid = true;
                 return true;
             }
@@ -462,7 +464,7 @@ public class Tokenizer {
                         digits++;
                     }
                     if (digits != 4) {
-                        throwError("Invalid unicode escape", escapeLine, escapeColumn);
+                        throwError(DiagnosticCode.INVALID_ESCAPE, "Invalid unicode escape", escapeLine, escapeColumn);
                         if (!hasCurrent()) {
                             tokenInvalid = true;
                             return true;
@@ -473,7 +475,7 @@ public class Tokenizer {
                     buffer.append((char) value);
                 }
                 default -> {
-                    throwError("Invalid escape sequence", escapeLine, escapeColumn);
+                    throwError(DiagnosticCode.INVALID_ESCAPE, "Invalid escape sequence", escapeLine, escapeColumn);
                     tokenInvalid = true;
                 }
             }

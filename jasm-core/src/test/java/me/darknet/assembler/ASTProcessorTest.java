@@ -3,8 +3,11 @@ package me.darknet.assembler;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTArray;
+import me.darknet.assembler.ast.primitive.ASTCode;
 import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.ast.specific.ASTEnum;
@@ -12,11 +15,18 @@ import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTInner;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.ast.specific.ASTRecordComponent;
-import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.Result;
+import me.darknet.assembler.error.Diagnostic;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.error.Outcome;
+import me.darknet.assembler.instructions.Instructions;
+import me.darknet.assembler.target.AnnotationCapabilities;
+import me.darknet.assembler.target.AnnotationCapability;
+import me.darknet.assembler.target.MethodAttributeRegistry;
 import me.darknet.assembler.test.AssemblyParseFixture;
-import me.darknet.assembler.test.AstAssertions;
 import me.darknet.assembler.test.DiagnosticAssertions;
+import me.darknet.assembler.test.FixtureTarget;
+import me.darknet.assembler.target.TargetContext;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
@@ -28,15 +38,36 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class ASTProcessorTest {
     public static <T extends ASTElement> void assertOne(String input, Class<T> clazz, Consumer<T> consumer) {
-        AstAssertions.assertOneProcessed(input, clazz, consumer);
+        assertOne(input, FixtureTarget.JVM.context(), clazz, consumer);
     }
 
-    public static void assertError(String input, Consumer<List<Error>> errorConsumer) {
-        AstAssertions.assertProcessedError(input, errorConsumer);
+    private static <T extends ASTElement> void assertOne(
+            String input,
+            TargetContext target,
+            Class<T> clazz,
+            Consumer<T> consumer
+    ) {
+        List<ASTElement> results = DiagnosticAssertions.requireSuccess(
+                AssemblyParseFixture.processAst(AssemblyParseFixture.STDIN, input, target),
+                "AST processing failed"
+        );
+        assertEquals(1, results.size(), "Expected exactly one AST node");
+        consumer.accept(assertIs(clazz, results.getFirst()));
+    }
+
+    public static void assertError(String input, Consumer<List<Diagnostic>> errorConsumer) {
+        Outcome<List<ASTElement>> result = AssemblyParseFixture.processAst(
+                AssemblyParseFixture.STDIN,
+                input,
+                FixtureTarget.JVM.context()
+        );
+        DiagnosticAssertions.assertHasErrors(result, "Expected AST processing to fail");
+        errorConsumer.accept(result.errors());
     }
 
     public static <T> @NotNull T assertIs(Class<T> shouldBe, Object is) {
-        return AstAssertions.assertIs(shouldBe, is);
+        assertNotNull(is);
+        return assertInstanceOf(shouldBe, is);
     }
 
     @Test
@@ -111,9 +142,12 @@ public class ASTProcessorTest {
             assertEquals(AnnotationVisibility.VISIBLE, annotation.getVisibility());
             assertEquals("java/lang/Deprecated", annotation.getClassType().content());
         });
-        assertOne(".system-annotation java/lang/Deprecated {}", ASTAnnotation.class, (annotation) -> {
-            assertEquals(AnnotationVisibility.SYSTEM, annotation.getVisibility());
-        });
+        assertOne(
+                ".system-annotation java/lang/Deprecated {}",
+                FixtureTarget.DALVIK.context(),
+                ASTAnnotation.class,
+                annotation -> assertEquals(AnnotationVisibility.SYSTEM, annotation.getVisibility())
+        );
         assertOne(".annotation java/lang/Deprecated { value: \"Hello World\" }", ASTAnnotation.class, (annotation) -> {
             assertEquals("java/lang/Deprecated", annotation.getClassType().content());
             assertNotNull(annotation.getValueMap());
@@ -372,18 +406,23 @@ public class ASTProcessorTest {
 
     @Test
     void rejectsMalformedParameterAnnotationShapes() {
-        Result<List<ASTElement>> result = AssemblyParseFixture.processAst(
+        Outcome<List<ASTElement>> result = AssemblyParseFixture.processAst(
+                AssemblyParseFixture.STDIN,
                 ".method public broken ()V {" +
                         " parameters: { this }," +
                         " parameter-annotations: {" +
                         "  this: nope," +
                         "  other: { \"bad\" }" +
                         " }" +
-                        "}"
+                        "}",
+                FixtureTarget.JVM.context()
         );
 
-        assertTrue(result.hasErr(), "Expected malformed parameter annotations to fail");
-        String errors = DiagnosticAssertions.formatErrors(result.errors());
+        DiagnosticAssertions.assertHasError(result, DiagnosticCode.PAYLOAD_SHAPE,
+                "Malformed parameter annotations should report their payload shape");
+        DiagnosticAssertions.assertPhase(result.diagnostics(), DiagnosticPhase.TARGET_VALIDATION,
+                "Malformed parameter annotations should be target-validation diagnostics");
+        String errors = DiagnosticAssertions.formatDiagnostics(result.errors());
         assertTrue(errors.contains("parameter annotation list"), errors);
         assertTrue(errors.contains("parameter annotation"), errors);
     }
@@ -414,14 +453,219 @@ public class ASTProcessorTest {
         assertEquals("LEAF", invisible.getTypePath().content());
     }
 
+    @Test
+    void attachesClassVersionAndRetainsItsSourceOwnership() {
+        ASTClass clazz = onlyProcessed(".version 21 .class public Example {}", ASTClass.class);
+        ASTNumber version = clazz.getVersion();
+        assertNotNull(version);
+        assertEquals(21, version.asInt());
+        assertSame(clazz, version.parent());
+        assertTrue(clazz.children().contains(version));
+        for (String boundary : List.of("1", "211")) {
+            ASTClass boundaryClass = onlyProcessed(
+                    ".version " + boundary + " .class public Example {}",
+                    ASTClass.class
+            );
+            assertEquals(boundary, boundaryClass.getVersion().content());
+        }
+    }
+
+    @Test
+    void rejectsClassVersionsOutsideTheSupportedRange() {
+        for (String version : List.of("0", "1.5", "212", "300")) {
+            Outcome<List<ASTElement>> result = AssemblyParseFixture.processAst(
+                    AssemblyParseFixture.STDIN,
+                    ".version " + version + " .class public Example {}",
+                    FixtureTarget.JVM.context()
+            );
+            DiagnosticAssertions.assertHasError(result, DiagnosticCode.MALFORMED_DECLARATION,
+                    "Out-of-range class version should be rejected: " + version);
+            DiagnosticAssertions.assertPhase(result.diagnostics(), DiagnosticPhase.TARGET_VALIDATION,
+                    "Class version validation should be target validation: " + version);
+        }
+    }
+
+    @Test
+    void reportsUnattachedAttributesAtTheirSourceValues() {
+        String source = ".version 21";
+        Outcome<List<ASTElement>> result = AssemblyParseFixture.processAst(
+                AssemblyParseFixture.STDIN, source, FixtureTarget.JVM.context()
+        );
+        DiagnosticAssertions.assertHasError(result, DiagnosticCode.MALFORMED_DECLARATION,
+                "A class attribute without a class should be rejected");
+        Diagnostic diagnostic = result.errors().getFirst();
+        assertEquals(source.indexOf("21") + 1, diagnostic.location().column());
+    }
+
+    @Test
+    void rejectsDescriptorsWithTheWrongFormAtTheSourceBoundary() {
+        Outcome<List<ASTElement>> result = AssemblyParseFixture.processAst(
+                AssemblyParseFixture.STDIN,
+                ".field public value Ljava/lang/String",
+                FixtureTarget.JVM.context()
+        );
+        DiagnosticAssertions.assertHasError(result, DiagnosticCode.INVALID_DESCRIPTOR,
+                "A field descriptor missing its terminator should be rejected");
+        DiagnosticAssertions.assertPhase(result.diagnostics(), DiagnosticPhase.TARGET_VALIDATION,
+                "Descriptor validation should happen during target validation");
+    }
+
+    @Test
+    void rejectsDescriptorShapedClassReferencesAtTheirSourceTokens() {
+        List<String> sources = List.of(
+                ".class public Lpkg/Example; {}",
+                ".class public Example { .super Lpkg/Parent; }",
+                ".class public Example { .implements Lpkg/Interface; }",
+                ".class public Example { .permitted-subclass Lpkg/Child; }",
+                ".method public test ()V { throws: { Ljava/lang/Exception; } }"
+        );
+        List<String> invalidNames = List.of(
+                "Lpkg/Example;", "Lpkg/Parent;", "Lpkg/Interface;", "Lpkg/Child;", "Ljava/lang/Exception;"
+        );
+        for (int index = 0; index < sources.size(); index++) {
+            String source = sources.get(index);
+            String invalidName = invalidNames.get(index);
+            Outcome<List<ASTElement>> result = AssemblyParseFixture.processAst(
+                    AssemblyParseFixture.STDIN, source, FixtureTarget.JVM.context()
+            );
+            DiagnosticAssertions.assertHasError(result, DiagnosticCode.INVALID_DESCRIPTOR,
+                    "Descriptor-shaped class reference should be rejected: " + invalidName);
+            Diagnostic diagnostic = result.errors().stream()
+                    .filter(error -> error.code() == DiagnosticCode.INVALID_DESCRIPTOR)
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals(invalidName.length(), diagnostic.location().length());
+            assertEquals(source.indexOf(invalidName) + 1, diagnostic.location().column());
+        }
+    }
+
+    @Test
+    void rejectsMalformedMethodDescriptorsAtTheirSourceTokens() {
+        String source = ".method public broken (Ljava/lang/String)V {}";
+        Outcome<List<ASTElement>> result = AssemblyParseFixture.processAst(
+                AssemblyParseFixture.STDIN, source, FixtureTarget.JVM.context()
+        );
+        DiagnosticAssertions.assertHasError(result, DiagnosticCode.INVALID_DESCRIPTOR,
+                "Malformed method descriptor should be rejected");
+        Diagnostic diagnostic = result.errors().stream()
+                .filter(error -> error.code() == DiagnosticCode.INVALID_DESCRIPTOR)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("(Ljava/lang/String)V".length(), diagnostic.location().length());
+        assertEquals(source.indexOf("(Ljava/lang/String)V") + 1, diagnostic.location().column());
+    }
+
+    @Test
+    void retainsDalvikMethodAttributesButRejectsThemForJvm() {
+        ASTMethod dalvikMethod = onlyProcessed(
+                ".method public test ()V { registers: 2 }",
+                FixtureTarget.DALVIK.context(),
+                ASTMethod.class
+        );
+        assertEquals(1, dalvikMethod.getMethodAttributes().size());
+        assertEquals("registers", dalvikMethod.getMethodAttributes().key(0).content());
+        assertEquals("2", dalvikMethod.getMethodAttributes().get(0).content());
+        assertSame(dalvikMethod, dalvikMethod.getMethodAttributes().get(0).parent());
+
+        Outcome<List<ASTElement>> jvmResult = AssemblyParseFixture.processAst(
+                AssemblyParseFixture.STDIN,
+                ".method public test ()V { registers: 2 }",
+                FixtureTarget.JVM.context()
+        );
+        DiagnosticAssertions.assertHasError(jvmResult, DiagnosticCode.UNSUPPORTED_FORM,
+                "JVM should reject the Dalvik-only registers method attribute");
+        DiagnosticAssertions.assertPhase(jvmResult.diagnostics(), DiagnosticPhase.TARGET_VALIDATION,
+                "Method attribute rejection should be target validation");
+    }
+
+    @Test
+    void reportsDeniedAnnotationCapabilities() {
+        Outcome<List<ASTElement>> systemResult = AssemblyParseFixture.processAst(
+                AssemblyParseFixture.STDIN,
+                ".system-annotation pkg/System {} .class public Example {}",
+                FixtureTarget.JVM.context()
+        );
+        DiagnosticAssertions.assertHasError(systemResult, DiagnosticCode.UNSUPPORTED_CAPABILITY,
+                "JVM should reject system annotations");
+
+        Outcome<List<ASTElement>> typeResult = AssemblyParseFixture.processAst(
+                AssemblyParseFixture.STDIN,
+                ".type-visible-annotation pkg/Type {} .field public value I",
+                FixtureTarget.DALVIK.context()
+        );
+        DiagnosticAssertions.assertHasError(typeResult, DiagnosticCode.UNSUPPORTED_CAPABILITY,
+                "Dalvik fixture should reject type annotations");
+
+        for (var denied : List.of(
+                new CapabilityCase(AnnotationCapability.ANNOTATION_DEFAULT_VALUES,
+                        ".method public broken ()V { default-value: { invalid: true } }"),
+                new CapabilityCase(AnnotationCapability.PARAMETER_ANNOTATIONS,
+                        ".method public broken ()V { parameters: { p }, parameter-annotations: { p: { \"bad\" } } }"))) {
+            Outcome<List<ASTElement>> result = AssemblyParseFixture.processAst(
+                    AssemblyParseFixture.STDIN, denied.source(), targetWithout(denied.capability())
+            );
+            DiagnosticAssertions.assertHasError(result, DiagnosticCode.UNSUPPORTED_CAPABILITY,
+                    "Target should reject " + denied.capability().displayName());
+            assertEquals(1, result.errors().size(),
+                    "A denied capability must stop validation of its unsupported payload");
+        }
+    }
+
+    @Test
+    void preservesInstructionSourceWithoutSemanticVerification() {
+        ASTMethod method = onlyProcessed(
+                ".method public test ()V { code: {\n" +
+                        " return invalid\n" +
+                        " not-a-target-instruction invalid\n" +
+                        " } }",
+                ASTMethod.class
+        );
+        ASTCode code = method.getCode();
+        assertNotNull(code);
+        assertEquals(2, code.getInstructions().size());
+        ASTInstruction knownInstruction = code.getInstructions().get(0);
+        assertEquals("return", knownInstruction.identifier().content());
+        assertEquals("invalid", knownInstruction.argument(0).content());
+        ASTInstruction unknownInstruction = code.getInstructions().get(1);
+        assertEquals("not-a-target-instruction", unknownInstruction.identifier().content());
+        assertEquals("invalid", unknownInstruction.argument(0).content());
+    }
+
     private static <T extends ASTElement> T onlyProcessed(String input, Class<T> type) {
-        List<ASTElement> results = DiagnosticAssertions.requireOk(
-                AssemblyParseFixture.processAst(input),
+        return onlyProcessed(input, FixtureTarget.JVM.context(), type);
+    }
+
+    private static <T extends ASTElement> T onlyProcessed(String input, TargetContext target, Class<T> type) {
+        List<ASTElement> results = DiagnosticAssertions.requireSuccess(
+                AssemblyParseFixture.processAst(AssemblyParseFixture.STDIN, input, target),
                 "AST processing failed"
         );
         assertEquals(1, results.size(), "Expected a single processed AST node");
         return assertInstanceOf(type, results.getFirst());
     }
+
+    private static TargetContext targetWithout(AnnotationCapability denied) {
+        TargetContext delegate = FixtureTarget.JVM.context();
+        return new TargetContext() {
+            @Override
+            public Instructions<?> instructions() {
+                return delegate.instructions();
+            }
+
+            @Override
+            public MethodAttributeRegistry methodAttributes() {
+                return delegate.methodAttributes();
+            }
+
+            @Override
+            public AnnotationCapabilities annotationCapabilities() {
+                return capability -> capability != denied
+                        && delegate.annotationCapabilities().supports(capability);
+            }
+        };
+    }
+
+    private record CapabilityCase(AnnotationCapability capability, String source) {}
 
     private static ASTAnnotation findParameterAnnotation(Map<ASTIdentifier, List<ASTAnnotation>> annotations, String parameterName) {
         for (var entry : annotations.entrySet()) {

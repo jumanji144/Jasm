@@ -8,6 +8,8 @@ import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTValue;
+import me.darknet.assembler.descriptor.DescriptorForm;
+import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.visitor.Modifiers;
 
 import java.util.List;
@@ -52,7 +54,8 @@ final class FieldDeclarationParser {
 			ASTElement fieldValue = object.values().get("value");
 			if (!(fieldValue instanceof ASTValue) && !(fieldValue instanceof ASTIdentifier)
 					&& !(fieldValue instanceof ASTDeclaration) || object.values().size() != 1) {
-				context.throwUnexpectedElementError("field value", fieldValue == null ? last : fieldValue);
+				context.throwError(DiagnosticCode.PAYLOAD_SHAPE, "Expected a single field value key 'value'",
+						fieldValue == null ? last.location() : fieldValue.location());
 				return null;
 			}
 			value = normalizeFieldValue(fieldValue);
@@ -61,18 +64,13 @@ final class FieldDeclarationParser {
 			return null;
 		}
 
-		ASTIdentifier desc = context.validateIdentifier(
-				context.declarationElement(declaration, descIndex), "field descriptor", declaration
-		);
-		ASTIdentifier name = context.validateIdentifier(
-				context.declarationElement(declaration, nameIndex), "field name", declaration
-		);
-		if (desc == null || name == null) {
+		ASTIdentifier desc = context.validateDescriptor(context.declarationElement(declaration, descIndex), DescriptorForm.FIELD, "field descriptor", declaration);
+		ASTIdentifier name = context.validateIdentifier(context.declarationElement(declaration, nameIndex), "field name", declaration);
+		if (desc == null || name == null)
 			return null;
-		}
 
 		Modifiers modifiers = ModifierParser.parseModifiers(context, nameIndex, declaration);
-		return new ASTField(modifiers, name, desc, value).accept(context.state().collectAttributes());
+		return new ASTField(modifiers, name, desc, value).accept(context.state().collectGenericAttributes());
 	}
 
 	private static ASTElement normalizeFieldValue(ASTElement value) {

@@ -1,8 +1,7 @@
 package me.darknet.assembler.test;
 
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.error.Error;
-import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.error.Diagnostic;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.List;
@@ -26,7 +25,7 @@ public final class AstAssertions {
 	 * 		The type of the expected AST node.
 	 */
 	public static <T extends ASTElement> void assertOneProcessed(String input, Class<T> clazz, Consumer<T> consumer) {
-		List<ASTElement> results = DiagnosticAssertions.requireOk(
+		List<ASTElement> results = DiagnosticAssertions.requireSuccess(
 				AssemblyParseFixture.processAst(input),
 				"Failed to process AST"
 		);
@@ -41,8 +40,8 @@ public final class AstAssertions {
 	 * 		The JASM assembly source code to process.
 	 */
 	public static void assertProcessedJvmOk(String input) {
-		DiagnosticAssertions.requireOk(
-				AssemblyParseFixture.processAst(AssemblyParseFixture.STDIN, input, BytecodeFormat.JVM),
+		DiagnosticAssertions.requireSuccess(
+				AssemblyParseFixture.processAst(AssemblyParseFixture.STDIN, input, FixtureTarget.JVM.context()),
 				"Failed to process AST"
 		);
 	}
@@ -54,8 +53,8 @@ public final class AstAssertions {
 	 * 		The JASM assembly source code to process.
 	 */
 	public static void assertProcessedDalvikOk(String input) {
-		DiagnosticAssertions.requireOk(
-				AssemblyParseFixture.processAst(AssemblyParseFixture.STDIN, input, BytecodeFormat.DALVIK),
+		DiagnosticAssertions.requireSuccess(
+				AssemblyParseFixture.processAst(AssemblyParseFixture.STDIN, input, FixtureTarget.DALVIK.context()),
 				"Failed to process AST"
 		);
 	}
@@ -67,9 +66,9 @@ public final class AstAssertions {
 	 * 		A consumer that will be called with the list of errors if processing fails.
 	 * 		Can be used to make assertions on the errors.
 	 */
-	public static void assertProcessedError(String input, Consumer<List<Error>> errorConsumer) {
+	public static void assertProcessedError(String input, Consumer<List<Diagnostic>> errorConsumer) {
 		var result = AssemblyParseFixture.processAst(input);
-		Assertions.assertTrue(result.hasErr(), "Expected errors but processing succeeded");
+		Assertions.assertTrue(result.hasErrors(), "Expected errors but processing succeeded");
 		errorConsumer.accept(result.errors());
 	}
 

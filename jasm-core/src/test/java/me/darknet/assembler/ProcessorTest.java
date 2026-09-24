@@ -1,8 +1,11 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.error.Error;
+import me.darknet.assembler.error.Diagnostic;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
 import me.darknet.assembler.helper.Processor;
-import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.test.DiagnosticAssertions;
+import me.darknet.assembler.test.FixtureTarget;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -22,28 +25,38 @@ public class ProcessorTest {
         var result = Processor.processSourceResult(
                 ".class public Example {}",
                 "<stdin>",
-                BytecodeFormat.DALVIK
+                FixtureTarget.DALVIK.context()
         );
 
-        assertTrue(result.isOk(), result.errors()::toString);
-        assertEquals(1, result.get().size());
+        DiagnosticAssertions.requireSuccess(result, "Dalvik source should process successfully");
+        assertEquals(1, result.requireValue().size());
     }
 
     @Test
     public void testTokenizerErrorsShortCircuitProcessing() {
         AtomicBoolean consumedAst = new AtomicBoolean(false);
-        AtomicReference<List<Error>> parseErrors = new AtomicReference<>();
+        AtomicReference<List<Diagnostic>> parseErrors = new AtomicReference<>();
 
         Processor.processSource(
                 "/",
                 "<stdin>",
                 ast -> consumedAst.set(true),
                 parseErrors::set,
-                BytecodeFormat.DEFAULT
+                FixtureTarget.JVM.context()
         );
 
         assertFalse(consumedAst.get());
         assertNotNull(parseErrors.get());
         assertFalse(parseErrors.get().isEmpty());
+        DiagnosticAssertions.assertHasErrorCode(
+                parseErrors.get(),
+                DiagnosticCode.UNEXPECTED_TOKEN,
+                "Trailing slash should report an unexpected-token diagnostic"
+        );
+        DiagnosticAssertions.assertPhase(
+                parseErrors.get(),
+                DiagnosticPhase.LEXER,
+                "Trailing slash should be reported during lexing"
+        );
     }
 }

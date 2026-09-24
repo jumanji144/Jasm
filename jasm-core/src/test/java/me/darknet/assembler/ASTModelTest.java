@@ -13,7 +13,6 @@ import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.ast.specific.ASTRecordComponent;
-import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.TokenType;
 import me.darknet.assembler.util.ElementMap;
@@ -49,22 +48,31 @@ public class ASTModelTest {
         ASTClass clazz = new ASTClass(modifiers(), id("Example", 0), List.of());
         ASTIdentifier permitted = id("pkg/Sub", 15);
         ASTRecordComponent component = new ASTRecordComponent(id("value", 25), id("I", 31));
+        ASTNumber version = num("21", 40);
 
         clazz.setPermittedSubclasses(List.of(permitted));
         clazz.setRecordComponents(List.of(component));
+        clazz.setVersion(version);
 
         assertSame(clazz, permitted.parent());
         assertSame(clazz, component.parent());
+        assertSame(clazz, version.parent());
         assertTrue(clazz.children().contains(permitted));
         assertTrue(clazz.children().contains(component));
+        assertTrue(clazz.children().contains(version));
+        assertSame(version, clazz.getVersion());
 
         clazz.setPermittedSubclasses(List.of());
         clazz.setRecordComponents(List.of());
+        clazz.setVersion(null);
 
         assertNull(permitted.parent());
         assertNull(component.parent());
+        assertNull(version.parent());
         assertFalse(clazz.children().contains(permitted));
         assertFalse(clazz.children().contains(component));
+        assertFalse(clazz.children().contains(version));
+        assertNull(clazz.getVersion());
     }
 
     @Test
@@ -98,6 +106,10 @@ public class ASTModelTest {
         parameterAnnotations.put(parameter, List.of(parameterAnnotation));
 
         ASTField field = new ASTField(modifiers(), id("field", 5), id("I", 11), num("1", 13));
+        ElementMap<ASTIdentifier, ASTElement> methodAttributes = new ElementMap<>();
+        ASTIdentifier attributeKey = id("registers", 35);
+        ASTNumber attributeValue = num("2", 45);
+        methodAttributes.put(attributeKey, attributeValue);
         ASTMethod method = new ASTMethod(
                 modifiers(),
                 id("method", 18),
@@ -108,8 +120,7 @@ public class ASTModelTest {
                 null,
                 List.of(),
                 new ASTCode(List.of()),
-                List.of(),
-                BytecodeFormat.JVM
+                methodAttributes
         );
 
         List<ASTElement> visited = new ArrayList<>();
@@ -125,7 +136,14 @@ public class ASTModelTest {
         assertTrue(visited.contains(field.getDescriptor()));
         assertTrue(visited.contains(field.getFieldValue()));
         assertTrue(visited.contains(parameterAnnotation));
+        assertTrue(visited.contains(attributeKey));
+        assertTrue(visited.contains(attributeValue));
         assertSame(method, parameterAnnotation.parent());
+        assertSame(method, attributeKey.parent());
+        assertSame(method, attributeValue.parent());
+        assertEquals(1, method.getMethodAttributes().size());
+        assertSame(attributeKey, method.getMethodAttributes().key(0));
+        assertSame(attributeValue, method.getMethodAttributes().get(0));
     }
 
     @Test

@@ -7,7 +7,6 @@ import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.error.Result;
 import me.darknet.assembler.visitor.ASTFieldVisitor;
-import me.darknet.assembler.visitor.ASTMethodVisitor;
 import me.darknet.assembler.visitor.ASTRootVisitor;
 
 import java.util.List;
@@ -20,8 +19,7 @@ public class Transformer {
 	}
 
 	/**
-	 * Transform a list of declarations into the transformers
-	 * {@link Transformer#visitor}
+	 * Transform a list of declarations into the transformers {@link Transformer#visitor}.
 	 *
 	 * @param declarations
 	 * 		the declarations to transform
@@ -30,24 +28,18 @@ public class Transformer {
 	 */
 	public Result<Void> transform(List<ASTElement> declarations) {
 		ErrorCollector collector = new ErrorCollector();
-		ASTRootVisitor localVisitor = visitor;
 		for (ASTElement declaration : declarations) {
 			switch (declaration) {
 				case ASTField field -> {
-					ASTFieldVisitor fieldVisitor = localVisitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor());
+					ASTFieldVisitor fieldVisitor = visitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor());
 					field.accept(collector, fieldVisitor);
 				}
-				case ASTMethod method -> {
-					ASTMethodVisitor methodVisitor = localVisitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor());
-					method.accept(collector, methodVisitor);
-				}
-				case ASTClass clazz ->
-						clazz.accept(collector, localVisitor.visitClass(clazz.getModifiers(), clazz.getName()));
+				case ASTMethod method -> collector.addError("Source-only methods require semantic instruction processing", method.location());
+				case ASTClass clazz -> collector.addError("Source-only classes require semantic instruction processing", clazz.location());
 				case null -> collector.addError("Null declaration", null);
 				default -> collector.addError("Unsupported declaration: " + declaration.type(), declaration.location());
 			}
 		}
 		return new Result<>(null, collector.getErrors(), collector.getWarns());
 	}
-
 }

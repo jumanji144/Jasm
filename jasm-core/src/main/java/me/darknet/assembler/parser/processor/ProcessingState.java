@@ -2,6 +2,7 @@ package me.darknet.assembler.parser.processor;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTInner;
@@ -21,6 +22,14 @@ final class ProcessingState {
 
     List<ASTElement> getResult() {
         return result;
+    }
+
+    List<ASTElement> getPendingAttributes() {
+        return List.copyOf(attributes.attributes);
+    }
+
+    void fillPendingAttributes(ProcessingState source) {
+        attributes.fill(source.collectAttributes());
     }
 
     ProcessorAttributes collectAttributes() {
@@ -89,6 +98,11 @@ final class ProcessingState {
     void setSuperName(ASTIdentifier superName) {
         attributes.superName = superName;
         addAttribute(superName);
+    }
+
+    void setVersion(ASTNumber version) {
+        attributes.version = version;
+        addAttribute(version);
     }
 
     void setOuterClass(ASTElement className) {

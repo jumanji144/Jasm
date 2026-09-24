@@ -1,12 +1,23 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.error.Result;
-import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.ast.specific.ASTMethod;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.instructions.jvm.JvmInstructions;
+import me.darknet.assembler.parser.processor.DeclarationRegistry;
+import me.darknet.assembler.parser.processor.ProcessorContext;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
+import me.darknet.assembler.test.FixtureTarget;
 import org.junit.jupiter.api.Test;
 
-import static me.darknet.assembler.test.AstAssertions.assertProcessedJvmOk;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JvmOperandsTest {
@@ -14,30 +25,30 @@ class JvmOperandsTest {
 	@Test
 	void integerOperandRequiresAnInteger() {
 		// Test that integer literals are accepted in decimal, hex, and binary
-		assertProcessedJvmOk("""
+		assertInstructionOk("""
 				.method public static test ()V {
 				  code: {
 				    sipush 127
 				    return
 				  }
 				}
-				""");
-		assertProcessedJvmOk("""
+				""", "sipush");
+		assertInstructionOk("""
 				.method public static test ()V {
 				  code: {
 				    sipush 0x7F
 				    return
 				  }
 				}
-				""");
-		assertProcessedJvmOk("""
+				""", "sipush");
+		assertInstructionOk("""
 				.method public static test ()V {
 				  code: {
 				    sipush 0b01111111
 				    return
 				  }
 				}
-				""");
+				""", "sipush");
 
 		// Test that a non-integer literal fails
 		assertErrorContains("""
@@ -47,7 +58,7 @@ class JvmOperandsTest {
 				    return
 				  }
 				}
-				""", "integer literal");
+				""", "bipush", "integer literal");
 	}
 
 	@Test
@@ -59,7 +70,7 @@ class JvmOperandsTest {
 				    return
 				  }
 				}
-				""", "args");
+				""", "invokedynamic", "args");
 	}
 
 	@Test
@@ -71,7 +82,7 @@ class JvmOperandsTest {
 				    return
 				  }
 				}
-				""", "identifier");
+				""", "lookupswitch", "identifier");
 	}
 
 	@Test
@@ -83,13 +94,42 @@ class JvmOperandsTest {
 				    return
 				  }
 				}
-				""", "integer literal");
+				""", "tableswitch", "integer literal");
 	}
 
-	private static void assertErrorContains(String source, String messagePart) {
-		Result<?> result = AssemblyParseFixture.processAst("<test>", source, BytecodeFormat.JVM);
-		DiagnosticAssertions.assertHasErrors(result, "Expected JVM operand validation errors");
-		assertTrue(DiagnosticAssertions.formatErrors(result.errors()).contains(messagePart));
+	private static void assertInstructionOk(String source, String instructionName) {
+		ProcessorContext context = verify(source, instructionName);
+		assertFalse(context.hasErrors(),
+				"Expected valid JVM operands but got:\n" + DiagnosticAssertions.formatErrors(context.diagnostics()));
+	}
+
+	private static void assertErrorContains(String source, String instructionName, String messagePart) {
+		ProcessorContext context = verify(source, instructionName);
+		DiagnosticAssertions.assertHasErrorCode(context.diagnostics(), DiagnosticCode.MALFORMED_DECLARATION,
+				"Expected JVM operand validation errors");
+		DiagnosticAssertions.assertPhase(context.diagnostics(), DiagnosticPhase.TARGET_VALIDATION,
+				"Expected JVM operand validation phase");
+		assertTrue(DiagnosticAssertions.formatErrors(context.diagnostics()).contains(messagePart),
+				DiagnosticAssertions.formatErrors(context.diagnostics()));
+	}
+
+	private static ProcessorContext verify(String source, String instructionName) {
+		List<ASTElement> elements = DiagnosticAssertions.requireSuccess(
+				AssemblyParseFixture.processAst("<test>", source, FixtureTarget.JVM.context()),
+				"Failed to process JVM operand source");
+		ASTMethod method = assertInstanceOf(ASTMethod.class, elements.getFirst());
+		assertNotNull(method.getCode());
+		ASTInstruction instruction = method.getCode().getInstructions().stream()
+				.filter(candidate -> instructionName.equals(candidate.identifier().content()))
+				.findFirst()
+				.orElseThrow();
+		ProcessorContext context = new ProcessorContext(
+				FixtureTarget.JVM.context(), DeclarationRegistry.createDefault(),
+				DiagnosticPhase.TARGET_VALIDATION, DiagnosticCode.MALFORMED_DECLARATION);
+		var definition = JvmInstructions.INSTANCE.get(instructionName);
+		assertNotNull(definition, "No JVM instruction registered for " + instructionName);
+		definition.verify(instruction, context);
+		return context;
 	}
 
 

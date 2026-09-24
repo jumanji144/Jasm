@@ -13,7 +13,7 @@ import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTEnum;
 import me.darknet.assembler.descriptor.DescriptorForm;
-import me.darknet.assembler.descriptor.DescriptorParser;
+import me.darknet.assembler.target.AnnotationCapability;
 import me.darknet.assembler.util.ElementMap;
 
 import java.util.ArrayList;
@@ -73,13 +73,8 @@ final class AnnotationDeclarationParser {
 					     "+infinityf", "infinityf", "-infinity", "-infinityd", "-infinityf" ->
 							new ASTNumber(identifier.value());
 					default -> {
-						if (DescriptorParser.tryParse(identifier.literal(), DescriptorForm.INTERNAL_NAME) == null) {
-							context.throwUnexpectedElementError(
-									"Expected class type, boolean, or special number",
-									value
-							);
+						if (context.isNotDescriptor(identifier, DescriptorForm.TYPE_REFERENCE, "annotation class value"))
 							yield null;
-						}
 						yield value;
 					}
 				};
@@ -145,21 +140,12 @@ final class AnnotationDeclarationParser {
 			context.throwError("enum declaration outside of annotation", declaration.location());
 			return null;
 		}
-		ASTIdentifier type = context.validateElement(
-				context.declarationElement(declaration, 0), ElementType.IDENTIFIER, "enum type", declaration
-		);
-		ASTIdentifier name = context.validateElement(
-				context.declarationElement(declaration, 1), ElementType.IDENTIFIER, "enum name", declaration
-		);
+		ASTIdentifier type = context.validateDescriptor(context.declarationElement(declaration, 0), DescriptorForm.TYPE_REFERENCE, "enum type", declaration);
+		ASTIdentifier name = context.validateElement(context.declarationElement(declaration, 1), ElementType.IDENTIFIER, "enum name", declaration);
 
 		ASTIdentifier fieldType = null;
 		if (declaration.elements().size() >= 3) {
-			fieldType = context.validateElement(
-					context.declarationElement(declaration, 2),
-					ElementType.IDENTIFIER,
-					"enum field type",
-					declaration
-			);
+			fieldType = context.validateDescriptor(context.declarationElement(declaration, 2), DescriptorForm.TYPE_REFERENCE, "enum field type", declaration);
 		}
 		if (type == null || name == null)
 			return null;
@@ -182,14 +168,17 @@ final class AnnotationDeclarationParser {
 	 */
 	private static ASTAnnotation parseAnnotation(ProcessorContext context, AnnotationVisibility visibility,
 	                                             boolean typeAnnotation, boolean addToState, ASTDeclaration declaration) {
+		if (visibility == AnnotationVisibility.SYSTEM
+				&& !context.supports(AnnotationCapability.SYSTEM_VISIBILITY, declaration))
+			return null;
+		if (typeAnnotation && !context.supports(AnnotationCapability.TYPE_ANNOTATIONS, declaration))
+			return null;
 		if (declaration.elements().size() != 2) {
 			context.throwError("Expected annotation type and values", declaration.location());
 			return null;
 		}
 
-		ASTIdentifier type = context.validateIdentifier(
-				context.declarationElement(declaration, 0), "annotation type", declaration
-		);
+		ASTIdentifier type = context.validateDescriptor(context.declarationElement(declaration, 0), DescriptorForm.TYPE_REFERENCE, "annotation type", declaration);
 		if (type == null)
 			return null;
 

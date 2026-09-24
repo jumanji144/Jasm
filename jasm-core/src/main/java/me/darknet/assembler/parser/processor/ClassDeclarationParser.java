@@ -5,6 +5,7 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.specific.ASTClass;
+import me.darknet.assembler.descriptor.DescriptorForm;
 import me.darknet.assembler.visitor.Modifiers;
 
 import java.util.List;
@@ -43,9 +44,7 @@ final class ClassDeclarationParser {
             return null;
 
         int nameIndex = bodyIndex - 1;
-        ASTIdentifier name = context.validateIdentifier(
-                context.declarationElement(declaration, nameIndex), "class name", declaration
-        );
+        ASTIdentifier name = context.validateDescriptor(context.declarationElement(declaration, nameIndex), DescriptorForm.INTERNAL_NAME, "class name", declaration);
         if (name == null)
             return null;
 
@@ -63,7 +62,20 @@ final class ClassDeclarationParser {
                 "type-visible-annotation",
                 "type-invisible-annotation",
                 "signature",
-                "deprecated"
+                "deprecated",
+                "version",
+                "sourcefile",
+                "source-debug-extension",
+                "super",
+                "implements",
+                "permitted-subclass",
+                "record-component",
+                "outer-class",
+                "outer-method",
+                "nest-host",
+                "nest-member",
+                "inner",
+                "type-annotation"
         );
 
         return new ASTClass(modifiers, name, classBody)

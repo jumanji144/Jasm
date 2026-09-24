@@ -1,9 +1,9 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.Result;
-import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.backend.jvm.JvmTargetContext;
+import me.darknet.assembler.error.Diagnostic;
+import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.parser.DeclarationParser;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.Tokenizer;
@@ -112,40 +112,41 @@ public class PrinterTest {
         });
     }
 
-    public static void parseString(String input, Consumer<Result<List<ASTElement>>> consumer) {
+    public static void parseString(String input, Consumer<Outcome<List<ASTElement>>> consumer) {
         DeclarationParser parser = new DeclarationParser();
         Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", input).get();
-        Assertions.assertNotNull(tokens);
-        Assertions.assertFalse(tokens.isEmpty());
-        Result<List<ASTElement>> result = parser.parseAny(tokens);
-        if (result.hasErr()) {
-            for (Error error : result.errors()) {
-                Location location = error.getLocation();
-                System.err.printf(
-                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
-                );
-                Throwable trace = new Throwable();
-                trace.setStackTrace(error.getInCodeSource());
-                trace.printStackTrace();
-            }
+        Outcome<List<Token>> tokenResult = tokenizer.tokenize("<stdin>", input);
+        if (tokenResult.hasErrors()) {
+            printDiagnostics(tokenResult.errors());
             Assertions.fail();
         }
-        ASTProcessor processor = new ASTProcessor(BytecodeFormat.DEFAULT);
-        result = processor.processAST(result.get());
-        if (result.hasErr()) {
-            for (Error error : result.errors()) {
-                Location location = error.getLocation();
-                System.err.printf(
-                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
-                );
-                Throwable trace = new Throwable();
-                trace.setStackTrace(error.getInCodeSource());
-                trace.printStackTrace();
-            }
+        List<Token> tokens = tokenResult.requireValue();
+        Assertions.assertFalse(tokens.isEmpty());
+        Outcome<List<ASTElement>> result = parser.parseAny(tokens);
+        if (result.hasErrors()) {
+            printDiagnostics(result.errors());
+            Assertions.fail();
+        }
+        ASTProcessor processor = new ASTProcessor(JvmTargetContext.INSTANCE);
+        result = processor.processAST(result.requireValue());
+        if (result.hasErrors()) {
+            printDiagnostics(result.errors());
             Assertions.fail();
         }
         consumer.accept(result);
+    }
+
+    private static void printDiagnostics(List<Diagnostic> diagnostics) {
+        for (Diagnostic diagnostic : diagnostics) {
+            Location location = diagnostic.location();
+            if (location == null) {
+                System.err.printf("%s%n", diagnostic.message());
+            } else {
+                System.err.printf(
+                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), diagnostic.message()
+                );
+            }
+        }
     }
 
     private static class InnerClass$InnerClass {
