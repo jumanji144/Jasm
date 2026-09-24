@@ -222,6 +222,112 @@ public class ASTModelTest {
     }
 
     @Test
+    void rawFloatingPointBitPatternsPreserveAllBits() {
+        ASTNumber floatPattern = num("#0x7FC00000", 0);
+        assertInstanceOf(Float.class, floatPattern.number());
+        assertEquals(0x7FC00000, Float.floatToRawIntBits(floatPattern.asFloat()));
+        assertTrue(floatPattern.isFloatingPoint());
+        assertFalse(floatPattern.isWide());
+        assertTrue(floatPattern.isNaN());
+
+        ASTNumber nonCanonicalFloat = num("#0x7FC00001", 12);
+        assertEquals(0x7FC00001, Float.floatToRawIntBits(nonCanonicalFloat.asFloat()));
+        assertTrue(nonCanonicalFloat.isNaN());
+        assertNotEquals(
+                Float.floatToRawIntBits(Float.NaN),
+                Float.floatToRawIntBits(nonCanonicalFloat.asFloat())
+        );
+
+        ASTNumber doublePattern = num("#0x7FF8000000000001", 24);
+        assertInstanceOf(Double.class, doublePattern.number());
+        assertEquals(0x7FF8000000000001L, Double.doubleToRawLongBits(doublePattern.asDouble()));
+        assertTrue(doublePattern.isFloatingPoint());
+        assertTrue(doublePattern.isWide());
+        assertTrue(doublePattern.isNaN());
+
+        ASTNumber binaryFloatPattern = num("#0B01111111110000000000000000000000", 42);
+        assertInstanceOf(Float.class, binaryFloatPattern.number());
+        assertFalse(binaryFloatPattern.isWide());
+        assertEquals(
+                Float.floatToRawIntBits(floatPattern.asFloat()),
+                Float.floatToRawIntBits(binaryFloatPattern.asFloat())
+        );
+
+        ASTNumber binaryDoublePattern = num(
+                "#0b0111111111111000000000000000000000000000000000000000000000000001", 78);
+        assertInstanceOf(Double.class, binaryDoublePattern.number());
+        assertTrue(binaryDoublePattern.isWide());
+        assertEquals(
+                Double.doubleToRawLongBits(doublePattern.asDouble()),
+                Double.doubleToRawLongBits(binaryDoublePattern.asDouble())
+        );
+
+        ASTNumber separated = num("#0x7FC0__0000", 150);
+        assertEquals(0x7FC00000, Float.floatToRawIntBits(separated.asFloat()));
+        assertTrue(separated.isNaN());
+
+        ASTNumber zeroFloat = num("#0x00000000", 166);
+        ASTNumber zeroDouble = num("#0x0000000000000000", 178);
+        assertInstanceOf(Float.class, zeroFloat.number());
+        assertFalse(zeroFloat.isWide());
+        assertInstanceOf(Double.class, zeroDouble.number());
+        assertTrue(zeroDouble.isWide());
+
+        ASTNumber negativeFloatZero = num("#0x80000000", 198);
+        ASTNumber negativeFloatOne = num("#0xBF800000", 210);
+        ASTNumber negativeDoubleZero = num("#0x8000000000000000", 222);
+        assertEquals(0x80000000, Float.floatToRawIntBits(negativeFloatZero.asFloat()));
+        assertEquals(-1.0f, negativeFloatOne.asFloat());
+        assertEquals(0xBF800000, Float.floatToRawIntBits(negativeFloatOne.asFloat()));
+        assertEquals(0x8000000000000000L, Double.doubleToRawLongBits(negativeDoubleZero.asDouble()));
+
+        ASTNumber positiveFloatInfinity = num("#0x7F800000", 244);
+        ASTNumber negativeFloatInfinity = num("#0xFF800000", 256);
+        ASTNumber positiveDoubleInfinity = num("#0x7FF0000000000000", 268);
+        ASTNumber negativeDoubleInfinity = num("#0xFFF0000000000000", 288);
+        assertTrue(positiveFloatInfinity.isInfinity());
+        assertTrue(negativeFloatInfinity.isInfinity());
+        assertTrue(positiveDoubleInfinity.isInfinity());
+        assertTrue(negativeDoubleInfinity.isInfinity());
+        assertEquals(0x7F800000, Float.floatToRawIntBits(positiveFloatInfinity.asFloat()));
+        assertEquals(0xFF800000, Float.floatToRawIntBits(negativeFloatInfinity.asFloat()));
+        assertEquals(0x7FF0000000000000L, Double.doubleToRawLongBits(positiveDoubleInfinity.asDouble()));
+        assertEquals(0xFFF0000000000000L, Double.doubleToRawLongBits(negativeDoubleInfinity.asDouble()));
+
+        ASTNumber readableNaN = num("NaNF", 316);
+        assertEquals(
+                Float.floatToRawIntBits(Float.NaN),
+                Float.floatToRawIntBits(readableNaN.asFloat())
+        );
+        assertNotEquals(
+                Float.floatToRawIntBits(readableNaN.asFloat()),
+                Float.floatToRawIntBits(nonCanonicalFloat.asFloat())
+        );
+    }
+
+    @Test
+    void preExistingNumberSpellingsKeepTheirValues() {
+        ASTNumber decimalInteger = num("127", 0);
+        ASTNumber longInteger = num("127L", 4);
+        ASTNumber hexadecimalInteger = num("0x7FFFFFFF", 9);
+        ASTNumber decimalFloat = num("100.0f", 20);
+        ASTNumber decimalExponent = num("1e3", 28);
+        ASTNumber hexadecimalFloat = num("0x1.8p1", 32);
+
+        assertInstanceOf(Integer.class, decimalInteger.number());
+        assertEquals(127, decimalInteger.asInt());
+        assertInstanceOf(Long.class, longInteger.number());
+        assertEquals(127L, longInteger.asLong());
+        assertEquals(0x7FFFFFFF, hexadecimalInteger.asInt());
+        assertEquals(100.0f, decimalFloat.asFloat());
+        assertFalse(decimalFloat.isWide());
+        assertEquals(1000.0d, decimalExponent.asDouble());
+        assertTrue(decimalExponent.isWide());
+        assertEquals(3.0d, hexadecimalFloat.asDouble());
+        assertTrue(hexadecimalFloat.isWide());
+    }
+
+    @Test
     void specialNumberFormsCoverFloatAndDoubleVariants() {
         ASTNumber nan = num("NaN", 0);
         ASTNumber nanDouble = num("NaND", 4);

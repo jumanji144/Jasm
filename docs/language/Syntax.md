@@ -24,6 +24,17 @@ The language grammar is made up off five main tokens:
             - integer (when no other condition is met)
     - supports hexadecimal (0xX), scientific floats (X.XeY), hexadecimal floats (0xX.XpY)
     - `nan`, `-nan`, `infinity` and `-infinity` count as numbers
+    - supports raw IEEE-754 bit patterns, which spell a value by its exact bits:
+        - `#0x` followed by exactly 8 hex digits for a 32-bit `float`, or 16 for a `double`
+        - `#0b` followed by exactly 32 binary digits for a 32-bit `float`, or 64 for a `double`
+        - Underscore separators may appear only between digits; one or more underscores are accepted between
+          adjacent digits, and there is no sign or suffix: the sign is part of the bit pattern
+        - Example `#0x7FC00000` is the canonical `float` NaN, and `#0x7FC00001` is a NaN with a different
+          payload; the two are not interchangeable, because code that compares their bit patterns sees
+          different values
+        - This spelling exists because the readable forms are lossy for NaN: every NaN prints as `nan`, and
+          re-reading `nan` yields only the canonical payload, so a value with any other payload can be
+          written exactly only as a bit pattern
 ### string
     - anything within `""` is a string
     - supports all java string escape sequences

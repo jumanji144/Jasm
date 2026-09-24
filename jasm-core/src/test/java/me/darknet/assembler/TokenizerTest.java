@@ -76,6 +76,74 @@ public class TokenizerTest {
     }
 
     @Test
+    public void testRawFloatingPointBitPatterns() {
+        List<String> expected = List.of(
+                "#0x7FC00000",
+                "#0X7FF8000000000001",
+                "#0B01111111110000000000000000000000",
+                "#0b0111111111111000000000000000000000000000000000000000000000000001"
+        );
+        List<Token> tokens = DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.tokenize(String.join(" ", expected)),
+                "Failed to tokenize raw floating-point bit patterns"
+        );
+        Assertions.assertEquals(expected.size(), tokens.size());
+        for (int index = 0; index < expected.size(); index++) {
+            Assertions.assertEquals(expected.get(index), tokens.get(index).content());
+            Assertions.assertSame(TokenType.NUMBER, tokens.get(index).type());
+        }
+    }
+
+    @Test
+    public void testRawFloatingPointBitPatternSeparators() {
+        List<String> expected = List.of(
+                "#0x7FC0__0000",
+                "#0x7FF8_0000_0000_0001",
+                "#0b01111111_11000000_00000000_00000000",
+                "#0b0111111111111000_0000000000000000_0000000000000000_0000000000000001"
+        );
+        List<Token> tokens = DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.tokenize(String.join(" ", expected)),
+                "Failed to tokenize raw floating-point bit-pattern separators"
+        );
+        Assertions.assertEquals(expected.size(), tokens.size());
+        for (int index = 0; index < expected.size(); index++) {
+            Assertions.assertEquals(expected.get(index), tokens.get(index).content());
+            Assertions.assertSame(TokenType.NUMBER, tokens.get(index).type());
+        }
+    }
+
+    @Test
+    public void testMalformedRawFloatingPointBitPatternsRetainIdentifiersWithErrors() {
+        for (String input : List.of(
+                "#0x",
+                "#0b",
+                "#0x7FC0000",
+                "#0x7FC000000",
+                "#0x" + "0".repeat(15),
+                "#0x" + "0".repeat(17),
+                "#0b" + "0".repeat(31),
+                "#0b" + "0".repeat(33),
+                "#0b" + "0".repeat(63),
+                "#0b" + "0".repeat(65),
+                "#0x_7FC00000",
+                "#0x7FC00000_",
+                "#0x7FC00000f",
+                "#0d7FC00000",
+                "#0b" + "0".repeat(31) + "2"
+        )) {
+            var result = AssemblyParseFixture.tokenize(input);
+            DiagnosticAssertions.assertHasErrors(
+                    result,
+                    "Malformed raw floating-point bit pattern should produce an error: " + input
+            );
+            Assertions.assertEquals(1, result.get().size());
+            Assertions.assertSame(TokenType.IDENTIFIER, result.get().getFirst().type());
+            Assertions.assertEquals(input, result.get().getFirst().content());
+        }
+    }
+
+    @Test
     public void testMalformedHexadecimalFloatsReportStructuredErrors() {
         for (String input : List.of("0xp1", "0x.p1")) {
             var result = AssemblyParseFixture.tokenize(input);

@@ -335,8 +335,16 @@ public class Tokenizer {
         private static final String DECIMAL_DIGITS = "\\d(?:[\\d_]*\\d)?";
         private static final String HEX_DIGITS = "[\\dA-Fa-f](?:[\\dA-Fa-f_]*[\\dA-Fa-f])?";
         private static final String BINARY_DIGITS = "[01](?:[01_]*[01])?";
+        private static final String BIT_PATTERN_HEX_DIGITS_32 = "[\\dA-Fa-f](?:_*[\\dA-Fa-f]){7}";
+        private static final String BIT_PATTERN_HEX_DIGITS_64 = "[\\dA-Fa-f](?:_*[\\dA-Fa-f]){15}";
+        private static final String BIT_PATTERN_BINARY_DIGITS_32 = "[01](?:_*[01]){31}";
+        private static final String BIT_PATTERN_BINARY_DIGITS_64 = "[01](?:_*[01]){63}";
+        private static final String BIT_PATTERN = "#0[xX](?:"
+                + BIT_PATTERN_HEX_DIGITS_32 + "|" + BIT_PATTERN_HEX_DIGITS_64 + ")"
+                + "|#0[bB](?:"
+                + BIT_PATTERN_BINARY_DIGITS_32 + "|" + BIT_PATTERN_BINARY_DIGITS_64 + ")";
         static final Pattern NUMBER_PATTERN = Pattern.compile(
-                "-?(?:"
+                "(?:-?(?:"
                         + "(?:"
                         + DECIMAL_DIGITS + "\\.(?:" + DECIMAL_DIGITS + ")?(?:[eE]-?" + DECIMAL_DIGITS + ")?"
                         + "|\\." + DECIMAL_DIGITS + "(?:[eE]-?" + DECIMAL_DIGITS + ")?"
@@ -346,7 +354,7 @@ public class Tokenizer {
                         + "|0[xX]" + HEX_DIGITS + "[Ll]?"
                         + "|0[bB]" + BINARY_DIGITS + "[Ll]?"
                         + "|" + DECIMAL_DIGITS + "[LlFfDd]?"
-                        + ")"
+                        + ")|" + BIT_PATTERN + ")"
         );
 
         private static final Pattern MALFORMED_HEX_FLOAT_PATTERN = Pattern.compile("-?0[xX].*[pP].*");
@@ -392,6 +400,9 @@ public class Tokenizer {
                     errors.addError("Invalid hexadecimal floating-point literal", location);
                     discardToken();
                     return;
+                }
+                if (type == TokenType.IDENTIFIER && content.startsWith("#")) {
+                    errors.addError("Invalid raw floating-point bit-pattern literal", location);
                 }
                 tokens.add(new Token(range, location, type, content));
             }
