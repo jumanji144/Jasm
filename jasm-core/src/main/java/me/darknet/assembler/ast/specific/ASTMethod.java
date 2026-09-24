@@ -139,7 +139,7 @@ public class ASTMethod extends ASTMember {
                 return;
             for (ASTAnnotation annotation : annos) {
                 annotation.accept(collector, visitor.visitParameterAnnotation(
-                        annotation.visibility(), jvmParameterIndex, annotation.getClassType()
+                        annotation.getVisibility(), jvmParameterIndex, annotation.getClassType()
                 ));
             }
         });

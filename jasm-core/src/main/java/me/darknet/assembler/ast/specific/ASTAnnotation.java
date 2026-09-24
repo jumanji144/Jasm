@@ -72,7 +72,7 @@ public class ASTAnnotation extends ASTElement {
 	/**
 	 * @return Visibility represented by the annotation's source syntax.
 	 */
-	public @NotNull AnnotationVisibility visibility() {
+	public @NotNull AnnotationVisibility getVisibility() {
 		return visibility;
 	}
 

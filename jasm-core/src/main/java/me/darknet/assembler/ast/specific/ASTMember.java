@@ -157,16 +157,16 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
             return;
         }
 		for (ASTAnnotation annotation : visibleAnnotations)
-			annotation.accept(collector, visitor.visitAnnotation(annotation.visibility(), annotation.getClassType()));
+			annotation.accept(collector, visitor.visitAnnotation(annotation.getVisibility(), annotation.getClassType()));
 		for (ASTAnnotation annotation : invisibleAnnotations)
-			annotation.accept(collector, visitor.visitAnnotation(annotation.visibility(), annotation.getClassType()));
+			annotation.accept(collector, visitor.visitAnnotation(annotation.getVisibility(), annotation.getClassType()));
 		for (ASTAnnotation annotation : visibleTypeAnnotations)
 			annotation.accept(collector, visitor.visitTypeAnnotation(
-					annotation.visibility(), annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()
+					annotation.getVisibility(), annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()
 			));
 		for (ASTAnnotation annotation : invisibleTypeAnnotations)
 			annotation.accept(collector, visitor.visitTypeAnnotation(
-					annotation.visibility(), annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()
+					annotation.getVisibility(), annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()
 			));
 
 		if (signature != null)
