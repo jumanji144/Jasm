@@ -12,7 +12,8 @@ import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTEnum;
-import me.darknet.assembler.util.DescriptorUtil;
+import me.darknet.assembler.descriptor.DescriptorForm;
+import me.darknet.assembler.descriptor.DescriptorParser;
 import me.darknet.assembler.util.ElementMap;
 
 import java.util.ArrayList;
@@ -72,7 +73,7 @@ final class AnnotationDeclarationParser {
 					     "+infinityf", "infinityf", "-infinity", "-infinityd", "-infinityf" ->
 							new ASTNumber(identifier.value());
 					default -> {
-						if (!DescriptorUtil.isValidFieldDescriptor('L' + identifier.literal() + ';')) {
+						if (DescriptorParser.tryParse(identifier.literal(), DescriptorForm.INTERNAL_NAME) == null) {
 							context.throwUnexpectedElementError(
 									"Expected class type, boolean, or special number",
 									value

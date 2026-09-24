@@ -6,11 +6,11 @@ import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTObject;
+import me.darknet.assembler.descriptor.DescriptorParser;
 import me.darknet.assembler.helper.Handle;
 import me.darknet.assembler.instructions.Operand;
 import me.darknet.assembler.instructions.Operands;
 import me.darknet.assembler.parser.processor.ProcessorContext;
-import me.darknet.assembler.util.DescriptorUtil;
 
 import java.util.List;
 
@@ -119,7 +119,7 @@ public enum JvmOperands implements Operands {
                         // if last is `;` then it's a class type, if not could be a short handle
                         char last = element.content().charAt(element.content().length() - 1);
                         if (last == ';') {
-                            yield DescriptorUtil.isValidFieldDescriptor(element.content());
+                            yield DescriptorParser.isValidFieldDescriptor(element.content());
                         } else {
                             Handle handle = Handle.HANDLE_SHORTCUTS.get(element.content());
                             if (handle == null) {
@@ -128,8 +128,8 @@ public enum JvmOperands implements Operands {
                             yield true;
                         }
                     }
-                    case '[' -> DescriptorUtil.isValidFieldDescriptor(element.content());
-                    case '(' -> DescriptorUtil.isValidMethodDescriptor(element.content());
+                    case '[' -> DescriptorParser.isValidFieldDescriptor(element.content());
+                    case '(' -> DescriptorParser.isValidMethodDescriptor(element.content());
                     default -> {
                         // maybe it's a number handle
                         switch (element.content().toLowerCase()) {
@@ -190,7 +190,7 @@ public enum JvmOperands implements Operands {
             return;
 
         String descriptor = type.content();
-        boolean valid = DescriptorUtil.isValidFieldDescriptor(descriptor);
+        boolean valid = DescriptorParser.isValidFieldDescriptor(descriptor);
         if (!valid) {
             context.throwIllegalArgumentStateError("not a valid field descriptor", type);
             return;
@@ -243,8 +243,8 @@ public enum JvmOperands implements Operands {
         // 3rd is descriptor
         String descriptor = values.get(2).content();
         boolean valid = switch (kind) {
-            case GET_FIELD, GET_STATIC, PUT_FIELD, PUT_STATIC -> DescriptorUtil.isValidFieldDescriptor(descriptor);
-            case INVOKE_VIRTUAL, INVOKE_STATIC, INVOKE_SPECIAL, NEW_INVOKE_SPECIAL, INVOKE_INTERFACE -> DescriptorUtil
+            case GET_FIELD, GET_STATIC, PUT_FIELD, PUT_STATIC -> DescriptorParser.isValidFieldDescriptor(descriptor);
+            case INVOKE_VIRTUAL, INVOKE_STATIC, INVOKE_SPECIAL, NEW_INVOKE_SPECIAL, INVOKE_INTERFACE -> DescriptorParser
                     .isValidMethodDescriptor(descriptor);
         };
 
