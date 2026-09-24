@@ -3,8 +3,25 @@ package me.darknet.assembler;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTCode;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.ast.ElementType;
+import me.darknet.assembler.ast.primitive.ASTArray;
+import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTNumber;
+import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.ast.specific.ASTMethod;
+import me.darknet.assembler.instructions.DefaultOperands;
+import me.darknet.assembler.instructions.HandleOperands;
+import me.darknet.assembler.instructions.MemberPath;
+import me.darknet.assembler.instructions.OperandValues;
+import me.darknet.assembler.instructions.PayloadSchema;
+import me.darknet.assembler.instructions.SwitchKey;
 import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.parser.Token;
+import me.darknet.assembler.parser.TokenType;
+import me.darknet.assembler.parser.processor.DeclarationRegistry;
+import me.darknet.assembler.parser.processor.ProcessorContext;
+import me.darknet.assembler.util.Location;
+import me.darknet.assembler.util.Range;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
 
@@ -140,6 +157,132 @@ public class InstructionsTest {
                     assertEquals(":", instructions.getFirst().arguments().getFirst().content());
                 }
         );
+    }
+
+    @Test
+    public void memberPathsAndSwitchKeysResolveToTypedValues() {
+        RecordingContext context = new RecordingContext();
+        ASTIdentifier path = identifier("a/b$Outer.Inner.member");
+        var memberOperand = DefaultOperands.MEMBER_PATH.getOperand();
+        memberOperand.verify(context, path);
+        assertEquals(new MemberPath("a/b$Outer.Inner", "member"), memberOperand.resolve(context, path));
+
+        assertEquals(new SwitchKey(-1), OperandValues.switchKey(context, identifier("0xFFFFFFFF")));
+        assertEquals(new SwitchKey(-2), OperandValues.switchKey(context, identifier("-0b10")));
+        assertEquals(new SwitchKey(12), OperandValues.switchKey(context, identifier("+0xC")));
+        assertTrue(context.messages.isEmpty());
+    }
+
+    @Test
+    public void malformedTypedOperandsReportErrorsAndReturnNoValue() {
+        RecordingContext context = new RecordingContext();
+        var memberOperand = DefaultOperands.MEMBER_PATH.getOperand();
+        ASTIdentifier malformedPath = identifier(".member");
+        memberOperand.verify(context, malformedPath);
+        assertNull(memberOperand.resolve(context, malformedPath));
+        assertNull(OperandValues.switchKey(context, identifier("0x")));
+        assertEquals(2, context.messages.size());
+        assertTrue(context.messages.getFirst().contains("Expected member path in owner.name form"));
+        assertTrue(context.messages.get(1).contains("Expected integer switch key"));
+    }
+
+    @Test
+    public void payloadSchemasAcceptValidPayloadsAndRejectWrongShape() {
+        PayloadSchema fixed = PayloadSchema.fixed("single-target",
+                PayloadSchema.Field.value("target", ElementType.IDENTIFIER, "label"));
+        RecordingContext fixedContext = new RecordingContext();
+        assertNotNull(fixed.validate(fixedContext, object("{ target: L0 }")));
+        assertTrue(fixedContext.messages.isEmpty());
+
+        RecordingContext extraKeyContext = new RecordingContext();
+        assertNull(fixed.validate(extraKeyContext, object("{ target: L0, extra: L1 }")));
+        assertFalse(extraKeyContext.messages.isEmpty());
+
+        PayloadSchema keyed = PayloadSchema.keyed("switch-payload",
+                new PayloadSchema.CaseKeys(ElementType.IDENTIFIER, "label"),
+                PayloadSchema.Field.value("default", ElementType.IDENTIFIER, "default label"));
+        RecordingContext keyedContext = new RecordingContext();
+        assertNotNull(keyed.validate(keyedContext, object("{ default: L0, 0: L1 }")));
+        assertTrue(keyedContext.messages.isEmpty());
+
+        RecordingContext malformedCaseContext = new RecordingContext();
+        assertNull(keyed.validate(malformedCaseContext, object("{ default: L0, nope: L1 }")));
+        assertFalse(malformedCaseContext.messages.isEmpty());
+
+        RecordingContext malformedValueContext = new RecordingContext();
+        assertNull(keyed.validate(malformedValueContext, object("{ default: L0, 0: 5 }")));
+        assertFalse(malformedValueContext.messages.isEmpty());
+    }
+
+    @Test
+    public void handleOperandChecksDescriptorFormAgainstHandleKind() {
+        RecordingContext context = new RecordingContext();
+        assertFalse(HandleOperands.verifyAndReport(context,
+                new ASTArray(List.of(identifier("getfield"), identifier("Owner.value"), identifier("I")))));
+        assertFalse(HandleOperands.verifyAndReport(context,
+                new ASTArray(List.of(identifier("invokestatic"), identifier("Owner.call"), identifier("()V")))));
+        assertFalse(HandleOperands.verifyAndReport(context, identifier("LambdaMetafactory.metafactory")));
+        assertEquals("getfield", me.darknet.assembler.helper.Handle.KIND_NAMES
+                .get(me.darknet.assembler.helper.Handle.Kind.GET_FIELD));
+
+        assertTrue(HandleOperands.verifyAndReport(context,
+                new ASTArray(List.of(identifier("getfield"), identifier("Owner.value"), identifier("()V")))));
+        assertTrue(HandleOperands.verifyAndReport(context,
+                new ASTArray(List.of(identifier("invokestatic"), identifier("Owner.call"), identifier("I")))));
+        assertTrue(HandleOperands.verifyAndReport(context,
+                new ASTArray(List.of(identifier("getfield"), identifier("Owner.value"), identifier("I"),
+                        identifier("extra")))));
+        assertEquals(3, context.messages.size());
+    }
+
+    @Test
+    public void variableNamesRejectFractionalSlotIndices() {
+        RecordingContext context = new RecordingContext();
+        DefaultOperands.VARIABLE_NAME.getOperand().verify(context, number("1.5"));
+        assertEquals(1, context.messages.size());
+        assertTrue(context.messages.getFirst().contains("local variable name or index"));
+
+        RecordingContext validContext = new RecordingContext();
+        DefaultOperands.VARIABLE_NAME.getOperand().verify(validContext, identifier("local"));
+        assertTrue(validContext.messages.isEmpty());
+    }
+
+    @Test
+    public void numberOperandsAcceptSpecialValuesAndIntegerVariableSlots() {
+        RecordingContext context = new RecordingContext();
+        DefaultOperands.NUMBER.getOperand().verify(context, identifier("NaN"));
+        DefaultOperands.NUMBER.getOperand().verify(context, identifier("-InfinityF"));
+        DefaultOperands.VARIABLE_NAME.getOperand().verify(context, number("2"));
+        assertTrue(context.messages.isEmpty());
+    }
+
+    private static ASTIdentifier identifier(String content) {
+        return new ASTIdentifier(new Token(Range.EMPTY, Location.UNKNOWN, TokenType.IDENTIFIER, content));
+    }
+
+    private static ASTNumber number(String content) {
+        return new ASTNumber(new Token(Range.EMPTY, Location.UNKNOWN, TokenType.NUMBER, content));
+    }
+
+    private static ASTObject object(String source) {
+        List<ASTElement> elements = DiagnosticAssertions.requireOk(
+                AssemblyParseFixture.parse(source), "Failed to parse payload object");
+        assertEquals(1, elements.size());
+        return assertInstanceOf(ASTObject.class, elements.getFirst());
+    }
+
+    private static final class RecordingContext extends ProcessorContext {
+        private final List<String> messages = new java.util.ArrayList<>();
+
+        private RecordingContext() {
+            super(BytecodeFormat.JVM, DeclarationRegistry.createDefault());
+        }
+
+        @Override
+        public void throwError(String message, Location location) {
+            messages.add(message);
+            super.throwError(message, location);
+        }
     }
 
 }
