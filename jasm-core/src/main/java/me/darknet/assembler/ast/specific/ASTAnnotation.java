@@ -5,6 +5,8 @@ import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CollectionUtil;
 import me.darknet.assembler.util.ElementMapView;
@@ -126,6 +128,9 @@ public class ASTAnnotation extends ASTElement {
 	public void accept(ErrorCollector collector, @Nullable ASTAnnotationVisitor visitor) {
 		if (visitor == null)
 			return;
-		ASTAnnotationVisitor.accept(visitor, values.pairs(), collector);
+		DiagnosticSink diagnostics = new DiagnosticSink(DiagnosticPhase.BACKEND_EMISSION);
+		ASTAnnotationVisitor.accept(visitor, values.pairs(), diagnostics);
+		diagnostics.errors().forEach(diagnostic -> collector.addError(diagnostic.message(), diagnostic.location()));
+		diagnostics.warnings().forEach(diagnostic -> collector.addWarn(diagnostic.message(), diagnostic.location()));
 	}
 }

@@ -214,7 +214,7 @@ public class CompileCommand implements Callable<Integer> {
 
         overlay.ifPresent(file -> {
             try {
-                options.overlay(new JavaClassRepresentation(Files.readAllBytes(file.toPath())));
+                options.setOverlay(new JavaClassRepresentation(Files.readAllBytes(file.toPath())));
             } catch (IOException exception) {
                 throw failure("Failed to read overlay file: " + exception.getMessage(), exception);
             }

@@ -20,7 +20,7 @@ public class DalvikCompilerOptions implements CompilerOptions<DalvikCompilerOpti
     }
 
     @Override
-    public ClassRepresentation overlay() {
+    public ClassRepresentation getOverlay() {
         return overlay;
     }
 

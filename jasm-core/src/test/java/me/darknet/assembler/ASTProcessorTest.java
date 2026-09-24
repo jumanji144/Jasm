@@ -20,6 +20,7 @@ import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticPhase;
 import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.instructions.Instructions;
+import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.target.AnnotationCapabilities;
 import me.darknet.assembler.target.AnnotationCapability;
 import me.darknet.assembler.target.MethodAttributeRegistry;
@@ -566,6 +567,11 @@ public class ASTProcessorTest {
         assertEquals("registers", dalvikMethod.getMethodAttributes().key(0).content());
         assertEquals("2", dalvikMethod.getMethodAttributes().get(0).content());
         assertSame(dalvikMethod, dalvikMethod.getMethodAttributes().get(0).parent());
+        var semantic = DiagnosticAssertions.requireSuccess(
+                SemanticProcessor.process(List.of(dalvikMethod), FixtureTarget.DALVIK.context()),
+                "Dalvik method attributes should lower into a semantic extension"
+        );
+        assertEquals(1, semantic.methods().get(dalvikMethod).extensions().values().size());
 
         Outcome<List<ASTElement>> jvmResult = AssemblyParseFixture.processAst(
                 AssemblyParseFixture.STDIN,

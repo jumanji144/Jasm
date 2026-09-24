@@ -50,7 +50,7 @@ public class TopLevelDeclarationTest {
 	void requestedVersionOverridesOverlayVersion() {
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
 		options.version(21);
-		options.overlay(new JavaClassRepresentation(buildOverlayClass(OVERLAY_TYPE, Opcodes.V1_8)));
+		options.setOverlay(new JavaClassRepresentation(buildOverlayClass(OVERLAY_TYPE, Opcodes.V1_8)));
 
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
 				".field public static final answer I { value: 42 }",
@@ -136,7 +136,7 @@ public class TopLevelDeclarationTest {
 	@Test
 	void untouchedOverlayMethodsAreCopiedWithoutRecomputingFrames() {
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.overlay(new JavaClassRepresentation(buildOverlayWithUntouchedMergedTypes("top/level/MissingTypesOverlay")));
+		options.setOverlay(new JavaClassRepresentation(buildOverlayWithUntouchedMergedTypes("top/level/MissingTypesOverlay")));
 
 		// Say for instance we have some class that has a bunch of methods.
 		// You want to edit one of them, but the others have some weird control flow with merged types that would require frame recomputation.
@@ -163,7 +163,7 @@ public class TopLevelDeclarationTest {
 	@Test
 	void modifiedOverlayMethodsAreVerifiedWithoutTouchingUntouchedOverlayMethods() {
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.overlay(new JavaClassRepresentation(buildOverlayWithUntouchedMergedTypes("top/level/MissingTypesOverlay")));
+		options.setOverlay(new JavaClassRepresentation(buildOverlayWithUntouchedMergedTypes("top/level/MissingTypesOverlay")));
 
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
 				"""
@@ -193,7 +193,7 @@ public class TopLevelDeclarationTest {
 
 	private static TestJvmCompilerOptions overlayOptions(String internalName) {
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.overlay(new JavaClassRepresentation(buildOverlayClass(internalName)));
+		options.setOverlay(new JavaClassRepresentation(buildOverlayClass(internalName)));
 		return options;
 	}
 

@@ -14,7 +14,7 @@ import org.objectweb.asm.ClassWriter;
 
 import java.util.Objects;
 
-public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
+public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions, ClassRepresentation> {
     private static final int DEFAULT_VERSION = 8;
 
     // General class options
@@ -97,7 +97,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     }
 
     @Override
-    public JvmCompilerOptions overlay(ClassRepresentation representation) {
+    public @NotNull JvmCompilerOptions setOverlay(ClassRepresentation representation) {
         if (!(representation instanceof JavaClassRepresentation))
             throw new IllegalArgumentException("ClassRepresentation must be a JavaClassRepresentation");
         this.overlay = (JavaClassRepresentation) representation;
@@ -105,7 +105,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions> {
     }
 
     @Override
-    public ClassRepresentation overlay() {
+    public ClassRepresentation getOverlay() {
         return this.overlay;
     }
 

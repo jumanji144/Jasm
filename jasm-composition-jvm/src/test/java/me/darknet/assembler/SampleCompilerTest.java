@@ -159,7 +159,7 @@ public class SampleCompilerTest {
             // First, an overlay that includes a local variable table.
             TestJvmCompilerOptions withLocals = new TestJvmCompilerOptions();
             withLocals.variableTableMode(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
-            withLocals.overlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(true)));
+            withLocals.setOverlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(true)));
 
             // In this case we should see that the variable 'value' is emitted since the
             // overlay method has a local variable table with that variable.
@@ -174,7 +174,7 @@ public class SampleCompilerTest {
             // no longer matches the 'if already present' contract, we get no variables emitted at all.
             TestJvmCompilerOptions withoutLocals = new TestJvmCompilerOptions();
             withoutLocals.variableTableMode(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
-            withoutLocals.overlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(false)));
+            withoutLocals.setOverlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(false)));
             processJvm(source, withoutLocals, result -> {
                 MethodNode method = readMethod(result.representation().classFile(), "test", "()V");
                 assertTrue(method.localVariables == null || method.localVariables.isEmpty());
@@ -932,7 +932,7 @@ public class SampleCompilerTest {
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
             options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
             options.engineProvider(ValuedJvmAnalysisEngine::new);
-            assertDoesNotThrow(() -> options.overlay(new JavaClassRepresentation(arg.source().get())));
+            assertDoesNotThrow(() -> options.setOverlay(new JavaClassRepresentation(arg.source().get())));
 
 			// Compiling the method shouldn't fail for any reason.
             JvmCompilation compilation = assertDoesNotThrow(() -> JvmAssemblerFixture.compileJvm(source, options));

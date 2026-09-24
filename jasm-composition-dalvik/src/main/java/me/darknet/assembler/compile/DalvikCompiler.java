@@ -17,10 +17,10 @@ import java.util.List;
 
 public class DalvikCompiler implements Compiler {
     @Override
-    public @NotNull Result<? extends ClassResult> compile(List<ASTElement> ast, CompilerOptions<?> options) {
+    public @NotNull Result<? extends ClassResult> compile(List<ASTElement> ast, CompilerOptions<?,?> options) {
         DalvikCompilerOptions dalvikOptions = (DalvikCompilerOptions) options;
 
-        DalvikClassRepresentation overlayRepresentation = (DalvikClassRepresentation) dalvikOptions.overlay();
+        DalvikClassRepresentation overlayRepresentation = (DalvikClassRepresentation) dalvikOptions.getOverlay();
         ClassDefinition overlay = overlayRepresentation != null ? overlayRepresentation.definition() : null;
 
         ErrorCollector collector = new ErrorCollector();
