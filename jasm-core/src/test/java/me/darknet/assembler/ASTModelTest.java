@@ -1,7 +1,10 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTCode;
+import me.darknet.assembler.ast.primitive.ASTEmpty;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
@@ -30,10 +33,10 @@ public class ASTModelTest {
     void typeAnnotationHelpersUseTypeAnnotationCollections() {
         ASTField field = new ASTField(modifiers(), id("field", 5), id("I", 11), null);
         ASTRecordComponent component = new ASTRecordComponent(id("name", 20), id("I", 25));
-        ASTAnnotation annotation = annotation("pkg/Anno", 30);
+        ASTAnnotation annotation = annotation(AnnotationVisibility.VISIBLE, "pkg/Anno", 30);
 
         field.addVisibleTypeAnnotation(annotation);
-        component.addInvisibleTypeAnnotation(annotation("pkg/Other", 40));
+        component.addInvisibleTypeAnnotation(annotation(AnnotationVisibility.INVISIBLE, "pkg/Other", 40));
 
         assertEquals(1, field.getVisibleTypeAnnotations().size());
         assertTrue(field.getVisibleAnnotations().isEmpty());
@@ -80,7 +83,7 @@ public class ASTModelTest {
 
         ElementMap<ASTIdentifier, ASTElement> values = new ElementMap<>();
         values.put(id("value", 30), num("1", 37));
-        ASTAnnotation annotation = new ASTAnnotation(true, id("pkg/Anno", 45), values);
+        ASTAnnotation annotation = new ASTAnnotation(AnnotationVisibility.VISIBLE, id("pkg/Anno", 45), values);
         values.put(id("other", 55), num("2", 61));
 
         assertEquals(1, annotation.getValueMap().size());
@@ -89,7 +92,7 @@ public class ASTModelTest {
 
     @Test
     void treeContainsDescriptorFieldValueAndParameterAnnotations() {
-        ASTAnnotation parameterAnnotation = annotation("pkg/ParamAnno", 40);
+        ASTAnnotation parameterAnnotation = annotation(AnnotationVisibility.VISIBLE, "pkg/ParamAnno", 40);
         ASTIdentifier parameter = id("param", 22);
         Map<ASTIdentifier, List<ASTAnnotation>> parameterAnnotations = new IdentityHashMap<>();
         parameterAnnotations.put(parameter, List.of(parameterAnnotation));
@@ -147,12 +150,45 @@ public class ASTModelTest {
         ASTNumber number = num("1", 16);
         values.put(key, number);
 
-        ASTAnnotation annotation = new ASTAnnotation(true, id("pkg/Anno", 0), values);
+        ASTAnnotation annotation = new ASTAnnotation(AnnotationVisibility.VISIBLE, id("pkg/Anno", 0), values);
 
         assertEquals(1, annotation.getValueMap().size());
         assertSame(key, annotation.getValueMap().key("value"));
         assertSame(number, annotation.getValueMap().get("value"));
         assertEquals(2, annotation.getValueMap().elements().size());
+    }
+
+    @Test
+    void argumentAccessorKeepsTheDocumentedAdaptations() {
+        ASTNumber numericOperand = num("42", 10);
+        ASTEmpty emptyArrayOperand = new ASTEmpty(token(TokenType.OPERATOR, "{}", 20));
+        ASTEmpty emptyObjectOperand = new ASTEmpty(token(TokenType.OPERATOR, "{}", 24));
+        ASTInstruction instruction = new ASTInstruction(
+                id("test", 0), List.of(numericOperand, emptyArrayOperand, emptyObjectOperand)
+        );
+
+        ASTIdentifier adaptedNumber = instruction.argument(0, ASTIdentifier.class);
+        assertEquals("42", adaptedNumber.content());
+        assertNotSame(numericOperand, adaptedNumber);
+        assertSame(ASTEmpty.EMPTY_ARRAY, instruction.argumentArray(1));
+        assertSame(ASTEmpty.EMPTY_OBJECT, instruction.argumentObject(2));
+
+        List<ASTElement> nullArgument = new ArrayList<>();
+        nullArgument.add(null);
+        assertNull(new ASTInstruction(id("test", 30), nullArgument).argument(0, ASTIdentifier.class));
+    }
+
+    @Test
+    void argumentAccessorRejectsAnElementOfTheWrongType() {
+        ASTInstruction instruction = new ASTInstruction(id("test", 0), List.of(string("\"value\"", 5)));
+
+        assertThrows(IllegalStateException.class, () -> instruction.argumentArray(0));
+    }
+
+    @Test
+    void annotationRejectsNullVisibility() {
+        assertThrows(NullPointerException.class,
+                () -> new ASTAnnotation(null, id("pkg/Anno", 0), new ElementMap<>()));
     }
 
     @Test
@@ -248,10 +284,10 @@ public class ASTModelTest {
         assertFalse(hexFloatExponent.isWide());
     }
 
-    private static ASTAnnotation annotation(String type, int start) {
+    private static ASTAnnotation annotation(AnnotationVisibility visibility, String type, int start) {
         ElementMap<ASTIdentifier, ASTElement> values = new ElementMap<>();
         values.put(id("value", start + 2), num("1", start + 8));
-        return new ASTAnnotation(true, id(type, start), values);
+        return new ASTAnnotation(visibility, id(type, start), values);
     }
 
     private static Modifiers modifiers() {

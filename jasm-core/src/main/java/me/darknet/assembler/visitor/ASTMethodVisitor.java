@@ -1,6 +1,7 @@
 package me.darknet.assembler.visitor;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.error.ErrorCollector;
 import org.jetbrains.annotations.NotNull;
@@ -68,26 +69,20 @@ public interface ASTMethodVisitor extends ASTDeclarationVisitor {
 	}
 
 	/**
-	 * Visits a visible parameter annotation.
+	 * Visits a parameter annotation with its source-syntax visibility.
 	 *
+	 * @param visibility
+	 * 		Visibility represented by the annotation's source syntax.
 	 * @param index
-	 * 		The parameter index.
+	 * 		The zero-based JVM parameter index emitted by the current AST traversal; an instance receiver is excluded.
 	 * @param classType
 	 * 		The annotation type.
 	 *
-	 * @return Visitor for the annotation, or {@code null} if the annotation is not supported.
+	 * @return Visitor for the annotation.
+	 * @throws UnsupportedOperationException if parameter annotations are unsupported.
 	 */
-	ASTAnnotationVisitor visitVisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType);
-
-	/**
-	 * Visits an invisible parameter annotation.
-	 *
-	 * @param index
-	 * 		The parameter index.
-	 * @param classType
-	 * 		The annotation type.
-	 *
-	 * @return Visitor for the annotation, or {@code null} if the annotation is not supported.
-	 */
-	ASTAnnotationVisitor visitInvisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType);
+	default ASTAnnotationVisitor visitParameterAnnotation(@NotNull AnnotationVisibility visibility, int index,
+	                                                       @NotNull ASTIdentifier classType) {
+		throw new UnsupportedOperationException("Target does not support parameter annotations");
+	}
 }

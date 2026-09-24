@@ -36,7 +36,7 @@ public class DeclarationParser {
         if (tokens.isEmpty()) {
             return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
         }
-        Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
+        Pair<List<Token>, Collection<Token>> filtered = filterComments(tokens);
         if (filtered.second().isEmpty()) {
             return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), filtered.first());
         }
@@ -62,7 +62,7 @@ public class DeclarationParser {
         if (tokens.isEmpty()) {
             return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
         }
-        Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
+        Pair<List<Token>, Collection<Token>> filtered = filterComments(tokens);
         if (filtered.second().isEmpty()) {
             return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), filtered.first());
         }
@@ -75,12 +75,12 @@ public class DeclarationParser {
         return new ParsingResult<>(result, ctx.errorCollector.getErrors(), filtered.first());
     }
 
-    private Pair<List<ASTComment>, Collection<Token>> filterComments(Collection<Token> tokens) {
+    private Pair<List<Token>, Collection<Token>> filterComments(Collection<Token> tokens) {
         List<Token> filtered = new ArrayList<>();
-        List<ASTComment> comments = new ArrayList<>();
+        List<Token> comments = new ArrayList<>();
         for (Token token : tokens) {
             if (token.type().equals(TokenType.COMMENT)) {
-                comments.add(new ASTComment(token));
+                comments.add(token);
             } else {
                 filtered.add(token);
             }

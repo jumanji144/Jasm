@@ -1,6 +1,7 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
@@ -107,7 +108,11 @@ public class ASTProcessorTest {
     @Test
     public void testAnnotation() {
         assertOne(".annotation java/lang/Deprecated {}", ASTAnnotation.class, (annotation) -> {
+            assertEquals(AnnotationVisibility.VISIBLE, annotation.visibility());
             assertEquals("java/lang/Deprecated", annotation.getClassType().content());
+        });
+        assertOne(".system-annotation java/lang/Deprecated {}", ASTAnnotation.class, (annotation) -> {
+            assertEquals(AnnotationVisibility.SYSTEM, annotation.visibility());
         });
         assertOne(".annotation java/lang/Deprecated { value: \"Hello World\" }", ASTAnnotation.class, (annotation) -> {
             assertEquals("java/lang/Deprecated", annotation.getClassType().content());
@@ -151,10 +156,12 @@ public class ASTProcessorTest {
         assertOne(
                 ".annotation java/lang/annotation/Annotation { value: .annotation java/lang/annotation/Annotation { value: 100 } }",
                 ASTAnnotation.class, (annotation) -> {
+                    assertEquals(AnnotationVisibility.VISIBLE, annotation.visibility());
                     assertEquals("java/lang/annotation/Annotation", annotation.getClassType().content());
                     assertNotNull(annotation.getValueMap());
                     assertEquals(1, annotation.getValueMap().size());
                     ASTAnnotation subAnnotation = assertIs(ASTAnnotation.class, annotation.getValue("value"));
+                    assertEquals(AnnotationVisibility.VISIBLE, subAnnotation.visibility());
                     assertEquals("java/lang/annotation/Annotation", subAnnotation.getClassType().content());
                     assertNotNull(subAnnotation.getValueMap());
                     assertEquals(1, subAnnotation.getValueMap().size());
@@ -313,6 +320,7 @@ public class ASTProcessorTest {
 
         assertEquals("CSig", clazz.getSignature().content());
         assertEquals(1, clazz.getVisibleAnnotations().size());
+        assertEquals(AnnotationVisibility.VISIBLE, clazz.getVisibleAnnotations().getFirst().visibility());
         assertEquals("pkg/ClassAnno", clazz.getVisibleAnnotations().getFirst().getClassType().content());
 
         List<ASTRecordComponent> components = clazz.getRecordComponents();
@@ -322,6 +330,7 @@ public class ASTProcessorTest {
         assertEquals("Ljava/lang/String;", component.getComponentDescriptor().content());
         assertEquals("RC", component.getSignature().content());
         assertEquals(1, component.getVisibleAnnotations().size());
+        assertEquals(AnnotationVisibility.VISIBLE, component.getVisibleAnnotations().getFirst().visibility());
         assertEquals("pkg/ComponentAnno", component.getVisibleAnnotations().getFirst().getClassType().content());
 
         List<ASTInner> inners = clazz.getInners();
@@ -353,8 +362,8 @@ public class ASTProcessorTest {
 
         assertNotNull(visible);
         assertNotNull(invisible);
-        assertTrue(visible.isVisible());
-        assertFalse(invisible.isVisible());
+        assertEquals(AnnotationVisibility.VISIBLE, visible.visibility());
+        assertEquals(AnnotationVisibility.INVISIBLE, invisible.visibility());
         assertEquals("Visible", visible.getClassType().content());
         assertEquals("Hidden", invisible.getClassType().content());
         assertEquals("a", visible.getValue("value").content());
@@ -393,6 +402,8 @@ public class ASTProcessorTest {
 
         ASTAnnotation visible = field.getVisibleTypeAnnotations().getFirst();
         ASTAnnotation invisible = field.getInvisibleTypeAnnotations().getFirst();
+        assertEquals(AnnotationVisibility.VISIBLE, visible.visibility());
+        assertEquals(AnnotationVisibility.INVISIBLE, invisible.visibility());
         assertTrue(visible.isTypeAnnotation());
         assertTrue(invisible.isTypeAnnotation());
         assertEquals("TypeVisible", visible.getClassType().content());

@@ -156,22 +156,18 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
             collector.addError("Unable to process member", null);
             return;
         }
-		for (ASTAnnotation annotation : visibleAnnotations) {
-			if (annotation.isSystem())
-				annotation.accept(collector, visitor.visitSystemAnnotation(annotation.getClassType()));
-			else
-				annotation.accept(collector, visitor.visitVisibleAnnotation(annotation.getClassType()));
-		}
-		for (ASTAnnotation annotation : invisibleAnnotations) {
-			if (annotation.isSystem())
-				annotation.accept(collector, visitor.visitSystemAnnotation(annotation.getClassType()));
-			else
-				annotation.accept(collector, visitor.visitInvisibleAnnotation(annotation.getClassType()));
-		}
+		for (ASTAnnotation annotation : visibleAnnotations)
+			annotation.accept(collector, visitor.visitAnnotation(annotation.visibility(), annotation.getClassType()));
+		for (ASTAnnotation annotation : invisibleAnnotations)
+			annotation.accept(collector, visitor.visitAnnotation(annotation.visibility(), annotation.getClassType()));
 		for (ASTAnnotation annotation : visibleTypeAnnotations)
-			annotation.accept(collector, visitor.visitVisibleTypeAnnotation(annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()));
+			annotation.accept(collector, visitor.visitTypeAnnotation(
+					annotation.visibility(), annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()
+			));
 		for (ASTAnnotation annotation : invisibleTypeAnnotations)
-			annotation.accept(collector, visitor.visitInvisibleTypeAnnotation(annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()));
+			annotation.accept(collector, visitor.visitTypeAnnotation(
+					annotation.visibility(), annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()
+			));
 
 		if (signature != null)
             visitor.visitSignature(signature);

@@ -286,21 +286,24 @@ public class DeclarationParserTest {
 
     @Test
     public void testCommentOnlyInputProducesEmptyResults() {
+        String source = "// first\n// second";
         var tokens = DiagnosticAssertions.requireOk(
-                AssemblyParseFixture.tokenize("// only a comment"),
+                AssemblyParseFixture.tokenize(source),
                 "Failed to tokenize comment-only input"
         );
 
         var any = new DeclarationParser().parseAny(tokens);
         assertFalse(any.hasErr());
         assertTrue(any.get().isEmpty());
+        assertEquals(tokens, any.comments());
 
         var declarations = new DeclarationParser().parseDeclarations(tokens);
         assertFalse(declarations.hasErr());
         assertTrue(declarations.get().isEmpty());
+        assertEquals(tokens, declarations.comments());
 
         var processed = AssemblyParseFixture.processDeclarations(
-                "<stdin>", "// only a comment", me.darknet.assembler.parser.BytecodeFormat.DEFAULT
+                "<stdin>", source, me.darknet.assembler.parser.BytecodeFormat.DEFAULT
         );
         assertFalse(processed.hasErr());
         assertTrue(processed.get().isEmpty());

@@ -1,6 +1,7 @@
 package me.darknet.assembler.ast.specific;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
@@ -12,37 +13,38 @@ import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Objects;
+
 /**
  * AST model of an annotation.
  */
 public class ASTAnnotation extends ASTElement {
 
+	private final AnnotationVisibility visibility;
 	private final ASTIdentifier classType;
 	private final ImmutableElementMap<ASTIdentifier, ASTElement> values;
 	private final ASTNumber typeRef;
 	private final ASTIdentifier typePath;
-	private final boolean visible;
-	private final boolean system;
 
 	/**
 	 * Creates a new annotation.
 	 *
-	 * @param visible
-	 *        {@code true} if this annotation is runtime-visible, {@code false} otherwise.
+	 * @param visibility
+	 *        Visibility represented by the annotation's source syntax.
 	 * @param classType
 	 * 		Type identifier of the annotation.
 	 * @param values
 	 * 		Map of annotation element values.
 	 */
-	public ASTAnnotation(boolean visible, ASTIdentifier classType, ElementMapView<ASTIdentifier, ASTElement> values) {
-		this(visible, false, classType, values, null, null);
+	public ASTAnnotation(AnnotationVisibility visibility, ASTIdentifier classType, ElementMapView<ASTIdentifier, ASTElement> values) {
+		this(visibility, classType, ImmutableElementMap.copyOf(values), null, null);
 	}
 
 	/**
-	 * Creates a new type annotation.
+	 * Creates a new annotation, optionally carrying type-annotation metadata.
 	 *
-	 * @param visible
-	 *        {@code true} if this annotation is runtime-visible, {@code false} otherwise.
+	 * @param visibility
+	 *        Visibility represented by the annotation's source syntax.
 	 * @param classType
 	 * 		Type identifier of the annotation.
 	 * @param values
@@ -52,36 +54,15 @@ public class ASTAnnotation extends ASTElement {
 	 * @param typePath
 	 * 		Type path for type-annotations, or {@code null} if this is not a type-annotation.
 	 */
-	public ASTAnnotation(boolean visible, ASTIdentifier classType, ElementMapView<ASTIdentifier, ASTElement> values, ASTNumber typeRef, ASTIdentifier typePath) {
-		this(visible, false, classType, values, typeRef, typePath);
-	}
-
-	/**
-	 * Creates a new annotation, of any type.
-	 *
-	 * @param visible
-	 *        {@code true} if this annotation is runtime-visible, {@code false} otherwise.
-	 * @param system
-	 *        {@code true} if this annotation is Dalvik system-visible, {@code false} otherwise.
-	 * @param classType
-	 * 		Type identifier of the annotation.
-	 * @param values
-	 * 		Map of annotation element values.
-	 * @param typeRef
-	 * 		Type reference for type-annotations, or {@code null} if this is not a type-annotation.
-	 * @param typePath
-	 * 		Type path for type-annotations, or {@code null} if this is not a type-annotation.
-	 */
-	public ASTAnnotation(boolean visible, boolean system, ASTIdentifier classType,
+	public ASTAnnotation(AnnotationVisibility visibility, ASTIdentifier classType,
 	                     ElementMapView<ASTIdentifier, ASTElement> values, ASTNumber typeRef, ASTIdentifier typePath) {
-		this(visible, system, classType, ImmutableElementMap.copyOf(values), typeRef, typePath);
+		this(visibility, classType, ImmutableElementMap.copyOf(values), typeRef, typePath);
 	}
 
-	private ASTAnnotation(boolean visible, boolean system, ASTIdentifier classType,
+	private ASTAnnotation(AnnotationVisibility visibility, ASTIdentifier classType,
 	                      ImmutableElementMap<ASTIdentifier, ASTElement> values, ASTNumber typeRef, ASTIdentifier typePath) {
 		super(ElementType.ANNOTATION, CollectionUtil.mergeNonNull(values.elements(), classType, typeRef, typePath));
-		this.visible = visible;
-		this.system = system;
+		this.visibility = Objects.requireNonNull(visibility, "visibility");
 		this.classType = classType;
 		this.values = values;
 		this.typeRef = typeRef;
@@ -89,24 +70,17 @@ public class ASTAnnotation extends ASTElement {
 	}
 
 	/**
+	 * @return Visibility represented by the annotation's source syntax.
+	 */
+	public @NotNull AnnotationVisibility visibility() {
+		return visibility;
+	}
+
+	/**
 	 * @return {@code true} if this annotation is a type-annotation, {@code false} otherwise.
 	 */
 	public boolean isTypeAnnotation() {
 		return typePath != null;
-	}
-
-	/**
-	 * @return {@code true} if this annotation is runtime-visible, {@code false} otherwise.
-	 */
-	public boolean isVisible() {
-		return visible;
-	}
-
-	/**
-	 * @return {@code true} if this annotation is Dalvik system-visible, {@code false} otherwise.
-	 */
-	public boolean isSystem() {
-		return system;
 	}
 
 	/**

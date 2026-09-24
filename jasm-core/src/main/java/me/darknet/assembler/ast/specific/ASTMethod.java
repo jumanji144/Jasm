@@ -138,10 +138,9 @@ public class ASTMethod extends ASTMember {
             if (jvmParameterIndex < 0)
                 return;
             for (ASTAnnotation annotation : annos) {
-                if (annotation.isVisible())
-                    annotation.accept(collector, visitor.visitVisibleParameterAnnotation(jvmParameterIndex, annotation.getClassType()));
-                else
-                    annotation.accept(collector, visitor.visitInvisibleParameterAnnotation(jvmParameterIndex, annotation.getClassType()));
+                annotation.accept(collector, visitor.visitParameterAnnotation(
+                        annotation.visibility(), jvmParameterIndex, annotation.getClassType()
+                ));
             }
         });
 

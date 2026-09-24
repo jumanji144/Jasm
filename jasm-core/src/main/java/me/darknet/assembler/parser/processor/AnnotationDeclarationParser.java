@@ -1,6 +1,7 @@
 package me.darknet.assembler.parser.processor;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTBool;
@@ -25,34 +26,22 @@ final class AnnotationDeclarationParser {
 	private AnnotationDeclarationParser() {}
 
 	static void register(DeclarationRegistry registry) {
-		registry.register("annotation", (context, declaration) -> parseAnnotation(context, true, false, true, declaration));
-		registry.register("visible-annotation", (context, declaration) -> parseAnnotation(context, true, false, true, declaration));
-		registry.register("invisible-annotation", (context, declaration) -> parseAnnotation(context, false, false, true, declaration));
-		registry.register("system-annotation", AnnotationDeclarationParser::parseSystemAnnotation);
-		registry.register("type-annotation", (context, declaration) -> parseAnnotation(context, true, true, true, declaration));
-		registry.register("type-visible-annotation", (context, declaration) -> parseAnnotation(context, true, true, true, declaration));
-		registry.register("type-invisible-annotation", (context, declaration) -> parseAnnotation(context, false, true, true, declaration));
+		registry.register("annotation", (context, declaration) -> parseAnnotation(context, AnnotationVisibility.VISIBLE, false, true, declaration));
+		registry.register("visible-annotation", (context, declaration) -> parseAnnotation(context, AnnotationVisibility.VISIBLE, false, true, declaration));
+		registry.register("invisible-annotation", (context, declaration) -> parseAnnotation(context, AnnotationVisibility.INVISIBLE, false, true, declaration));
+		registry.register("system-annotation", (context, declaration) -> parseAnnotation(context, AnnotationVisibility.SYSTEM, false, true, declaration));
+		registry.register("type-annotation", (context, declaration) -> parseAnnotation(context, AnnotationVisibility.VISIBLE, true, true, declaration));
+		registry.register("type-visible-annotation", (context, declaration) -> parseAnnotation(context, AnnotationVisibility.VISIBLE, true, true, declaration));
+		registry.register("type-invisible-annotation", (context, declaration) -> parseAnnotation(context, AnnotationVisibility.INVISIBLE, true, true, declaration));
 		registry.register("enum", AnnotationDeclarationParser::parseEnum);
-	}
-
-	/**
-	 * @param context
-	 * 		Context to parse the declaration in.
-	 * @param declaration
-	 * 		Declaration to parse.
-	 *
-	 * @return Parsed annotation, or {@code null} if the declaration is invalid.
-	 */
-	private static ASTAnnotation parseSystemAnnotation(ProcessorContext context, ASTDeclaration declaration) {
-		return parseAnnotation(context, true, false, true, declaration, true);
 	}
 
 	static ASTAnnotation parseEmbeddedAnnotation(ProcessorContext context, ASTDeclaration declaration) {
 		return switch (DeclarationRegistry.keyword(declaration)) {
-			case "annotation", "visible-annotation" -> parseAnnotation(context, true, false, false, declaration);
-			case "invisible-annotation" -> parseAnnotation(context, false, false, false, declaration);
-			case "type-annotation", "type-visible-annotation" -> parseAnnotation(context, true, true, false, declaration);
-			case "type-invisible-annotation" -> parseAnnotation(context, false, true, false, declaration);
+			case "annotation", "visible-annotation" -> parseAnnotation(context, AnnotationVisibility.VISIBLE, false, false, declaration);
+			case "invisible-annotation" -> parseAnnotation(context, AnnotationVisibility.INVISIBLE, false, false, declaration);
+			case "type-annotation", "type-visible-annotation" -> parseAnnotation(context, AnnotationVisibility.VISIBLE, true, false, declaration);
+			case "type-invisible-annotation" -> parseAnnotation(context, AnnotationVisibility.INVISIBLE, true, false, declaration);
 			default -> {
 				context.throwUnexpectedElementError("annotation declaration", declaration);
 				yield null;
@@ -179,8 +168,8 @@ final class AnnotationDeclarationParser {
 	/**
 	 * @param context
 	 * 		Context to parse the declaration in.
-	 * @param visible
-	 * 		Whether the annotation is visible at runtime.
+	 * @param visibility
+	 * 		Visibility represented by the annotation's source syntax.
 	 * @param typeAnnotation
 	 * 		Whether the annotation is a type annotation.
 	 * @param addToState
@@ -190,13 +179,8 @@ final class AnnotationDeclarationParser {
 	 *
 	 * @return Parsed annotation, or {@code null} if the declaration is invalid.
 	 */
-	private static ASTAnnotation parseAnnotation(ProcessorContext context, boolean visible, boolean typeAnnotation,
-	                                             boolean addToState, ASTDeclaration declaration) {
-		return parseAnnotation(context, visible, typeAnnotation, addToState, declaration, false);
-	}
-
-	private static ASTAnnotation parseAnnotation(ProcessorContext context, boolean visible, boolean typeAnnotation,
-	                                             boolean addToState, ASTDeclaration declaration, boolean system) {
+	private static ASTAnnotation parseAnnotation(ProcessorContext context, AnnotationVisibility visibility,
+	                                             boolean typeAnnotation, boolean addToState, ASTDeclaration declaration) {
 		if (declaration.elements().size() != 2) {
 			context.throwError("Expected annotation type and values", declaration.location());
 			return null;
@@ -255,8 +239,9 @@ final class AnnotationDeclarationParser {
 		}
 		context.leaveState(ProcessorFlag.IN_ANNOTATION);
 
-		ASTAnnotation annotation = new ASTAnnotation(visible, system, type, map, typeRef, typePath);
+		ASTAnnotation annotation = new ASTAnnotation(visibility, type, map, typeRef, typePath);
 		if (addToState && !context.isInState(ProcessorFlag.SKIP_PENDING_ANNOTATION)) {
+			boolean visible = visibility != AnnotationVisibility.INVISIBLE;
 			if (annotation.isTypeAnnotation()) {
 				if (visible) {
 					context.state().addVisibleTypeAnnotation(annotation);
