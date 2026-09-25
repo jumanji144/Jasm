@@ -11,6 +11,16 @@ import java.util.List;
  * Static {@code double method(double, double)} executor.
  */
 public interface DD2DStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param a
+	 * 		Typed operation argument.
+	 * @param b
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	double apply(double a, double b);
 
 	@Override

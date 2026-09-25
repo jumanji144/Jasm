@@ -40,27 +40,8 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 		return new TypedFrameOps();
 	}
 
-	@Override
-	public void execute(@NotNull AbstractInsnNode instruction) {
-		switch (instruction) {
-			case InsnNode insnNode -> executeSimple(insnNode);
-			case IntInsnNode intInsnNode -> executeIntInsn(intInsnNode);
-			case LdcInsnNode ldcInsnNode -> executeLdcInsn(ldcInsnNode);
-			case VarInsnNode varInsnNode -> executeVarInsn(varInsnNode);
-			case IincInsnNode iincInsnNode -> executeIincInsn(iincInsnNode);
-			case TypeInsnNode typeInsnNode -> executeTypeInsn(typeInsnNode);
-			case MethodInsnNode methodInsnNode -> executeMethodInsn(methodInsnNode);
-			case FieldInsnNode fieldInsnNode -> executeFieldInsn(fieldInsnNode);
-			case InvokeDynamicInsnNode invokeDynamicInsnNode -> executeInvokeDynamicInsn(invokeDynamicInsnNode);
-			case JumpInsnNode jumpInsnNode -> executeJumpInsn(jumpInsnNode);
-			case LookupSwitchInsnNode lookupSwitchInsnNode -> executeSwitchInsn(lookupSwitchInsnNode);
-			case TableSwitchInsnNode tableSwitchInsnNode -> executeSwitchInsn(tableSwitchInsnNode);
-			case MultiANewArrayInsnNode multiANewArrayInsnNode -> executeMultiANewArrayInsn(multiANewArrayInsnNode);
-			default -> {}
-		}
-	}
 
-	private void executeSimple(@NotNull InsnNode instruction) {
+	protected void executeSimple(@NotNull InsnNode instruction) {
 		TypedFrame frame = getCurrentFrame();
 		int opcode = instruction.getOpcode();
 		switch (opcode) {
@@ -286,7 +267,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 		}
 	}
 
-	private void executeIntInsn(@NotNull IntInsnNode instruction) {
+	protected void executeIntInsn(@NotNull IntInsnNode instruction) {
 		if (instruction.getOpcode() == NEWARRAY) {
 			Type size = getCurrentFrame().pop();
 			if (!JvmTypeUtils.INT.equals(JvmTypeUtils.verificationType(size)))
@@ -307,7 +288,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 		getCurrentFrame().pushType(JvmTypeUtils.INT);
 	}
 
-	private void executeLdcInsn(@NotNull LdcInsnNode instruction) {
+	protected void executeLdcInsn(@NotNull LdcInsnNode instruction) {
 		Object value = instruction.cst;
 		if (value instanceof Integer) {
 			getCurrentFrame().pushType(JvmTypeUtils.INT);
@@ -330,7 +311,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 		}
 	}
 
-	private void executeVarInsn(@NotNull VarInsnNode instruction) {
+	protected void executeVarInsn(@NotNull VarInsnNode instruction) {
 		TypedFrame frame = getCurrentFrame();
 		int index = instruction.var;
 		int opcode = instruction.getOpcode();
@@ -390,7 +371,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 		}
 	}
 
-	private void executeTypeInsn(@NotNull TypeInsnNode instruction) {
+	protected void executeTypeInsn(@NotNull TypeInsnNode instruction) {
 		switch (instruction.getOpcode()) {
 			case NEW -> getCurrentFrame().pushType(newUninitializedType(Type.getObjectType(instruction.desc), instruction));
 			case CHECKCAST -> {
@@ -418,7 +399,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 		}
 	}
 
-	private void executeMethodInsn(@NotNull MethodInsnNode instruction) {
+	protected void executeMethodInsn(@NotNull MethodInsnNode instruction) {
 		TypedFrame frame = getCurrentFrame();
 		Type methodType = Type.getMethodType(instruction.desc);
 		Type[] types = methodType.getArgumentTypes();
@@ -452,7 +433,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 			frame.pushType(methodType.getReturnType());
 	}
 
-	private void executeFieldInsn(@NotNull FieldInsnNode instruction) {
+	protected void executeFieldInsn(@NotNull FieldInsnNode instruction) {
 		TypedFrame frame = getCurrentFrame();
 		int opcode = instruction.getOpcode();
 		Type fieldType = Type.getType(instruction.desc);
@@ -475,7 +456,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 		}
 	}
 
-	private void executeInvokeDynamicInsn(@NotNull InvokeDynamicInsnNode instruction) {
+	protected void executeInvokeDynamicInsn(@NotNull InvokeDynamicInsnNode instruction) {
 		TypedFrame frame = getCurrentFrame();
 		Type methodType = Type.getMethodType(instruction.desc);
 		Type[] types = methodType.getArgumentTypes();
@@ -488,7 +469,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 			frame.pushType(methodType.getReturnType());
 	}
 
-	private void executeJumpInsn(@NotNull JumpInsnNode instruction) {
+	protected void executeJumpInsn(@NotNull JumpInsnNode instruction) {
 		switch (instruction.getOpcode()) {
 			case IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE -> {
 				Type value = getCurrentFrame().pop();
@@ -519,7 +500,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 		}
 	}
 
-	private void executeSwitchInsn(@NotNull AbstractInsnNode instruction) {
+	protected void executeSwitchInsn(@NotNull AbstractInsnNode instruction) {
 		Type type = getCurrentFrame().pop();
 		if (type == null)
 			warn(instruction, "Cannot switch off 'null' on stack");
@@ -527,7 +508,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 			warn(instruction, "Cannot switch off non-int type on stack");
 	}
 
-	private void executeMultiANewArrayInsn(@NotNull MultiANewArrayInsnNode instruction) {
+	protected void executeMultiANewArrayInsn(@NotNull MultiANewArrayInsnNode instruction) {
 		int dimensions = instruction.dims;
 		if (dimensions <= 0)
 			warn(instruction, "multianewarray must have > 0 dimensions");
@@ -542,7 +523,7 @@ public class TypedJvmAnalysisEngine extends JvmAnalysisEngine<TypedFrame> {
 		getCurrentFrame().pushType(arrayType);
 	}
 
-	private void executeIincInsn(@NotNull IincInsnNode instruction) {
+	protected void executeIincInsn(@NotNull IincInsnNode instruction) {
 		TypedFrame frame = getCurrentFrame();
 		Local local = frame.getLocal(instruction.var);
 		if (local == null) {

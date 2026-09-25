@@ -18,6 +18,19 @@ import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.IincInsnNode;
+import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.IntInsnNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LdcInsnNode;
+import org.objectweb.asm.tree.LookupSwitchInsnNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.MultiANewArrayInsnNode;
+import org.objectweb.asm.tree.TableSwitchInsnNode;
+import org.objectweb.asm.tree.TypeInsnNode;
+import org.objectweb.asm.tree.VarInsnNode;
 
 /**
  * Base outline for an engine intended for use in proper stack/local analysis.
@@ -57,7 +70,96 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	 *
 	 * @see JvmAnalysisRunner
 	 */
-	public abstract void execute(@NotNull AbstractInsnNode instruction);
+	public void execute(@NotNull AbstractInsnNode instruction) {
+		switch (instruction) {
+			case InsnNode insnNode -> executeSimple(insnNode);
+			case IntInsnNode intInsnNode -> executeIntInsn(intInsnNode);
+			case LdcInsnNode ldcInsnNode -> executeLdcInsn(ldcInsnNode);
+			case VarInsnNode varInsnNode -> executeVarInsn(varInsnNode);
+			case IincInsnNode iincInsnNode -> executeIincInsn(iincInsnNode);
+			case TypeInsnNode typeInsnNode -> executeTypeInsn(typeInsnNode);
+			case MethodInsnNode methodInsnNode -> executeMethodInsn(methodInsnNode);
+			case FieldInsnNode fieldInsnNode -> executeFieldInsn(fieldInsnNode);
+			case InvokeDynamicInsnNode invokeDynamicInsnNode -> executeInvokeDynamicInsn(invokeDynamicInsnNode);
+			case JumpInsnNode jumpInsnNode -> executeJumpInsn(jumpInsnNode);
+			case LookupSwitchInsnNode lookupSwitchInsnNode -> executeSwitchInsn(lookupSwitchInsnNode);
+			case TableSwitchInsnNode tableSwitchInsnNode -> executeSwitchInsn(tableSwitchInsnNode);
+			case MultiANewArrayInsnNode multiANewArrayInsnNode -> executeMultiANewArrayInsn(multiANewArrayInsnNode);
+			default -> {}
+		}
+	}
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeSimple(@NotNull InsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeIntInsn(@NotNull IntInsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeLdcInsn(@NotNull LdcInsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeVarInsn(@NotNull VarInsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeIincInsn(@NotNull IincInsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeTypeInsn(@NotNull TypeInsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeMethodInsn(@NotNull MethodInsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeFieldInsn(@NotNull FieldInsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeInvokeDynamicInsn(@NotNull InvokeDynamicInsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeJumpInsn(@NotNull JumpInsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeSwitchInsn(@NotNull AbstractInsnNode instruction);
+
+	/**
+	 * @param instruction
+	 * 		Instruction to analyze.
+	 */
+	protected abstract void executeMultiANewArrayInsn(@NotNull MultiANewArrayInsnNode instruction);
 
 	/**
 	 * @return Variable cache for this engine.
@@ -229,10 +331,10 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	}
 
 	/**
-	 * Clear any errors associated with the given instruction.
+	 * Clears {@link DiagnosticPhase#OUTPUT_VERIFICATION} diagnostics this analysis pass reported for the given instruction.
 	 *
 	 * @param instruction
-	 * 		Instruction to clear errors for.
+	 * 		Instruction to clear diagnostics for.
 	 */
 	public void clearErrorsAt(@NotNull AbstractInsnNode instruction) {
 		if (sink == null)
@@ -255,8 +357,8 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 			return;
 		ASTInstruction ast = getResult().getExecutableInstructionToAstMap().get(instruction);
 		if (ast != null)
-			sink.warning(DiagnosticPhase.OUTPUT_VERIFICATION, DiagnosticCode.VERIFICATION_WARNING,
-					message, ast.location());
+			sink.warning(DiagnosticPhase.OUTPUT_VERIFICATION, DiagnosticCode.VERIFICATION_WARNING, message,
+					ast.location());
 	}
 
 	/**

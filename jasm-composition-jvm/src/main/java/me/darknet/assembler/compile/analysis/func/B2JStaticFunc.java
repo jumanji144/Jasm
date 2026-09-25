@@ -11,6 +11,14 @@ import java.util.List;
  * Static {@code long method(byte)} executor.
  */
 public interface B2JStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param a
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	long apply(byte a);
 
 	@Override

@@ -11,6 +11,14 @@ import java.util.List;
  * Static {@code long method(long)} executor.
  */
 public interface J2JStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param d
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	long apply(long d);
 
 	@Override

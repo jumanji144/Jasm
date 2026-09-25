@@ -11,6 +11,14 @@ import java.util.List;
  * Static {@code int method(float)} executor.
  */
 public interface F2IStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param f
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	int apply(float f);
 
 	@Override

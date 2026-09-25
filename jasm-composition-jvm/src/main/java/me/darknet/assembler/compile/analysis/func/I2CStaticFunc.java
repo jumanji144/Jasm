@@ -11,6 +11,14 @@ import java.util.List;
  * Static {@code char method(int)} executor.
  */
 public interface I2CStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param a
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	char apply(int a);
 
 	@Override

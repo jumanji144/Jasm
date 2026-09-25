@@ -11,6 +11,16 @@ import java.util.List;
  * Static {@code int method(byte, byte)} executor.
  */
 public interface BB2IStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param a
+	 * 		Typed operation argument.
+	 * @param b
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	int apply(byte a, byte b);
 
 	@Override

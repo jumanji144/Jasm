@@ -11,6 +11,19 @@ import java.util.List;
  * Static {@code long method(long, long) throws Throwable} executor.
  */
 public interface JJ2JThrowingStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param a
+	 * 		Typed operation argument.
+	 * @param b
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 *
+	 * @throws ArithmeticException
+	 * 		If the operation cannot be applied to the supplied arguments.
+	 */
 	long apply(long a, long b) throws ArithmeticException;
 
 	@Override

@@ -11,6 +11,14 @@ import java.util.List;
  * Static {@code boolean method(double)} executor.
  */
 public interface D2ZStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param d
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	boolean apply(double d);
 
 	@Override

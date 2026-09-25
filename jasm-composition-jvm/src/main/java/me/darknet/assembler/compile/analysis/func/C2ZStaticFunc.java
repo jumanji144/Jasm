@@ -11,6 +11,14 @@ import java.util.List;
  * Static {@code boolean method(char)} executor.
  */
 public interface C2ZStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param a
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	boolean apply(char a);
 
 	@Override

@@ -22,10 +22,8 @@ import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
-import org.objectweb.asm.tree.LookupSwitchInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MultiANewArrayInsnNode;
-import org.objectweb.asm.tree.TableSwitchInsnNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
@@ -58,27 +56,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		this.fieldValueLookup = fieldValueLookup;
 	}
 
-	@Override
-	public void execute(@NotNull AbstractInsnNode instruction) {
-		switch (instruction) {
-			case InsnNode insnNode -> executeSimple(insnNode);
-			case IntInsnNode intInsnNode -> executeIntInsn(intInsnNode);
-			case LdcInsnNode ldcInsnNode -> executeLdcInsn(ldcInsnNode);
-			case VarInsnNode varInsnNode -> executeVarInsn(varInsnNode);
-			case IincInsnNode iincInsnNode -> executeIincInsn(iincInsnNode);
-			case TypeInsnNode typeInsnNode -> executeTypeInsn(typeInsnNode);
-			case MethodInsnNode methodInsnNode -> executeMethodInsn(methodInsnNode);
-			case FieldInsnNode fieldInsnNode -> executeFieldInsn(fieldInsnNode);
-			case InvokeDynamicInsnNode invokeDynamicInsnNode -> executeInvokeDynamicInsn(invokeDynamicInsnNode);
-			case JumpInsnNode jumpInsnNode -> executeJumpInsn(jumpInsnNode);
-			case LookupSwitchInsnNode lookupSwitchInsnNode -> executeSwitchInsn(lookupSwitchInsnNode);
-			case TableSwitchInsnNode tableSwitchInsnNode -> executeSwitchInsn(tableSwitchInsnNode);
-			case MultiANewArrayInsnNode multiANewArrayInsnNode -> executeMultiANewArrayInsn(multiANewArrayInsnNode);
-			default -> {}
-		}
-	}
-
-	private void executeSimple(@NotNull InsnNode instruction) {
+	protected void executeSimple(@NotNull InsnNode instruction) {
 		ValuedFrame frame = getCurrentFrame();
 		int opcode = instruction.getOpcode();
 		switch (opcode) {
@@ -264,7 +242,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			case FDIV -> {
 				Value value1 = frame.pop();
 				Value value2 = frame.pop();
-				if (value1 instanceof Value.KnownFloatValue(float a) && value2 instanceof Value.KnownFloatValue(float b)) {
+				if (value1 instanceof Value.KnownFloatValue(float a) && value2 instanceof Value.KnownFloatValue(
+						float b
+				)) {
 					frame.push(a == 0 ? Values.FLOAT_VALUE : Values.valueOf(b / a));
 				} else {
 					primitiveBinaryFallback(instruction, value1, value2, JvmTypeUtils.FLOAT);
@@ -288,7 +268,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			case LCMP -> {
 				Value value1 = frame.pop2();
 				Value value2 = frame.pop2();
-				if (value1 instanceof Value.KnownLongValue(long value3) && value2 instanceof Value.KnownLongValue(long value)) {
+				if (value1 instanceof Value.KnownLongValue(long value3) && value2 instanceof Value.KnownLongValue(
+						long value
+				)) {
 					frame.push(Values.valueOf(Long.compare(value, value3)));
 				} else {
 					primitiveBinaryFallback(instruction, value1, value2, JvmTypeUtils.INT);
@@ -380,7 +362,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
-	private void executeIntInsn(@NotNull IntInsnNode instruction) {
+	protected void executeIntInsn(@NotNull IntInsnNode instruction) {
 		if (instruction.getOpcode() == NEWARRAY) {
 			Value size = getCurrentFrame().pop();
 			Type componentType = switch (instruction.operand) {
@@ -405,7 +387,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		getCurrentFrame().push(Values.valueOf(instruction.operand));
 	}
 
-	private void executeLdcInsn(@NotNull LdcInsnNode instruction) {
+	protected void executeLdcInsn(@NotNull LdcInsnNode instruction) {
 		Object constant = instruction.cst;
 		if (constant instanceof Integer cInt) {
 			getCurrentFrame().push(Values.valueOf(cInt));
@@ -426,7 +408,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
-	private void executeVarInsn(@NotNull VarInsnNode instruction) {
+	protected void executeVarInsn(@NotNull VarInsnNode instruction) {
 		ValuedFrame frame = getCurrentFrame();
 		int index = instruction.var;
 		int opcode = instruction.getOpcode();
@@ -496,7 +478,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
-	private void executeIincInsn(@NotNull IincInsnNode instruction) {
+	protected void executeIincInsn(@NotNull IincInsnNode instruction) {
 		ValuedFrame frame = getCurrentFrame();
 		ValuedLocal local = frame.getLocal(instruction.var);
 		if (local == null) {
@@ -521,7 +503,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
-	private void executeTypeInsn(@NotNull TypeInsnNode instruction) {
+	protected void executeTypeInsn(@NotNull TypeInsnNode instruction) {
 		ValuedFrame frame = getCurrentFrame();
 		Type instructionType = Type.getObjectType(instruction.desc);
 		switch (instruction.getOpcode()) {
@@ -573,7 +555,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
-	private void executeMethodInsn(@NotNull MethodInsnNode instruction) {
+	protected void executeMethodInsn(@NotNull MethodInsnNode instruction) {
 		ValuedFrame frame = getCurrentFrame();
 		Type methodType = Type.getMethodType(instruction.desc);
 		Type[] argumentTypes = methodType.getArgumentTypes();
@@ -637,7 +619,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
-	private void executeFieldInsn(@NotNull FieldInsnNode instruction) {
+	protected void executeFieldInsn(@NotNull FieldInsnNode instruction) {
 		ValuedFrame frame = getCurrentFrame();
 		int opcode = instruction.getOpcode();
 		Type fieldType = Type.getType(instruction.desc);
@@ -706,7 +688,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		frame.getStack().addAll(stack);
 	}
 
-	private void executeInvokeDynamicInsn(@NotNull InvokeDynamicInsnNode instruction) {
+	protected void executeInvokeDynamicInsn(@NotNull InvokeDynamicInsnNode instruction) {
 		ValuedFrame frame = getCurrentFrame();
 		Type methodType = Type.getMethodType(instruction.desc);
 		Type[] argumentTypes = methodType.getArgumentTypes();
@@ -719,7 +701,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			frame.pushType(methodType.getReturnType());
 	}
 
-	private void executeJumpInsn(@NotNull JumpInsnNode instruction) {
+	protected void executeJumpInsn(@NotNull JumpInsnNode instruction) {
 		ValuedFrame frame = getCurrentFrame();
 		switch (instruction.getOpcode()) {
 			case IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE -> {
@@ -751,7 +733,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
-	private void executeSwitchInsn(@NotNull AbstractInsnNode instruction) {
+	protected void executeSwitchInsn(@NotNull AbstractInsnNode instruction) {
 		Type type = getCurrentFrame().pop().type();
 		if (type == null)
 			warn(instruction, "Cannot switch off 'null' on stack");
@@ -759,7 +741,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			warn(instruction, "Cannot switch off non-int type on stack");
 	}
 
-	private void executeMultiANewArrayInsn(@NotNull MultiANewArrayInsnNode instruction) {
+	protected void executeMultiANewArrayInsn(@NotNull MultiANewArrayInsnNode instruction) {
 		ValuedFrame frame = getCurrentFrame();
 		int dimensions = instruction.dims;
 		if (dimensions <= 0)
@@ -882,9 +864,26 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
+	/**
+	 * Functional interface for a binary operation on two int-valued operands while executing valued instructions.
+	 */
 	private interface IntOp {
+		/**
+		 * @param a
+		 * 		First operation operand.
+		 * @param b
+		 * 		Second operation operand.
+		 *
+		 * @return Computed operation result.
+		 */
 		int op(int a, int b);
 
+		/**
+		 * @param frame
+		 * 		Frame supplying the operation operands and receiving the result.
+		 * @param warningConsumer
+		 * 		Consumer receiving warnings for invalid operand types.
+		 */
 		default void accept(@NotNull ValuedFrame frame, @NotNull Consumer<String> warningConsumer) {
 			Value value1 = frame.pop();
 			Value value2 = frame.pop();
@@ -900,13 +899,32 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
+	/**
+	 * Functional interface for a binary operation on two float-valued operands while executing valued instructions.
+	 */
 	private interface FloatOp {
+		/**
+		 * @param a
+		 * 		First operation operand.
+		 * @param b
+		 * 		Second operation operand.
+		 *
+		 * @return Computed operation result.
+		 */
 		float op(float a, float b);
 
+		/**
+		 * @param frame
+		 * 		Frame supplying the operation operands and receiving the result.
+		 * @param warningConsumer
+		 * 		Consumer receiving warnings for invalid operand types.
+		 */
 		default void accept(@NotNull ValuedFrame frame, @NotNull Consumer<String> warningConsumer) {
 			Value value1 = frame.pop();
 			Value value2 = frame.pop();
-			if (value1 instanceof Value.KnownFloatValue(float value3) && value2 instanceof Value.KnownFloatValue(float value)) {
+			if (value1 instanceof Value.KnownFloatValue(float value3) && value2 instanceof Value.KnownFloatValue(
+					float value
+			)) {
 				frame.push(Values.valueOf(op(value3, value)));
 			} else {
 				if (!JvmTypeUtils.isPrimitive(value1.type()))
@@ -918,13 +936,32 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
+	/**
+	 * Functional interface for a binary operation on two long-valued operands while executing valued instructions.
+	 */
 	private interface LongOp {
+		/**
+		 * @param a
+		 * 		First operation operand.
+		 * @param b
+		 * 		Second operation operand.
+		 *
+		 * @return Computed operation result.
+		 */
 		long op(long a, long b);
 
+		/**
+		 * @param frame
+		 * 		Frame supplying the operation operands and receiving the result.
+		 * @param warningConsumer
+		 * 		Consumer receiving warnings for invalid operand types.
+		 */
 		default void accept(@NotNull ValuedFrame frame, @NotNull Consumer<String> warningConsumer) {
 			Value value1 = frame.pop2();
 			Value value2 = frame.pop2();
-			if (value1 instanceof Value.KnownLongValue(long value3) && value2 instanceof Value.KnownLongValue(long value)) {
+			if (value1 instanceof Value.KnownLongValue(long value3) && value2 instanceof Value.KnownLongValue(
+					long value
+			)) {
 				frame.push(Values.valueOf(op(value3, value)));
 			} else {
 				if (!JvmTypeUtils.isPrimitive(value1.type()))
@@ -936,13 +973,31 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
+	/**
+	 * Functional interface for a binary operation on a long-valued operand and an int-valued operand used by long shift instructions.
+	 */
 	private interface LongIntOp {
+		/**
+		 * @param a
+		 * 		First operation operand.
+		 * @param b
+		 * 		Second operation operand.
+		 *
+		 * @return Computed operation result.
+		 */
 		long op(long a, int b);
 
+		/**
+		 * @param frame
+		 * 		Frame supplying the operation operands and receiving the result.
+		 * @param warningConsumer
+		 * 		Consumer receiving warnings for invalid operand types.
+		 */
 		default void accept(@NotNull ValuedFrame frame, @NotNull Consumer<String> warningConsumer) {
 			Value value1 = frame.pop();
 			Value value2 = frame.pop2();
-			if (value1 instanceof Value.KnownIntValue(int value3) && value2 instanceof Value.KnownLongValue(long value)) {
+			if (value1 instanceof Value.KnownIntValue(int value3)
+					&& value2 instanceof Value.KnownLongValue(long value)) {
 				frame.push(Values.valueOf(op(value, value3)));
 			} else {
 				if (!JvmTypeUtils.isPrimitive(value1.type()))
@@ -954,15 +1009,31 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		}
 	}
 
+	/**
+	 * Functional interface for a binary operation on two double-valued operands while executing valued instructions.
+	 */
 	private interface DoubleOp {
+		/**
+		 * @param a
+		 * 		First operation operand.
+		 * @param b
+		 * 		Second operation operand.
+		 *
+		 * @return Computed operation result.
+		 */
 		double op(double a, double b);
 
+		/**
+		 * @param frame
+		 * 		Frame supplying the operation operands and receiving the result.
+		 * @param warningConsumer
+		 * 		Consumer receiving warnings for invalid operand types.
+		 */
 		default void accept(@NotNull ValuedFrame frame, @NotNull Consumer<String> warningConsumer) {
 			Value value1 = frame.pop2();
 			Value value2 = frame.pop2();
-			if (value1 instanceof Value.KnownDoubleValue(double value3) && value2 instanceof Value.KnownDoubleValue(
-					double value
-			)) {
+			if (value1 instanceof Value.KnownDoubleValue(double value3)
+					&& value2 instanceof Value.KnownDoubleValue(double value)) {
 				frame.push(Values.valueOf(op(value3, value)));
 			} else {
 				if (!JvmTypeUtils.isPrimitive(value1.type()))

@@ -54,6 +54,9 @@ public final class MethodValueRegistry implements MethodValueLookup {
         return null;
     }
 
+    /**
+     * Mutable builder for registering and combining method value handlers.
+     */
     public static final class Builder {
         private final Map<String, StringFunc> stringInstanceFuncs = new HashMap<>();
         private final Map<String, StaticFunc> staticFuncs = new HashMap<>();

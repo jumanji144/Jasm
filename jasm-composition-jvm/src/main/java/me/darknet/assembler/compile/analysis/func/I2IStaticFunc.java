@@ -11,6 +11,14 @@ import java.util.List;
  * Static {@code int method(int)} executor.
  */
 public interface I2IStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param i
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	int apply(int i);
 
 	@Override

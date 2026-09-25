@@ -11,6 +11,16 @@ import java.util.List;
  * Static {@code int method(char, char)} executor.
  */
 public interface CC2IStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param a
+	 * 		Typed operation argument.
+	 * @param b
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	int apply(char a, char b);
 
 	@Override

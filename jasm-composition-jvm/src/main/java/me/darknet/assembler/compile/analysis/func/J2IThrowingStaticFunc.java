@@ -11,6 +11,17 @@ import java.util.List;
  * Static {@code int method(long) throws Throwable} executor.
  */
 public interface J2IThrowingStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param d
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 *
+	 * @throws ArithmeticException
+	 * 		If the operation cannot be applied to the supplied arguments.
+	 */
 	int apply(long d) throws ArithmeticException;
 
 	@Override

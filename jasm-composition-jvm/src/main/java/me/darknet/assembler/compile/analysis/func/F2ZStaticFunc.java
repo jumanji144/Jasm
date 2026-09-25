@@ -11,6 +11,14 @@ import java.util.List;
  * Static {@code boolean method(float)} executor.
  */
 public interface F2ZStaticFunc extends StaticFunc {
+	/**
+	 * Applies the operation to typed arguments.
+	 *
+	 * @param f
+	 * 		Typed operation argument.
+	 *
+	 * @return Result of applying the operation.
+	 */
 	boolean apply(float f);
 
 	@Override
