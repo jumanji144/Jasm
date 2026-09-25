@@ -67,10 +67,9 @@ public class JvmFieldVisitor extends JvmMemberVisitor implements ASTFieldVisitor
 	}
 
 	@Override
-	public void visitValue(ASTElement value) {
-		if (value != null) {
+	public void visitValue(@Nullable ASTElement value) {
+		if (value != null)
 			field.value = ConstantMapper.fromConstant(value);
-		}
 	}
 }
 

@@ -1,17 +1,19 @@
-package me.darknet.assembler.visitor;
+package me.darknet.assembler.backend.jvm.visitor;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
-import me.darknet.assembler.ast.primitive.ASTObject;
+import me.darknet.assembler.backend.jvm.instructions.LookupSwitchPayload;
+import me.darknet.assembler.backend.jvm.instructions.TableSwitchPayload;
+import me.darknet.assembler.instructions.MemberPath;
+import me.darknet.assembler.visitor.ASTInstructionVisitor;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Visitor interface for visiting JVM instructions.
  */
 public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
-
 	/**
 	 * Visits a no-operand instruction.
 	 */
@@ -83,57 +85,40 @@ public interface ASTJvmInstructionVisitor extends ASTInstructionVisitor {
 	/**
 	 * Visit a {@code lookupswitch} instruction.
 	 *
-	 * @param lookupSwitchObject
-	 * 		An object structured like the following:
-	 * 		<pre>{@code {
-	 * 		       default: label
-	 * 		       number: label
-	 * 		       number: label
-	 * 		       ...
-	 *             }}</pre>
-	 * 		Number elements correspond to ASTNumber, label elements correspond to ASTIdentifier
+	 * @param payload
+	 * 		Validated case keys and their labels, with the default label
 	 */
-	void visitLookupSwitchInsn(@NotNull ASTObject lookupSwitchObject);
+	void visitLookupSwitchInsn(@NotNull LookupSwitchPayload payload);
 
 	/**
 	 * Visit a {@code tableswitch} instruction.
 	 *
-	 * @param tableSwitchObject
-	 * 		An object structured like the following:
-	 * 		<pre>{@code {
-	 * 				  min: number
-	 * 				  max: number
-	 * 				  cases: [ label, label, label, ... ]
-	 * 				  default: label
-	 *             }}</pre>
-	 * 		Number correspond to ASTNumber, [ ] correspond to ASTArray, label elements correspond to ASTIdentifier
+	 * @param payload
+	 * 		Validated lowest key, default label and source-ordered case labels
 	 */
-	void visitTableSwitchInsn(@NotNull ASTObject tableSwitchObject);
+	void visitTableSwitchInsn(@NotNull TableSwitchPayload payload);
 
 	/**
 	 * Visit a field instruction.
 	 *
 	 * @param path
-	 * 		The path to the field, this is in the format of
-	 * 		[owner].[name]
+	 * 		Owner and name of the field
 	 * @param descriptor
 	 * 		The descriptor of the field
 	 */
-	void visitFieldInsn(@NotNull ASTIdentifier path, @NotNull ASTIdentifier descriptor);
+	void visitFieldInsn(@NotNull MemberPath path, @NotNull ASTIdentifier descriptor);
 
 	/**
 	 * Visit a method instruction.
 	 *
 	 * @param path
-	 * 		The path to the field, this is in the format of
-	 * 		[owner].[name]
+	 * 		Owner and name of the method
 	 * @param descriptor
 	 * 		The descriptor of the method
-	 *
-	 * @implNote The existence of {@code invokexinterface}, which corresponds to the {@code itf}
-	 * flag on the instruction being {@code true}
+	 * @param itf
+	 * 		Whether the invocation is dispatched through an interface
 	 */
-	void visitMethodInsn(@NotNull ASTIdentifier path, @NotNull ASTIdentifier descriptor);
+	void visitMethodInsn(@NotNull MemberPath path, @NotNull ASTIdentifier descriptor, boolean itf);
 
 	/**
 	 * Visit an {@code invokedynamic} instruction.

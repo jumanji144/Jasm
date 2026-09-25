@@ -30,7 +30,7 @@ final class DalvikAnnotationVisitor implements ASTAnnotationVisitor {
     private final byte visibility;
     private final InstanceType type;
     private final Consumer<Annotation> sink;
-    private final Map<String, Constant> elements = new LinkedHashMap<>();
+    private final Map<String, Constant> elements = new LinkedHashMap<>(); // Preserves order of elements as visited.
 
     DalvikAnnotationVisitor(byte visibility, @NotNull ASTIdentifier classType, Consumer<Annotation> sink) {
         this(visibility, Types.instanceTypeFromInternalName(classType.literal()), sink);

@@ -10,7 +10,7 @@ import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTInner;
 import me.darknet.assembler.ast.specific.ASTMethod;
-import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.instructions.InstructionTrait;
 import me.darknet.assembler.query.AssemblyQueries;
 import me.darknet.assembler.query.AssemblyUtils;
 import me.darknet.assembler.query.resolution.ClassExtends;
@@ -72,7 +72,7 @@ class AssemblyUtilsAndQueriesTest {
 		List<ASTElement> ast = processed(source);
 		ASTMethod method = onlyMethod(ast);
 
-		VariableQueryResult variables = AssemblyQueries.variables(method);
+		VariableQueryResult variables = AssemblyQueries.variables(method, FixtureTarget.JVM.context());
 		assertEquals(2, variables.declarations().size());
 		assertEquals(3, variables.usages().size());
 
@@ -90,7 +90,7 @@ class AssemblyUtilsAndQueriesTest {
 		assertEquals(2, variables.writesOf(inferred.identity()).size());
 
 		ASTIdentifier alpha = method.getParameters().getFirst();
-		Resolution declarationResolution = AssemblyQueries.resolveAt(ast, alpha.range().start());
+		Resolution declarationResolution = AssemblyQueries.resolveAt(ast, alpha.range().start(), FixtureTarget.JVM.context());
 		assertInstanceOf(VariableDeclarationResolution.class, declarationResolution);
 
 		ASTIdentifier beta = variables.usages().stream()
@@ -98,7 +98,7 @@ class AssemblyUtilsAndQueriesTest {
 				.map(VariableUsage::reference)
 				.findFirst()
 				.orElseThrow();
-		Resolution referenceResolution = AssemblyQueries.resolveAt(ast, beta.range().start());
+		Resolution referenceResolution = AssemblyQueries.resolveAt(ast, beta.range().start(), FixtureTarget.JVM.context());
 		VariableReferenceResolution variableReferenceResolution =
 				assertInstanceOf(VariableReferenceResolution.class, referenceResolution);
 		assertEquals(inferred.identity(), variableReferenceResolution.usage().identity());
@@ -119,7 +119,7 @@ class AssemblyUtilsAndQueriesTest {
 				""";
 		ASTMethod method = onlyMethod(processed(source));
 
-		VariableQueryResult variables = AssemblyQueries.variables(method);
+		VariableQueryResult variables = AssemblyQueries.variables(method, FixtureTarget.JVM.context());
 		assertEquals(2, variables.declarations().size());
 		assertTrue(variables.usages().getFirst().ambiguous());
 		assertNull(variables.usages().getFirst().identity());
@@ -151,7 +151,7 @@ class AssemblyUtilsAndQueriesTest {
 				""";
 		ASTMethod method = onlyMethod(processed(source));
 
-		LabelQueryResult labels = AssemblyQueries.labels(method);
+		LabelQueryResult labels = AssemblyQueries.labels(method, FixtureTarget.JVM.context());
 		assertEquals(4, labels.declarations().size());
 		assertEquals(7, labels.usages().size());
 		assertEquals(2, labels.usages().stream().filter(usage -> usage.kind() == LabelReferenceKind.SWITCH_CASE).count());
@@ -177,7 +177,7 @@ class AssemblyUtilsAndQueriesTest {
 				""";
 		ASTMethod method = onlyMethod(processed(source));
 
-		VariableQueryResult variables = AssemblyQueries.variables(method);
+		VariableQueryResult variables = AssemblyQueries.variables(method, FixtureTarget.JVM.context());
 		VariableInfo alpha = variables.declarations().stream()
 				.filter(info -> "alpha".equals(info.identity().name()))
 				.findFirst()
@@ -227,7 +227,7 @@ class AssemblyUtilsAndQueriesTest {
 				""";
 		ASTMethod method = onlyMethod(processed(source));
 
-		LabelQueryResult labels = AssemblyQueries.labels(method);
+		LabelQueryResult labels = AssemblyQueries.labels(method, FixtureTarget.JVM.context());
 		LabelInfo handler = labels.declarationOf("Handler");
 		assertNotNull(handler);
 		assertEquals(1, labels.declarationsOf("Handler").size());
@@ -264,7 +264,7 @@ class AssemblyUtilsAndQueriesTest {
 				""";
 		ASTMethod method = onlyMethod(processed(source));
 
-		LabelQueryResult labels = AssemblyQueries.labels(method);
+		LabelQueryResult labels = AssemblyQueries.labels(method, FixtureTarget.JVM.context());
 		assertEquals(2, labels.declarations().size());
 		assertTrue(labels.declarations().stream().allMatch(LabelInfo::duplicate));
 		assertEquals(2, labels.declarationsOf("Dup").size());
@@ -300,7 +300,7 @@ class AssemblyUtilsAndQueriesTest {
 				}
 				""";
 		List<ASTElement> ast = processed(source);
-		Resolution resolution = AssemblyQueries.resolveAt(ast, 4, 9);
+		Resolution resolution = AssemblyQueries.resolveAt(ast, 4, 9, FixtureTarget.JVM.context());
 		assertInstanceOf(LabelDeclarationResolution.class, resolution);
 	}
 
@@ -325,21 +325,21 @@ class AssemblyUtilsAndQueriesTest {
 		ASTMethod method = assertInstanceOf(ASTMethod.class, klass.contents().get(1));
 
 		ASTAnnotation classAnnotation = klass.getVisibleAnnotations().getFirst();
-		Resolution classResolution = AssemblyQueries.resolveAt(ast, classAnnotation.range().start());
+		Resolution classResolution = AssemblyQueries.resolveAt(ast, classAnnotation.range().start(), FixtureTarget.JVM.context());
 		ClassAnnotationResolution classAnnotationResolution =
 				assertInstanceOf(ClassAnnotationResolution.class, classResolution);
 		assertSame(klass, classAnnotationResolution.targetClass());
 		assertSame(classAnnotation, classAnnotationResolution.annotation());
 
 		ASTAnnotation fieldAnnotation = field.getInvisibleTypeAnnotations().getFirst();
-		Resolution fieldResolution = AssemblyQueries.resolveAt(ast, fieldAnnotation.range().start());
+		Resolution fieldResolution = AssemblyQueries.resolveAt(ast, fieldAnnotation.range().start(), FixtureTarget.JVM.context());
 		FieldAnnotationResolution fieldAnnotationResolution =
 				assertInstanceOf(FieldAnnotationResolution.class, fieldResolution);
 		assertSame(field, fieldAnnotationResolution.targetField());
 		assertSame(fieldAnnotation, fieldAnnotationResolution.annotation());
 
 		ASTAnnotation methodAnnotation = method.getVisibleAnnotations().getFirst();
-		Resolution methodResolution = AssemblyQueries.resolveAt(ast, methodAnnotation.range().start());
+		Resolution methodResolution = AssemblyQueries.resolveAt(ast, methodAnnotation.range().start(), FixtureTarget.JVM.context());
 		MethodAnnotationResolution methodAnnotationResolution =
 				assertInstanceOf(MethodAnnotationResolution.class, methodResolution);
 		assertSame(method, methodAnnotationResolution.targetMethod());
@@ -351,7 +351,7 @@ class AssemblyUtilsAndQueriesTest {
 		List<ASTElement> ast = processed(".annotation pkg/Loose { value: \"free\" }");
 		ASTAnnotation annotation = assertInstanceOf(ASTAnnotation.class, ast.getFirst());
 
-		Resolution resolution = AssemblyQueries.resolveAt(ast, annotation.range().start());
+		Resolution resolution = AssemblyQueries.resolveAt(ast, annotation.range().start(), FixtureTarget.JVM.context());
 		IndependentAnnotationResolution annotationResolution =
 				assertInstanceOf(IndependentAnnotationResolution.class, resolution);
 		assertSame(annotation, annotationResolution.annotation());
@@ -371,18 +371,18 @@ class AssemblyUtilsAndQueriesTest {
 		ASTIdentifier implemented = klass.getInterfaces().getFirst();
 		ASTIdentifier superName = klass.getSuperName();
 
-		Resolution innerResolution = AssemblyQueries.resolveAt(ast, inner.range().start());
+		Resolution innerResolution = AssemblyQueries.resolveAt(ast, inner.range().start(), FixtureTarget.JVM.context());
 		InnerClassResolution innerClassResolution =
 				assertInstanceOf(InnerClassResolution.class, innerResolution);
 		assertSame(klass, innerClassResolution.klass());
 		assertSame(inner, innerClassResolution.inner());
 
-		Resolution implementsResolution = AssemblyQueries.resolveAt(ast, implemented.range().start());
+		Resolution implementsResolution = AssemblyQueries.resolveAt(ast, implemented.range().start(), FixtureTarget.JVM.context());
 		ClassImplements classImplements = assertInstanceOf(ClassImplements.class, implementsResolution);
 		assertSame(klass, classImplements.klass());
 		assertSame(implemented, classImplements.implemented());
 
-		Resolution extendsResolution = AssemblyQueries.resolveAt(ast, superName.range().start());
+		Resolution extendsResolution = AssemblyQueries.resolveAt(ast, superName.range().start(), FixtureTarget.JVM.context());
 		ClassExtends classExtends = assertInstanceOf(ClassExtends.class, extendsResolution);
 		assertSame(klass, classExtends.klass());
 		assertSame(superName, classExtends.superName());
@@ -403,10 +403,10 @@ class AssemblyUtilsAndQueriesTest {
 				""";
 		List<ASTElement> ast = processed(source);
 		ASTMethod method = onlyMethod(ast);
-		LabelQueryResult labels = AssemblyQueries.labels(method, BytecodeFormat.JVM);
+		LabelQueryResult labels = AssemblyQueries.labels(method, FixtureTarget.JVM.context());
 		assertEquals(1, labels.declarationsOf("A").size());
 
-		Resolution resolution = AssemblyQueries.resolveAt(ast, 5, 18, BytecodeFormat.JVM);
+		Resolution resolution = AssemblyQueries.resolveAt(ast, 5, 18, FixtureTarget.JVM.context());
 		assertInstanceOf(LabelReferenceResolution.class, resolution);
 	}
 
@@ -431,7 +431,7 @@ class AssemblyUtilsAndQueriesTest {
 		List<ASTElement> ast = processed(source, FixtureTarget.DALVIK);
 		ASTMethod method = onlyMethod(ast);
 
-		LabelQueryResult labels = AssemblyQueries.labels(method, BytecodeFormat.DALVIK);
+		LabelQueryResult labels = AssemblyQueries.labels(method, FixtureTarget.DALVIK.context());
 		assertEquals(3, labels.declarations().size());
 		assertEquals(7, labels.usages().size());
 		assertTrue(labels.usages().stream().allMatch(LabelUsage::resolved));
@@ -442,7 +442,7 @@ class AssemblyUtilsAndQueriesTest {
 				.findFirst()
 				.orElseThrow();
 		ASTIdentifier handlerReference = ifEq.argument(2, ASTIdentifier.class);
-		Resolution resolution = AssemblyQueries.resolveAt(ast, handlerReference.range().start(), BytecodeFormat.DALVIK);
+		Resolution resolution = AssemblyQueries.resolveAt(ast, handlerReference.range().start(), FixtureTarget.DALVIK.context());
 		LabelReferenceResolution labelReferenceResolution = assertInstanceOf(LabelReferenceResolution.class, resolution);
 		assertEquals("Handler", labelReferenceResolution.usage().name());
 	}
@@ -473,21 +473,21 @@ class AssemblyUtilsAndQueriesTest {
 
 	@Test
 	void classifiesJvmAndDalvikInstructionKinds() {
-		assertTrue(AssemblyUtils.isFlowControlInstruction(BytecodeFormat.JVM, "goto_w"));
-		assertTrue(AssemblyUtils.isFlowControlInstruction(BytecodeFormat.DALVIK, "if-eq"));
-		assertFalse(AssemblyUtils.isFlowControlInstruction(BytecodeFormat.DALVIK, "tableswitch"));
+		assertTrue(AssemblyUtils.isBranchInstruction(FixtureTarget.JVM.context(), "goto_w"));
+		assertTrue(AssemblyUtils.isBranchInstruction(FixtureTarget.DALVIK.context(), "if-eq"));
+		assertFalse(AssemblyUtils.isBranchInstruction(FixtureTarget.DALVIK.context(), "tableswitch"));
 
-		assertTrue(AssemblyUtils.isSwitchInstruction(BytecodeFormat.JVM, "lookupswitch"));
-		assertTrue(AssemblyUtils.isSwitchInstruction(BytecodeFormat.DALVIK, "packed-switch"));
-		assertFalse(AssemblyUtils.isSwitchInstruction(BytecodeFormat.JVM, "goto"));
+		assertTrue(AssemblyUtils.isSwitchInstruction(FixtureTarget.JVM.context(), "lookupswitch"));
+		assertTrue(AssemblyUtils.isSwitchInstruction(FixtureTarget.DALVIK.context(), "packed-switch"));
+		assertFalse(AssemblyUtils.isSwitchInstruction(FixtureTarget.JVM.context(), "goto"));
 
-		assertTrue(AssemblyUtils.isTypeReferenceInstruction(BytecodeFormat.JVM, "multianewarray"));
-		assertTrue(AssemblyUtils.isTypeReferenceInstruction(BytecodeFormat.DALVIK, "new-array"));
-		assertFalse(AssemblyUtils.isTypeReferenceInstruction(BytecodeFormat.DALVIK, "goto"));
+		assertTrue(AssemblyUtils.isTypeReferenceInstruction(FixtureTarget.JVM.context(), "multianewarray"));
+		assertTrue(AssemblyUtils.isTypeReferenceInstruction(FixtureTarget.DALVIK.context(), "new-array"));
+		assertFalse(AssemblyUtils.isTypeReferenceInstruction(FixtureTarget.DALVIK.context(), "goto"));
 
-		assertTrue(AssemblyUtils.isVariableReferenceInstruction("aload"));
-		assertTrue(AssemblyUtils.isVariableReferenceInstruction("iinc"));
-		assertFalse(AssemblyUtils.isVariableReferenceInstruction("goto"));
+		assertTrue(FixtureTarget.JVM.context().instructions().get("aload").hasTrait(InstructionTrait.VARIABLE_READ));
+		assertTrue(FixtureTarget.JVM.context().instructions().get("iinc").hasTrait(InstructionTrait.VARIABLE_INCREMENT));
+		assertFalse(FixtureTarget.JVM.context().instructions().get("goto").hasTrait(InstructionTrait.VARIABLE_READ));
 	}
 
 	@Test
@@ -593,10 +593,10 @@ class AssemblyUtilsAndQueriesTest {
 		ASTIdentifier defaultCase = switchObject.value("default");
 
 		ASTInstruction foundGoto = AssemblyUtils.findInstruction(ast, gotoInstruction.range().start(),
-				gotoInstruction.location().line());
+				gotoInstruction.location().line(), FixtureTarget.JVM.context());
 		ASTInstruction foundSwitch = AssemblyUtils.findInstruction(ast, defaultCase.range().start(),
-				defaultCase.location().line());
-		ASTInstruction missing = AssemblyUtils.findInstruction(ast, -1, 1);
+				defaultCase.location().line(), FixtureTarget.JVM.context());
+		ASTInstruction missing = AssemblyUtils.findInstruction(ast, -1, 1, FixtureTarget.JVM.context());
 
 		assertSame(gotoInstruction, foundGoto);
 		assertSame(switchInstruction, foundSwitch);
@@ -604,7 +604,7 @@ class AssemblyUtilsAndQueriesTest {
 	}
 
 	private static void assertTypeResolution(List<ASTElement> ast, ASTIdentifier typeIdentifier) {
-		Resolution resolution = AssemblyQueries.resolveAt(ast, typeIdentifier.range().start(), BytecodeFormat.DALVIK);
+		Resolution resolution = AssemblyQueries.resolveAt(ast, typeIdentifier.range().start(), FixtureTarget.DALVIK.context());
 		TypeReferenceResolution typeReferenceResolution = assertInstanceOf(TypeReferenceResolution.class, resolution);
 		assertSame(typeIdentifier, typeReferenceResolution.type());
 	}

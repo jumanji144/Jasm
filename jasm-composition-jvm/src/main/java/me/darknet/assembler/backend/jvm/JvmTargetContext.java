@@ -1,7 +1,7 @@
 package me.darknet.assembler.backend.jvm;
 
 import me.darknet.assembler.instructions.Instructions;
-import me.darknet.assembler.instructions.jvm.JvmInstructions;
+import me.darknet.assembler.backend.jvm.instructions.JvmInstructions;
 import me.darknet.assembler.target.AnnotationCapabilities;
 import me.darknet.assembler.target.AnnotationCapability;
 import me.darknet.assembler.target.MethodAttributeRegistry;

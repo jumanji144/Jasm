@@ -1,19 +1,14 @@
 package me.darknet.assembler.compile.visitor;
 
 import me.darknet.assembler.ast.ElementType;
-import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.specific.ASTValue;
-import me.darknet.assembler.error.ErrorCollectionException;
-import me.darknet.assembler.error.ErrorCollector;
-import me.darknet.assembler.visitor.ASTAnnotationArrayVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AnnotationNode;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public interface JvmAnnotationElementAdapter {
 	@NotNull
@@ -50,16 +45,6 @@ public interface JvmAnnotationElementAdapter {
 		return new String[]{Type.getObjectType(className.literal()).getDescriptor(), enumName.literal()};
 	}
 
-	@NotNull
-	default List<Object> elementFromArray(@NotNull ASTArray array) {
-		List<Object> values = new ArrayList<>();
-		ErrorCollector collector = new ErrorCollector();
-		ASTAnnotationArrayVisitor.accept(new JvmAnnotationArrayVisitor(values), array, collector);
-		if (collector.hasErr()) {
-			throw new ErrorCollectionException("Failed building array element from ast", collector);
-		}
-		return values;
-	}
 
 	default void addElement(@NotNull AnnotationNode annotation, @NotNull String name, @NotNull Object value) {
 		if (annotation.values == null) {

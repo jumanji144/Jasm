@@ -1,8 +1,8 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.compile.JavaCompileResult;
-import me.darknet.assembler.compiler.CompilerOptions;
-import me.darknet.assembler.error.Warn;
+import me.darknet.assembler.compile.JvmCompilerOptions;
+import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.test.DiagnosticAssertions;
 import me.darknet.assembler.test.JvmAnalysisAssertions;
 import me.darknet.assembler.test.JvmCompilation;
@@ -27,7 +27,7 @@ public class TestUtils {
 	 * @param options Jasm compiler options.
 	 * @param outputConsumer Consumer to act on the compilation result.
 	 */
-    public static void processJvm(@NotNull String source, @NotNull CompilerOptions<?> options,
+    public static void processJvm(@NotNull String source, @NotNull JvmCompilerOptions options,
                                   @Nullable ThrowingConsumer<JavaCompileResult> outputConsumer) {
         processJvm(source, options, outputConsumer, null);
     }
@@ -40,9 +40,9 @@ public class TestUtils {
 	 * @param outputConsumer Consumer to act on the compilation result.
 	 * @param warningConsumer Consumer to act on warnings.
 	 */
-	public static void processJvm(@NotNull String source, @NotNull CompilerOptions<?> options,
+	public static void processJvm(@NotNull String source, @NotNull JvmCompilerOptions options,
 	                              @Nullable ThrowingConsumer<JavaCompileResult> outputConsumer,
-	                              @Nullable Consumer<List<Warn>> warningConsumer) {
+	                              @Nullable Consumer<List<Diagnostic>> warningConsumer) {
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
 		if (compilation.hasErrors()) {
 			fail("Failed to analyze/compile class, errors were reported\n" +
@@ -68,7 +68,7 @@ public class TestUtils {
 	 * @param source Jasm source to process.
 	 * @param options Jasm compiler options.
 	 */
-    public static void processAnalysisFailJvm(@NotNull String source, @NotNull CompilerOptions<?> options) {
+    public static void processAnalysisFailJvm(@NotNull String source, @NotNull JvmCompilerOptions options) {
         JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
         if (!compilation.hasErrors()) {
             fail("Failure was expected");
@@ -82,7 +82,7 @@ public class TestUtils {
 	 * @param source Jasm source to process.
 	 * @param options Jasm compiler options.
 	 */
-	public static void processAnalysisWarnJvm(@NotNull String source, @NotNull CompilerOptions<?> options) {
+	public static void processAnalysisWarnJvm(@NotNull String source, @NotNull JvmCompilerOptions options) {
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
 		JvmAnalysisAssertions.assertCompileWarning(compilation);
 	}

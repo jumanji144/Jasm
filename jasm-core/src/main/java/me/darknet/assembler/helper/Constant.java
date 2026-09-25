@@ -35,7 +35,7 @@ public record Constant(Type type, Object value) {
                 if (identifier.content().startsWith("L")) { // is class
                     yield new Constant(Constant.Type.ClassType, identifier.literal());
                 } else {
-                    // must be method `(` or method type `L`
+                    // must be method '(' or method type 'L'
                     yield new Constant(Constant.Type.MethodType, identifier.literal());
                 }
             case ARRAY: {

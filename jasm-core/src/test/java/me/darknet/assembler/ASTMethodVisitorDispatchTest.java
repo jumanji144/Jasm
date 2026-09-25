@@ -121,7 +121,7 @@ public class ASTMethodVisitorDispatchTest {
         }
 
         @Override
-        public @Nullable ASTInstructionVisitor visitCode(@NotNull DiagnosticSink collector) {
+        public @NotNull ASTInstructionVisitor visitCode(@NotNull DiagnosticSink sink) {
             visitCodeCalls++;
             return new ASTInstructionVisitor() {
                 @Override

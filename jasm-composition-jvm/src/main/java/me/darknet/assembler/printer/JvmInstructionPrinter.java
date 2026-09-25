@@ -176,7 +176,7 @@ public class JvmInstructionPrinter {
     public void execute(TableSwitchInsnNode instruction) {
         var obj = ctx.instruction("tableswitch").object();
         obj.value("min").print(String.valueOf(instruction.min)).next();
-        obj.value("max").print(String.valueOf(instruction.min + instruction.labels.size())).next();
+        obj.value("max").print(String.valueOf(instruction.max)).next();
         var arr = obj.value("cases").array();
         arr.print(instruction.labels, (print, lbl) -> print.print(labelNames.get(lbl)));
         arr.end();

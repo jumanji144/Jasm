@@ -3,8 +3,12 @@ package me.darknet.assembler.test;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.backend.jvm.JvmTargetContext;
 import me.darknet.assembler.compile.JavaClassRepresentation;
+import me.darknet.assembler.compile.JavaCompileResult;
 import me.darknet.assembler.compile.JvmCompiler;
-import me.darknet.assembler.compiler.CompilerOptions;
+import me.darknet.assembler.compile.JvmCompilerOptions;
+import me.darknet.assembler.error.Outcome;
+import me.darknet.assembler.processing.SemanticProcessor;
+import me.darknet.assembler.processing.ValidatedUnit;
 import org.junit.jupiter.api.Assertions;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.CheckClassAdapter;
@@ -27,7 +31,7 @@ public final class JvmAssemblerFixture {
 	 *
 	 * @return A {@link JvmCompilation} containing the results of compiling the given source code with the given options.
 	 */
-	public static JvmCompilation compileJvm(String source, CompilerOptions<?> options) {
+	public static JvmCompilation compileJvm(String source, JvmCompilerOptions options) {
 		return compileJvm("<test>", source, options);
 	}
 
@@ -41,18 +45,22 @@ public final class JvmAssemblerFixture {
 	 *
 	 * @return A {@link JvmCompilation} containing the results of compiling the given source code with the given options.
 	 */
-	public static JvmCompilation compileJvm(String sourceName, String source, CompilerOptions<?> options) {
-		var astResult = AssemblyParseFixture.processDeclarations(sourceName, source, JvmTargetContext.INSTANCE);
+	public static JvmCompilation compileJvm(String sourceName, String source, JvmCompilerOptions options) {
+		Outcome<List<ASTElement>> astResult = AssemblyParseFixture.processDeclarations(sourceName, source, JvmTargetContext.INSTANCE);
 		if (astResult.hasErrors())
 			return JvmCompilation.from(sourceName, source, astResult, null);
 
 		List<ASTElement> ast = DiagnosticAssertions.requireSuccess(astResult, "Failed to prepare AST for JVM compilation");
+		Outcome<ValidatedUnit> processingResult = SemanticProcessor.process(ast, JvmTargetContext.INSTANCE);
+		if (processingResult.hasErrors())
+			return JvmCompilation.from(sourceName, source, astResult, null, processingResult.diagnostics());
+
 		JvmCompiler compiler = new JvmCompiler();
-		var compileResult = compiler.compile(ast, options);
-		if (compileResult.isOk()) {
-			verifyGeneratedClass(compileResult.get().representation());
+		Outcome<JavaCompileResult> compileResult = compiler.compile(processingResult.requireValue(), options);
+		if (compileResult.isSuccess()) {
+			verifyGeneratedClass(compileResult.requireValue().representation());
 		}
-		return JvmCompilation.from(sourceName, source, astResult, compileResult);
+		return JvmCompilation.from(sourceName, source, astResult, compileResult, processingResult.diagnostics());
 	}
 
 	/**

@@ -15,7 +15,7 @@ import me.darknet.assembler.compile.analysis.jvm.AnalysisSession;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.InheritanceChecker;
-import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.parser.Token;
@@ -50,7 +50,7 @@ class JvmAnalysisEngineExecutionTest {
         )));
 
         boolean changed = session.putAndMergeFrame(
-                new TestJvmCompilerOptions().inheritanceChecker(),
+                new TestJvmCompilerOptions().getInheritanceChecker(),
                 10,
                 new TypedFrameImpl(Map.of(
                         0, new Local(0, "value", Type.getType(LinkedList.class))
@@ -69,7 +69,7 @@ class JvmAnalysisEngineExecutionTest {
         ValuedFrameImpl other = new ValuedFrameImpl();
         other.pushRaw(Values.STRING_VALUE);
 
-        InheritanceChecker checker = new TestJvmCompilerOptions().inheritanceChecker();
+        InheritanceChecker checker = new TestJvmCompilerOptions().getInheritanceChecker();
         assertFalse(frame.merge(checker, other));
         assertSame(Values.TOP_VALUE, frame.pop());
     }
@@ -137,14 +137,14 @@ class JvmAnalysisEngineExecutionTest {
     void valuedEngineReportsInvalidIincTargets() throws Exception {
         VarCache varCache = new VarCache();
         ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(varCache);
-        ErrorCollector collector = new ErrorCollector();
-        engine.setErrorCollector(collector);
+        DiagnosticSink sink = new DiagnosticSink();
+        engine.setDiagnosticSink(sink);
 
         IincInsnNode instruction = new IincInsnNode(7, 3);
         executeWithFrame(engine, new ValuedFrameImpl(), instruction, astInstruction("iinc"));
 
-        assertEquals(1, collector.getErrors().size());
-        assertTrue(collector.getErrors().getFirst().getMessage().contains("Invalid iinc target"));
+        assertEquals(1, sink.errors().size());
+        assertTrue(sink.errors().getFirst().message().contains("Invalid iinc target"));
     }
 
     @SuppressWarnings("unchecked")

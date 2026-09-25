@@ -1,11 +1,11 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticPhase;
-import me.darknet.assembler.instructions.jvm.JvmInstructions;
+import me.darknet.assembler.backend.jvm.instructions.JvmInstructions;
 import me.darknet.assembler.parser.processor.DeclarationRegistry;
 import me.darknet.assembler.parser.processor.ProcessorContext;
 import me.darknet.assembler.test.AssemblyParseFixture;

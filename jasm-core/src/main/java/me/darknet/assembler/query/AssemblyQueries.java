@@ -14,7 +14,9 @@ import me.darknet.assembler.ast.specific.ASTException;
 import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTInner;
 import me.darknet.assembler.ast.specific.ASTMethod;
-import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.instructions.Instruction;
+import me.darknet.assembler.instructions.OperandRole;
+import me.darknet.assembler.instructions.SwitchShape;
 import me.darknet.assembler.query.resolution.ClassAnnotationResolution;
 import me.darknet.assembler.query.resolution.ClassExtends;
 import me.darknet.assembler.query.resolution.ClassImplements;
@@ -33,6 +35,7 @@ import me.darknet.assembler.query.resolution.Resolution;
 import me.darknet.assembler.query.resolution.TypeReferenceResolution;
 import me.darknet.assembler.query.resolution.VariableDeclarationResolution;
 import me.darknet.assembler.query.resolution.VariableReferenceResolution;
+import me.darknet.assembler.target.TargetContext;
 import me.darknet.assembler.util.ElementMapView;
 import me.darknet.assembler.util.Pair;
 import me.darknet.assembler.util.Range;
@@ -61,33 +64,18 @@ public final class AssemblyQueries {
 	 * 		AST to query.
 	 * @param offset
 	 * 		Offset to query at.
+	 * @param target
+	 * 		Target whose instruction semantics should be used.
 	 *
 	 * @return Resolution of the content at the given offset, or an empty resolution if no content was found or the offset was invalid.
 	 *
-	 * @see #resolveAt(List, int, int) For line/column based resolution
+	 * @see #resolveAt(List, int, int, TargetContext) For line/column based resolution
 	 */
-	public static @NotNull Resolution resolveAt(@Nullable List<? extends ASTElement> ast, int offset) {
-		return resolveAt(ast, offset, BytecodeFormat.DEFAULT);
-	}
-
-	/**
-	 * Resolve the content at a given offset within the provided AST.
-	 *
-	 * @param ast
-	 * 		AST to query.
-	 * @param offset
-	 * 		Offset to query at.
-	 * @param format
-	 * 		Bytecode format to interpret instruction semantics under.
-	 *
-	 * @return Resolution of the content at the given offset, or an empty resolution if no content was found or the offset was invalid.
-	 */
-	public static @NotNull Resolution resolveAt(@Nullable List<? extends ASTElement> ast, int offset,
-	                                            @NotNull BytecodeFormat format) {
+	public static @NotNull Resolution resolveAt(@Nullable List<? extends ASTElement> ast, int offset, @NotNull TargetContext target) {
 		if (ast == null || offset < 0)
 			return EmptyResolution.INSTANCE;
 
-		Resolution resolution = resolveOffset(offset, null, ast, format);
+		Resolution resolution = resolveOffset(offset, null, ast, target);
 		return resolution == null ? EmptyResolution.INSTANCE : resolution;
 	}
 
@@ -100,31 +88,14 @@ public final class AssemblyQueries {
 	 * 		Line number to query at (1-based).
 	 * @param column
 	 * 		Column number to query at (1-based).
+	 * @param target
+	 * 		Target whose instruction semantics should be used.
 	 *
 	 * @return Resolution of the content at the given line/column, or an empty resolution if no content was found or the line/column was invalid.
 	 *
-	 * @see #resolveAt(List, int) For offset based resolution
+	 * @see #resolveAt(List, int, TargetContext) For offset based resolution
 	 */
-	public static @NotNull Resolution resolveAt(@Nullable List<? extends ASTElement> ast, int line, int column) {
-		return resolveAt(ast, line, column, BytecodeFormat.DEFAULT);
-	}
-
-	/**
-	 * Resolve the content at a given line/column within the provided AST.
-	 *
-	 * @param ast
-	 * 		AST to query.
-	 * @param line
-	 * 		Line number to query at (1-based).
-	 * @param column
-	 * 		Column number to query at (1-based).
-	 * @param format
-	 * 		Bytecode format to interpret instruction semantics under.
-	 *
-	 * @return Resolution of the content at the given line/column, or an empty resolution if no content was found or the line/column was invalid.
-	 */
-	public static @NotNull Resolution resolveAt(@Nullable List<? extends ASTElement> ast, int line, int column,
-	                                            @NotNull BytecodeFormat format) {
+	public static @NotNull Resolution resolveAt(@Nullable List<? extends ASTElement> ast, int line, int column, @NotNull TargetContext target) {
 		if (ast == null || line < 1 || column < 1)
 			return EmptyResolution.INSTANCE;
 
@@ -132,7 +103,7 @@ public final class AssemblyQueries {
 		if (matched == null || matched.range() == Range.EMPTY)
 			return EmptyResolution.INSTANCE;
 
-		return resolveAt(ast, matched.range().start(), format);
+		return resolveAt(ast, matched.range().start(), target);
 	}
 
 	/**
@@ -140,10 +111,12 @@ public final class AssemblyQueries {
 	 *
 	 * @param method
 	 * 		Method to query.
+	 * @param target
+	 * 		Target whose variable metadata should be used.
 	 *
 	 * @return Declarations and usages of variables within the given method.
 	 */
-	public static @NotNull VariableQueryResult variables(@NotNull ASTMethod method) {
+	public static @NotNull VariableQueryResult variables(@NotNull ASTMethod method, @NotNull TargetContext target) {
 		Map<String, List<VariableInfo>> variablesByName = new LinkedHashMap<>();
 		List<VariableInfo> declarations = new ArrayList<>();
 		List<VariableUsage> usages = new ArrayList<>();
@@ -164,7 +137,7 @@ public final class AssemblyQueries {
 			return new VariableQueryResult(List.copyOf(declarations), List.copyOf(usages));
 
 		for (ASTInstruction instruction : code.getInstructions()) {
-			VariableAccessKind kind = variableKind(instruction);
+			VariableAccessKind kind = variableAccessKind(target, instruction);
 			if (kind == null || instruction.arguments().isEmpty())
 				continue;
 
@@ -201,24 +174,12 @@ public final class AssemblyQueries {
 	 *
 	 * @param method
 	 * 		Method to query.
+	 * @param target
+	 * 		Target whose label metadata should be used.
 	 *
 	 * @return Declarations and usages of labels within the given method.
 	 */
-	public static @NotNull LabelQueryResult labels(@NotNull ASTMethod method) {
-		return labels(method, BytecodeFormat.DEFAULT);
-	}
-
-	/**
-	 * Collect label declarations and usages within the given method.
-	 *
-	 * @param method
-	 * 		Method to query.
-	 * @param format
-	 * 		Bytecode format to interpret instruction semantics under.
-	 *
-	 * @return Declarations and usages of labels within the given method.
-	 */
-	public static @NotNull LabelQueryResult labels(@NotNull ASTMethod method, @Nullable BytecodeFormat format) {
+	public static @NotNull LabelQueryResult labels(@NotNull ASTMethod method, @NotNull TargetContext target) {
 		Map<String, List<ASTLabel>> declarationsByName = new LinkedHashMap<>();
 		List<LabelInfo> declarations = new ArrayList<>();
 		List<LabelUsage> usages = new ArrayList<>();
@@ -251,12 +212,12 @@ public final class AssemblyQueries {
 				if (name == null || instruction.arguments().isEmpty())
 					continue;
 
-				if (format == null ? isFlowControlInstruction(name) : isFlowControlInstruction(format, name)) {
-					ASTIdentifier identifier = flowControlTarget(instruction);
+				if (isBranchInstruction(target, name)) {
+					ASTIdentifier identifier = flowControlTarget(instruction, target);
 					if (identifier != null)
 						usages.add(resolveLabelUsage(declarationsByName, identifier, LabelReferenceKind.FLOW, name));
-				} else if (format == null ? isSwitchInstruction(name) : isSwitchInstruction(format, name)) {
-					collectSwitchLabels(declarationsByName, instruction, usages);
+				} else if (isSwitchInstruction(target, name)) {
+					collectSwitchLabels(declarationsByName, instruction, target, usages);
 				}
 			}
 		}
@@ -280,7 +241,7 @@ public final class AssemblyQueries {
 	 */
 	private static @Nullable Resolution resolveOffset(int offset, @Nullable ASTClass parentClass,
 	                                                  @NotNull List<? extends ASTElement> elements,
-	                                                  @NotNull BytecodeFormat format) {
+	                                                  @NotNull TargetContext target) {
 		for (ASTElement element : elements) {
 			if (!contains(element.range(), offset))
 				continue;
@@ -307,11 +268,11 @@ public final class AssemblyQueries {
 					if (typeResolution != null)
 						return typeResolution;
 
-					Resolution nested = resolveOffset(offset, klass, klass.contents(), format);
+					Resolution nested = resolveOffset(offset, klass, klass.contents(), target);
 					return nested != null ? nested : new ClassResolution(klass);
 				}
 				case ASTMethod method -> {
-					Resolution resolved = resolveMethod(offset, parentClass, method, format);
+					Resolution resolved = resolveMethod(offset, parentClass, method, target);
 					return resolved != null ? resolved : new MethodResolution(parentClass, method);
 				}
 				case ASTField field -> {
@@ -346,18 +307,17 @@ public final class AssemblyQueries {
 	 * @return Resolution of the content at the given offset within the provided method,
 	 * or {@code null} if no content was found at that offset within the method.
 	 */
-	private static @Nullable Resolution resolveMethod(int offset, @Nullable ASTClass parentClass, @NotNull ASTMethod method,
-	                                                  @NotNull BytecodeFormat format) {
+	private static @Nullable Resolution resolveMethod(int offset, @Nullable ASTClass parentClass, @NotNull ASTMethod method, @NotNull TargetContext target) {
 		ASTAnnotation annotation = resolveAnnotation(offset, method);
 		if (annotation != null)
 			return new MethodAnnotationResolution(parentClass, method, annotation);
 
-		VariableQueryResult variables = variables(method);
+		VariableQueryResult variables = variables(method, target);
 		for (VariableInfo declaration : variables.declarations())
 			if (contains(declaration.declaration().range(), offset))
 				return new VariableDeclarationResolution(parentClass, method, declaration.declaration(), declaration);
 
-		LabelQueryResult labels = labels(method, format);
+		LabelQueryResult labels = labels(method, target);
 		for (LabelInfo declaration : labels.declarations())
 			if (contains(declaration.declaration().range(), offset))
 				return new LabelDeclarationResolution(parentClass, method, declaration.declaration(), declaration);
@@ -398,7 +358,7 @@ public final class AssemblyQueries {
 					return new LabelReferenceResolution(parentClass, method, usage.reference(), usage);
 			}
 
-			ASTIdentifier typeReference = resolveInstructionTypeReference(format, offset, instruction);
+			ASTIdentifier typeReference = resolveInstructionTypeReference(target, offset, instruction);
 			if (typeReference != null)
 				return new TypeReferenceResolution(parentClass, method, typeReference);
 
@@ -410,8 +370,7 @@ public final class AssemblyQueries {
 	}
 
 	/**
-	 * Resolve a type reference at the given offset within the provided class,
-	 * including superclass, interfaces, and permitted subclasses.
+	 * Resolve a type reference at the given offset within the provided class, including superclass, interfaces, and permitted subclasses.
 	 *
 	 * @param offset
 	 * 		Offset to resolve at.
@@ -430,6 +389,17 @@ public final class AssemblyQueries {
 		return null;
 	}
 
+	/**
+	 * Resolve an implemented interface at the given offset within the provided class.
+	 *
+	 * @param offset
+	 * 		Offset to resolve at.
+	 * @param klass
+	 * 		Class to resolve within.
+	 *
+	 * @return Implemented interface at the given offset within the provided class,
+	 * or {@code null} if no implemented interface was found at that offset within the class
+	 */
 	private static @Nullable ASTIdentifier resolveImplementedInterface(int offset, @NotNull ASTClass klass) {
 		for (ASTIdentifier identifier : klass.getInterfaces()) {
 			if (contains(identifier.range(), offset))
@@ -438,6 +408,17 @@ public final class AssemblyQueries {
 		return null;
 	}
 
+	/**
+	 * Resolve an inner class at the given offset within the provided class.
+	 *
+	 * @param offset
+	 * 		Offset to resolve at.
+	 * @param klass
+	 * 		Class to resolve within.
+	 *
+	 * @return Inner class at the given offset within the provided class,
+	 * or {@code null} if no inner class was found at that offset within the class
+	 */
 	private static @Nullable ASTInner resolveInnerClass(int offset, @NotNull ASTClass klass) {
 		for (ASTInner inner : klass.getInners()) {
 			if (contains(inner.range(), offset))
@@ -446,6 +427,17 @@ public final class AssemblyQueries {
 		return null;
 	}
 
+	/**
+	 * Resolve an annotation at the given offset within the provided annotated element.
+	 *
+	 * @param offset
+	 * 		Offset to resolve at.
+	 * @param annotated
+	 * 		Annotated element to resolve within.
+	 *
+	 * @return Annotation at the given offset within the provided annotated element,
+	 * or {@code null} if no annotation was found at that offset within the element
+	 */
 	private static @Nullable ASTAnnotation resolveAnnotation(int offset, @NotNull ASTAnnotated annotated) {
 		ASTAnnotation annotation = resolveAnnotation(offset, annotated.getVisibleAnnotations());
 		if (annotation != null)
@@ -462,6 +454,17 @@ public final class AssemblyQueries {
 		return resolveAnnotation(offset, annotated.getInvisibleTypeAnnotations());
 	}
 
+	/**
+	 * Resolve an annotation at the given offset within the provided list of annotations.
+	 *
+	 * @param offset
+	 * 		Offset to resolve at.
+	 * @param annotations
+	 * 		List of annotations to resolve within.
+	 *
+	 * @return Annotation at the given offset within the provided list of annotations,
+	 * or {@code null} if no annotation was found at that offset within the list
+	 */
 	private static @Nullable ASTAnnotation resolveAnnotation(int offset, @NotNull List<ASTAnnotation> annotations) {
 		for (ASTAnnotation annotation : annotations) {
 			if (contains(annotation.range(), offset))
@@ -543,101 +546,136 @@ public final class AssemblyQueries {
 		return new LabelUsage(new LabelInfo(name, matches.getFirst(), false), name, reference, kind, context, false);
 	}
 
-	private static @Nullable ASTIdentifier flowControlTarget(@NotNull ASTInstruction instruction) {
-		if (instruction.arguments().isEmpty())
+	/**
+	 * Find the target label for a flow control instruction, if it has one.
+	 *
+	 * @param instruction
+	 * 		Flow control instruction to find the target for.
+	 * @param target
+	 * 		Target whose instruction semantics should be used.
+	 *
+	 * @return Target label for the given flow control instruction, or {@code null} if it does not have a target.
+	 */
+	private static @Nullable ASTIdentifier flowControlTarget(@NotNull ASTInstruction instruction,
+	                                                         @NotNull TargetContext target) {
+		Instruction<?> definition = target.instructions().get(instruction.identifier().content());
+		if (definition == null)
 			return null;
 
-		ASTElement target = instruction.arguments().getLast();
-		return target instanceof ASTIdentifier identifier ? identifier : null;
+		int labelIndex = definition.operandIndex(OperandRole.RoleKind.LABEL);
+		if (labelIndex < 0 || labelIndex >= instruction.arguments().size())
+			return null;
+
+		ASTElement targetElement = instruction.arguments().get(labelIndex);
+		return targetElement instanceof ASTIdentifier identifier ? identifier : null;
 	}
 
+	/**
+	 * Collect label usages for a switch instruction, if it has any.
+	 *
+	 * @param declarationsByName
+	 * 		Map of label declarations by name to search through for matching declarations.
+	 * @param instruction
+	 * 		Switch instruction to collect label usages for.
+	 * @param target
+	 * 		Target whose instruction semantics should be used.
+	 * @param usages
+	 * 		List to add the collected label usages to.
+	 */
 	private static void collectSwitchLabels(@NotNull Map<String, List<ASTLabel>> declarationsByName,
 	                                        @NotNull ASTInstruction instruction,
+	                                        @NotNull TargetContext target,
 	                                        @NotNull List<LabelUsage> usages) {
-		String name = instruction.identifier().content();
-		if (name == null)
+		Instruction<?> definition = target.instructions().get(instruction.identifier().content());
+		if (definition == null)
+			return;
+		SwitchShape shape = definition.switchShape();
+		if (shape == null)
 			return;
 
-		switch (name) {
-			case "tableswitch" -> collectTableSwitchLabels(declarationsByName, instruction, usages);
-			case "lookupswitch" -> collectLookupSwitchLabels(declarationsByName, instruction, usages);
-			case "packed-switch" -> collectPackedSwitchLabels(declarationsByName, instruction, usages);
-			case "sparse-switch" -> collectSparseSwitchLabels(declarationsByName, instruction, usages);
+		int payloadIndex = definition.operandIndex(OperandRole.RoleKind.SWITCH_PAYLOAD);
+		if (payloadIndex < 0 || payloadIndex >= instruction.arguments().size())
+			return;
+		ASTElement payload = instruction.arguments().get(payloadIndex);
+		if (!(payload instanceof ASTObject object))
+			return;
+
+		// The shape owns the payload vocabulary, so core never spells a target's keys itself.
+		switch (shape) {
+			case TABLE, PACKED ->
+					collectPositionalSwitchLabels(declarationsByName, object, shape.baseKey(), shape.casesKey(), shape.defaultKey(), usages);
+			case LOOKUP -> collectKeyedSwitchLabels(declarationsByName, object, shape.defaultKey(), usages);
+			case SPARSE -> collectKeyedSwitchLabels(declarationsByName, object, null, usages);
 		}
 	}
 
-	private static void collectTableSwitchLabels(@NotNull Map<String, List<ASTLabel>> declarationsByName,
-	                                             @NotNull ASTInstruction instruction,
-	                                             @NotNull List<LabelUsage> usages) {
-		ASTObject object = instruction.argumentObject(0);
-		if (object == null)
-			return;
+	/**
+	 * Collect label usages for a positional switch instruction, if it has any.
+	 *
+	 * @param declarationsByName
+	 * 		Map of label declarations by name to search through for matching declarations.
+	 * @param object
+	 * 		Switch payload object to collect label usages from.
+	 * @param baseKey
+	 * 		Key for the base value of the switch cases.
+	 * @param casesKey
+	 * 		Key for the array of switch case labels.
+	 * @param defaultKey
+	 * 		Optional key for the default case label, or {@code null} if there is no default case.
+	 * @param usages
+	 * 		List to add the collected label usages to.
+	 */
+	private static void collectPositionalSwitchLabels(@NotNull Map<String, List<ASTLabel>> declarationsByName,
+	                                                  @NotNull ASTObject object,
+	                                                  @NotNull String baseKey,
+	                                                  @NotNull String casesKey,
+	                                                  @Nullable String defaultKey,
+	                                                  @NotNull List<LabelUsage> usages) {
+		if (defaultKey != null) {
+			ASTElement defaultCase = object.value(defaultKey);
+			if (defaultCase instanceof ASTIdentifier identifier)
+				usages.add(resolveLabelUsage(declarationsByName, identifier, LabelReferenceKind.SWITCH_DEFAULT, null));
+		}
 
-		ASTElement defaultCase = object.value("default");
-		if (defaultCase instanceof ASTIdentifier identifier)
-			usages.add(resolveLabelUsage(declarationsByName, identifier, LabelReferenceKind.SWITCH_DEFAULT, null));
-
-		ASTArray cases = object.value("cases");
-		int min = parseInt(object.value("min"), 0);
+		ASTArray cases = object.value(casesKey);
 		if (cases == null)
 			return;
 
+		int base = parseInt(object.value(baseKey), 0);
 		for (int i = 0; i < cases.values().size(); i++) {
 			ASTElement value = cases.values().get(i);
 			if (value instanceof ASTIdentifier identifier)
-				usages.add(resolveLabelUsage(declarationsByName, identifier, LabelReferenceKind.SWITCH_CASE, String.valueOf(min + i)));
+				usages.add(resolveLabelUsage(declarationsByName, identifier, LabelReferenceKind.SWITCH_CASE, String.valueOf(base + i)));
 		}
 	}
 
-	private static void collectLookupSwitchLabels(@NotNull Map<String, List<ASTLabel>> declarationsByName,
-	                                              @NotNull ASTInstruction instruction,
-	                                              @NotNull List<LabelUsage> usages) {
-		ASTObject object = instruction.argumentObject(0);
-		if (object == null)
-			return;
-
-		ASTElement defaultCase = object.value("default");
-		if (defaultCase instanceof ASTIdentifier identifier)
-			usages.add(resolveLabelUsage(declarationsByName, identifier, LabelReferenceKind.SWITCH_DEFAULT, null));
+	/**
+	 * Collect label usages for a keyed switch instruction, if it has any.
+	 *
+	 * @param declarationsByName
+	 * 		Map of label declarations by name to search through for matching declarations.
+	 * @param object
+	 * 		Switch payload object to collect label usages from.
+	 * @param defaultKey
+	 * 		Optional key for the default case label, or {@code null} if there is no default case.
+	 * @param usages
+	 * 		List to add the collected label usages to.
+	 */
+	private static void collectKeyedSwitchLabels(@NotNull Map<String, List<ASTLabel>> declarationsByName,
+	                                             @NotNull ASTObject object,
+	                                             @Nullable String defaultKey,
+	                                             @NotNull List<LabelUsage> usages) {
+		if (defaultKey != null) {
+			ASTElement defaultCase = object.value(defaultKey);
+			if (defaultCase instanceof ASTIdentifier identifier)
+				usages.add(resolveLabelUsage(declarationsByName, identifier, LabelReferenceKind.SWITCH_DEFAULT, null));
+		}
 
 		ElementMapView<ASTIdentifier, ASTElement> values = object.values();
 		for (Pair<ASTIdentifier, ASTElement> pair : values.pairs()) {
-			if (Objects.equals("default", pair.first().content()))
+			if (defaultKey != null && Objects.equals(defaultKey, pair.first().content()))
 				continue;
 
-			if (pair.second() instanceof ASTIdentifier identifier)
-				usages.add(resolveLabelUsage(declarationsByName, identifier, LabelReferenceKind.SWITCH_CASE, pair.first().content()));
-		}
-	}
-
-	private static void collectPackedSwitchLabels(@NotNull Map<String, List<ASTLabel>> declarationsByName,
-	                                              @NotNull ASTInstruction instruction,
-	                                              @NotNull List<LabelUsage> usages) {
-		ASTObject object = switchPayload(instruction);
-		if (object == null)
-			return;
-
-		ASTArray targets = object.value("targets");
-		if (targets == null)
-			return;
-
-		int first = parseInt(object.value("first"), 0);
-		for (int i = 0; i < targets.values().size(); i++) {
-			ASTElement value = targets.values().get(i);
-			if (value instanceof ASTIdentifier identifier)
-				usages.add(resolveLabelUsage(declarationsByName, identifier, LabelReferenceKind.SWITCH_CASE, String.valueOf(first + i)));
-		}
-	}
-
-	private static void collectSparseSwitchLabels(@NotNull Map<String, List<ASTLabel>> declarationsByName,
-	                                              @NotNull ASTInstruction instruction,
-	                                              @NotNull List<LabelUsage> usages) {
-		ASTObject object = switchPayload(instruction);
-		if (object == null)
-			return;
-
-		ElementMapView<ASTIdentifier, ASTElement> values = object.values();
-		for (Pair<ASTIdentifier, ASTElement> pair : values.pairs()) {
 			if (pair.second() instanceof ASTIdentifier identifier)
 				usages.add(resolveLabelUsage(declarationsByName, identifier, LabelReferenceKind.SWITCH_CASE, pair.first().content()));
 		}
@@ -647,21 +685,9 @@ public final class AssemblyQueries {
 		return range != Range.EMPTY && range.within(offset);
 	}
 
-	private static @Nullable ASTObject switchPayload(@NotNull ASTInstruction instruction) {
-		if (instruction.arguments().isEmpty())
-			return null;
-
-		ASTElement last = instruction.arguments().getLast();
-		return last instanceof ASTObject object ? object : null;
-	}
-
 	private static int nextOrdinal(@NotNull Map<String, Integer> ordinals, @NotNull String name) {
 		int ordinal = ordinals.getOrDefault(name, 0);
 		ordinals.put(name, ordinal + 1);
 		return ordinal;
-	}
-
-	private static @Nullable VariableAccessKind variableKind(@NotNull ASTInstruction instruction) {
-		return variableAccessKind(instruction);
 	}
 }

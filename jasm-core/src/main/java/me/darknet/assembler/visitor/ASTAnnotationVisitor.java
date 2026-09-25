@@ -86,10 +86,11 @@ public interface ASTAnnotationVisitor {
      * 		Visitor receiving annotation elements.
      * @param pairs
      * 		Annotation element pairs to traverse.
-     * @param collector
+     * @param sink
      * 		Diagnostic sink for unsupported values.
      */
-    static void accept(@NotNull ASTAnnotationVisitor visitor, @NotNull Collection<Pair<ASTIdentifier, ASTElement>> pairs, @NotNull DiagnosticSink collector) {
+    static void accept(@NotNull ASTAnnotationVisitor visitor, @NotNull Collection<Pair<ASTIdentifier, ASTElement>> pairs,
+                       @NotNull DiagnosticSink sink) {
         for (Pair<ASTIdentifier, ASTElement> pair : pairs) {
             ASTElement value = pair.second();
             ASTIdentifier key = pair.first();
@@ -102,12 +103,12 @@ public interface ASTAnnotationVisitor {
                     if (arrayVisitor == null) {
                         continue;
                     }
-                    ASTAnnotationArrayVisitor.accept(arrayVisitor, array, collector);
+                    ASTAnnotationArrayVisitor.accept(arrayVisitor, array, sink);
                 }
                 case ASTAnnotation annotation -> {
                     ASTAnnotationVisitor anno = visitor.visitAnnotationValue(key, annotation.getClassType());
                     if (anno != null)
-                        ASTAnnotationVisitor.accept(anno, annotation.getValueMap().pairs(), collector);
+                        ASTAnnotationVisitor.accept(anno, annotation.getValueMap().pairs(), sink);
                 }
                 case null, default -> {
                     if (value instanceof ASTDeclaration declaration) {
@@ -126,20 +127,20 @@ public interface ASTAnnotationVisitor {
                                         ElementMap<ASTIdentifier, ASTElement> map = new ElementMap<>();
                                         for (var subPair : annoObject.values().pairs())
                                             map.put(subPair.first(), subPair.second());
-                                        ASTAnnotationVisitor.accept(anno, map.pairs(), collector);
+                                        ASTAnnotationVisitor.accept(anno, map.pairs(), sink);
                                     }
                                     continue;
                                 }
                             }
                         } catch (Exception ex) {
-                            collector.error(DiagnosticCode.UNSUPPORTED_FORM, "Unprocessable declaration (enum?) in annotation", key.location());
+                            sink.error(DiagnosticCode.UNSUPPORTED_FORM, "Unprocessable declaration (enum?) in annotation", key.location());
                             continue;
                         }
                     } else if (value == null) {
-                        collector.error(DiagnosticCode.UNSUPPORTED_FORM, "Unprocessable value in annotation", key.location());
+                        sink.error(DiagnosticCode.UNSUPPORTED_FORM, "Unprocessable value in annotation", key.location());
                         continue;
                     }
-                    collector.error(DiagnosticCode.UNSUPPORTED_FORM, "Don't know how to process: " + value.type(), value.location());
+                    sink.error(DiagnosticCode.UNSUPPORTED_FORM, "Don't know how to process: " + value.type(), value.location());
                 }
             }
         }

@@ -6,7 +6,7 @@ import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikMethodData;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.instructions.Instructions;
-import me.darknet.assembler.instructions.dalvik.DalvikInstructions;
+import me.darknet.assembler.backend.dalvik.instructions.DalvikInstructions;
 import me.darknet.assembler.parser.processor.ProcessorContext;
 import me.darknet.assembler.processing.MethodTargetData;
 import me.darknet.assembler.target.AnnotationCapabilities;
@@ -24,7 +24,8 @@ public final class DalvikTargetContext implements TargetContext {
     public static final DalvikTargetContext INSTANCE = new DalvikTargetContext();
 
     private static final AnnotationCapabilities ANNOTATION_CAPABILITIES =
-            capability -> capability != AnnotationCapability.TYPE_ANNOTATIONS;
+            capability -> capability != AnnotationCapability.TYPE_ANNOTATIONS
+                            && capability != AnnotationCapability.PARAMETER_ANNOTATIONS;
     private static final MethodAttributeRegistry METHOD_ATTRIBUTES = createMethodAttributes();
 
     private DalvikTargetContext() {}

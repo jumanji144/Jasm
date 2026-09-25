@@ -6,7 +6,9 @@ import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.specific.ASTMethod;
-import me.darknet.assembler.parser.BytecodeFormat;
+import me.darknet.assembler.instructions.Instruction;
+import me.darknet.assembler.instructions.InstructionTrait;
+import me.darknet.assembler.target.TargetContext;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Range;
 import org.jetbrains.annotations.NotNull;
@@ -14,29 +16,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * General AST utilities.
  */
 public final class AssemblyUtils {
-	private static final Set<String> JVM_FLOW_CONTROL_INSNS = Set.of(
-			"goto", "goto_w", "jsr", "jsr_w",
-			"ifnull", "ifnonnull", "ifeq", "ifne", "ifle", "ifge", "iflt", "ifgt",
-			"if_acmpeq", "if_acmpne", "if_icmpeq", "if_icmpge", "if_icmpgt", "if_icmple", "if_icmplt", "if_icmpne"
-	);
-	private static final Set<String> DALVIK_FLOW_CONTROL_INSNS = Set.of(
-			"goto", "if-eq", "if-ne", "if-lt", "if-ge", "if-gt", "if-le", "if-eqz", "if-nez"
-	);
-	private static final Set<String> JVM_SWITCH_INSNS = Set.of("tableswitch", "lookupswitch");
-	private static final Set<String> DALVIK_SWITCH_INSNS = Set.of("packed-switch", "sparse-switch");
-	private static final Set<String> JVM_TYPE_REFERENCE_INSNS = Set.of(
-			"new", "anewarray", "checkcast", "instanceof", "multianewarray"
-	);
-	private static final Set<String> DALVIK_TYPE_REFERENCE_INSNS = Set.of(
-			"const-class", "check-cast", "instance-of", "new-instance", "new-array", "filled-new-array"
-	);
-
 	private AssemblyUtils() {}
 
 	/**
@@ -61,85 +45,62 @@ public final class AssemblyUtils {
 	 *
 	 * @return {@code true} if the instruction is a flow control instruction.
 	 */
-	public static boolean isFlowControlInstruction( @Nullable String name) {
-		return isFlowControlInstruction(BytecodeFormat.JVM, name) || isFlowControlInstruction(BytecodeFormat.DALVIK, name);
+	public static boolean isFlowControlInstruction(@NotNull TargetContext context, @Nullable String name) {
+		return isBranchInstruction(context, name) || isSwitchInstruction(context, name);
 	}
 
 	/**
-	 * @param format
-	 * 		Bytecode format to check against.
+	 * @param target
+	 * 		Target whose instruction metadata should be queried.
 	 * @param name
 	 * 		Instruction name to check.
 	 *
-	 * @return {@code true} if the instruction is a flow control instruction.
+	 * @return {@code true} if the instruction is a conditional or unconditional branch.
 	 */
-	public static boolean isFlowControlInstruction(@NotNull BytecodeFormat format, @Nullable String name) {
-		return name != null && switch (format) {
-			case JVM -> JVM_FLOW_CONTROL_INSNS.contains(name);
-			case DALVIK -> DALVIK_FLOW_CONTROL_INSNS.contains(name);
-		};
+	public static boolean isBranchInstruction(@NotNull TargetContext target, @Nullable String name) {
+		return hasTrait(target, name, InstructionTrait.CONDITIONAL_BRANCH)
+				|| hasTrait(target, name, InstructionTrait.UNCONDITIONAL_BRANCH);
 	}
 
 	/**
-	 * @param name
-	 * 		Instruction name to check.
-	 *
-	 * @return {@code true} if the instruction is a switch instruction.
-	 */
-	public static boolean isSwitchInstruction(@Nullable String name) {
-		return isSwitchInstruction(BytecodeFormat.JVM, name) || isSwitchInstruction(BytecodeFormat.DALVIK, name);
-	}
-
-	/**
-	 * @param format
-	 * 		Bytecode format to check against.
+	 * @param target
+	 * 		Target whose instruction metadata should be queried.
 	 * @param name
 	 * 		Instruction name to check.
 	 *
 	 * @return {@code true} if the instruction is a switch instruction.
 	 */
-	public static boolean isSwitchInstruction(@NotNull BytecodeFormat format, @Nullable String name) {
-		return name != null && switch (format) {
-			case JVM -> JVM_SWITCH_INSNS.contains(name);
-			case DALVIK -> DALVIK_SWITCH_INSNS.contains(name);
-		};
+	public static boolean isSwitchInstruction(@NotNull TargetContext target, @Nullable String name) {
+		return hasTrait(target, name, InstructionTrait.SWITCH);
 	}
 
 	/**
+	 * @param target
+	 * 		Target whose instruction metadata should be queried.
 	 * @param name
 	 * 		Instruction name to check.
 	 *
 	 * @return {@code true} if the instruction is a type reference.
 	 */
-	public static boolean isTypeReferenceInstruction(@Nullable String name) {
-		return isTypeReferenceInstruction(BytecodeFormat.JVM, name) || isTypeReferenceInstruction(BytecodeFormat.DALVIK, name);
+	public static boolean isTypeReferenceInstruction(@NotNull TargetContext target, @Nullable String name) {
+		return hasTrait(target, name, InstructionTrait.TYPE_REFERENCE);
 	}
 
 	/**
-	 * @param format
-	 * 		Bytecode format to check against.
+	 * @param target
+	 * 		Target whose instruction metadata should be queried.
 	 * @param name
 	 * 		Instruction name to check.
+	 * @param trait
+	 * 		Trait to check for.
 	 *
-	 * @return {@code true} if the instruction is a type reference.
+	 * @return {@code true} if the instruction has the given trait, {@code false} otherwise.
 	 */
-	public static boolean isTypeReferenceInstruction(@NotNull BytecodeFormat format, @Nullable String name) {
-		return name != null && switch (format) {
-			case JVM -> JVM_TYPE_REFERENCE_INSNS.contains(name);
-			case DALVIK -> DALVIK_TYPE_REFERENCE_INSNS.contains(name);
-		};
-	}
-
-	/**
-	 * @param name
-	 * 		Instruction name to check.
-	 *
-	 * @return {@code true} if the instruction is a variable reference (load, store, increment, or return).
-	 */
-	public static boolean isVariableReferenceInstruction(@Nullable String name) {
+	public static boolean hasTrait(@NotNull TargetContext target, @Nullable String name, @NotNull InstructionTrait trait) {
 		if (name == null)
 			return false;
-		return "ret".equals(name) || "iinc".equals(name) || name.endsWith("load") || name.endsWith("store");
+		Instruction<?> definition = target.instructions().get(name);
+		return definition != null && definition.hasTrait(trait);
 	}
 
 	/**
@@ -149,17 +110,20 @@ public final class AssemblyUtils {
 	 * 		Position to check for.
 	 * @param line
 	 * 		Line to check for.
+	 * @param target
+	 * 		Target whose instruction metadata should be queried.
 	 *
 	 * @return Instruction at the given position and line, or {@code null} if not found.
 	 */
 	@Nullable
-	public static ASTInstruction findInstruction(@Nullable List<ASTElement> astElements, int position, int line) {
+	public static ASTInstruction findInstruction(@Nullable List<ASTElement> astElements, int position, int line,
+	                                             @NotNull TargetContext target) {
 		if (astElements == null)
 			return null;
 
 		ASTInstruction[] selected = new ASTInstruction[1];
 		for (ASTElement element : astElements) {
-			// Some weird edge cases where JASM can have null entries, so sanity check,
+			// AST collections may contain null entries after recovery, so skip them safely.
 			if (element == null)
 				continue;
 
@@ -175,11 +139,8 @@ public final class AssemblyUtils {
 						selected[0] = instruction;
 					} else {
 						String identifier = instruction.identifier().content();
-						if (isSwitchInstruction(BytecodeFormat.JVM, identifier) && ast.range().within(position))
+						if (isSwitchInstruction(target, identifier) && ast.range().within(position))
 							selected[0] = instruction;
-						else if (isSwitchInstruction(BytecodeFormat.DALVIK, identifier) && ast.range().within(position))
-							selected[0] = instruction;
-
 					}
 				}
 				return selected[0] == null;
@@ -288,26 +249,30 @@ public final class AssemblyUtils {
 	}
 
 	/**
+	 * @param target
+	 * 		Target whose instruction metadata should be queried.
 	 * @param instruction
 	 * 		Instruction to check.
 	 *
-	 * @return Variable access kind if the instruction is a variable reference, or {@code null} if not.
+	 * @return Variable access kind if the instruction carries a variable trait, or {@code null} if not.
 	 */
-	public static @Nullable VariableAccessKind variableAccessKind(@NotNull ASTInstruction instruction) {
-		String name = instruction.identifier().content();
-		if (!isVariableReferenceInstruction(name))
+	public static @Nullable VariableAccessKind variableAccessKind(@NotNull TargetContext target,
+	                                                              @NotNull ASTInstruction instruction) {
+		Instruction<?> definition = target.instructions().get(instruction.identifier().content());
+		if (definition == null || definition.variableOperandIndex() < 0)
 			return null;
-
-		if ("ret".equals(name))
-			return VariableAccessKind.READ;
-		if ("iinc".equals(name))
+		if (definition.hasTrait(InstructionTrait.VARIABLE_INCREMENT))
 			return VariableAccessKind.INCREMENT;
-		return name.endsWith("load") ? VariableAccessKind.READ : VariableAccessKind.WRITE;
+		if (definition.hasTrait(InstructionTrait.VARIABLE_READ))
+			return VariableAccessKind.READ;
+		if (definition.hasTrait(InstructionTrait.VARIABLE_WRITE))
+			return VariableAccessKind.WRITE;
+		return null;
 	}
 
 	/**
-	 * @param format
-	 * 		Bytecode format to check against.
+	 * @param target
+	 * 		Target whose instruction metadata should be queried.
 	 * @param offset
 	 * 		Absolute offset to check for.
 	 * @param instruction
@@ -316,13 +281,13 @@ public final class AssemblyUtils {
 	 * @return Type reference identifier if the instruction is a type reference
 	 * and the offset is within the type reference argument, or {@code null} otherwise.
 	 */
-	public static @Nullable ASTIdentifier resolveInstructionTypeReference(@NotNull BytecodeFormat format, int offset,
+	public static @Nullable ASTIdentifier resolveInstructionTypeReference(@NotNull TargetContext target, int offset,
 	                                                                      @NotNull ASTInstruction instruction) {
-		String name = instruction.identifier().content();
-		if (name == null || !isTypeReferenceInstruction(format, name))
+		Instruction<?> definition = target.instructions().get(instruction.identifier().content());
+		if (definition == null || !definition.hasTrait(InstructionTrait.TYPE_REFERENCE))
 			return null;
 
-		int typeArgumentIndex = typeReferenceArgumentIndex(format, name);
+		int typeArgumentIndex = definition.typeReferenceOperandIndex();
 		if (typeArgumentIndex < 0 || typeArgumentIndex >= instruction.arguments().size())
 			return null;
 
@@ -349,31 +314,6 @@ public final class AssemblyUtils {
 		} catch (NumberFormatException ex) {
 			return fallback;
 		}
-	}
-
-	/**
-	 * Get the index of the type reference argument for the given instruction name and bytecode format.
-	 *
-	 * @param format
-	 * 		Bytecode format to check against.
-	 * @param name
-	 * 		Instruction name to check.
-	 *
-	 * @return Index of the type reference argument for the given instruction name and bytecode format,
-	 * or -1 if the instruction is not a type reference or does not have a fixed type reference argument index.
-	 */
-	public static int typeReferenceArgumentIndex(@NotNull BytecodeFormat format, @NotNull String name) {
-		return switch (format) {
-			// JVM type-referencing instructions all have the type reference as their first argument.
-			case JVM -> 0;
-
-			// Dalvik type-referencing instructions have varying type reference argument indices, so check each instruction name separately.
-			case DALVIK -> switch (name) {
-				case "const-class", "check-cast", "new-instance", "filled-new-array", "filled-new-array/range" -> 1;
-				case "instance-of", "new-array" -> 2;
-				default -> -1;
-			};
-		};
 	}
 
 	/**

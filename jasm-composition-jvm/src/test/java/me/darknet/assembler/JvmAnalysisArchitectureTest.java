@@ -7,6 +7,7 @@ import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.VarCache;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
+import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.test.BinarySampleFixture;
 import me.darknet.assembler.test.JvmAssemblerFixture;
 import me.darknet.assembler.test.JvmCompilation;
@@ -24,7 +25,7 @@ class JvmAnalysisArchitectureTest {
     void terminalFramesCaptureReturnAndAthrowPaths() {
         String source = BinarySampleFixture.jvmSample("Example-athrow-before-return.jasm").read();
         TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+        options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
         JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
         AnalysisResults results = compilation.requireSuccess().analysisLookup().allResults().values().iterator().next();
@@ -37,10 +38,10 @@ class JvmAnalysisArchitectureTest {
     void frameMergeFailuresExposeFailureKind() {
         String source = BinarySampleFixture.jvmSample("Example-object-int-stack-merge.jasm").read();
         TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+        options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
         JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
-        AnalysisResults results = compilation.compileResult().get().analysisLookup().allResults().values().iterator().next();
+        AnalysisResults results = compilation.compileResult().requireValue().analysisLookup().allResults().values().iterator().next();
 
         assertNotNull(results.getAnalysisFailure());
         assertEquals(AnalysisException.FailureKind.FRAME_MERGE, results.getAnalysisFailure().getKind());
@@ -62,25 +63,25 @@ class JvmAnalysisArchitectureTest {
                 }
                 """;
         TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+        options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
         JvmCompilation compilation = JvmAssemblerFixture.compileJvm("missing-label.jasm", source, options);
-        AnalysisResults results = compilation.compileResult().get().analysisLookup().allResults().values().iterator().next();
+        AnalysisResults results = compilation.compileResult().requireValue().analysisLookup().allResults().values().iterator().next();
 
         assertTrue(compilation.hasErrors());
         assertNotNull(results.getAnalysisFailure());
         assertEquals(AnalysisException.FailureKind.INVALID_CONTROL_FLOW, results.getAnalysisFailure().getKind());
-        assertEquals(7, compilation.errors().getFirst().getLocation().line());
+        assertEquals(7, compilation.errors().getFirst().location().line());
     }
 
     @Test
     void engineBugsAreClassifiedSeparately() {
         String source = BinarySampleFixture.jvmSample("Example.jasm").read();
         TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-        options.engineProvider(lookup -> new ThrowingTypedEngine(lookup));
+        options.withEngineProvider(lookup -> new ThrowingTypedEngine(lookup));
 
         JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
-        AnalysisResults results = compilation.compileResult().get().analysisLookup().allResults().values().iterator().next();
+        AnalysisResults results = compilation.compileResult().requireValue().analysisLookup().allResults().values().iterator().next();
 
         assertTrue(compilation.hasErrors());
         assertNotNull(results.getAnalysisFailure());
@@ -91,7 +92,7 @@ class JvmAnalysisArchitectureTest {
     void resultMappingsRemainAvailableToConsumers() {
         String source = BinarySampleFixture.jvmSample("Example-comment.jasm").read();
         TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+        options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
         JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
         AnalysisResults results = compilation.requireSuccess().analysisLookup().results("exampleMethod", "()I");
@@ -106,7 +107,7 @@ class JvmAnalysisArchitectureTest {
     void labelAndLineNumberMappingsRemainAvailableToConsumers() {
         String source = BinarySampleFixture.jvmSample("Example-anewarray-array.jasm").read();
         TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+        options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
         JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
         AnalysisResults results = compilation.requireSuccess().analysisLookup().results("exampleMethod", "()V");
@@ -137,7 +138,7 @@ class JvmAnalysisArchitectureTest {
     void framesResolveDirectlyFromInstructionsAndAst() {
         String source = BinarySampleFixture.jvmSample("Example-anewarray-array.jasm").read();
         TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+        options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
         JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
         AnalysisResults results = compilation.requireSuccess().analysisLookup().results("exampleMethod", "()V");
@@ -166,7 +167,7 @@ class JvmAnalysisArchitectureTest {
     void mergedBranchRevisitStillProducesObjectParameterType() {
         String source = BinarySampleFixture.jvmSample("Example-array-object-merge-on-parameter.jasm").read();
         TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+        options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
         JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
         AnalysisResults results = compilation.requireSuccess().analysisLookup().allResults().values().iterator().next();
@@ -207,7 +208,7 @@ class JvmAnalysisArchitectureTest {
                 }
                 """;
         TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-        options.engineProvider(me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine::new);
+        options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
         JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
 

@@ -4,9 +4,7 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
-import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CollectionUtil;
-import me.darknet.assembler.visitor.ASTDeclarationVisitor;
 import me.darknet.assembler.visitor.Modifiers;
 
 import org.jetbrains.annotations.NotNull;
@@ -151,27 +149,4 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 		setInvisibleTypeAnnotations(CollectionUtil.merge(invisibleTypeAnnotations, annotation));
 	}
 
-	protected void accept(ErrorCollector collector, ASTDeclarationVisitor visitor) {
-        if (visitor == null) {
-            collector.addError("Unable to process member", null);
-            return;
-        }
-		for (ASTAnnotation annotation : visibleAnnotations)
-			annotation.accept(collector, visitor.visitAnnotation(annotation.getVisibility(), annotation.getClassType()));
-		for (ASTAnnotation annotation : invisibleAnnotations)
-			annotation.accept(collector, visitor.visitAnnotation(annotation.getVisibility(), annotation.getClassType()));
-		for (ASTAnnotation annotation : visibleTypeAnnotations)
-			annotation.accept(collector, visitor.visitTypeAnnotation(
-					annotation.getVisibility(), annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()
-			));
-		for (ASTAnnotation annotation : invisibleTypeAnnotations)
-			annotation.accept(collector, visitor.visitTypeAnnotation(
-					annotation.getVisibility(), annotation.getClassType(), annotation.getTypeRef(), annotation.getTypePath()
-			));
-
-		if (signature != null)
-            visitor.visitSignature(signature);
-        if (deprecated)
-            visitor.visitDeprecated();
-    }
 }

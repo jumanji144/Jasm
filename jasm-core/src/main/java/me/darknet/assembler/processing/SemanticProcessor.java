@@ -67,14 +67,14 @@ public final class SemanticProcessor {
         Objects.requireNonNull(declarations, "declarations");
         Objects.requireNonNull(target, "target");
 
-        DiagnosticSink collector = new DiagnosticSink();
+        DiagnosticSink sink = new DiagnosticSink();
         Map<ASTMethod, ProcessedMethod> methods = new IdentityHashMap<>();
         for (ASTElement declaration : declarations) {
             // Every declaration is attempted: a source with several bad methods reports all of them, and a
             // failed member is absent from the result rather than present and invalid.
-            processDeclaration(declaration, target, methods, collector);
+            processDeclaration(declaration, target, methods, sink);
         }
-        return Outcome.of(new PartialProcessedUnit(List.copyOf(declarations), target, Collections.unmodifiableMap(methods)), collector.diagnostics());
+        return Outcome.of(new PartialProcessedUnit(List.copyOf(declarations), target, Collections.unmodifiableMap(methods)), sink.diagnostics());
     }
 
     /**
@@ -84,21 +84,21 @@ public final class SemanticProcessor {
      * 		Target whose definitions and operand schemas should be used.
      * @param methods
      * 		Map collecting the processed view of every method that processed.
-     * @param collector
+     * @param sink
      * 		Sink receiving every diagnostic the declaration produced.
      */
     private static void processDeclaration(ASTElement declaration, TargetContext target,
                                            Map<ASTMethod, ProcessedMethod> methods,
-                                           DiagnosticSink collector) {
+                                           DiagnosticSink sink) {
         if (declaration instanceof ASTMethod method) {
-            ProcessedMethod processed = processMethod(method, target, collector);
+            ProcessedMethod processed = processMethod(method, target, sink);
             if (processed != null)
                 methods.put(method, processed);
             return;
         }
         if (declaration instanceof ASTClass klass) {
             for (ASTElement child : klass.contents()) {
-                processDeclaration(child, target, methods, collector);
+                processDeclaration(child, target, methods, sink);
             }
         }
     }
@@ -108,13 +108,13 @@ public final class SemanticProcessor {
      * 		Method to lower.
      * @param target
      * 		Target whose definitions and operand schemas should be used.
-     * @param collector
+     * @param sink
      * 		Sink receiving the method's diagnostics.
      *
      * @return The processed method, or {@code null} after reporting why it cannot be lowered.
      */
-    private static ProcessedMethod processMethod(ASTMethod method, TargetContext target, DiagnosticSink collector) {
-        MethodExtensions extensions = processMethodAttributes(method, target, collector);
+    private static ProcessedMethod processMethod(ASTMethod method, TargetContext target, DiagnosticSink sink) {
+        MethodExtensions extensions = processMethodAttributes(method, target, sink);
         if (extensions == null)
             return null;
 
@@ -174,7 +174,7 @@ public final class SemanticProcessor {
 
         // The per-method context is cancelled at the end of the method rather than after the whole unit,
         // which is what lets a later method still be lowered after an earlier one failed.
-        collector.addAll(validation.diagnostics());
+        sink.addAll(validation.diagnostics());
         if (validation.hasErrors())
             return null;
         return new ProcessedMethod(method, entries, extensions);
@@ -185,12 +185,12 @@ public final class SemanticProcessor {
      * 		Method whose raw target attributes should be lowered.
      * @param target
      * 		Target whose method-attribute parsers should be used.
-     * @param collector
+     * @param sink
      * 		Sink receiving attribute diagnostics.
      *
      * @return Immutable method extensions, or {@code null} after reporting an attribute error.
      */
-    private static @Nullable MethodExtensions processMethodAttributes(ASTMethod method, TargetContext target, DiagnosticSink collector) {
+    private static @Nullable MethodExtensions processMethodAttributes(ASTMethod method, TargetContext target, DiagnosticSink sink) {
         ProcessorContext validation = new ProcessorContext(target, DeclarationRegistry.createDefault(), SEMANTIC_LOWERING, MALFORMED_DECLARATION);
         List<MethodTargetData> extensions = new ArrayList<>();
         for (Pair<ASTIdentifier, ASTElement> attribute : method.getMethodAttributes().pairs()) {
@@ -206,7 +206,7 @@ public final class SemanticProcessor {
             if (extension != null)
                 extensions.add(extension);
         }
-        collector.addAll(validation.diagnostics());
+        sink.addAll(validation.diagnostics());
         if (validation.hasErrors())
             return null;
         return new MethodExtensions(extensions);

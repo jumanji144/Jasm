@@ -1,6 +1,6 @@
 package me.darknet.assembler.test;
 
-import me.darknet.assembler.compiler.CompilerOptions;
+import me.darknet.assembler.compile.JvmCompilerOptions;
 
 /**
  * Utilities for performing a round-trip of compiling JVM assembly source code into a JVM class representation
@@ -19,7 +19,7 @@ public final class JvmRoundTripFixture {
 	 *
 	 * @return A {@link JvmRoundTripResult} containing both the results of the compilation and the disassembled JASM source code, which can be used for assertions in tests.
 	 */
-	public static JvmRoundTripResult roundTripJvm(String source, CompilerOptions<?> options) {
+	public static JvmRoundTripResult roundTripJvm(String source, JvmCompilerOptions options) {
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, options);
 		return new JvmRoundTripResult(compilation, compilation.requireDisassembly());
 	}

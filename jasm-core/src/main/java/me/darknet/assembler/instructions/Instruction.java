@@ -19,17 +19,9 @@ import java.util.function.BiConsumer;
 public class Instruction<V extends ASTInstructionVisitor> {
 
     final Operand[] operands;
-    private final @Nullable String name;
-    private final @Nullable BiConsumer<ASTInstruction, V> astTranslator;
-    private final @Nullable BiConsumer<SemanticInstruction, V> semanticTranslator;
-    private final @Nullable InstructionMetadata metadata;
-
-    /**
-     * Legacy constructor for callers that create an unregistered AST-translated instruction.
-     */
-    public Instruction(Operand[] operands, BiConsumer<ASTInstruction, V> translator) {
-        this(null, operands, Objects.requireNonNull(translator, "translator"), null, null);
-    }
+    private final String name;
+    private final BiConsumer<SemanticInstruction, V> semanticTranslator;
+    private final InstructionMetadata metadata;
 
     /**
      * Creates an instruction with target-neutral metadata and a semantic translator.
@@ -39,43 +31,23 @@ public class Instruction<V extends ASTInstructionVisitor> {
             Operand[] operands,
             BiConsumer<SemanticInstruction, V> translator,
             InstructionMetadata metadata) {
-        this(Objects.requireNonNull(name, "name"), operands, null,
-                Objects.requireNonNull(translator, "translator"), Objects.requireNonNull(metadata, "metadata"));
-    }
-
-    private Instruction(
-            @Nullable String name,
-            Operand[] operands,
-            @Nullable BiConsumer<ASTInstruction, V> astTranslator,
-            @Nullable BiConsumer<SemanticInstruction, V> semanticTranslator,
-            @Nullable InstructionMetadata metadata) {
-        this.name = name;
+        this.name = Objects.requireNonNull(name, "name");
         this.operands = Objects.requireNonNull(operands, "operands").clone();
-        this.astTranslator = astTranslator;
-        this.semanticTranslator = semanticTranslator;
-        this.metadata = metadata;
-    }
-
-    static <V extends ASTInstructionVisitor> Instruction<V> legacy(
-            String name,
-            Operand[] operands,
-            BiConsumer<ASTInstruction, V> translator,
-            InstructionMetadata metadata) {
-        return new Instruction<>(Objects.requireNonNull(name, "name"), operands,
-                Objects.requireNonNull(translator, "translator"), null, Objects.requireNonNull(metadata, "metadata"));
+        this.semanticTranslator = Objects.requireNonNull(translator, "translator");
+        this.metadata = Objects.requireNonNull(metadata, "metadata");
     }
 
     /**
-     * @return Registered source mnemonic, or {@code null} for a directly constructed legacy instance.
+     * @return Registered source mnemonic.
      */
-    public @Nullable String name() {
+    public @NotNull String name() {
         return name;
     }
 
     /**
-     * @return Semantic metadata, or {@code null} for a directly constructed legacy instance.
+     * @return Semantic metadata.
      */
-    public @Nullable InstructionMetadata metadata() {
+    public @NotNull InstructionMetadata metadata() {
         return metadata;
     }
 
@@ -83,7 +55,7 @@ public class Instruction<V extends ASTInstructionVisitor> {
      * @return {@code true} when this definition carries {@code trait}.
      */
     public boolean hasTrait(@NotNull InstructionTrait trait) {
-        return metadata != null && metadata.traits().contains(Objects.requireNonNull(trait, "trait"));
+        return metadata.traits().contains(Objects.requireNonNull(trait, "trait"));
     }
 
     /**
@@ -111,45 +83,41 @@ public class Instruction<V extends ASTInstructionVisitor> {
      * @return Switch shape, or {@code null} when this is not a switch instruction.
      */
     public @Nullable SwitchShape switchShape() {
-        return metadata == null ? null : metadata.switchShape();
+        return metadata.switchShape();
     }
 
     /**
      * @return Canonical source mnemonic for this definition.
      */
     public @NotNull String canonicalName() {
-        if (metadata != null)
-            return metadata.canonicalName();
-        return Objects.requireNonNull(name, "Unregistered legacy instruction has no canonical name");
+        return metadata.canonicalName();
     }
 
     /**
      * @return Target-owned lowering identity, or {@code null} for source-only forms.
      */
     public @Nullable InstructionLowering lowering() {
-        return metadata == null ? null : metadata.lowering();
+        return metadata.lowering();
     }
 
     /**
      * @return {@code true} when this target can lower the instruction.
      */
     public boolean isAvailable() {
-        return metadata != null && metadata.unavailableReason() == null;
+        return metadata.unavailableReason() == null;
     }
 
     /**
      * @return Reason this target cannot lower the instruction, or {@code null} when available.
      */
     public @Nullable String unavailableReason() {
-        return metadata == null ? null : metadata.unavailableReason();
+        return metadata.unavailableReason();
     }
 
     /**
      * @return Index of the first operand declaring {@code kind}, or {@code -1} when absent.
      */
     public int operandIndex(@NotNull OperandRole.RoleKind kind) {
-        if (metadata == null)
-            return -1;
         return metadata.roles().stream()
                 .filter(role -> role.kind() == Objects.requireNonNull(kind, "kind"))
                 .mapToInt(OperandRole::index)
@@ -175,7 +143,7 @@ public class Instruction<V extends ASTInstructionVisitor> {
      * @return Role declared for {@code index}, or {@code null} when absent or out of range.
      */
     public @Nullable OperandRole role(int index) {
-        if (index < 0 || index >= operands.length || metadata == null)
+        if (index < 0 || index >= operands.length)
             return null;
         return metadata.roles().stream()
                 .filter(role -> role.index() == index)
@@ -205,22 +173,10 @@ public class Instruction<V extends ASTInstructionVisitor> {
     }
 
     /**
-     * Translates using the existing source-AST visitor path.
-     */
-    @SuppressWarnings("unchecked")
-    public void transform(ASTInstruction instruction, ASTInstructionVisitor visitor) {
-        if (astTranslator == null)
-            throw new IllegalStateException("Instruction has no AST translator");
-        astTranslator.accept(instruction, (V) visitor);
-    }
-
-    /**
      * Translates a validated semantic instruction to the visitor's target representation.
      */
     @SuppressWarnings("unchecked")
     public void transform(SemanticInstruction instruction, ASTInstructionVisitor visitor) {
-        if (semanticTranslator == null)
-            throw new IllegalStateException("Instruction has no semantic translator");
         semanticTranslator.accept(instruction, (V) visitor);
     }
 }

@@ -5,12 +5,10 @@ import me.darknet.assembler.compile.DalvikClassResult;
 import me.darknet.assembler.compile.DalvikCompiler;
 import me.darknet.assembler.compile.DalvikCompilerOptions;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
-import me.darknet.assembler.compiler.ClassResult;
-import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.EmptyInheritanceChecker;
+import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.error.Outcome;
-import me.darknet.assembler.error.Result;
-import me.darknet.assembler.error.Warn;
+import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.DalvikDexFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
@@ -31,40 +29,44 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public class TestUtils {
 
-    public static void processDalvik(String source, CompilerOptions<?> options,
+    public static void processDalvik(String source, DalvikCompilerOptions options,
                                      ThrowingConsumer<DalvikClassResult> outputConsumer,
-                                     Consumer<List<Warn>> warningConsumer) {
+                                     Consumer<List<Diagnostic>> warningConsumer) {
         Outcome<List<ASTElement>> astResult =
                 AssemblyParseFixture.processDeclarations("<test>", source, DalvikTargetContext.INSTANCE);
         if (astResult.hasErrors()) {
             fail("Failed to parse Dalvik class\n" + DiagnosticAssertions.formatErrors(astResult.errors()));
         }
 
-        Result<? extends ClassResult> compilation = new DalvikCompiler().compile(astResult.requireValue(), options);
-        if (compilation.hasErr()) {
+        var unit = DiagnosticAssertions.requireSuccess(
+                SemanticProcessor.process(astResult.requireValue(), DalvikTargetContext.INSTANCE),
+                "Failed to process Dalvik semantic unit"
+        );
+        Outcome<DalvikClassResult> compilation = new DalvikCompiler().compile(unit, options);
+        if (compilation.hasErrors()) {
             fail("Failed to compile Dalvik class\n" + DiagnosticAssertions.formatErrors(compilation.errors()));
         }
 
-        if (warningConsumer != null && compilation.hasWarn()) {
-            warningConsumer.accept(compilation.getWarns());
+        if (warningConsumer != null && compilation.hasWarnings()) {
+            warningConsumer.accept(compilation.warnings());
         }
 
         try {
             if (outputConsumer != null) {
-                outputConsumer.accept((DalvikClassResult) compilation.get());
+                outputConsumer.accept(compilation.requireValue());
             }
         } catch (Throwable t) {
             fail("Error processing compiled Dalvik class: " + t.getMessage(), t);
         }
     }
 
-    public static void processDalvik(String source, CompilerOptions<?> options,
+    public static void processDalvik(String source, DalvikCompilerOptions options,
                                      ThrowingConsumer<DalvikClassResult> outputConsumer) {
         processDalvik(source, options, outputConsumer, null);
     }
 
     public static void processSample(byte[] dexFile, String className, ThrowingConsumer<String> outputConsumer,
-                                     Consumer<List<Warn>> warningConsumer) {
+                                     Consumer<List<Diagnostic>> warningConsumer) {
         try {
             DexFile file = DalvikDexFixture.readDex(dexFile);
             ClassDefinition classDef = file.definitions()
@@ -102,8 +104,8 @@ public class TestUtils {
 
     public static DalvikCompilerOptions options() {
         return new DalvikCompilerOptions()
-                .version(35)
-                .inheritanceChecker(EmptyInheritanceChecker.INSTANCE);
+                .withVersion(35)
+                .withInheritanceChecker(EmptyInheritanceChecker.INSTANCE);
     }
 
     public static DalvikCompilerOptions overlayOptions(String internalName) {
@@ -112,7 +114,7 @@ public class TestUtils {
                 Types.instanceTypeFromInternalName("java/lang/Object"),
                 DalvikModifiers.ACC_PUBLIC
         );
-        return options().overlay(new DalvikClassRepresentation(overlay));
+        return options().withOverlay(new DalvikClassRepresentation(overlay));
     }
 
     public static String normalize(String input) {

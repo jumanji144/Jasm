@@ -4,157 +4,267 @@ import me.darknet.assembler.compile.analysis.VarCache;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngineFactory;
 import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
-import me.darknet.assembler.compiler.ClassRepresentation;
+import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.compiler.TypeAwareness;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 
 import java.util.Objects;
 
-public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions, ClassRepresentation> {
-    private static final int DEFAULT_VERSION = 8;
+/**
+ * JVM compiler options.
+ */
+public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions, JavaClassRepresentation> {
+	private static final int DEFAULT_VERSION = 8;
 
-    // General class options
-    protected boolean reuseOverlayPool = true;
-    protected int asmArgs;
-    protected int version;
-    protected JavaClassRepresentation overlay;
-    protected String annotationPath;
-    protected TypeAwareness typeAwareness; // Optional, disabled by default to reduce warning noise.
-    protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
-    protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
-    protected boolean verifyOutput = true;
+	// General class options
+	protected boolean reuseOverlayPool = true;
+	protected int asmArgs;
+	protected int version;
+	protected JavaClassRepresentation overlay;
+	protected String annotationPath;
+	protected TypeAwareness typeAwareness; // Optional, disabled by default to reduce warning noise.
+	protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
+	protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
+	protected boolean verifyOutput = true;
 
-    // Variable writing options
-    protected JvmVariableMode variableTableMode = JvmVariableMode.ALWAYS_WRITE;
-    protected JvmVariableEmissionFilter variableFilter = JvmVariableEmissionFilter.ALWAYS;
+	// Variable writing options
+	protected JvmVariableMode variableTableMode = JvmVariableMode.ALWAYS_WRITE;
+	protected JvmVariableEmissionFilter variableFilter = JvmVariableEmissionFilter.ALWAYS;
 
-    public JvmCompilerOptions() {
-        this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
-        this.version = DEFAULT_VERSION;
-    }
+	public JvmCompilerOptions() {
+		this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
+		this.version = DEFAULT_VERSION;
+	}
 
-    public JvmCompilerOptions computeFrames(boolean computeFrames) {
-        if (computeFrames) {
-            this.asmArgs |= ClassWriter.COMPUTE_FRAMES;
-        } else {
-            this.asmArgs &= ~ClassWriter.COMPUTE_FRAMES;
-        }
-        return this;
-    }
+	/**
+	 * @param varCache
+	 * 		Cache to use for variable table generation.
+	 *
+	 * @return New analysis engine instance.
+	 *
+	 * @see #withEngineProvider(JvmAnalysisEngineFactory)
+	 */
+	public @NotNull JvmAnalysisEngine<?> createEngine(@NotNull VarCache varCache) {
+		JvmAnalysisEngine<?> engine = engineProvider.create(varCache);
+		engine.setChecker(getInheritanceChecker());
+		return engine;
+	}
 
-    public JvmCompilerOptions computeMaxs(boolean computeMaxs) {
-        if (computeMaxs) {
-            this.asmArgs |= ClassWriter.COMPUTE_MAXS;
-        } else {
-            this.asmArgs &= ~ClassWriter.COMPUTE_MAXS;
-        }
-        return this;
-    }
+	@Override
+	public @NotNull JvmCompilerOptions withOverlay(JavaClassRepresentation representation) {
+		this.overlay = representation;
+		return this;
+	}
 
-    public JvmCompilerOptions version(int version) {
-        this.version = version;
-        return this;
-    }
+	@Override
+	public JavaClassRepresentation getOverlay() {
+		return this.overlay;
+	}
 
-    public JvmCompilerOptions engineProvider(@NotNull JvmAnalysisEngineFactory engineProvider) {
-        this.engineProvider = engineProvider;
-        return this;
-    }
+	/**
+	 * @param engineProvider
+	 * 		The analysis engine provider to use for compilation.
+	 *
+	 * @return This options object.
+	 *
+	 * @see TypedJvmAnalysisEngine
+	 * @see ValuedJvmAnalysisEngine
+	 */
+	public @NotNull JvmCompilerOptions withEngineProvider(@NotNull JvmAnalysisEngineFactory engineProvider) {
+		this.engineProvider = engineProvider;
+		return this;
+	}
 
-    public JvmCompilerOptions verifyOutput(boolean verifyOutput) {
-        this.verifyOutput = verifyOutput;
-        return this;
-    }
+	/**
+	 * @param computeFrames
+	 *        {@code true} to compute stack frames, {@code false} to leave frames as-is.
+	 * 		For simple edits that don't change the control flow, this can generally be left as {@code false} to avoid unnecessary overhead.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull JvmCompilerOptions withComputeFrames(boolean computeFrames) {
+		if (computeFrames) {
+			this.asmArgs |= ClassWriter.COMPUTE_FRAMES;
+		} else {
+			this.asmArgs &= ~ClassWriter.COMPUTE_FRAMES;
+		}
+		return this;
+	}
 
-    public boolean verifyOutput() {
-        return verifyOutput;
-    }
+	/**
+	 * @param computeMaxs
+	 *        {@code true} to compute max stack and locals, {@code false} to leave them as-is.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull JvmCompilerOptions withComputeMaxs(boolean computeMaxs) {
+		if (computeMaxs) {
+			this.asmArgs |= ClassWriter.COMPUTE_MAXS;
+		} else {
+			this.asmArgs &= ~ClassWriter.COMPUTE_MAXS;
+		}
+		return this;
+	}
 
-    public @NotNull JvmAnalysisEngine<?> createEngine(@NotNull VarCache varCache) {
-        JvmAnalysisEngine<?> engine = engineProvider.create(varCache);
-        engine.setChecker(inheritanceChecker());
-        return engine;
-    }
+	/**
+	 * @param version
+	 * 		Java version to target for compilation. For example, to target Java 8, use {@code 8}.
+	 *
+	 * @return This options object.
+	 */
+	@Deprecated // TODO: Strictly use the source 'version' from the AST instead of this option.
+	public @NotNull JvmCompilerOptions withVersion(int version) {
+		this.version = version;
+		return this;
+	}
 
-    @Override
-    public int version() {
-        return this.version;
-    }
+	/**
+	 * @param verifyOutput
+	 *        {@code true} to verify the output class after compilation, {@code false} to skip verification.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull JvmCompilerOptions withOutputVerification(boolean verifyOutput) {
+		this.verifyOutput = verifyOutput;
+		return this;
+	}
 
-    @Override
-    public JvmCompilerOptions annotationPath(String path) {
-        this.annotationPath = path;
-        return this;
-    }
+	/**
+	 * @return {@code true} if the output class should be verified after compilation, {@code false} to skip verification.
+	 */
+	public boolean verifyOutput() {
+		return verifyOutput;
+	}
 
-    @Override
-    public String annotationPath() {
-        return this.annotationPath;
-    }
+	/**
+	 * @return The Java version to target for compilation.
+	 */
+	@Deprecated // TODO: Strictly use the source 'version' from the AST instead of this option.
+	public int getVersion() {
+		return this.version;
+	}
 
-    @Override
-    public @NotNull JvmCompilerOptions setOverlay(ClassRepresentation representation) {
-        if (!(representation instanceof JavaClassRepresentation))
-            throw new IllegalArgumentException("ClassRepresentation must be a JavaClassRepresentation");
-        this.overlay = (JavaClassRepresentation) representation;
-        return this;
-    }
+	/**
+	 * @param path
+	 * 		Path to the annotation file to use for compilation.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull JvmCompilerOptions withAnnotationPath(String path) {
+		this.annotationPath = path;
+		return this;
+	}
 
-    @Override
-    public ClassRepresentation getOverlay() {
-        return this.overlay;
-    }
+	/**
+	 * @return Configured annotation file path to use for compilation.
+	 */
+	public String getAnnotationPath() {
+		return annotationPath;
+	}
 
-    @Override
-    public InheritanceChecker inheritanceChecker() {
-        return this.inheritanceChecker;
-    }
+	/**
+	 * @return The common-type inheritance checker to use for compilation.
+	 */
+	public @NotNull InheritanceChecker getInheritanceChecker() {
+		if (inheritanceChecker == null)
+			throw new IllegalStateException("Inheritance checker is not set");
+		return inheritanceChecker;
+	}
 
-    @Override
-    public TypeAwareness awareness() {
-        return typeAwareness;
-    }
+	/**
+	 * @return The type-awareness provider to use for compilation.
+	 */
+	public TypeAwareness getTypeAwareness() {
+		return typeAwareness;
+	}
 
-    @Override
-    public JvmCompilerOptions awareness(TypeAwareness awareness) {
-        this.typeAwareness = awareness;
-        return this;
-    }
+	/**
+	 * @param awareness
+	 * 		The type-awareness provider to use for compilation. If {@code null}, type-awareness will be disabled.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull JvmCompilerOptions withTypeAwareness(TypeAwareness awareness) {
+		this.typeAwareness = awareness;
+		return this;
+	}
 
-    @Override
-    public JvmCompilerOptions inheritanceChecker(InheritanceChecker checker) {
-        this.inheritanceChecker = checker;
-        return this;
-    }
+	/**
+	 * @param checker
+	 * 		The common-type inheritance checker to use for compilation.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull JvmCompilerOptions withInheritanceChecker(@NotNull InheritanceChecker checker) {
+		this.inheritanceChecker = checker;
+		return this;
+	}
 
-    public JvmVariableMode variableTableMode() {
-        return variableTableMode;
-    }
+	/**
+	 * @return The variable table writing mode to use for compilation.
+	 */
+	public JvmVariableMode getVariableTableMode() {
+		return variableTableMode;
+	}
 
-    public JvmCompilerOptions variableTableMode(JvmVariableMode variableTableMode) {
-        this.variableTableMode = variableTableMode;
-        return this;
-    }
+	/**
+	 * @param variableTableMode
+	 * 		The variable table writing mode to use for compilation.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull JvmCompilerOptions withVariableTableMode(JvmVariableMode variableTableMode) {
+		this.variableTableMode = variableTableMode;
+		return this;
+	}
 
-    public boolean reuseOverlayPool() {
-        return reuseOverlayPool;
-    }
+	/**
+	 * @return {@code true} when the overlay class's constant-pool should be reused as-is when compiling.
+	 * {@code false} when a new constant-pool should be created for the output class, even if an overlay is provided.
+	 *
+	 * @see ClassWriter#ClassWriter(int)
+	 * @see ClassWriter#ClassWriter(ClassReader, int)
+	 */
+	public boolean reuseOverlayPool() {
+		return reuseOverlayPool;
+	}
 
-    public JvmCompilerOptions reuseOverlayPool(boolean reuseOverlayPool) {
-        this.reuseOverlayPool = reuseOverlayPool;
-        return this;
-    }
+	/**
+	 * @param reuseOverlayPool
+	 *        {@code true} when the overlay class's constant-pool should be reused as-is when compiling.
+	 *        {@code false} when a new constant-pool should be created for the output class, even if an overlay is provided.
+	 *
+	 * @return This options object.
+	 *
+	 * @see ClassWriter#ClassWriter(int)
+	 * @see ClassWriter#ClassWriter(ClassReader, int)
+	 */
+	public @NotNull JvmCompilerOptions withReuseOverlayPool(boolean reuseOverlayPool) {
+		this.reuseOverlayPool = reuseOverlayPool;
+		return this;
+	}
 
-    public @NotNull JvmVariableEmissionFilter variableFilter() {
-        return variableFilter;
-    }
+	/**
+	 * @return The variable emission filter to use for compilation.
+	 * This filter determines which variables are written to the output class's variable table.
+	 */
+	public @NotNull JvmVariableEmissionFilter getVariableFilter() {
+		return variableFilter;
+	}
 
-    public JvmCompilerOptions variableFilter(@NotNull JvmVariableEmissionFilter writeVariableFilter) {
-        this.variableFilter = Objects.requireNonNull(writeVariableFilter, "variableFilter");
-        return this;
-    }
+	/**
+	 * @param writeVariableFilter
+	 * 		The variable emission filter to use for compilation.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull JvmCompilerOptions withVariableFilter(@NotNull JvmVariableEmissionFilter writeVariableFilter) {
+		this.variableFilter = Objects.requireNonNull(writeVariableFilter, "variableFilter");
+		return this;
+	}
 }

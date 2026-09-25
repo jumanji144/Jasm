@@ -35,7 +35,7 @@ class JvmRoundTripTest {
 	void all(BinarySampleFixture.JvmTextSample sample) {
 		String source = sample.read();
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.version(21);
+		options.withVersion(21);
 
 		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, options);
 		if (source.contains("SKIP-ROUND-TRIP-EQUALITY")) {
@@ -85,7 +85,7 @@ class JvmRoundTripTest {
 	void supportInfinity() {
 		String source = BinarySampleFixture.jvmSample("Example-infinity.jasm").read();
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.engineProvider(ValuedJvmAnalysisEngine::new);
+		options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
 		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, options);
 		assertEquals(
@@ -108,7 +108,7 @@ class JvmRoundTripTest {
 	void supportNan() {
 		String source = BinarySampleFixture.jvmSample("Example-nan.jasm").read();
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.engineProvider(ValuedJvmAnalysisEngine::new);
+		options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
 		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, options);
 		assertEquals(normalize(source.replace("NaND", "NaN")), normalize(roundTrip.disassembledSource()));
@@ -123,7 +123,7 @@ class JvmRoundTripTest {
 		assertTrue(source.contains("iload maxLength"));
 
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.engineProvider(ValuedJvmAnalysisEngine::new);
+		options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, options);
 		assertTrue(roundTrip.disassembledSource().contains("iload shortenPath"));
 		assertTrue(roundTrip.disassembledSource().contains("iload escape"));
@@ -135,7 +135,7 @@ class JvmRoundTripTest {
 		byte[] raw = BinarySampleFixture.binarySample("NativeImageryMosaicDatabase2.sample").read();
 		String source = JvmDisassemblyFixture.disassembleJvm(raw);
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.engineProvider(ValuedJvmAnalysisEngine::new);
+		options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, options);
 		assertTrue(roundTrip.disassembledSource().contains("aload ref"));
 		assertFalse(roundTrip.disassembledSource().contains("aload v2"));
@@ -151,7 +151,7 @@ class JvmRoundTripTest {
 		byte[] raw = BinarySampleFixture.binarySample("KotlinVarScoping.sample").read();
 		String source = JvmDisassemblyFixture.disassembleJvm(raw);
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.engineProvider(ValuedJvmAnalysisEngine::new);
+		options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, options);
 
 		// Seriously this language is such a disaster when you look at the generated code.

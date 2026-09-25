@@ -1,7 +1,7 @@
 package me.darknet.assembler.compile.visitor;
 
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTDeclarationVisitor;
@@ -11,8 +11,13 @@ import me.darknet.dex.tree.definitions.annotation.AnnotationProcessing;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Handles declaration attributes and annotations shared by Dalvik fields and methods.
+ *
+ * @param <T>
+ * 		Dex member type populated by this visitor.
+ */
 public class DalvikMemberVisitor<T extends Member<?>> implements ASTDeclarationVisitor {
-
     protected final T member;
 
     public DalvikMemberVisitor(T member) {
@@ -26,32 +31,17 @@ public class DalvikMemberVisitor<T extends Member<?>> implements ASTDeclarationV
 
     @Override
     public void visitEnd() {
-
+        // no-op
     }
 
     @Override
-    public ASTAnnotationVisitor visitVisibleAnnotation(@NotNull ASTIdentifier classType) {
-        return new DalvikAnnotationVisitor(DalvikAnnotationVisitor.RUNTIME, classType, this::acceptAnnotation);
-    }
-
-    @Override
-    public ASTAnnotationVisitor visitInvisibleAnnotation(@NotNull ASTIdentifier classType) {
-        return new DalvikAnnotationVisitor(DalvikAnnotationVisitor.BUILD, classType, this::acceptAnnotation);
-    }
-
-    @Override
-    public ASTAnnotationVisitor visitSystemAnnotation(@NotNull ASTIdentifier classType) {
-        return new DalvikAnnotationVisitor(DalvikAnnotationVisitor.SYSTEM, classType, this::acceptAnnotation);
-    }
-
-    @Override
-    public ASTAnnotationVisitor visitVisibleTypeAnnotation(@NotNull ASTIdentifier classType, @NotNull ASTNumber typeRef, @Nullable ASTIdentifier typePath) {
-        throw new IllegalStateException("Dalvik type annotations are not supported by the current dex tree");
-    }
-
-    @Override
-    public ASTAnnotationVisitor visitInvisibleTypeAnnotation(@NotNull ASTIdentifier classType, @NotNull ASTNumber typeRef, @Nullable ASTIdentifier typePath) {
-        throw new IllegalStateException("Dalvik type annotations are not supported by the current dex tree");
+    public ASTAnnotationVisitor visitAnnotation(@NotNull AnnotationVisibility visibility, @NotNull ASTIdentifier classType) {
+        byte mapped = switch (visibility) {
+            case VISIBLE -> DalvikAnnotationVisitor.RUNTIME;
+            case INVISIBLE -> DalvikAnnotationVisitor.BUILD;
+            case SYSTEM -> DalvikAnnotationVisitor.SYSTEM;
+        };
+        return new DalvikAnnotationVisitor(mapped, classType, this::acceptAnnotation);
     }
 
     private void acceptAnnotation(Annotation annotation) {

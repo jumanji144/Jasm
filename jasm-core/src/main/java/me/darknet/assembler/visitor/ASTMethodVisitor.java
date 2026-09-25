@@ -41,12 +41,12 @@ public interface ASTMethodVisitor extends ASTDeclarationVisitor {
 	/**
 	 * Visits the method body through the neutral instruction visitor protocol.
 	 *
-	 * @param collector
+	 * @param sink
 	 * 		Diagnostic sink to report errors to.
 	 *
 	 * @return Visitor for the method body, or {@code null} if the method body is not supported.
 	 */
-	default ASTInstructionVisitor visitCode(@NotNull DiagnosticSink collector) {
+	default ASTInstructionVisitor visitCode(@NotNull DiagnosticSink sink) {
 		return null;
 	}
 

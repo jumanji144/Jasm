@@ -9,7 +9,9 @@ import me.darknet.assembler.compile.analysis.VarCache;
 import me.darknet.assembler.compile.analysis.frame.Frame;
 import me.darknet.assembler.compile.analysis.frame.FrameOps;
 import me.darknet.assembler.compiler.InheritanceChecker;
-import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.util.JvmTypeUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -28,7 +30,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	protected final Map<AbstractInsnNode, Integer> allocationIdentities = new IdentityHashMap<>();
 	protected final VarCache varCache;
 	protected InheritanceChecker checker;
-	protected ErrorCollector errorCollector;
+	protected DiagnosticSink sink;
 	private MethodAnalysisResult result;
 	private AnalysisSession<F> session;
 	private Type analyzedReturnType = JvmTypeUtils.VOID;
@@ -219,11 +221,11 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	}
 
 	/**
-	 * @param errorCollector
-	 * 		Error collector to associate with this engine.
+	 * @param sink
+	 * 		Diagnostic sink to associate with this engine.
 	 */
-	public void setErrorCollector(@Nullable ErrorCollector errorCollector) {
-		this.errorCollector = errorCollector;
+	public void setDiagnosticSink(@Nullable DiagnosticSink sink) {
+		this.sink = sink;
 	}
 
 	/**
@@ -233,11 +235,11 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	 * 		Instruction to clear errors for.
 	 */
 	public void clearErrorsAt(@NotNull AbstractInsnNode instruction) {
-		if (errorCollector == null)
+		if (sink == null)
 			return;
 		ASTInstruction ast = getResult().getExecutableInstructionToAstMap().get(instruction);
 		if (ast != null)
-			errorCollector.removeAt(ast.location());
+			sink.removeAt(ast.location(), DiagnosticPhase.OUTPUT_VERIFICATION);
 	}
 
 	/**
@@ -249,11 +251,12 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	 * 		Warning message to add.
 	 */
 	public void warn(@NotNull AbstractInsnNode instruction, @NotNull String message) {
-		if (errorCollector == null)
+		if (sink == null)
 			return;
 		ASTInstruction ast = getResult().getExecutableInstructionToAstMap().get(instruction);
 		if (ast != null)
-			errorCollector.addWarn(message, ast.location());
+			sink.warning(DiagnosticPhase.OUTPUT_VERIFICATION, DiagnosticCode.VERIFICATION_WARNING,
+					message, ast.location());
 	}
 
 	/**
@@ -265,11 +268,12 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	 * 		Error message to add.
 	 */
 	protected void error(@NotNull AbstractInsnNode instruction, @NotNull String message) {
-		if (errorCollector == null)
+		if (sink == null)
 			return;
 		ASTInstruction ast = getResult().getExecutableInstructionToAstMap().get(instruction);
 		if (ast != null)
-			errorCollector.addError(message + " @ " + ast.content(), ast.location());
+			sink.error(DiagnosticPhase.OUTPUT_VERIFICATION, DiagnosticCode.ANALYSIS_FAILURE,
+					message + " @ " + ast.content(), ast.location());
 	}
 
 	/**

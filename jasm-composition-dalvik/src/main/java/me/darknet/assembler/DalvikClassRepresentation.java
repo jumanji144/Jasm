@@ -1,7 +1,15 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compiler.ClassRepresentation;
+import me.darknet.dex.tree.DexFile;
 import me.darknet.dex.tree.definitions.ClassDefinition;
+import org.jetbrains.annotations.NotNull;
 
-public record DalvikClassRepresentation(ClassDefinition definition) implements ClassRepresentation {
-}
+/**
+ * Dalvik class representation.
+ *
+ * @param definition
+ * 		Target class definition.
+ *
+ * @see DexFile#definitions()
+ */
+public record DalvikClassRepresentation(@NotNull ClassDefinition definition) {}

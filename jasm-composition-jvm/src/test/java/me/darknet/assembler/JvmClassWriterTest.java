@@ -3,7 +3,7 @@ package me.darknet.assembler;
 import me.darknet.assembler.compile.JvmClassWriter;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.TypeAwareness;
-import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.error.DiagnosticSink;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,7 +14,7 @@ class JvmClassWriterTest {
 
     @Test
     void unknownFrameTypesWarnAndFallBackToObject() {
-        ErrorCollector collector = new ErrorCollector();
+        DiagnosticSink sink = new DiagnosticSink();
         TypeAwareness awareness = new TypeAwareness() {
             @Override
             public boolean isAwareOf(String type) {
@@ -39,16 +39,16 @@ class JvmClassWriterTest {
             }
         };
 
-        ExposedClassWriter writer = new ExposedClassWriter(collector, awareness, checker);
+        ExposedClassWriter writer = new ExposedClassWriter(sink, awareness, checker);
 
         assertEquals("java/lang/Object", writer.commonSuperclass("missing/A", "missing/B"));
-        assertFalse(collector.getWarns().isEmpty());
-        assertEquals(2, collector.getWarns().size());
+        assertFalse(sink.warnings().isEmpty());
+        assertEquals(2, sink.warnings().size());
     }
 
     private static final class ExposedClassWriter extends JvmClassWriter {
-        private ExposedClassWriter(ErrorCollector collector, TypeAwareness awareness, InheritanceChecker checker) {
-            super(0, collector, awareness, checker);
+        private ExposedClassWriter(DiagnosticSink sink, TypeAwareness awareness, InheritanceChecker checker) {
+            super(0, sink, awareness, checker);
         }
 
         private String commonSuperclass(String type1, String type2) {

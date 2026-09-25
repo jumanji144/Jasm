@@ -1,6 +1,7 @@
 package me.darknet.assembler.compile;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.compile.analysis.AnalysisException;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
@@ -15,10 +16,13 @@ import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisRunner;
 import me.darknet.assembler.compile.builder.JvmClassBuilder;
 import me.darknet.assembler.compile.visitor.JvmRootVisitor;
+import me.darknet.assembler.backend.jvm.JvmTargetContext;
 import me.darknet.assembler.compiler.Compiler;
-import me.darknet.assembler.compiler.CompilerOptions;
-import me.darknet.assembler.error.ErrorCollector;
-import me.darknet.assembler.error.Result;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.error.DiagnosticSink;
+import me.darknet.assembler.error.Outcome;
+import me.darknet.assembler.processing.ValidatedUnit;
 import me.darknet.assembler.transformer.Transformer;
 import me.darknet.assembler.util.JvmTypeUtils;
 import me.darknet.assembler.util.Location;
@@ -45,102 +49,93 @@ import java.util.Set;
 
 import static me.darknet.assembler.compile.builder.JvmClassBuilder.methodKey;
 
-public class JvmCompiler implements Compiler {
-	/**
-	 * Compiles the given AST into a Java class file.
-	 *
-	 * @param ast
-	 * 		The AST to compile
-	 * @param options
-	 * 		Compiler options.
-	 *
-	 * @return Result of the compilation, containing the compiled class file if successful, or a list of errors if not.
-	 */
+/**
+ * Compiler for JVM targets.
+ */
+public class JvmCompiler implements Compiler<JvmCompilerOptions, JavaClassRepresentation, JavaCompileResult> {
 	@Override
-	public @NotNull Result<JavaCompileResult> compile(@NotNull List<ASTElement> ast, @NotNull CompilerOptions<?> options) {
-		JvmCompilerOptions jvmOptions = (JvmCompilerOptions) options;
+	public @NotNull Outcome<JavaCompileResult> compile(@NotNull ValidatedUnit unit,
+	                                                    @NotNull JvmCompilerOptions jvmOptions) {
+		List<ASTElement> declarations = unit.declarations();
 		JvmClassBuilder builder = new JvmClassBuilder();
-		ErrorCollector collector = new ErrorCollector();
-		JvmRootVisitor visitor = new JvmRootVisitor(builder, jvmOptions);
+		DiagnosticSink sink = new DiagnosticSink(DiagnosticPhase.BACKEND_EMISSION);
+		JvmRootVisitor visitor = new JvmRootVisitor(builder, jvmOptions, sink);
+
+		if (unit.target() != JvmTargetContext.INSTANCE) {
+			sink.error(DiagnosticCode.INTERNAL_INVARIANT, "Unit was processed for a different target",
+					declarations.isEmpty() ? null : declarations.getFirst().location());
+			return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
+		}
 
 		// If the user doesn't provide exactly one declaration, we cannot be sure which one is the intended target.
-		if (ast.size() != 1) {
-			collector.addError("Expected exactly one declaration", null);
-			return new Result<>(new JavaCompileResult(null, builder), collector.getErrors(), collector.getWarns());
+		if (declarations.size() != 1) {
+			sink.error(DiagnosticCode.MALFORMED_DECLARATION, "Expected exactly one declaration", null);
+			return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
 		}
 
-		// If the user provided an overlay, we want to apply our transformations on top of it, so we need to read it before visiting the AST.
+		// Apply overlays before traversing source declarations so members can be replaced in place.
 		if (jvmOptions.overlay != null)
-			applyOverlay(collector, builder, jvmOptions.overlay.classFile());
+			applyOverlay(sink, builder, jvmOptions.overlay.classFile());
 
 		// If the overlay somehow failed, we need to abort.
-		if (collector.hasErr())
-			return new Result<>(new JavaCompileResult(null, builder), collector.getErrors(), collector.getWarns());
+		if (sink.hasErrors())
+			return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
 
 		// The requested output version takes precedence over any version carried by the overlay.
-		builder.setVersion(jvmOptions.version());
+		builder.setVersion(jvmOptions.getVersion());
 
-		// Now we can visit the AST and build our class node.
-		Transformer transformer = new Transformer(visitor);
-		transformer.transform(ast)
-				.ifErr(collector::addErrors)
-				.ifWarn(collector::addWarnings);
+		try {
+			// Now we can visit the AST and build our class node.
+			Transformer transformer = new Transformer(visitor);
+			sink.addAll(transformer.transform(unit));
+			if (declarations.getFirst() instanceof ASTClass classDeclaration)
+				visitor.applyJvmClassAttributes(classDeclaration);
+			if (sink.hasErrors())
+				return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
 
-		if (!collector.hasErr()) {
-			try {
-				// This just exists to reduce debugging needed to find out that the user didn't specify the class
-				// definition properly in their JASM input.
-				if (builder.type() == null)
-					throw new IllegalStateException("Cannot build class, type name not specified");
-
-				// Compile the class.
-				byte[] bytes = writeClass(builder, jvmOptions, collector);
-
-				// Filling in the analysis results for the generated class.
-				analyzeGeneratedClass(bytes, jvmOptions, builder, collector);
-
-				// Refine existing debug descriptors without touching verifier frames or instructions.
-				bytes = rewriteLocalVariableTypes(bytes, builder);
-
-				// Verify the generated class, if the user requested it.
-				JvmVerify.verifyGeneratedMethods(bytes, jvmOptions, builder, collector);
-
-				// Wrap up.
-				return new Result<>(new JavaCompileResult(new JavaClassRepresentation(bytes), builder),
-						collector.getErrors(), collector.getWarns());
-			} catch (Throwable t) {
-				// We cannot continue, the result might be very corrupted.
-				// Collect as much info that could have led to the error as possible.
-				boolean recordedError = false;
-				for (var methodEntry : builder.allResults().entrySet()) {
-					AnalysisResults analysisResults = methodEntry.getValue();
-					AnalysisException failure = analysisResults.getAnalysisFailure();
-					if (failure != null) {
-						AbstractInsnNode instruction = failure.getInstruction();
-						if (instruction != null) {
-							ASTInstruction targetInsn = analysisResults.getExecutableInstructionToAstMap().get(instruction);
-							if (targetInsn != null) {
-								Location location = targetInsn.location();
-								collector.addError(failure.getMessage(), location);
-							} else {
-								collector.addError(failure.getMessage(), Location.UNKNOWN);
-							}
-							recordedError = true;
-						}
-					}
-				}
-
-				// Fallback if there were no reported errors from the analysis process
-				if (!recordedError)
-					collector.addError("Failed to write class: " + t.getMessage(), null);
-
-				return new Result<>(new JavaCompileResult(null, builder),
-						collector.getErrors(), collector.getWarns());
+			// This just exists to reduce debugging needed to find out that the user didn't specify the class
+			// definition properly in their JASM input.
+			if (builder.type() == null) {
+				sink.error(DiagnosticCode.MALFORMED_DECLARATION, "Cannot build class, type name not specified", null);
+				return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
 			}
-		}
 
-		return new Result<>(new JavaCompileResult(null, builder),
-				collector.getErrors(), collector.getWarns());
+			// Compile the class.
+			byte[] bytes = writeClass(builder, jvmOptions, sink);
+
+			// Filling in the analysis results for the generated class.
+			analyzeGeneratedClass(bytes, jvmOptions, builder, sink);
+
+			// Refine existing debug descriptors without touching verifier frames or instructions.
+			bytes = rewriteLocalVariableTypes(bytes, builder);
+
+			// Verify the generated class, if the user requested it.
+			JvmVerify.verifyGeneratedMethods(bytes, jvmOptions, builder, sink);
+
+			// Wrap up.
+			return Outcome.of(new JavaCompileResult(new JavaClassRepresentation(bytes), builder), sink.diagnostics());
+		} catch (Throwable t) {
+			// We cannot continue, the result might be very corrupted.
+			// Collect as much info that could have led to the error as possible.
+			boolean recordedError = false;
+			for (var methodEntry : builder.allResults().entrySet()) {
+				AnalysisResults analysisResults = methodEntry.getValue();
+				AnalysisException failure = analysisResults.getAnalysisFailure();
+				if (failure == null)
+					continue;
+				AbstractInsnNode instruction = failure.getInstruction();
+				if (instruction == null)
+					continue;
+				ASTInstruction targetInsn = analysisResults.getExecutableInstructionToAstMap().get(instruction);
+				sink.error(DiagnosticPhase.OUTPUT_VERIFICATION, DiagnosticCode.ANALYSIS_FAILURE,
+						failure.getMessage(), targetInsn == null ? Location.UNKNOWN : targetInsn.location());
+				recordedError = true;
+			}
+			if (!recordedError)
+				sink.error(DiagnosticCode.BACKEND_FAILURE,
+						"Failed to write class: " + (t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage()), null);
+			return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
+		}
 	}
 
 	/**
@@ -152,11 +147,11 @@ public class JvmCompiler implements Compiler {
 	 * 		Compiler options. See: {@link JvmCompilerOptions#createEngine(VarCache)}.
 	 * @param builder
 	 * 		Builder to populate with analysis results.
-	 * @param collector
-	 * 		Collector to report any errors that occur during analysis.
+	 * @param sink
+	 * 		Diagnostic sink to report any errors that occur during analysis.
 	 */
 	private void analyzeGeneratedClass(byte @NotNull [] bytes, @NotNull JvmCompilerOptions options,
-	                                   @NotNull JvmClassBuilder builder, @NotNull ErrorCollector collector) {
+	                                   @NotNull JvmClassBuilder builder, @NotNull DiagnosticSink sink) {
 		// Populate the node structure.
 		ClassNode classNode = new ClassNode();
 		new ClassReader(bytes).accept(classNode, 0);
@@ -193,7 +188,7 @@ public class JvmCompiler implements Compiler {
 
 			// First do a linear pass to populate the variable cache with as much info as possible.
 			JvmAnalysisEngine<?> engine = options.createEngine(varCache);
-			engine.setErrorCollector(collector);
+			engine.setDiagnosticSink(sink);
 			new IndexedStraightforwardSimulation().execute(new VarCacheUpdater(varCache), method);
 
 			// Copying the InsnList model to a regular List...
@@ -203,7 +198,7 @@ public class JvmCompiler implements Compiler {
 
 			// Summarize the method model information.
 			JvmAnalysisRunner.Info info = new JvmAnalysisRunner.Info(
-					options.inheritanceChecker(),
+					options.getInheritanceChecker(),
 					classNode.name,
 					method.name,
 					method.access,
@@ -222,11 +217,11 @@ public class JvmCompiler implements Compiler {
 			}
 
 			// Finally, we can infer the local-variable states from the analysis results.
-			result.setLocalVariableStates(LocalVariableStateAnalyzer.infer(method, result, options.inheritanceChecker()));
+			result.setLocalVariableStates(LocalVariableStateAnalyzer.infer(method, result, options.getInheritanceChecker()));
 
 			// Attempt to link any analysis failure to the original AST instruction,
 			// so we can report it to the user with a proper location.
-			recordAnalysisFailure(result, collector);
+			recordAnalysisFailure(result, sink);
 
 			// Done with this method, store the result for later retrieval.
 			builder.setMethodAnalysis(method, result);
@@ -294,21 +289,22 @@ public class JvmCompiler implements Compiler {
 	/**
 	 * Applies the given overlay to the builder, if it is not null.
 	 *
-	 * @param collector
-	 * 		Collector to report any errors that occur during overlay application.
+	 * @param sink
+	 * 		Diagnostic sink to report any errors that occur during overlay application.
 	 * @param builder
 	 * 		Builder to apply the overlay to.
 	 * @param overlay
 	 * 		Overlay bytes to apply, or {@code null} if no overlay should be applied.
 	 */
-	private static void applyOverlay(@NotNull ErrorCollector collector, @NotNull JvmClassBuilder builder, byte @Nullable [] overlay) {
+	private static void applyOverlay(@NotNull DiagnosticSink sink, @NotNull JvmClassBuilder builder, byte @Nullable [] overlay) {
 		if (overlay == null)
 			return;
 
 		try {
 			builder.overlay(overlay);
 		} catch (Throwable t) {
-			collector.addError("Failed to read overlay: " + t.getMessage(), null);
+			sink.error(DiagnosticCode.BACKEND_FAILURE,
+					"Failed to read overlay: " + t.getMessage(), null);
 		}
 	}
 
@@ -379,10 +375,10 @@ public class JvmCompiler implements Compiler {
 	/**
 	 * @param result
 	 * 		Analysis result containing the analysis failure to record.
-	 * @param collector
-	 * 		Collector to report the analysis failure to.
+	 * @param sink
+	 * 		Diagnostic sink to report the analysis failure to.
 	 */
-	private static void recordAnalysisFailure(@NotNull MethodAnalysisResult result, @NotNull ErrorCollector collector) {
+	private static void recordAnalysisFailure(@NotNull MethodAnalysisResult result, @NotNull DiagnosticSink sink) {
 		AnalysisException failure = result.getAnalysisFailure();
 		if (failure == null)
 			return;
@@ -391,12 +387,14 @@ public class JvmCompiler implements Compiler {
 		if (instruction != null) {
 			ASTInstruction targetInsn = result.getExecutableInstructionToAstMap().get(instruction);
 			if (targetInsn != null) {
-				collector.addError(failure.getMessage(), targetInsn.location());
+				sink.error(DiagnosticPhase.OUTPUT_VERIFICATION, DiagnosticCode.ANALYSIS_FAILURE,
+						failure.getMessage(), targetInsn.location());
 				return;
 			}
 		}
 
-		collector.addError(failure.getMessage(), Location.UNKNOWN);
+		sink.error(DiagnosticPhase.OUTPUT_VERIFICATION, DiagnosticCode.ANALYSIS_FAILURE,
+				failure.getMessage(), Location.UNKNOWN);
 	}
 
 	/**
@@ -406,38 +404,38 @@ public class JvmCompiler implements Compiler {
 	 * 		Builder containing the class to write.
 	 * @param options
 	 * 		Compiler options, used to determine how to write the class <i>(Ex: whether to merge with an overlay)</i>.
-	 * @param collector
-	 * 		Error collector to report any errors that occur during writing.
+	 * @param sink
+	 * 		Diagnostic sink to report any errors that occur during writing.
 	 *
 	 * @return Compiled class bytes.
 	 */
 	private static byte @NotNull [] writeClass(@NotNull JvmClassBuilder builder, @NotNull JvmCompilerOptions options,
-	                                           @NotNull ErrorCollector collector) {
+	                                           @NotNull DiagnosticSink sink) {
 		// Determine flags for writing the class.
 		int flags = options.asmArgs;
 		if (builder.node().version <= Opcodes.V1_5)
 			flags &= ~ClassWriter.COMPUTE_FRAMES;
 
 		try {
-			return writeClass(builder, options, collector, flags);
+			return writeClass(builder, options, sink, flags);
 		} catch (RuntimeException ex) {
 			// If ASM failed while computing frames, retry without frame computation so our compiler's analysis
 			// can diagnose the malformed method for things like stack-underflow and invalid local variable access.
 			// These warnings from our analyzer will be more useful to the user than a generic ASM exception.
 			if ((flags & ClassWriter.COMPUTE_FRAMES) == 0)
 				throw ex;
-			return writeClass(builder, options, collector, flags & ~ClassWriter.COMPUTE_FRAMES);
+			return writeClass(builder, options, sink, flags & ~ClassWriter.COMPUTE_FRAMES);
 		}
 	}
 
 	private static byte @NotNull [] writeClass(@NotNull JvmClassBuilder builder, @NotNull JvmCompilerOptions options,
-	                                           @NotNull ErrorCollector collector, int flags) {
+	                                           @NotNull DiagnosticSink sink, int flags) {
 		ClassNode node = builder.node();
 
 		// If there is no overlay specified we can just write the class as is,
 		// without needing to worry about merging methods or anything.
 		if (options.overlay == null) {
-			ClassWriter writer = new JvmClassWriter(flags, collector, options.awareness(), options.inheritanceChecker());
+			ClassWriter writer = new JvmClassWriter(flags, sink, options.getTypeAwareness(), options.getInheritanceChecker());
 			node.accept(writer);
 			return writer.toByteArray();
 		}
@@ -446,7 +444,7 @@ public class JvmCompiler implements Compiler {
 		// We don't want to recompute frames for methods that haven't been modified,
 		// so we need to merge the methods from the overlay with the ones from our class node.
 		ClassReader overlayReader = new ClassReader(options.overlay.classFile());
-		JvmClassWriter writer = new JvmClassWriter(options.reuseOverlayPool() ? overlayReader : null, flags, collector, options.awareness(), options.inheritanceChecker());
+		JvmClassWriter writer = new JvmClassWriter(options.reuseOverlayPool() ? overlayReader : null, flags, sink, options.getTypeAwareness(), options.getInheritanceChecker());
 		writeClassWithoutMethods(node, writer);
 		writeOverlayMethods(node, overlayReader, writer, builder.modifiedMethodKeys(), flags);
 		return writer.toByteArray();

@@ -3,8 +3,6 @@ package me.darknet.assembler.ast.specific;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.error.ErrorCollector;
-import me.darknet.assembler.visitor.ASTFieldVisitor;
 import me.darknet.assembler.visitor.Modifiers;
 
 import org.jetbrains.annotations.NotNull;
@@ -31,12 +29,4 @@ public class ASTField extends ASTMember {
         return value;
     }
 
-    public void accept(ErrorCollector collector, ASTFieldVisitor visitor) {
-        super.accept(collector, visitor);
-        if (visitor == null)
-            return;
-        if (value != null)
-            visitor.visitValue(value);
-        visitor.visitEnd();
-    }
 }

@@ -1,7 +1,7 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.compile.JavaClassRepresentation;
-import me.darknet.assembler.error.Warn;
+import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.test.JvmAssemblerFixture;
 import me.darknet.assembler.test.JvmCompilation;
 import org.junit.jupiter.api.Test;
@@ -49,8 +49,8 @@ public class TopLevelDeclarationTest {
 	@Test
 	void requestedVersionOverridesOverlayVersion() {
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.version(21);
-		options.setOverlay(new JavaClassRepresentation(buildOverlayClass(OVERLAY_TYPE, Opcodes.V1_8)));
+		options.withVersion(21);
+		options.withOverlay(new JavaClassRepresentation(buildOverlayClass(OVERLAY_TYPE, Opcodes.V1_8)));
 
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
 				".field public static final answer I { value: 42 }",
@@ -136,7 +136,7 @@ public class TopLevelDeclarationTest {
 	@Test
 	void untouchedOverlayMethodsAreCopiedWithoutRecomputingFrames() {
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.setOverlay(new JavaClassRepresentation(buildOverlayWithUntouchedMergedTypes("top/level/MissingTypesOverlay")));
+		options.withOverlay(new JavaClassRepresentation(buildOverlayWithUntouchedMergedTypes("top/level/MissingTypesOverlay")));
 
 		// Say for instance we have some class that has a bunch of methods.
 		// You want to edit one of them, but the others have some weird control flow with merged types that would require frame recomputation.
@@ -163,7 +163,7 @@ public class TopLevelDeclarationTest {
 	@Test
 	void modifiedOverlayMethodsAreVerifiedWithoutTouchingUntouchedOverlayMethods() {
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.setOverlay(new JavaClassRepresentation(buildOverlayWithUntouchedMergedTypes("top/level/MissingTypesOverlay")));
+		options.withOverlay(new JavaClassRepresentation(buildOverlayWithUntouchedMergedTypes("top/level/MissingTypesOverlay")));
 
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
 				"""
@@ -180,20 +180,20 @@ public class TopLevelDeclarationTest {
 		);
 
 		// The warning should be for the modified method, and not for the untouched overlay method that has missing types.
-		Warn verifierWarning = compilation.warnings().stream()
-				.filter(warning -> warning.getMessage().contains("may fail JVM verification"))
+		Diagnostic verifierWarning = compilation.warnings().stream()
+				.filter(warning -> warning.message().contains("may fail JVM verification"))
 				.findFirst()
 				.orElse(null);
 		assertNotNull(verifierWarning, "Expected verifier warning for modified method");
-		assertTrue(verifierWarning.getMessage().contains("hello()I"));
+		assertTrue(verifierWarning.message().contains("hello()I"));
 
 		// The problem method is untouched so any existing problems with it should be ignored here.
-		assertFalse(verifierWarning.getMessage().contains("problematic()Ljava/lang/Object;"));
+		assertFalse(verifierWarning.message().contains("problematic()Ljava/lang/Object;"));
 	}
 
 	private static TestJvmCompilerOptions overlayOptions(String internalName) {
 		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		options.setOverlay(new JavaClassRepresentation(buildOverlayClass(internalName)));
+		options.withOverlay(new JavaClassRepresentation(buildOverlayClass(internalName)));
 		return options;
 	}
 

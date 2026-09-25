@@ -18,7 +18,7 @@ public interface CompilerOptions<B extends CompilerOptions<B, V>, V> {
      *
      * @return This options object.
      */
-    @NotNull B setOverlay(@Nullable V representation);
+    @NotNull B withOverlay(@Nullable V representation);
 
     /**
      * @return Configured overlay representation, or {@code null} when absent.

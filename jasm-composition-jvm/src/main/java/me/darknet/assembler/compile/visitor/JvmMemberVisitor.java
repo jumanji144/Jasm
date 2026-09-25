@@ -1,5 +1,6 @@
 package me.darknet.assembler.compile.visitor;
 
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
@@ -12,6 +13,9 @@ import org.objectweb.asm.TypePath;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.TypeAnnotationNode;
 
+/**
+ * Shared visitor for JVM declarations, including signatures and runtime annotations.
+ */
 public abstract class JvmMemberVisitor implements ASTDeclarationVisitor {
 	protected abstract void setSignature(@NotNull String signature);
 
@@ -24,31 +28,16 @@ public abstract class JvmMemberVisitor implements ASTDeclarationVisitor {
 	                                                                        @NotNull String descriptor);
 
 	@Override
-	public ASTAnnotationVisitor visitVisibleAnnotation(@NotNull ASTIdentifier classType) {
-		return new JvmAnnotationVisitor(addRuntimeAnnotation(true, Type.getObjectType(classType.literal()).getDescriptor()));
+	public ASTAnnotationVisitor visitAnnotation(@NotNull AnnotationVisibility visibility, @NotNull ASTIdentifier classType) {
+		return new JvmAnnotationVisitor(addRuntimeAnnotation(visibility == AnnotationVisibility.VISIBLE,
+				Type.getObjectType(classType.literal()).getDescriptor()));
 	}
 
 	@Override
-	public ASTAnnotationVisitor visitInvisibleAnnotation(@NotNull ASTIdentifier classType) {
-		return new JvmAnnotationVisitor(addRuntimeAnnotation(false, Type.getObjectType(classType.literal()).getDescriptor()));
-	}
-
-	@Override
-	public ASTAnnotationVisitor visitVisibleTypeAnnotation(@NotNull ASTIdentifier classType, @NotNull ASTNumber typeRef,
-	                                                       @Nullable ASTIdentifier typePath) {
+	public ASTAnnotationVisitor visitTypeAnnotation(@NotNull AnnotationVisibility visibility, @NotNull ASTIdentifier classType,
+	                                                @NotNull ASTNumber typeRef, @Nullable ASTIdentifier typePath) {
 		return new JvmAnnotationVisitor(addRuntimeTypeAnnotation(
-				true,
-				typeRef.asInt(),
-				parseTypePath(typePath),
-				Type.getObjectType(classType.literal()).getDescriptor()
-		));
-	}
-
-	@Override
-	public ASTAnnotationVisitor visitInvisibleTypeAnnotation(@NotNull ASTIdentifier classType, @NotNull ASTNumber typeRef,
-	                                                         @Nullable ASTIdentifier typePath) {
-		return new JvmAnnotationVisitor(addRuntimeTypeAnnotation(
-				false,
+				visibility == AnnotationVisibility.VISIBLE,
 				typeRef.asInt(),
 				parseTypePath(typePath),
 				Type.getObjectType(classType.literal()).getDescriptor()
@@ -57,9 +46,8 @@ public abstract class JvmMemberVisitor implements ASTDeclarationVisitor {
 
 	@Override
 	public void visitSignature(@Nullable ASTString signature) {
-		if (signature != null) {
+		if (signature != null)
 			setSignature(signature.content());
-		}
 	}
 
 	@Override
@@ -72,11 +60,9 @@ public abstract class JvmMemberVisitor implements ASTDeclarationVisitor {
 	}
 
 	private static @Nullable TypePath parseTypePath(@Nullable ASTIdentifier typePath) {
-		if (typePath == null) {
+		if (typePath == null)
 			return null;
-		}
 		String content = typePath.content();
 		return "_".equals(content) ? null : TypePath.fromString(content);
 	}
 }
-

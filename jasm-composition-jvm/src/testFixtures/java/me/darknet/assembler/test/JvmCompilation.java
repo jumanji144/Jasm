@@ -4,10 +4,7 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.compile.JavaClassRepresentation;
 import me.darknet.assembler.compile.JavaCompileResult;
 import me.darknet.assembler.error.Diagnostic;
-import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.Outcome;
-import me.darknet.assembler.error.Result;
-import me.darknet.assembler.error.Warn;
 import org.junit.jupiter.api.Assertions;
 
 import java.util.ArrayList;
@@ -36,9 +33,9 @@ public record JvmCompilation(
 		String sourceName,
 		String source,
 		Outcome<List<ASTElement>> astResult,
-		Result<JavaCompileResult> compileResult,
-		List<Error> errors,
-		List<Warn> warnings
+		Outcome<JavaCompileResult> compileResult,
+		List<Diagnostic> errors,
+		List<Diagnostic> warnings
 ) {
 	/**
 	 * @return {@code true} if there were any errors during AST processing or compilation, {@code false} otherwise.
@@ -59,7 +56,7 @@ public record JvmCompilation(
 	 * and a compile result was produced that indicates success, {@code false} otherwise.
 	 */
 	public boolean isSuccess() {
-		return !hasErrors() && compileResult != null && compileResult.isOk() && compileResult.get() != null;
+		return !hasErrors() && compileResult != null && compileResult.isSuccess();
 	}
 
 	/**
@@ -68,8 +65,8 @@ public record JvmCompilation(
 	public JavaCompileResult requireSuccess() {
 		Assertions.assertFalse(hasErrors(), "Compilation failed\n" + DiagnosticAssertions.formatErrors(errors));
 		Assertions.assertNotNull(compileResult, "No compile result was produced");
-		Assertions.assertTrue(compileResult.isOk(), "Compilation did not succeed\n" + DiagnosticAssertions.formatErrors(errors));
-		JavaCompileResult result = compileResult.get();
+		Assertions.assertTrue(compileResult.isSuccess(), "Compilation did not succeed\n" + DiagnosticAssertions.formatErrors(errors));
+		JavaCompileResult result = compileResult.requireValue();
 		Assertions.assertNotNull(result, "Compilation produced no result");
 		Assertions.assertNotNull(result.representation(), "Compilation produced no class representation");
 		return result;
@@ -115,18 +112,28 @@ public record JvmCompilation(
 	 *
 	 * @return Resulting compilation of the given assembly source, including any errors or warnings from both AST processing and compilation.
 	 */
-	public static JvmCompilation from(String sourceName, String source, Outcome<List<ASTElement>> astResult, Result<JavaCompileResult> compileResult) {
-		List<Error> errors = new ArrayList<>();
-		List<Warn> warnings = new ArrayList<>();
+	public static JvmCompilation from(String sourceName, String source, Outcome<List<ASTElement>> astResult,
+	                                  Outcome<JavaCompileResult> compileResult) {
+		return from(sourceName, source, astResult, compileResult, List.of());
+	}
+
+	public static JvmCompilation from(String sourceName, String source, Outcome<List<ASTElement>> astResult,
+	                                  Outcome<JavaCompileResult> compileResult, List<Diagnostic> processingDiagnostics) {
+		List<Diagnostic> errors = new ArrayList<>();
+		List<Diagnostic> warnings = new ArrayList<>();
 		if (astResult != null) {
-			for (Diagnostic diagnostic : astResult.errors())
-				errors.add(new Error(diagnostic.message(), diagnostic.location()));
-			for (Diagnostic diagnostic : astResult.warnings())
-				warnings.add(new Warn(diagnostic.message(), diagnostic.location()));
+			errors.addAll(astResult.errors());
+			warnings.addAll(astResult.warnings());
+		}
+		for (Diagnostic diagnostic : processingDiagnostics) {
+			if (diagnostic.severity() == me.darknet.assembler.error.Severity.ERROR)
+				errors.add(diagnostic);
+			else
+				warnings.add(diagnostic);
 		}
 		if (compileResult != null) {
 			errors.addAll(compileResult.errors());
-			warnings.addAll(compileResult.getWarns());
+			warnings.addAll(compileResult.warnings());
 		}
 		return new JvmCompilation(sourceName, source, astResult, compileResult, List.copyOf(errors), List.copyOf(warnings));
 	}

@@ -148,10 +148,10 @@ class JvmWarningAndErrorTest {
 
 		assertTrue(compilation.hasErrors(), "Expected invalid bytecode to produce a compilation error");
 		assertTrue(compilation.warnings().stream().anyMatch(warning ->
-				warning.getMessage().contains("Cannot store into local 'foo'")
-						&& warning.getMessage().contains("found 0")),
+				warning.message().contains("Cannot store into local 'foo'")
+						&& warning.message().contains("found 0")),
 				"Expected a warning explaining why foo is invalid: " + compilation.warnings());
-		assertEquals(11, compilation.errors().getFirst().getLocation().line(),
+		assertEquals(11, compilation.errors().getFirst().location().line(),
 				"Expected the error to point at the invalid astore instruction: " + compilation.errors());
 	}
 
@@ -183,10 +183,10 @@ class JvmWarningAndErrorTest {
 				new TestJvmCompilerOptions());
 
 		var error = compilation.errors().stream()
-				.filter(candidate -> candidate.getMessage().contains("Cannot peek from empty stack"))
+				.filter(candidate -> candidate.message().contains("Cannot peek from empty stack"))
 				.findFirst()
 				.orElseThrow(() -> new AssertionError("Expected stack-underflow error: " + compilation.errors()));
-		assertEquals(13, error.getLocation().line(),
+		assertEquals(13, error.location().line(),
 				"Expected the error to point at the later pop instruction: " + compilation.errors());
 	}
 
@@ -194,21 +194,21 @@ class JvmWarningAndErrorTest {
         String source = BinarySampleFixture.jvmSample(sampleName).read();
 
         TestJvmCompilerOptions typed = new TestJvmCompilerOptions();
-        typed.inheritanceChecker(new ReflectiveInheritanceChecker(JvmWarningAndErrorTest.class.getClassLoader()));
-        typed.engineProvider(TypedJvmAnalysisEngine::new);
+        typed.withInheritanceChecker(new ReflectiveInheritanceChecker(JvmWarningAndErrorTest.class.getClassLoader()));
+        typed.withEngineProvider(TypedJvmAnalysisEngine::new);
         JvmAnalysisAssertions.assertCompileWarning(JvmAssemblerFixture.compileJvm(source, typed));
 
         TestJvmCompilerOptions valued = new TestJvmCompilerOptions();
-        valued.inheritanceChecker(new ReflectiveInheritanceChecker(JvmWarningAndErrorTest.class.getClassLoader()));
-        valued.engineProvider(ValuedJvmAnalysisEngine::new);
+        valued.withInheritanceChecker(new ReflectiveInheritanceChecker(JvmWarningAndErrorTest.class.getClassLoader()));
+        valued.withEngineProvider(ValuedJvmAnalysisEngine::new);
         JvmAnalysisAssertions.assertCompileWarning(JvmAssemblerFixture.compileJvm(source, valued));
     }
 
     private static void assertAnalysisFailure(String sampleName) {
         String source = BinarySampleFixture.jvmSample(sampleName).read();
         TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-        options.inheritanceChecker(new ReflectiveInheritanceChecker(JvmWarningAndErrorTest.class.getClassLoader()));
-        options.engineProvider(ValuedJvmAnalysisEngine::new);
+        options.withInheritanceChecker(new ReflectiveInheritanceChecker(JvmWarningAndErrorTest.class.getClassLoader()));
+        options.withEngineProvider(ValuedJvmAnalysisEngine::new);
         JvmAnalysisAssertions.assertAnalysisFailure(JvmAssemblerFixture.compileJvm(source, options));
     }
 }

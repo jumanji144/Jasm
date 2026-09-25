@@ -654,7 +654,7 @@ public class ASTProcessorTest {
         TargetContext delegate = FixtureTarget.JVM.context();
         return new TargetContext() {
             @Override
-            public Instructions<?> instructions() {
+            public @NotNull Instructions<?> instructions() {
                 return delegate.instructions();
             }
 

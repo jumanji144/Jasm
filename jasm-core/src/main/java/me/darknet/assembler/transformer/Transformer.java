@@ -53,26 +53,26 @@ public class Transformer {
      */
     public @NotNull List<Diagnostic> transform(ValidatedUnit unit) {
         Objects.requireNonNull(unit, "unit");
-        DiagnosticSink collector = new DiagnosticSink(DiagnosticPhase.BACKEND_EMISSION);
+        DiagnosticSink sink = new DiagnosticSink(DiagnosticPhase.BACKEND_EMISSION);
         for (ASTElement declaration : unit.declarations()) {
             switch (declaration) {
                 case ASTAnnotation annotation ->
-                        transformAnnotation(annotation, visitor.visitAnnotation(annotation), collector);
+                        transformAnnotation(annotation, visitor.visitAnnotation(annotation), sink);
                 case ASTField field -> {
                     ASTFieldVisitor fieldVisitor = visitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor());
-                    transformField(field, fieldVisitor, collector);
+                    transformField(field, fieldVisitor, sink);
                 }
                 case ASTMethod method -> {
                     ProcessedMethod processed = requireProcessed(unit, method);
-                    transformMethod(method, processed, visitor.visitMethod(method, processed), collector);
+                    transformMethod(method, processed, visitor.visitMethod(method, processed), sink);
                 }
-                case ASTClass clazz -> transformClass(clazz, unit, collector);
-                case null -> collector.error(DiagnosticCode.UNSUPPORTED_FORM, "Null declaration", null);
-                default -> collector.error(DiagnosticCode.UNSUPPORTED_FORM,
+                case ASTClass clazz -> transformClass(clazz, unit, sink);
+                case null -> sink.error(DiagnosticCode.UNSUPPORTED_FORM, "Null declaration", null);
+                default -> sink.error(DiagnosticCode.UNSUPPORTED_FORM,
                         "Unsupported declaration: " + declaration.type(), declaration.location());
             }
         }
-        return collector.diagnostics();
+        return sink.diagnostics();
     }
 
     /**
@@ -82,12 +82,12 @@ public class Transformer {
      * 		Class source declaration.
      * @param unit
      * 		Validated unit supplying semantic method views.
-     * @param collector
+     * @param sink
      * 		Sink receiving traversal diagnostics.
      */
-    private void transformClass(ASTClass source, ValidatedUnit unit, DiagnosticSink collector) {
+    private void transformClass(ASTClass source, ValidatedUnit unit, DiagnosticSink sink) {
         ASTClassVisitor classVisitor = visitor.visitClass(source.getModifiers(), source.getName());
-        transformMember(source, classVisitor, collector);
+        transformMember(source, classVisitor, sink);
         if (classVisitor == null)
             return;
 
@@ -109,7 +109,7 @@ public class Transformer {
         for (ASTRecordComponent recordComponent : source.getRecordComponents()) {
             var componentVisitor = classVisitor.visitRecordComponent(recordComponent.getComponentType(),
                     recordComponent.getComponentDescriptor(), recordComponent.getSignature());
-            transformRecordComponent(recordComponent, componentVisitor, collector);
+            transformRecordComponent(recordComponent, componentVisitor, sink);
         }
 
         for (var inner : source.getInners()) {
@@ -119,12 +119,12 @@ public class Transformer {
         for (ASTElement declaration : source.contents()) {
             if (declaration instanceof ASTField field) {
                 ASTFieldVisitor fieldVisitor = classVisitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor());
-                transformField(field, fieldVisitor, collector);
+                transformField(field, fieldVisitor, sink);
             } else if (declaration instanceof ASTMethod method) {
                 ProcessedMethod processed = requireProcessed(unit, method);
-                transformMethod(method, processed, classVisitor.visitMethod(method, processed), collector);
+                transformMethod(method, processed, classVisitor.visitMethod(method, processed), sink);
             } else {
-                collector.error(DiagnosticCode.UNSUPPORTED_FORM,
+                sink.error(DiagnosticCode.UNSUPPORTED_FORM,
                         "Don't know how to process: " + declaration.type(), declaration.location());
             }
         }
@@ -141,12 +141,12 @@ public class Transformer {
      * 		Validated semantic method view.
      * @param methodVisitor
      * 		Backend method visitor, or {@code null} when the target cannot emit the method.
-     * @param collector
+     * @param sink
      * 		Sink receiving traversal diagnostics.
      */
     private static void transformMethod(ASTMethod source, ProcessedMethod processed,
-                                        @Nullable ASTMethodVisitor methodVisitor, DiagnosticSink collector) {
-        transformMember(source, methodVisitor, collector);
+                                        @Nullable ASTMethodVisitor methodVisitor, DiagnosticSink sink) {
+        transformMember(source, methodVisitor, sink);
         if (methodVisitor == null)
             return;
 
@@ -167,12 +167,12 @@ public class Transformer {
                 return;
             for (ASTAnnotation annotation : annotations) {
                 transformAnnotation(annotation, methodVisitor.visitParameterAnnotation(
-                        annotation.getVisibility(), sourceParameterIndex, annotation.getClassType()), collector);
+                        annotation.getVisibility(), sourceParameterIndex, annotation.getClassType()), sink);
             }
         });
 
         if (source.getAnnotationDefaultValue() != null) {
-            methodVisitor.visitAnnotationDefaultValue(collector, source.getAnnotationDefaultValue());
+            methodVisitor.visitAnnotationDefaultValue(sink, source.getAnnotationDefaultValue());
         }
 
         if (source.getCode() == null) {
@@ -180,7 +180,7 @@ public class Transformer {
             return;
         }
 
-        ASTInstructionVisitor instructionVisitor = methodVisitor.visitCode(collector);
+        ASTInstructionVisitor instructionVisitor = methodVisitor.visitCode(sink);
         if (instructionVisitor != null) {
             // Walk validated entries so emitters never re-associate source instructions positionally.
             for (ProcessedCodeEntry entry : processed.code()) {
@@ -207,32 +207,32 @@ public class Transformer {
 
     private static void transformAnnotation(@NotNull ASTAnnotation source,
                                              @Nullable ASTAnnotationVisitor target,
-                                             @NotNull DiagnosticSink collector) {
+                                             @NotNull DiagnosticSink sink) {
         if (target == null)
             return;
-        ASTAnnotationVisitor.accept(target, source.getValueMap().pairs(), collector);
+        ASTAnnotationVisitor.accept(target, source.getValueMap().pairs(), sink);
     }
 
     private static void transformMember(@NotNull ASTMember source,
                                         @Nullable ASTDeclarationVisitor target,
-                                        @NotNull DiagnosticSink collector) {
+                                        @NotNull DiagnosticSink sink) {
         if (target == null) {
-            collector.error(DiagnosticCode.UNSUPPORTED_FORM, "Unable to process member", null);
+            sink.error(DiagnosticCode.UNSUPPORTED_FORM, "Unable to process member", null);
             return;
         }
         for (ASTAnnotation annotation : source.getVisibleAnnotations()) {
-            transformAnnotation(annotation, target.visitAnnotation(annotation.getVisibility(), annotation.getClassType()), collector);
+            transformAnnotation(annotation, target.visitAnnotation(annotation.getVisibility(), annotation.getClassType()), sink);
         }
         for (ASTAnnotation annotation : source.getInvisibleAnnotations()) {
-            transformAnnotation(annotation, target.visitAnnotation(annotation.getVisibility(), annotation.getClassType()), collector);
+            transformAnnotation(annotation, target.visitAnnotation(annotation.getVisibility(), annotation.getClassType()), sink);
         }
         for (ASTAnnotation annotation : source.getVisibleTypeAnnotations()) {
             transformAnnotation(annotation, target.visitTypeAnnotation(annotation.getVisibility(), annotation.getClassType(),
-                    annotation.getTypeRef(), annotation.getTypePath()), collector);
+                    annotation.getTypeRef(), annotation.getTypePath()), sink);
         }
         for (ASTAnnotation annotation : source.getInvisibleTypeAnnotations()) {
             transformAnnotation(annotation, target.visitTypeAnnotation(annotation.getVisibility(), annotation.getClassType(),
-                    annotation.getTypeRef(), annotation.getTypePath()), collector);
+                    annotation.getTypeRef(), annotation.getTypePath()), sink);
         }
         if (source.getSignature() != null)
             target.visitSignature(source.getSignature());
@@ -242,8 +242,8 @@ public class Transformer {
 
     private static void transformField(@NotNull ASTField source,
                                        @Nullable ASTFieldVisitor target,
-                                       @NotNull DiagnosticSink collector) {
-        transformMember(source, target, collector);
+                                       @NotNull DiagnosticSink sink) {
+        transformMember(source, target, sink);
         if (target == null)
             return;
         if (source.getFieldValue() != null)
@@ -253,20 +253,20 @@ public class Transformer {
 
     private static void transformRecordComponent(@NotNull ASTRecordComponent source,
                                                  @NotNull ASTRecordComponentVisitor target,
-                                                 @NotNull DiagnosticSink collector) {
+                                                 @NotNull DiagnosticSink sink) {
         for (ASTAnnotation annotation : source.getVisibleAnnotations()) {
-            transformAnnotation(annotation, target.visitAnnotation(annotation.getVisibility(), annotation.getClassType()), collector);
+            transformAnnotation(annotation, target.visitAnnotation(annotation.getVisibility(), annotation.getClassType()), sink);
         }
         for (ASTAnnotation annotation : source.getInvisibleAnnotations()) {
-            transformAnnotation(annotation, target.visitAnnotation(annotation.getVisibility(), annotation.getClassType()), collector);
+            transformAnnotation(annotation, target.visitAnnotation(annotation.getVisibility(), annotation.getClassType()), sink);
         }
         for (ASTAnnotation annotation : source.getVisibleTypeAnnotations()) {
             transformAnnotation(annotation, target.visitTypeAnnotation(annotation.getVisibility(), annotation.getClassType(),
-                    annotation.getTypeRef(), annotation.getTypePath()), collector);
+                    annotation.getTypeRef(), annotation.getTypePath()), sink);
         }
         for (ASTAnnotation annotation : source.getInvisibleTypeAnnotations()) {
             transformAnnotation(annotation, target.visitTypeAnnotation(annotation.getVisibility(), annotation.getClassType(),
-                    annotation.getTypeRef(), annotation.getTypePath()), collector);
+                    annotation.getTypeRef(), annotation.getTypePath()), sink);
         }
     }
 

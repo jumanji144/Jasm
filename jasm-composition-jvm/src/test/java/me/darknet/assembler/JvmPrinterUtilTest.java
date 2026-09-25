@@ -81,7 +81,7 @@ class JvmPrinterUtilTest {
 		assertEquals("""
 						tableswitch {
 						min: 3,
-						max: 5,
+						max: 4,
 						cases: { A, B },
 						default: C
 						}

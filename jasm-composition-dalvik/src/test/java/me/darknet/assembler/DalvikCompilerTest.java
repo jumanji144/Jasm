@@ -4,9 +4,8 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.compile.DalvikClassResult;
 import me.darknet.assembler.compile.DalvikCompiler;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
-import me.darknet.assembler.compiler.ClassResult;
 import me.darknet.assembler.error.Outcome;
-import me.darknet.assembler.error.Result;
+import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.io.DalvikDexIO;
 import me.darknet.assembler.printer.DalvikClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
@@ -508,8 +507,15 @@ class DalvikCompilerTest {
                         """, DalvikTargetContext.INSTANCE);
         assertFalse(astResult.hasErrors(), DiagnosticAssertions.formatErrors(astResult.errors()));
 
-        Result<? extends ClassResult> compilation = new DalvikCompiler().compile(astResult.requireValue(), TestUtils.overlayOptions("top/level/OverlayExample"));
-        assertTrue(compilation.hasErr(), "invoke-polymorphic should fail until the backend supports it");
+        var unit = DiagnosticAssertions.requireSuccess(
+                SemanticProcessor.process(astResult.requireValue(), DalvikTargetContext.INSTANCE),
+                "Failed to process Dalvik semantic unit"
+        );
+        Outcome<DalvikClassResult> compilation = new DalvikCompiler().compile(
+                unit,
+                TestUtils.overlayOptions("top/level/OverlayExample")
+        );
+        assertTrue(compilation.hasErrors(), "invoke-polymorphic should fail until the backend supports it");
         assertTrue(DiagnosticAssertions.formatErrors(compilation.errors()).contains("invoke-polymorphic is not supported"),
                 DiagnosticAssertions.formatErrors(compilation.errors()));
     }

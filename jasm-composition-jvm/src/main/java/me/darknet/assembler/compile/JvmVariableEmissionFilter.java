@@ -6,7 +6,7 @@ import org.objectweb.asm.Type;
 /**
  * Per variable filter for local variable debug data.
  *
- * @see JvmCompilerOptions#variableFilter(JvmVariableEmissionFilter)
+ * @see JvmCompilerOptions#withVariableFilter(JvmVariableEmissionFilter)
  */
 @FunctionalInterface
 public interface JvmVariableEmissionFilter {

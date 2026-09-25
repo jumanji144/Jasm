@@ -2,48 +2,72 @@ package me.darknet.assembler.compile.visitor;
 
 import me.darknet.assembler.DalvikModifiers;
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.ast.specific.ASTMethod;
+import me.darknet.assembler.backend.dalvik.instructions.DalvikMethodData;
+import me.darknet.assembler.processing.ProcessedMethod;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticSink;
+import me.darknet.assembler.util.Location;
+import me.darknet.assembler.util.Pair;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
-import me.darknet.assembler.visitor.ASTDalvikInstructionVisitor;
+import me.darknet.assembler.visitor.ASTInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
 import me.darknet.dex.tree.definitions.MethodMember;
 import me.darknet.dex.tree.definitions.code.Code;
 import me.darknet.dex.tree.definitions.code.CodeBuilder;
+import me.darknet.dex.tree.definitions.constant.Constant;
 import me.darknet.dex.tree.definitions.debug.DebugInformation;
 import me.darknet.dex.tree.definitions.instructions.Instruction;
 import me.darknet.dex.tree.definitions.instructions.Label;
+import me.darknet.dex.tree.type.ClassType;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
+/**
+ * Visits a Dalvik method declaration and builds its dex member, code, registers, and debug information.
+ */
 public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> implements ASTMethodVisitor {
-
     private final List<String> parameterNames = new ArrayList<>();
+    private final ASTMethod source;
+    private final @Nullable DalvikMethodData methodData;
+    private final DiagnosticSink sink;
+    private final BiConsumer<String, Constant> annotationDefaultConsumer;
     private Integer declaredRegisterCount;
     private int incomingRegisterCount;
     private CodeBuilder codeBuilder;
     private DalvikCodeVisitor codeVisitor;
+    private boolean codeRejected;
 
-    public DalvikMethodVisitor(MethodMember member) {
+    /**
+     * @param member
+     * 		Method being built.
+     * @param processed
+     * 		Semantic method view carrying source and target extensions.
+     * @param sink
+     * 		Sink reporting forms and register layouts this backend cannot encode.
+     */
+    public DalvikMethodVisitor(MethodMember member, @NotNull ProcessedMethod processed,
+                               @NotNull DiagnosticSink sink,
+                               @NotNull BiConsumer<String, Constant> annotationDefaultConsumer) {
         super(member);
-    }
-
-    @Override
-    public void visitRegisterCount(int registers) {
-        if (registers < 0) {
-            throw new IllegalStateException("Method register count must be nonnegative");
-        }
-        declaredRegisterCount = registers;
+        this.source = processed.source();
+        this.methodData = processed.extensions().get(DalvikMethodData.class);
+        this.sink = sink;
+        this.annotationDefaultConsumer = annotationDefaultConsumer;
     }
 
     @Override
     public void visitParameter(int index, @NotNull ASTIdentifier name) {
-        while (parameterNames.size() <= index) {
+        while (parameterNames.size() <= index)
             parameterNames.add(null);
-        }
         parameterNames.set(index, name.literal());
     }
 
@@ -53,30 +77,62 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     }
 
     @Override
-    public void visitAnnotationDefaultValue(ASTElement defaultValue) {
-        throw new IllegalStateException("Dalvik annotation default values are not supported by the current dex tree");
+    public void visitAnnotationDefaultValue(@NotNull DiagnosticSink sink, ASTElement defaultValue) {
+        List<Constant> captured = new ArrayList<>(1);
+        DalvikAnnotationVisitor visitor = new DalvikAnnotationVisitor(
+                DalvikAnnotationVisitor.RUNTIME,
+                ASTIdentifier.STUB,
+                annotation -> captured.addAll(annotation.annotation().elements().values())
+        );
+        ASTAnnotationVisitor.accept(visitor, List.of(new Pair<>(ASTIdentifier.STUB, defaultValue)), sink);
+
+        // A value the annotation visitor could not build leaves the element without a default fallback.
+        // The visitor is expected to report the problem, so this method does not need to.
+        if (sink.hasErrors() || captured.size() != 1)
+            return;
+
+        // The model holds the bare value. The dex writer collects these per element into the class-level
+        // dalvik/annotation/AnnotationDefault annotation, so storing the wrapper here would nest it twice.
+        annotationDefaultConsumer.accept(member.getName(), captured.getFirst());
     }
 
     @Override
-    public ASTDalvikInstructionVisitor visitDalvikCode(@NotNull ErrorCollector collector) {
-        if (codeVisitor == null) {
+    public ASTAnnotationVisitor visitParameterAnnotation(@NotNull AnnotationVisibility visibility, int index,
+                                                         @NotNull ASTIdentifier classType) {
+        sink.error(DiagnosticCode.UNSUPPORTED_CAPABILITY, "Target does not support parameter annotations", classType.location());
+        return null;
+    }
+
+    @Override
+    public ASTInstructionVisitor visitCode(@NotNull DiagnosticSink sink) {
+        if (codeVisitor == null && !codeRejected) {
+            declaredRegisterCount = methodData == null ? null : methodData.registers();
+
+            // The declaration is what every register-count problem is measured against, so it is used as the
+            // report location whenever the method declared one.
+            Location registerDeclaration = methodData == null ? null : methodData.source().location();
+            Location mismatchLocation = registerDeclaration == null ? source.location() : registerDeclaration;
             codeBuilder = new CodeBuilder();
             incomingRegisterCount = incomingRegisterWords();
             if (declaredRegisterCount == null && incomingRegisterCount > 0) {
-                throw new IllegalStateException("Dalvik methods with parameters require registers");
+                codeRejected = true;
+                sink.error(DiagnosticCode.REGISTER_DECLARATION, "Dalvik methods with parameters require registers", mismatchLocation);
+                return null;
             }
             int registerLimit = declaredRegisterCount == null ? -1 : declaredRegisterCount;
-            int parameterBase = declaredRegisterCount == null
-                    ? -1
-                    : declaredRegisterCount - incomingRegisterCount;
+            int parameterBase = declaredRegisterCount == null ? -1 : declaredRegisterCount - incomingRegisterCount;
             if (declaredRegisterCount != null && parameterBase < 0) {
-                throw new IllegalStateException("Declared register count is smaller than incoming parameters");
+                codeRejected = true;
+                sink.error(DiagnosticCode.REGISTER_DECLARATION, "Declared register count is smaller than incoming parameters", mismatchLocation);
+                return null;
             }
             codeVisitor = new DalvikCodeVisitor(
                     codeBuilder,
+                    sink,
                     parameterRegisters(parameterBase),
                     registerLimit,
-                    parameterBase
+                    parameterBase,
+                    registerDeclaration
             );
         }
         return codeVisitor;
@@ -84,14 +140,13 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
 
     private int incomingRegisterWords() {
         int words = (member.getAccess() & DalvikModifiers.ACC_STATIC) == 0 ? 1 : 0;
-        for (var parameter : member.getType().parameterTypes()) {
+        for (ClassType parameter : member.getType().parameterTypes())
             words += registerWords(parameter.descriptor());
-        }
         return words;
     }
 
     private Map<String, Integer> parameterRegisters(int parameterBase) {
-        Map<String, Integer> registers = new java.util.LinkedHashMap<>();
+        Map<String, Integer> registers = new HashMap<>();
         int aliasBase = Math.max(parameterBase, 0);
         int offset = 0;
         if ((member.getAccess() & DalvikModifiers.ACC_STATIC) == 0) {
@@ -101,9 +156,8 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
         for (int index = 0; index < member.getType().parameterTypes().size(); index++) {
             int register = aliasBase + offset;
             String name = index < parameterNames.size() ? parameterNames.get(index) : null;
-            if (name != null) {
+            if (name != null)
                 registers.put(name, register);
-            }
             registers.put("p" + index, register);
             offset += registerWords(member.getType().parameterTypes().get(index).descriptor());
         }
@@ -115,22 +169,16 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     }
 
     @Override
-    public ASTAnnotationVisitor visitVisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType) {
-        throw new IllegalStateException("Dalvik parameter annotations are not supported by the current dex tree");
-    }
-
-    @Override
-    public ASTAnnotationVisitor visitInvisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType) {
-        throw new IllegalStateException("Dalvik parameter annotations are not supported by the current dex tree");
-    }
-
-    @Override
     public void visitEnd() {
         member.setParameterNames(parameterNames);
         if (codeVisitor != null) {
             int totalRegisters = Math.max(incomingRegisterCount, codeVisitor.getRegisterCount());
             if (declaredRegisterCount != null && totalRegisters > declaredRegisterCount) {
-                throw new IllegalStateException("Code uses more registers than declared");
+                // The visitor has already reported the register limit problem, so this method does not need to.
+                // What we do want to report is if the method declared a register count but the code used more than that, which is a separate problem.
+                if (!codeVisitor.hasReportedRegisterLimit())
+                    sink.error(DiagnosticCode.REGISTER_LIMIT, "Code uses more registers than declared", source.location());
+                return;
             }
 
             Code code = codeBuilder
@@ -139,24 +187,19 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
                     .build();
             codeVisitor.getTryCatches().forEach(code::addTryCatch);
             DebugInformation debugInfo = debugInformation(code);
-            if (debugInfo != null) {
+            if (debugInfo != null)
                 code.setDebugInfo(debugInfo);
-            }
             member.setCode(code);
         }
     }
 
     private DebugInformation debugInformation(Code code) {
         List<DebugInformation.LineNumber> lineNumbers = new ArrayList<>();
-        for (Instruction instruction : code.getInstructions()) {
-            if (instruction instanceof Label label && label.lineNumber() != Label.UNASSIGNED) {
+        for (Instruction instruction : code.getInstructions())
+            if (instruction instanceof Label label && label.lineNumber() != Label.UNASSIGNED)
                 lineNumbers.add(new DebugInformation.LineNumber(label, label.lineNumber()));
-            }
-        }
-        if (lineNumbers.isEmpty() && parameterNames.isEmpty()) {
+        if (lineNumbers.isEmpty() && parameterNames.isEmpty())
             return null;
-        }
         return new DebugInformation(lineNumbers, List.copyOf(parameterNames), List.of());
     }
-
 }

@@ -329,7 +329,7 @@ final class MethodDeclarationParser {
 		ASTIdentifier start = context.validateIdentifier(array.value(0), "exception start", array);
 		ASTIdentifier end = context.validateIdentifier(array.value(1), "exception end", array);
 		ASTIdentifier handler = context.validateIdentifier(array.value(2), "exception handler", array);
-		ASTIdentifier type = context.validateDescriptor(array.value(3), DescriptorForm.INTERNAL_NAME, "exception handler type", array);
+		ASTIdentifier type = context.validateDescriptor(array.value(3), DescriptorForm.CLASS_TYPE, "exception handler type", array);
 		if (start == null || end == null || handler == null || type == null)
 			return null;
 		return new ASTException(start, end, handler, type);

@@ -49,13 +49,13 @@ public class JvmAnalysisValueTest {
 			""";
 
 	static {
-		VALUE_OPTS.engineProvider(varCache -> {
+		VALUE_OPTS.withEngineProvider(varCache -> {
 			ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(varCache);
 			engine.setFieldValueLookup(new BasicFieldValueLookup());
 			engine.setMethodValueLookup(new BasicMethodValueLookup());
 			return engine;
 		});
-		TYPE_OPTS.engineProvider(TypedJvmAnalysisEngine::new);
+		TYPE_OPTS.withEngineProvider(TypedJvmAnalysisEngine::new);
 	}
 
 	@Test

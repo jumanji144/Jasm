@@ -15,4 +15,4 @@ import org.jetbrains.annotations.Nullable;
  * 		declared methods.
  */
 public record JavaCompileResult(@Nullable JavaClassRepresentation representation,
-                                @NotNull MethodAnalysisLookup analysisLookup) implements ClassResult {}
+                                @NotNull MethodAnalysisLookup analysisLookup) implements ClassResult<JavaClassRepresentation> {}

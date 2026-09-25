@@ -1,6 +1,5 @@
 package me.darknet.assembler.instructions;
 
-import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.visitor.ASTInstructionVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -23,7 +22,6 @@ import java.util.stream.Collectors;
 public abstract class Instructions<V extends ASTInstructionVisitor> {
 	private Map<String, Instruction<V>> instructions = new HashMap<>();
 	private boolean registrationOpen = true;
-	protected BiConsumer<ASTInstruction, V> defaultTranslator;
 
 	protected Instructions() {
 		this(true);
@@ -69,43 +67,6 @@ public abstract class Instructions<V extends ASTInstructionVisitor> {
 			InstructionMetadata metadata) {
 		ensureCanRegister(name);
 		instructions.put(name, new Instruction<>(name, operands, translator, metadata));
-	}
-
-	/**
-	 * Legacy AST-translator registration retained until the old core target registries are removed.
-	 *
-	 * @throws UnsupportedOperationException
-	 * 		if this registry has been frozen.
-	 * @throws IllegalArgumentException
-	 * 		if another instruction already owns {@code name}.
-	 */
-	public final void register(String name, Operand[] operands, BiConsumer<ASTInstruction, V> translator) {
-		ensureCanRegister(name);
-		InstructionMetadata metadata = InstructionMetadata.of(
-				EnumSet.noneOf(InstructionTrait.class), List.of(), null, name, null, null);
-		instructions.put(name, Instruction.legacy(name, operands, translator, metadata));
-	}
-
-	/**
-	 * Registers a legacy AST-translated instruction that takes no operands.
-	 */
-	public final void register(String name, BiConsumer<ASTInstruction, V> translator) {
-		register(name, new Operand[0], translator);
-	}
-
-	/**
-	 * Registers a legacy instruction that takes no operands and has no translation.
-	 */
-	public final void register(String name) {
-		register(name, new Operand[0], (instruction, visitor) -> {});
-	}
-
-	/**
-	 * Registers several legacy instructions that take no operands and have no translation.
-	 */
-	public final void register(String... names) {
-		for (String name : names)
-			register(name);
 	}
 
 	private void ensureCanRegister(String name) {

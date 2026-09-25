@@ -1,10 +1,9 @@
 package me.darknet.assembler.compile;
 
-import me.darknet.assembler.compiler.ClassRepresentation;
-
 /**
+ * Target-local JVM class-file representation.
+ *
  * @param classFile
- *                  Raw class file.
+ * 		Raw class file.
  */
-public record JavaClassRepresentation(byte[] classFile) implements ClassRepresentation {
-}
+public record JavaClassRepresentation(byte[] classFile) {}

@@ -3,62 +3,111 @@ package me.darknet.assembler.compile;
 import me.darknet.assembler.DalvikClassRepresentation;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
+import me.darknet.assembler.ast.specific.ASTClass;
+import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
 import me.darknet.assembler.compile.visitor.DalvikRootVisitor;
-import me.darknet.assembler.compiler.ClassResult;
 import me.darknet.assembler.compiler.Compiler;
-import me.darknet.assembler.compiler.CompilerOptions;
-import me.darknet.assembler.error.ErrorCollector;
-import me.darknet.assembler.error.Result;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.error.DiagnosticSink;
+import me.darknet.assembler.error.Outcome;
+import me.darknet.assembler.processing.ValidatedUnit;
 import me.darknet.assembler.transformer.Transformer;
 import me.darknet.dex.tree.definitions.ClassDefinition;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-public class DalvikCompiler implements Compiler {
-    @Override
-    public @NotNull Result<? extends ClassResult> compile(List<ASTElement> ast, CompilerOptions<?,?> options) {
-        DalvikCompilerOptions dalvikOptions = (DalvikCompilerOptions) options;
+/**
+ * Compiler for the Dalvik targets.
+ */
+public class DalvikCompiler implements Compiler<DalvikCompilerOptions, DalvikClassRepresentation, DalvikClassResult> {
+	@Override
+	public @NotNull Outcome<DalvikClassResult> compile(@NotNull ValidatedUnit unit,
+	                                                   @NotNull DalvikCompilerOptions dalvikOptions) {
+		List<ASTElement> declarations = unit.declarations();
+		DiagnosticSink sink = new DiagnosticSink(DiagnosticPhase.BACKEND_EMISSION);
 
-        DalvikClassRepresentation overlayRepresentation = (DalvikClassRepresentation) dalvikOptions.getOverlay();
-        ClassDefinition overlay = overlayRepresentation != null ? overlayRepresentation.definition() : null;
+		// Validate that the unit is intended for the Dalvik target context.
+		if (unit.target() != DalvikTargetContext.INSTANCE) {
+			sink.error(DiagnosticCode.INTERNAL_INVARIANT,
+					"Unit was processed for a different target",
+					declarations.isEmpty() ? null : declarations.getFirst().location());
+			return Outcome.of(new DalvikClassResult(null), sink.diagnostics());
+		}
 
-        ErrorCollector collector = new ErrorCollector();
+		// Validate that the unit contains exactly one declaration.
+		if (declarations.size() != 1) {
+			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
+					"Expected exactly one declaration",
+					declarations.isEmpty() ? null : declarations.getFirst().location());
+			return Outcome.of(new DalvikClassResult(null), sink.diagnostics());
+		}
 
-        if (ast.size() != 1) {
-            collector.addError("Expected exactly one declaration", ast.isEmpty() ? null : ast.get(0).location());
-            return new Result<>(new DalvikClassResult(null), collector.getErrors(), collector.getWarns());
-        }
+		// Validate that the declaration and overlay are compatible with the Dalvik target context.
+		DalvikClassRepresentation overlayRepresentation = dalvikOptions.getOverlay();
+		ClassDefinition overlay = overlayRepresentation == null ? null : overlayRepresentation.definition();
+		ASTElement declaration = declarations.getFirst();
+		if (declaration.type() == ElementType.ANNOTATION) {
+			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
+					"Standalone annotations are only supported for the JVM target",
+					declaration.location());
+			return Outcome.of(new DalvikClassResult(null), sink.diagnostics());
+		}
+		if ((declaration.type() == ElementType.FIELD || declaration.type() == ElementType.METHOD) && overlay == null) {
+			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
+					"Overlay is required for top-level field and method declarations",
+					declaration.location());
+			return Outcome.of(new DalvikClassResult(null), sink.diagnostics());
+		}
+		if (declaration instanceof ASTClass classDeclaration) {
+			rejectJvmOnlyClassAttributes(classDeclaration, sink);
+			if (sink.hasErrors())
+				return Outcome.of(new DalvikClassResult(null), sink.diagnostics());
+		}
 
-        ASTElement declaration = ast.get(0);
-        if ((declaration.type() == ElementType.FIELD || declaration.type() == ElementType.METHOD) && overlay == null) {
-            collector.addError("Overlay is required for top-level field and method declarations", declaration.location());
-            return new Result<>(new DalvikClassResult(null), collector.getErrors(), collector.getWarns());
-        }
+		// Compile the declaration into a Dalvik class representation.
+		DalvikRootVisitor visitor = new DalvikRootVisitor(overlay, sink);
+		try {
+			sink.addAll(new Transformer(visitor).transform(unit));
+			visitor.complete();
+		} catch (Throwable failure) {
+			sink.error(DiagnosticCode.BACKEND_FAILURE,
+					"Failed to compile Dalvik source: " + failure.getMessage(),
+					declaration.location());
+		}
 
-        DalvikRootVisitor visitor = new DalvikRootVisitor(overlay);
+		// Check for errors, and report a failed outcome if any were found.
+		if (sink.hasErrors())
+			return Outcome.of(new DalvikClassResult(null), sink.diagnostics());
 
-        Transformer transformer = new Transformer(visitor);
-        try {
-            transformer.transform(ast).ifErr(collector::addErrors).ifWarn(collector::addWarnings);
-        } catch (Throwable t) {
-            collector.addError("Failed to compile Dalvik source: " + t.getMessage(), declaration.location());
-        }
+		// Check if the user targeted a field/method of a class, but didn't specify an overlay class.
+		ClassDefinition definition = visitor.getDefinition();
+		if (definition == null) {
+			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
+					"Cannot build class, type name not specified",
+					declaration.location());
+			return Outcome.of(new DalvikClassResult(null), sink.diagnostics());
+		}
 
-        if (collector.hasErr()) {
-            return new Result<>(new DalvikClassResult(null), collector.getErrors(), collector.getWarns());
-        }
+		// No errors, proper class definition visited, give the user their successful outcome.
+		return Outcome.of(
+				new DalvikClassResult(new DalvikClassRepresentation(definition)),
+				sink.diagnostics()
+		);
+	}
 
-        ClassDefinition definition = visitor.getDefinition();
-        if (definition == null) {
-            collector.addError("Cannot build class, type name not specified", declaration.location());
-            return new Result<>(new DalvikClassResult(null), collector.getErrors(), collector.getWarns());
-        }
-
-        return new Result<>(
-                new DalvikClassResult(new DalvikClassRepresentation(definition)),
-                collector.getErrors(),
-                collector.getWarns()
-        );
-    }
+	private static void rejectJvmOnlyClassAttributes(@NotNull ASTClass declaration,
+	                                                 @NotNull DiagnosticSink sink) {
+		if (declaration.getVersion() != null) {
+			sink.error(DiagnosticCode.UNSUPPORTED_CAPABILITY,
+					"A class file version is a JVM-only attribute; the dex version is set per file",
+					declaration.getVersion().location());
+		}
+		if (declaration.getSourceDebugExtension() != null) {
+			sink.error(DiagnosticCode.UNSUPPORTED_CAPABILITY,
+					"Dalvik does not use source debug extension attributes",
+					declaration.getSourceDebugExtension().location());
+		}
+	}
 }

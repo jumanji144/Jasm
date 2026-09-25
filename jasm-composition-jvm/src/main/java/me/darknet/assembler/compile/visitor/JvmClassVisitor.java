@@ -1,12 +1,16 @@
 package me.darknet.assembler.compile.visitor;
 
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
+import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.ast.specific.ASTOuterMethod;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.builder.JvmClassBuilder;
+import me.darknet.assembler.error.DiagnosticSink;
+import me.darknet.assembler.processing.ProcessedMethod;
 import me.darknet.assembler.util.JvmModifiers;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTClassVisitor;
@@ -25,20 +29,29 @@ import org.objectweb.asm.tree.TypeAnnotationNode;
 
 import java.util.ArrayList;
 
+/**
+ * Translates source class declarations into an ASM class model for JVM emission.
+ */
 public class JvmClassVisitor implements ASTClassVisitor {
 	private final JvmClassBuilder builder;
 	private final JvmCompilerOptions options;
+	private final DiagnosticSink sink;
 
-	public JvmClassVisitor(JvmCompilerOptions options, JvmClassBuilder builder) {
+	public JvmClassVisitor(JvmCompilerOptions options, JvmClassBuilder builder, @NotNull DiagnosticSink sink) {
 		this.options = options;
 		this.builder = builder;
+		this.sink = sink;
+	}
+
+	public void visitVersion(@Nullable ASTNumber version) {
+		if (version != null)
+			builder.setVersion(version.asInt());
 	}
 
 	@Override
 	public void visitSuperClass(@Nullable ASTIdentifier superClass) {
-		if (superClass != null) {
+		if (superClass != null)
 			builder.setSuperClass(superClass.literal());
-		}
 	}
 
 	@Override
@@ -51,7 +64,6 @@ public class JvmClassVisitor implements ASTClassVisitor {
 		builder.setSourceFile(sourceFile == null ? null : sourceFile.content());
 	}
 
-	@Override
 	public void visitSourceDebugExtension(@Nullable ASTString sourceDebugExtension) {
 		builder.setSourceDebugExtension(sourceDebugExtension == null ? null : sourceDebugExtension.content());
 	}
@@ -63,13 +75,11 @@ public class JvmClassVisitor implements ASTClassVisitor {
 
 	@Override
 	public void visitOuterMethod(@Nullable ASTOuterMethod outerMethod) {
-		if (outerMethod == null) {
+		if (outerMethod == null)
 			return;
-		}
 		String outerClass = builder.getOuterClass();
-		if (outerClass == null) {
+		if (outerClass == null)
 			throw new IllegalStateException("Must visit outer class attribute before visiting outer method");
-		}
 		builder.setOuterMethod(outerClass, outerMethod.getMethodName().content(), outerMethod.getMethodDesc().content());
 	}
 
@@ -114,9 +124,10 @@ public class JvmClassVisitor implements ASTClassVisitor {
 	}
 
 	@Override
-	public ASTMethodVisitor visitMethod(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name,
-	                                    @NotNull ASTIdentifier descriptor) {
-		int accessFlags = JvmModifiers.getMethodModifiers(modifiers);
+	public ASTMethodVisitor visitMethod(@NotNull ASTMethod source, @NotNull ProcessedMethod processed) {
+		ASTIdentifier name = source.getName();
+		ASTIdentifier descriptor = source.getDescriptor();
+		int accessFlags = JvmModifiers.getMethodModifiers(source.getModifiers());
 		var existingMethod = builder.method(name.literal(), descriptor.literal());
 		boolean hadPriorLocalVariables = existingMethod != null
 				&& existingMethod.localVariables != null
@@ -127,37 +138,27 @@ public class JvmClassVisitor implements ASTClassVisitor {
 				Type.getMethodType(descriptor.literal()),
 				builder.putMethod(accessFlags, name.literal(), descriptor.literal()),
 				hadPriorLocalVariables,
-				analysisResults -> builder.setMethodAnalysis(name.literal(), descriptor.literal(), analysisResults)
+				analysisResults -> builder.setMethodAnalysis(name.literal(), descriptor.literal(), analysisResults),
+				sink
 		);
 	}
 
 	@Override
-	public ASTAnnotationVisitor visitVisibleAnnotation(@NotNull ASTIdentifier classType) {
-		return new JvmAnnotationVisitor(addRuntimeAnnotation(true, classType.literal()));
+	public ASTAnnotationVisitor visitAnnotation(@NotNull AnnotationVisibility visibility, @NotNull ASTIdentifier classType) {
+		return new JvmAnnotationVisitor(addRuntimeAnnotation(visibility == AnnotationVisibility.VISIBLE, classType.literal()));
 	}
 
 	@Override
-	public ASTAnnotationVisitor visitInvisibleAnnotation(@NotNull ASTIdentifier classType) {
-		return new JvmAnnotationVisitor(addRuntimeAnnotation(false, classType.literal()));
-	}
-
-	@Override
-	public ASTAnnotationVisitor visitVisibleTypeAnnotation(@NotNull ASTIdentifier classType, @NotNull ASTNumber typeRef,
-	                                                       @Nullable ASTIdentifier typePath) {
-		return new JvmAnnotationVisitor(addRuntimeTypeAnnotation(true, classType.literal(), typeRef.asInt(), typePath));
-	}
-
-	@Override
-	public ASTAnnotationVisitor visitInvisibleTypeAnnotation(@NotNull ASTIdentifier classType, @NotNull ASTNumber typeRef,
-	                                                         @Nullable ASTIdentifier typePath) {
-		return new JvmAnnotationVisitor(addRuntimeTypeAnnotation(false, classType.literal(), typeRef.asInt(), typePath));
+	public ASTAnnotationVisitor visitTypeAnnotation(@NotNull AnnotationVisibility visibility, @NotNull ASTIdentifier classType,
+	                                                @NotNull ASTNumber typeRef, @Nullable ASTIdentifier typePath) {
+		return new JvmAnnotationVisitor(addRuntimeTypeAnnotation(
+				visibility == AnnotationVisibility.VISIBLE, classType.literal(), typeRef.asInt(), typePath));
 	}
 
 	@Override
 	public void visitSignature(@Nullable ASTString signature) {
-		if (signature != null) {
+		if (signature != null)
 			builder.signature(signature.content());
-		}
 	}
 
 	@Override
@@ -172,14 +173,12 @@ public class JvmClassVisitor implements ASTClassVisitor {
 	private @NotNull AnnotationNode addRuntimeAnnotation(boolean visible, @NotNull String internalName) {
 		AnnotationNode annotation = new AnnotationNode(Type.getObjectType(internalName).getDescriptor());
 		if (visible) {
-			if (builder.node().visibleAnnotations == null) {
+			if (builder.node().visibleAnnotations == null)
 				builder.node().visibleAnnotations = new ArrayList<>();
-			}
 			builder.node().visibleAnnotations.add(annotation);
 		} else {
-			if (builder.node().invisibleAnnotations == null) {
+			if (builder.node().invisibleAnnotations == null)
 				builder.node().invisibleAnnotations = new ArrayList<>();
-			}
 			builder.node().invisibleAnnotations.add(annotation);
 		}
 		return annotation;
@@ -187,27 +186,23 @@ public class JvmClassVisitor implements ASTClassVisitor {
 
 	private @NotNull TypeAnnotationNode addRuntimeTypeAnnotation(boolean visible, @NotNull String internalName,
 	                                                             int typeRef, @Nullable ASTIdentifier typePath) {
-		TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef,
-				parseTypePath(typePath),
+		TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef, parseTypePath(typePath),
 				Type.getObjectType(internalName).getDescriptor());
 		if (visible) {
-			if (builder.node().visibleTypeAnnotations == null) {
+			if (builder.node().visibleTypeAnnotations == null)
 				builder.node().visibleTypeAnnotations = new ArrayList<>();
-			}
 			builder.node().visibleTypeAnnotations.add(annotation);
 		} else {
-			if (builder.node().invisibleTypeAnnotations == null) {
+			if (builder.node().invisibleTypeAnnotations == null)
 				builder.node().invisibleTypeAnnotations = new ArrayList<>();
-			}
 			builder.node().invisibleTypeAnnotations.add(annotation);
 		}
 		return annotation;
 	}
 
 	private static @Nullable TypePath parseTypePath(@Nullable ASTIdentifier typePath) {
-		if (typePath == null) {
+		if (typePath == null)
 			return null;
-		}
 		String content = typePath.content();
 		return "_".equals(content) ? null : TypePath.fromString(content);
 	}

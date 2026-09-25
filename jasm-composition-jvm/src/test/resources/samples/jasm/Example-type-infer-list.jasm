@@ -13,7 +13,7 @@
             invokevirtual java/util/Random.nextInt (I)I
             tableswitch {
                 min: 0,
-                max: 5,
+                max: 4,
                 cases: { B, C, D, E, F },
                 default: G
             }

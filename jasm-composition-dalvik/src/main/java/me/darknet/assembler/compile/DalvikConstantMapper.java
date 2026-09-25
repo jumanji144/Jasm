@@ -83,7 +83,7 @@ public class DalvikConstantMapper {
                 char first = identifier.content().charAt(0);
                 yield switch (first) {
                     case 'L' -> {
-                        // if last is `;` then it's a class type, if not could be a short handle
+                        // if last is ';' then it's a class type, if not could be a short handle
                         char last = identifier.content().charAt(identifier.content().length() - 1);
                         if(last == ';') {
                             yield new TypeConstant(Types.instanceTypeFromDescriptor(identifier.literal()));

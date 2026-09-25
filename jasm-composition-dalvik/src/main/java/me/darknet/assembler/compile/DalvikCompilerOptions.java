@@ -1,73 +1,105 @@
 package me.darknet.assembler.compile;
 
-import me.darknet.assembler.compiler.ClassRepresentation;
+import me.darknet.assembler.DalvikClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.TypeAwareness;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public class DalvikCompilerOptions implements CompilerOptions<DalvikCompilerOptions> {
+/**
+ * Dalvik compiler options.
+ */
+public class DalvikCompilerOptions implements CompilerOptions<DalvikCompilerOptions, DalvikClassRepresentation> {
+	private int dalvikVersion;
+	protected TypeAwareness typeAwareness; // Optional, disabled by default to reduce warning noise.
+	private InheritanceChecker inheritanceChecker;
+	private DalvikClassRepresentation overlay;
+	private String annotationPath;
 
-    private int dalvikVersion;
-    protected TypeAwareness typeAwareness; // Optional, disabled by default to reduce warning noise.
-    private InheritanceChecker inheritanceChecker;
-    private ClassRepresentation overlay;
-    private String annotationPath;
+	@Override
+	public @NotNull DalvikCompilerOptions withOverlay(@Nullable DalvikClassRepresentation representation) {
+		this.overlay = representation;
+		return this;
+	}
 
-    @Override
-    public DalvikCompilerOptions overlay(ClassRepresentation representation) {
-        this.overlay = representation;
-        return this;
-    }
+	@Override
+	public @Nullable DalvikClassRepresentation getOverlay() {
+		return overlay;
+	}
 
-    @Override
-    public ClassRepresentation getOverlay() {
-        return overlay;
-    }
+	/**
+	 * @param version
+	 * 		Dalvik version to target.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull DalvikCompilerOptions withVersion(int version) {
+		this.dalvikVersion = version;
+		return this;
+	}
 
-    @Override
-    public DalvikCompilerOptions version(int version) {
-        this.dalvikVersion = version;
-        return this;
-    }
+	/**
+	 * @return Configured Dalvik version to target.
+	 */
+	public int getVersion() {
+		return dalvikVersion;
+	}
 
-    @Override
-    public int version() {
-        return dalvikVersion;
-    }
+	/**
+	 * @param path
+	 * 		Path to the annotation file to use for compilation.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull DalvikCompilerOptions withAnnotationPath(String path) {
+		this.annotationPath = path;
+		return this;
+	}
 
-    @Override
-    public DalvikCompilerOptions annotationPath(String path) {
-        this.annotationPath = path;
-        return this;
-    }
+	/**
+	 * @return Configured annotation file path to use for compilation.
+	 */
+	public String getAnnotationPath() {
+		// TODO: Not actually used anywhere yet, as we don't support "just annotation editing" in isolation yet.
+		return annotationPath;
+	}
 
-    @Override
-    public String annotationPath() {
-        return annotationPath;
-    }
+	/**
+	 * @param checker
+	 * 		Inheritance checker to use for compilation.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull DalvikCompilerOptions withInheritanceChecker(@NotNull InheritanceChecker checker) {
+		this.inheritanceChecker = checker;
+		return this;
+	}
 
-    @Override
-    public DalvikCompilerOptions inheritanceChecker(InheritanceChecker checker) {
-        this.inheritanceChecker = checker;
-        return this;
-    }
+	/**
+	 * @return Configured inheritance checker to use for compilation.
+	 */
+	public @NotNull InheritanceChecker getInheritanceChecker() {
+		if (inheritanceChecker == null)
+			throw new IllegalStateException("Inheritance checker is not set");
+		return inheritanceChecker;
+	}
 
-    @Override
-    public InheritanceChecker inheritanceChecker() {
-        if (inheritanceChecker == null) {
-            throw new IllegalStateException("Inheritance checker is not set");
-        }
-        return inheritanceChecker;
-    }
+	/**
+	 * @return Configured type awareness to use for compilation.
+	 */
+	public TypeAwareness getTypeAwareness() {
+		return typeAwareness;
+	}
 
-    @Override
-    public TypeAwareness awareness() {
-        return typeAwareness;
-    }
-
-    @Override
-    public DalvikCompilerOptions awareness(TypeAwareness awareness) {
-        this.typeAwareness = awareness;
-        return this;
-    }
+	/**
+	 * @param awareness
+	 * 		Type awareness to use for compilation.
+	 *
+	 * @return This options object.
+	 */
+	public @NotNull DalvikCompilerOptions withTypeAwareness(TypeAwareness awareness) {
+		this.typeAwareness = awareness;
+		return this;
+	}
 }

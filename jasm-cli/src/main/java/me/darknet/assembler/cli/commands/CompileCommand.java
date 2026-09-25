@@ -3,29 +3,25 @@ package me.darknet.assembler.cli.commands;
 import me.darknet.assembler.DalvikClassRepresentation;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.cli.compile.jvm.SafeClassLoader;
+import me.darknet.assembler.compile.DalvikClassResult;
 import me.darknet.assembler.compile.DalvikCompiler;
 import me.darknet.assembler.compile.DalvikCompilerOptions;
 import me.darknet.assembler.compile.JavaClassRepresentation;
+import me.darknet.assembler.compile.JavaCompileResult;
 import me.darknet.assembler.compile.JvmCompiler;
 import me.darknet.assembler.compile.JvmCompilerOptions;
-import me.darknet.assembler.compiler.ClassRepresentation;
-import me.darknet.assembler.compiler.ClassResult;
-import me.darknet.assembler.compiler.Compiler;
-import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.EmptyInheritanceChecker;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
 import me.darknet.assembler.backend.jvm.JvmTargetContext;
 import me.darknet.assembler.error.Diagnostic;
-import me.darknet.assembler.error.Error;
 import me.darknet.assembler.error.Outcome;
-import me.darknet.assembler.error.Result;
 import me.darknet.assembler.error.Severity;
-import me.darknet.assembler.error.Warn;
 import me.darknet.assembler.helper.Processor;
+import me.darknet.assembler.processing.SemanticProcessor;
+import me.darknet.assembler.processing.ValidatedUnit;
 import me.darknet.assembler.io.DalvikDexIO;
-import me.darknet.assembler.parser.BytecodeFormat;
 import me.darknet.assembler.target.TargetContext;
 import me.darknet.dex.tree.DexFile;
 import me.darknet.dex.tree.definitions.ClassDefinition;
@@ -86,8 +82,8 @@ public class CompileCommand implements Callable<Integer> {
     )
     private boolean enableInheritanceChecker;
 
-    private Compiler compiler;
-    private CompilerOptions<?> options;
+    private JvmCompilerOptions jvmOptions;
+    private DalvikCompilerOptions dalvikOptions;
     private int resolvedVersion;
 
     private CommandLine.ExecutionException failure(String message) {
@@ -130,7 +126,7 @@ public class CompileCommand implements Callable<Integer> {
     }
 
     private void configureCompiler(int unitCount) {
-        resolvedVersion = bytecodeVersion.orElse(MainCommand.target == BytecodeFormat.DALVIK ? 35 : 8);
+        resolvedVersion = bytecodeVersion.orElse(MainCommand.target == MainCommand.Target.DALVIK ? 35 : 8);
         switch (MainCommand.target) {
             case JVM -> configureJvmCompiler(unitCount);
             case DALVIK -> configureDalvikCompiler(unitCount);
@@ -152,11 +148,9 @@ public class CompileCommand implements Callable<Integer> {
             throw failure("Dalvik overlays require exactly one source unit");
         }
 
-        compiler = new DalvikCompiler();
-        DalvikCompilerOptions dalvikOptions = new DalvikCompilerOptions()
-                .version(resolvedVersion)
-                .inheritanceChecker(EmptyInheritanceChecker.INSTANCE);
-        options = dalvikOptions;
+        dalvikOptions = new DalvikCompilerOptions()
+                .withVersion(resolvedVersion)
+                .withInheritanceChecker(EmptyInheritanceChecker.INSTANCE);
 
         overlay.ifPresent(file -> {
             if (file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".apk")) {
@@ -167,7 +161,7 @@ public class CompileCommand implements Callable<Integer> {
                 if (dex.definitions().size() != 1) {
                     throw failure("Dalvik overlay must contain exactly one class");
                 }
-                dalvikOptions.overlay(new DalvikClassRepresentation(dex.definitions().getFirst()));
+                dalvikOptions.withOverlay(new DalvikClassRepresentation(dex.definitions().getFirst()));
             } catch (IOException exception) {
                 throw failure("Failed to read overlay file: " + exception.getMessage(), exception);
             }
@@ -178,8 +172,7 @@ public class CompileCommand implements Callable<Integer> {
         if (unitCount != 1) {
             throw failure("The JVM target accepts exactly one source unit");
         }
-        compiler = new JvmCompiler();
-        options = new JvmCompilerOptions();
+        jvmOptions = new JvmCompilerOptions();
 
         InheritanceChecker inheritanceChecker;
         if (!enableInheritanceChecker) {
@@ -208,13 +201,13 @@ public class CompileCommand implements Callable<Integer> {
             inheritanceChecker = new ReflectiveInheritanceChecker(classLoader);
         }
 
-        options.version(resolvedVersion)
-                .annotationPath(annotationTarget.orElse(null))
-                .inheritanceChecker(inheritanceChecker);
+        jvmOptions.withVersion(resolvedVersion)
+                .withAnnotationPath(annotationTarget.orElse(null))
+                .withInheritanceChecker(inheritanceChecker);
 
         overlay.ifPresent(file -> {
             try {
-                options.setOverlay(new JavaClassRepresentation(Files.readAllBytes(file.toPath())));
+                jvmOptions.withOverlay(new JavaClassRepresentation(Files.readAllBytes(file.toPath())));
             } catch (IOException exception) {
                 throw failure("Failed to read overlay file: " + exception.getMessage(), exception);
             }
@@ -222,15 +215,11 @@ public class CompileCommand implements Callable<Integer> {
     }
 
     private Integer compileJvm(SourceUnit unit) {
-        ClassRepresentation representation = compileUnit(unit);
-        if (!(representation instanceof JavaClassRepresentation javaRepresentation)) {
-            throw failure("JVM compiler returned an invalid class representation");
-        }
-
+        JavaClassRepresentation representation = compileJvmUnit(unit);
         Path outputPath = output == null
                 ? Paths.get(defaultOutputName(unit.fileName(), ".class"))
                 : output.toPath();
-        writeOutput(outputPath, javaRepresentation.classFile());
+        writeOutput(outputPath, representation.classFile());
         return 0;
     }
 
@@ -238,11 +227,8 @@ public class CompileCommand implements Callable<Integer> {
         List<ClassDefinition> definitions = new ArrayList<>(units.size());
         Set<String> names = new HashSet<>();
         for (SourceUnit unit : units) {
-            ClassRepresentation representation = compileUnit(unit);
-            if (!(representation instanceof DalvikClassRepresentation dalvikRepresentation)) {
-                throw failure("Dalvik compiler returned an invalid class representation");
-            }
-            ClassDefinition definition = dalvikRepresentation.definition();
+            DalvikClassRepresentation representation = compileDalvikUnit(unit);
+            ClassDefinition definition = representation.definition();
             String name = definition.getType().internalName();
             if (!names.add(name)) {
                 throw failure("Duplicate class definition: " + name);
@@ -266,32 +252,51 @@ public class CompileCommand implements Callable<Integer> {
         return 0;
     }
 
-    private ClassRepresentation compileUnit(SourceUnit unit) {
-        TargetContext target = switch (MainCommand.target) {
-            case JVM -> JvmTargetContext.INSTANCE;
-            case DALVIK -> DalvikTargetContext.INSTANCE;
-            default -> throw failure("Unknown target: " + MainCommand.target);
-        };
+    private JavaClassRepresentation compileJvmUnit(SourceUnit source) {
+        ValidatedUnit unit = processUnit(source, JvmTargetContext.INSTANCE);
+        Outcome<JavaCompileResult> result = new JvmCompiler().compile(unit, jvmOptions);
+        printWarnings(result.warnings());
+        if (result.hasErrors()) {
+            throw failure("Failed to compile source file:\n" + formatDiagnostics(result.errors()));
+        }
+        JavaClassRepresentation representation = result.requireValue().representation();
+        if (representation == null) {
+            throw failure("Compiler returned no class representation");
+        }
+        return representation;
+    }
+
+    private DalvikClassRepresentation compileDalvikUnit(SourceUnit source) {
+        ValidatedUnit unit = processUnit(source, DalvikTargetContext.INSTANCE);
+        Outcome<DalvikClassResult> result = new DalvikCompiler().compile(unit, dalvikOptions);
+        printWarnings(result.warnings());
+        if (result.hasErrors()) {
+            throw failure("Failed to compile source file:\n" + formatDiagnostics(result.errors()));
+        }
+        DalvikClassRepresentation representation = result.requireValue().representation();
+        if (representation == null) {
+            throw failure("Compiler returned no class representation");
+        }
+        return representation;
+    }
+
+    private ValidatedUnit processUnit(SourceUnit source, TargetContext target) {
         Outcome<List<ASTElement>> parsed = Processor.processSourceResult(
-                unit.code(), unit.sourceName(), target
+                source.code(), source.sourceName(), target
         );
-        printParserWarnings(parsed.diagnostics());
+        printWarnings(parsed.warnings());
         if (parsed.hasErrors()) {
             throw failure("Failed to parse source file:\n" + formatDiagnostics(parsed.errors()));
         }
         List<ASTElement> ast = parsed.requireValue();
         validateAst(ast);
 
-        Result<? extends ClassResult> compileResult = compiler.compile(ast, options);
-        printWarnings(compileResult.getWarns());
-        if (compileResult.hasErr()) {
-            throw failure("Failed to compile source file:\n" + formatErrors(compileResult.errors()));
+        Outcome<ValidatedUnit> processed = SemanticProcessor.process(ast, target);
+        printWarnings(processed.warnings());
+        if (processed.hasErrors()) {
+            throw failure("Failed to compile source file:\n" + formatDiagnostics(processed.errors()));
         }
-        ClassResult result = compileResult.get();
-        if (result == null || result.representation() == null) {
-            throw failure("Compiler returned no class representation");
-        }
-        return result.representation();
+        return processed.requireValue();
     }
 
     private void validateAst(List<ASTElement> ast) {
@@ -316,6 +321,17 @@ public class CompileCommand implements Callable<Integer> {
         }
     }
 
+    private static String formatDiagnostics(List<Diagnostic> diagnostics) {
+        return String.join("\n", diagnostics.stream().map(String::valueOf).toList());
+    }
+
+    private void printWarnings(List<Diagnostic> diagnostics) {
+        for (Diagnostic diagnostic : diagnostics) {
+            if (diagnostic.severity() == Severity.WARNING)
+                commandSpec.commandLine().getErr().println(diagnostic);
+        }
+    }
+
     private void writeOutput(Path outputPath, byte[] bytes) {
         try {
             Path parent = outputPath.getParent();
@@ -335,27 +351,6 @@ public class CompileCommand implements Callable<Integer> {
         return fileName.endsWith(".jasm")
                 ? fileName.substring(0, fileName.length() - ".jasm".length()) + extension
                 : fileName + extension;
-    }
-
-    private static String formatErrors(List<Error> errors) {
-        return String.join("\n", errors.stream().map(String::valueOf).toList());
-    }
-
-    private static String formatDiagnostics(List<Diagnostic> diagnostics) {
-        return String.join("\n", diagnostics.stream().map(String::valueOf).toList());
-    }
-
-    private void printParserWarnings(List<Diagnostic> diagnostics) {
-        for (Diagnostic diagnostic : diagnostics) {
-            if (diagnostic.severity() == Severity.WARNING)
-                commandSpec.commandLine().getErr().println(diagnostic);
-        }
-    }
-
-    private void printWarnings(Iterable<Warn> warnings) {
-        for (Warn warning : warnings) {
-            commandSpec.commandLine().getErr().println(warning);
-        }
     }
 
     private record SourceUnit(String sourceName, String code, String fileName) {

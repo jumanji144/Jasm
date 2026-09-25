@@ -1,15 +1,16 @@
 package me.darknet.assembler.compile.visitor;
 
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
-import me.darknet.assembler.compile.MethodVariableLayout;
 import me.darknet.assembler.compile.JvmCompilerOptions;
+import me.darknet.assembler.compile.MethodVariableLayout;
 import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.error.ErrorCollectionException;
-import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.util.Pair;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
-import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
+import me.darknet.assembler.visitor.ASTInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -26,24 +27,29 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * Translates source method declarations, parameters, annotations, and code into ASM nodes.
+ */
 public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationElementAdapter, ASTMethodVisitor {
 	private final MethodNode method;
 	private final JvmCompilerOptions options;
 	private final Consumer<AnalysisResults> analysisResultsConsumer;
 	private final MethodVariableLayout variableLayout;
 	private final Type methodType;
-	private final boolean isStatic;
 	private final boolean hadPriorLocalVariables;
+	private final DiagnosticSink sink;
 
 	public JvmMethodVisitor(JvmCompilerOptions options, Type ownerType, Type methodType,
 	                        MethodNode method, boolean hadPriorLocalVariables,
-	                        Consumer<AnalysisResults> analysisResultsConsumer) {
+	                        Consumer<AnalysisResults> analysisResultsConsumer,
+	                        @NotNull DiagnosticSink sink) {
 		this.options = options;
 		this.methodType = methodType;
-		this.isStatic = (method.access & Opcodes.ACC_STATIC) == Opcodes.ACC_STATIC;
 		this.method = method;
 		this.hadPriorLocalVariables = hadPriorLocalVariables;
 		this.analysisResultsConsumer = analysisResultsConsumer;
+		this.sink = sink;
+		boolean isStatic = (method.access & Opcodes.ACC_STATIC) == Opcodes.ACC_STATIC;
 		this.variableLayout = MethodVariableLayout.fromAst(ownerType, methodType, isStatic);
 	}
 
@@ -61,14 +67,12 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 	protected @NotNull AnnotationNode addRuntimeAnnotation(boolean visible, @NotNull String descriptor) {
 		AnnotationNode annotation = new AnnotationNode(descriptor);
 		if (visible) {
-			if (method.visibleAnnotations == null) {
+			if (method.visibleAnnotations == null)
 				method.visibleAnnotations = new ArrayList<>();
-			}
 			method.visibleAnnotations.add(annotation);
 		} else {
-			if (method.invisibleAnnotations == null) {
+			if (method.invisibleAnnotations == null)
 				method.invisibleAnnotations = new ArrayList<>();
-			}
 			method.invisibleAnnotations.add(annotation);
 		}
 		return annotation;
@@ -80,14 +84,12 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 	                                                               @NotNull String descriptor) {
 		TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef, typePath, descriptor);
 		if (visible) {
-			if (method.visibleTypeAnnotations == null) {
+			if (method.visibleTypeAnnotations == null)
 				method.visibleTypeAnnotations = new ArrayList<>();
-			}
 			method.visibleTypeAnnotations.add(annotation);
 		} else {
-			if (method.invisibleTypeAnnotations == null) {
+			if (method.invisibleTypeAnnotations == null)
 				method.invisibleTypeAnnotations = new ArrayList<>();
-			}
 			method.invisibleTypeAnnotations.add(annotation);
 		}
 		return annotation;
@@ -95,8 +97,14 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 
 	@Override
 	public void visitParameter(int index, @NotNull ASTIdentifier name) {
+		if (index >= variableLayout.sourceParameterCount()) {
+			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
+					"Expected at most " + variableLayout.sourceParameterCount() + " parameter names for "
+							+ methodType.getDescriptor() + " but got " + (index + 1),
+					name.location());
+			return;
+		}
 		variableLayout.setSourceParameterName(index, name.literal());
-
 		ParameterNode methodParameter = variableLayout.createMethodParameter(index);
 		if (methodParameter != null) {
 			if (method.parameters == null)
@@ -113,39 +121,37 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 	}
 
 	@Override
-	public void visitAnnotationDefaultValue(ASTElement defaultValue) {
+	public void visitAnnotationDefaultValue(@NotNull DiagnosticSink sink, ASTElement defaultValue) {
 		AnnotationNode wrapper = new AnnotationNode("LAnnotationDefault;");
-		ErrorCollector collector = new ErrorCollector();
 		ASTAnnotationVisitor.accept(new JvmAnnotationVisitor(wrapper),
-				Collections.singleton(new Pair<>(ASTIdentifier.STUB, defaultValue)),
-				collector);
-		if (collector.hasErr()) {
-			throw new ErrorCollectionException("Failed building array element from ast", collector);
-		}
+				Collections.singleton(new Pair<>(ASTIdentifier.STUB, defaultValue)), sink);
+		if (sink.hasErrors())
+			return;
 		method.annotationDefault = wrapper.values == null || wrapper.values.size() < 2 ? null : wrapper.values.get(1);
 	}
 
 	@Override
-	public ASTJvmInstructionVisitor visitJvmCode(@NotNull ErrorCollector collector) {
-		return new JvmCodeVisitor(options, collector, method, variableLayout.createParameterLocals(), hadPriorLocalVariables) {
+	public ASTInstructionVisitor visitCode(@NotNull DiagnosticSink sink) {
+		return new JvmCodeVisitor(options, sink, method, variableLayout.createParameterLocals(), hadPriorLocalVariables) {
 			@Override
 			public void visitEnd() {
 				super.visitEnd();
-				if (analysisResultsConsumer != null) {
+				if (analysisResultsConsumer != null)
 					analysisResultsConsumer.accept(getAnalysisResults());
-				}
 			}
 		};
 	}
 
 	@Override
-	public ASTAnnotationVisitor visitVisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType) {
-		return new JvmAnnotationVisitor(addParameterAnnotation(true, index, classType.literal()));
-	}
-
-	@Override
-	public ASTAnnotationVisitor visitInvisibleParameterAnnotation(int index, @NotNull ASTIdentifier classType) {
-		return new JvmAnnotationVisitor(addParameterAnnotation(false, index, classType.literal()));
+	public ASTAnnotationVisitor visitParameterAnnotation(@NotNull AnnotationVisibility visibility, int index,
+	                                                     @NotNull ASTIdentifier classType) {
+		if (index >= variableLayout.sourceParameterCount())
+			return null;
+		int jvmIndex = variableLayout.sourceIndexToJvmParameterIndex(index);
+		return jvmIndex < 0
+				? null
+				: new JvmAnnotationVisitor(addParameterAnnotation(
+						visibility == AnnotationVisibility.VISIBLE, jvmIndex, classType.literal()));
 	}
 
 	@Override
@@ -157,15 +163,13 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 		int parameterCount = Math.max(methodType.getArgumentTypes().length, parameterIndex + 1);
 		if (visible) {
 			method.visibleParameterAnnotations = ensureParameterAnnotations(method.visibleParameterAnnotations, parameterCount);
-			if (method.visibleParameterAnnotations[parameterIndex] == null) {
+			if (method.visibleParameterAnnotations[parameterIndex] == null)
 				method.visibleParameterAnnotations[parameterIndex] = new ArrayList<>();
-			}
 			method.visibleParameterAnnotations[parameterIndex].add(annotation);
 		} else {
 			method.invisibleParameterAnnotations = ensureParameterAnnotations(method.invisibleParameterAnnotations, parameterCount);
-			if (method.invisibleParameterAnnotations[parameterIndex] == null) {
+			if (method.invisibleParameterAnnotations[parameterIndex] == null)
 				method.invisibleParameterAnnotations[parameterIndex] = new ArrayList<>();
-			}
 			method.invisibleParameterAnnotations[parameterIndex].add(annotation);
 		}
 		return annotation;
@@ -173,13 +177,11 @@ public class JvmMethodVisitor extends JvmMemberVisitor implements JvmAnnotationE
 
 	@SuppressWarnings("unchecked")
 	private static List<AnnotationNode>[] ensureParameterAnnotations(@Nullable List<AnnotationNode>[] current, int size) {
-		if (current != null && current.length >= size) {
+		if (current != null && current.length >= size)
 			return current;
-		}
 		List<AnnotationNode>[] target = new List[size];
-		if (current != null) {
+		if (current != null)
 			System.arraycopy(current, 0, target, 0, current.length);
-		}
 		return target;
 	}
 }

@@ -158,8 +158,8 @@ public class SampleCompilerTest {
             // We'll compile this class twice with the same source but different overlays.
             // First, an overlay that includes a local variable table.
             TestJvmCompilerOptions withLocals = new TestJvmCompilerOptions();
-            withLocals.variableTableMode(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
-            withLocals.setOverlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(true)));
+            withLocals.withVariableTableMode(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
+            withLocals.withOverlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(true)));
 
             // In this case we should see that the variable 'value' is emitted since the
             // overlay method has a local variable table with that variable.
@@ -173,8 +173,8 @@ public class SampleCompilerTest {
             // The second time the overlay will not have a local variable table, so since the method
             // no longer matches the 'if already present' contract, we get no variables emitted at all.
             TestJvmCompilerOptions withoutLocals = new TestJvmCompilerOptions();
-            withoutLocals.variableTableMode(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
-            withoutLocals.setOverlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(false)));
+            withoutLocals.withVariableTableMode(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
+            withoutLocals.withOverlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(false)));
             processJvm(source, withoutLocals, result -> {
                 MethodNode method = readMethod(result.representation().classFile(), "test", "()V");
                 assertTrue(method.localVariables == null || method.localVariables.isEmpty());
@@ -197,7 +197,7 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName(name);
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
@@ -217,7 +217,7 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-push-type.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
@@ -237,7 +237,7 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-string-ops.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(lookup -> {
+            options.withEngineProvider(lookup -> {
                 ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
                 engine.setMethodValueLookup(new BasicMethodValueLookup());
                 return engine;
@@ -261,7 +261,7 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-getstatic.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(lookup -> {
+            options.withEngineProvider(lookup -> {
                 ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
                 engine.setFieldValueLookup((instruction, context) -> Values.valueOf(100));
                 return engine;
@@ -284,28 +284,28 @@ public class SampleCompilerTest {
         void typeInferenceListForValuedAnalysis() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-type-infer-list.jasm");
             String source = arg.source.get();
-            listTypeInference(source, options -> options.engineProvider(ValuedJvmAnalysisEngine::new));
+            listTypeInference(source, options -> options.withEngineProvider(ValuedJvmAnalysisEngine::new));
         }
 
         @Test
         void typeInferenceListForValuedAnalysisAlt() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-type-infer-list-alt.jasm");
             String source = arg.source.get();
-            listTypeInference(source, options -> options.engineProvider(ValuedJvmAnalysisEngine::new));
+            listTypeInference(source, options -> options.withEngineProvider(ValuedJvmAnalysisEngine::new));
         }
 
         @Test
         void typeInferenceListForTypedAnalysis() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-type-infer-list.jasm");
             String source = arg.source.get();
-            listTypeInference(source, options -> options.engineProvider(TypedJvmAnalysisEngine::new));
+            listTypeInference(source, options -> options.withEngineProvider(TypedJvmAnalysisEngine::new));
         }
 
         @Test
         void typeInferenceListForTypedAnalysisAlt() throws Throwable {
             TestArgument arg = TestArgument.fromName("Example-type-infer-list-alt.jasm");
             String source = arg.source.get();
-            listTypeInference(source, options -> options.engineProvider(TypedJvmAnalysisEngine::new));
+            listTypeInference(source, options -> options.withEngineProvider(TypedJvmAnalysisEngine::new));
         }
 
         @Test
@@ -339,7 +339,7 @@ public class SampleCompilerTest {
                     }
                     """;
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().results("test", "(I)V");
                 assertNotNull(results);
@@ -385,7 +385,7 @@ public class SampleCompilerTest {
                     }
                     """;
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().results("test", "(I)V");
                 assertNotNull(results);
@@ -430,7 +430,7 @@ public class SampleCompilerTest {
                     }
                     """;
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().results("test", "()I");
                 assertNotNull(results);
@@ -489,7 +489,7 @@ public class SampleCompilerTest {
                     }
                     """;
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().results("test", "(I)I");
                 assertNotNull(results);
@@ -550,7 +550,7 @@ public class SampleCompilerTest {
                     }
                     """;
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.variableTableMode(JvmVariableMode.NEVER_WRITE); // Explicitly disable writing local variable table
+            options.withVariableTableMode(JvmVariableMode.NEVER_WRITE); // Explicitly disable writing local variable table
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().results("test", "()V");
                 assertNotNull(results);
@@ -574,7 +574,7 @@ public class SampleCompilerTest {
         @SuppressWarnings("DataFlowIssue")
         void listTypeInference(@NotNull String source, @Nullable Consumer<TestJvmCompilerOptions> optionsConsumer) {
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
             if (optionsConsumer != null) optionsConsumer.accept(options);
             processJvm(source, options, result -> {
                 ClassReader reader = new ClassReader(result.representation().classFile());
@@ -646,7 +646,7 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-comment.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults methodAnalysis = result.analysisLookup().results("exampleMethod", "()I");
                 assertNotNull(methodAnalysis);
@@ -672,7 +672,7 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
@@ -688,7 +688,7 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(TypedJvmAnalysisEngine::new);
+            options.withEngineProvider(TypedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
@@ -704,7 +704,7 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-anewarray.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
@@ -725,7 +725,7 @@ public class SampleCompilerTest {
             });
 
             // Again with the other engine
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
@@ -738,7 +738,7 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-exit-exception.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
@@ -755,7 +755,7 @@ public class SampleCompilerTest {
             // If wide types are mishandled it will not get visited.
             boolean[] visited = new boolean[1];
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(lookup -> {
+            options.withEngineProvider(lookup -> {
                 ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
                 engine.setMethodValueLookup(new MethodValueLookup() {
                     @Override
@@ -782,8 +782,8 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-checkcast.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.inheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withInheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 assertNull(results.getAnalysisFailure());
@@ -804,7 +804,7 @@ public class SampleCompilerTest {
 		    TestArgument arg = TestArgument.fromName("Example-floats.jasm");
 		    String source = arg.source.get();
 		    TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-		    options.engineProvider(TypedJvmAnalysisEngine::new);
+		    options.withEngineProvider(TypedJvmAnalysisEngine::new);
 		    processJvm(source, options, result -> {
 			    // Should build
 			    AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
@@ -838,7 +838,7 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-array-object-merge-on-parameter.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 // The method intentionally leaves an int on the stack before RETURN;
@@ -848,7 +848,7 @@ public class SampleCompilerTest {
                 Type p0Type = results.frames().lastEntry().getValue().getLocalType(0);
                 assertEquals(JvmTypeUtils.OBJECT, p0Type);
              }, warns -> {
-                 assertTrue(warns.stream().anyMatch(warning -> warning.getMessage()
+                 assertTrue(warns.stream().anyMatch(warning -> warning.message()
                                  .contains("Return instruction leaves values on the operand stack")),
                          "Expected the invalid non-empty return stack to be diagnosed: " + warns);
              });
@@ -859,8 +859,8 @@ public class SampleCompilerTest {
             TestArgument arg = TestArgument.fromName("Example-array-object-merge-on-method-call.jasm");
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
-            options.inheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            options.withInheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 // should not fail or produce warning
@@ -878,9 +878,9 @@ public class SampleCompilerTest {
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
 
-            options.inheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+            options.withInheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
 
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processJvm(source, options, result -> {
                 AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
                 // should not fail or produce warning
@@ -900,10 +900,10 @@ public class SampleCompilerTest {
             // Both analysis engines should have warnings for these cases
             String source = arg.source.get();
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
 
             // Value stack analysis engine
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
             processAnalysisWarnJvm(source, options);
         }
 
@@ -930,9 +930,9 @@ public class SampleCompilerTest {
                     }""";
 
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.inheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
-            options.engineProvider(ValuedJvmAnalysisEngine::new);
-            assertDoesNotThrow(() -> options.setOverlay(new JavaClassRepresentation(arg.source().get())));
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            assertDoesNotThrow(() -> options.withOverlay(new JavaClassRepresentation(arg.source().get())));
 
 			// Compiling the method shouldn't fail for any reason.
             JvmCompilation compilation = assertDoesNotThrow(() -> JvmAssemblerFixture.compileJvm(source, options));
@@ -1234,7 +1234,7 @@ public class SampleCompilerTest {
                     """;
 
             TestJvmCompilerOptions options = new TestJvmCompilerOptions();
-            options.version(21);
+            options.withVersion(21);
             processJvm(source, options, result -> {
                 ClassNode node = new ClassNode();
                 new ClassReader(result.representation().classFile()).accept(node, 0);

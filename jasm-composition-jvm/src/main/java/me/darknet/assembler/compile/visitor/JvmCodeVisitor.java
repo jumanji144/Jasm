@@ -6,7 +6,6 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.ast.primitive.ASTNumber;
-import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.compile.JvmCompilerOptions;
 import me.darknet.assembler.compile.JvmVariableEmissionFilter;
 import me.darknet.assembler.compile.JvmVariableMode;
@@ -15,12 +14,17 @@ import me.darknet.assembler.compile.analysis.AnalysisResults;
 import me.darknet.assembler.compile.analysis.Local;
 import me.darknet.assembler.compile.analysis.MethodAnalysisResult;
 import me.darknet.assembler.compile.analysis.VarCache;
-import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.backend.jvm.instructions.JvmLowering;
+import me.darknet.assembler.backend.jvm.instructions.LookupSwitchPayload;
+import me.darknet.assembler.backend.jvm.instructions.TableSwitchPayload;
+import me.darknet.assembler.backend.jvm.visitor.ASTJvmInstructionVisitor;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.helper.Handle;
+import me.darknet.assembler.instructions.MemberPath;
+import me.darknet.assembler.instructions.SemanticInstruction;
 import me.darknet.assembler.util.ConstantMapper;
-import me.darknet.assembler.util.JvmOpcodes;
 import me.darknet.assembler.util.JvmTypeUtils;
-import me.darknet.assembler.visitor.ASTJvmInstructionVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
@@ -55,9 +59,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * Visits JVM instruction syntax and emits ASM instructions to a target method node.
+ */
 public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	private final MethodNode method;
-	private final ErrorCollector errorCollector;
+	private final DiagnosticSink sink;
 	private final Map<String, LabelNode> nameToLabel = new HashMap<>();
 	private final List<Local> parameters;
 	private final VarCache varCache = new VarCache();
@@ -68,17 +75,17 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	private final JvmVariableMode variableTableMode;
 	private final JvmVariableEmissionFilter variableFilter;
 	private final boolean hadPriorLocalVariables;
-	private ASTInstruction currentInstructionAst;
+	private SemanticInstruction currentInstructionAst;
 	private int opcode;
 
-	public JvmCodeVisitor(JvmCompilerOptions options, ErrorCollector errorCollector, MethodNode method,
+	public JvmCodeVisitor(JvmCompilerOptions options, DiagnosticSink sink, MethodNode method,
 	                      List<Local> parameters, boolean hadPriorLocalVariables) {
 		this.method = method;
-		this.errorCollector = errorCollector;
+		this.sink = sink;
 		this.parameters = parameters;
-		this.variableTableMode = options.variableTableMode();
+		this.variableTableMode = options.getVariableTableMode();
 		this.hadPriorLocalVariables = hadPriorLocalVariables;
-		this.variableFilter = options.variableFilter();
+		this.variableFilter = options.getVariableFilter();
 		parameters.stream().filter(Objects::nonNull).forEach(param -> {
 			VarCache.Variable parameterVar = varCache.getOrCreate(param.name(), param.index(), param.size() > 1);
 			parameterVar.updateTypeHint(param.type());
@@ -95,12 +102,14 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitInstruction(@NotNull ASTInstruction instruction) {
+	public void visitInstruction(@NotNull SemanticInstruction instruction) {
 		currentInstructionAst = instruction;
-		if (instruction instanceof ASTLabel) {
+		if (instruction.source() instanceof ASTLabel)
 			return;
-		}
-		opcode = JvmOpcodes.opcode(instruction.identifier().content());
+		if (instruction.lowering() instanceof JvmLowering(int op))
+			opcode = op;
+		else
+			opcode = -1;
 	}
 
 	@Override
@@ -200,79 +209,41 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitLookupSwitchInsn(@NotNull ASTObject lookupSwitchObject) {
-		ASTIdentifier defaultLabel = lookupSwitchObject.value("default");
-		if (defaultLabel == null) {
-			errorCollector.addError("Lookup switch is missing default label", currentInstructionAst.location());
-			return;
-		}
-		recordLabelReference(currentInstructionAst, defaultLabel.content());
+	public void visitLookupSwitchInsn(@NotNull LookupSwitchPayload payload) {
+		recordLabelReference(currentInstructionAst, payload.defaultLabel());
 		List<LookupSwitchKey> entries = new ArrayList<>();
-		for (var pair : lookupSwitchObject.values().pairs()) {
-			String content = pair.first().content();
-			if ("default".equals(content)) {
-				continue;
-			}
-			int key = Integer.parseInt(content);
-			if (!(pair.second() instanceof ASTIdentifier identifier)) {
-				errorCollector.addError("Lookup switch case target must be an identifier", currentInstructionAst.location());
-				return;
-			}
-			recordLabelReference(currentInstructionAst, identifier.content());
-			entries.add(new LookupSwitchKey(key, getOrCreateLabel(identifier.content())));
+		for (Map.Entry<Integer, String> entry : payload.caseLabels().entrySet()) {
+			recordLabelReference(currentInstructionAst, entry.getValue());
+			entries.add(new LookupSwitchKey(entry.getKey(), getOrCreateLabel(entry.getValue())));
 		}
 		Collections.sort(entries);
 		add(new LookupSwitchInsnNode(
-				getOrCreateLabel(defaultLabel.content()),
+				getOrCreateLabel(payload.defaultLabel()),
 				entries.stream().mapToInt(entry -> entry.value).toArray(),
 				entries.stream().map(entry -> entry.label).toArray(LabelNode[]::new)
 		));
 	}
 
 	@Override
-	public void visitTableSwitchInsn(@NotNull ASTObject tableSwitchObject) {
-		ASTNumber min = tableSwitchObject.value("min");
-		if (min == null) {
-			errorCollector.addError("Table switch is missing minimum key", currentInstructionAst.location());
-			return;
-		}
-		ASTIdentifier defaultLabel = tableSwitchObject.value("default");
-		if (defaultLabel == null) {
-			errorCollector.addError("Table switch is missing default label", currentInstructionAst.location());
-			return;
-		}
-		ASTArray cases = tableSwitchObject.value("cases");
-		if (cases == null) {
-			errorCollector.addError("Table switch is missing cases", currentInstructionAst.location());
-			return;
-		}
-		recordLabelReference(currentInstructionAst, defaultLabel.content());
+	public void visitTableSwitchInsn(@NotNull TableSwitchPayload payload) {
+		recordLabelReference(currentInstructionAst, payload.defaultLabel());
 		List<LabelNode> labels = new ArrayList<>();
-		for (ASTElement value : cases.values()) {
-			if (!(value instanceof ASTIdentifier identifier)) {
-				errorCollector.addError("Table switch case target must be an identifier", currentInstructionAst.location());
-				return;
-			}
-			recordLabelReference(currentInstructionAst, identifier.content());
-			labels.add(getOrCreateLabel(identifier.content()));
+		for (String caseLabel : payload.caseLabels()) {
+			recordLabelReference(currentInstructionAst, caseLabel);
+			labels.add(getOrCreateLabel(caseLabel));
 		}
-		add(new TableSwitchInsnNode(min.asInt(), min.asInt() + labels.size() - 1,
-				getOrCreateLabel(defaultLabel.content()), labels.toArray(LabelNode[]::new)));
+		add(new TableSwitchInsnNode(payload.min(), payload.min() + labels.size() - 1,
+				getOrCreateLabel(payload.defaultLabel()), labels.toArray(LabelNode[]::new)));
 	}
 
 	@Override
-	public void visitFieldInsn(@NotNull ASTIdentifier path, @NotNull ASTIdentifier descriptor) {
-		String literal = path.literal();
-		int split = literal.lastIndexOf('.');
-		add(new FieldInsnNode(opcode, literal.substring(0, split), literal.substring(split + 1), descriptor.literal()));
+	public void visitFieldInsn(@NotNull MemberPath path, @NotNull ASTIdentifier descriptor) {
+		add(new FieldInsnNode(opcode, path.owner(), path.name(), descriptor.literal()));
 	}
 
 	@Override
-	public void visitMethodInsn(@NotNull ASTIdentifier path, @NotNull ASTIdentifier descriptor) {
-		String literal = path.literal();
-		int split = literal.lastIndexOf('.');
-		boolean itf = currentInstructionAst.identifier().content().endsWith("interface");
-		add(new MethodInsnNode(opcode, literal.substring(0, split), literal.substring(split + 1), descriptor.literal(), itf));
+	public void visitMethodInsn(@NotNull MemberPath path, @NotNull ASTIdentifier descriptor, boolean itf) {
+		add(new MethodInsnNode(opcode, path.owner(), path.name(), descriptor.literal(), itf));
 	}
 
 	@Override
@@ -298,7 +269,8 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 		String literal = descriptor.literal();
 		String actualDescriptor = literal.startsWith("[") ? literal : '[' + asFieldDescriptor(literal);
 		if (!literal.startsWith("[")) {
-			errorCollector.addWarn("Expected array type, got class name", currentInstructionAst.location());
+			sink.warning(DiagnosticCode.UNEXPECTED_ELEMENT,
+					"Expected array type, got class name", currentInstructionAst.location());
 		}
 		add(new MultiANewArrayInsnNode(actualDescriptor, numDimensions.asInt()));
 	}
@@ -311,10 +283,11 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 			add(node);
 			// Labels can be dropped from the final class when nothing references
 			// them, so record the source mapping here while the node still exists.
-			if (currentInstructionAst instanceof ASTLabel astLabel)
+			if (currentInstructionAst != null && currentInstructionAst.source() instanceof ASTLabel astLabel)
 				analysisResult.recordLabelMapping(astLabel, node);
 		} else {
-			errorCollector.addError("Label '" + labelName + "' already defined", label.location());
+			sink.error(DiagnosticCode.DUPLICATE_LABEL, "Label '" + labelName + "' already defined",
+					label.location());
 		}
 	}
 
@@ -328,7 +301,7 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 		// Line markers survive into the final class, but recording here keeps the
 		// source mapping next to the same pass that creates the node.
 		if (currentInstructionAst != null)
-			analysisResult.recordLineNumberMapping(currentInstructionAst, lineNode);
+			analysisResult.recordLineNumberMapping(currentInstructionAst.source(), lineNode);
 	}
 
 	@Override
@@ -398,32 +371,32 @@ public class JvmCodeVisitor implements ASTJvmInstructionVisitor, Opcodes {
 			// Only record non-metadata instructions for analysis.
 			// Inclusion of metadata instructions can cause mismatches in AST <-> bytecode mapping.
 			if (currentInstructionAst != null && instruction.getOpcode() >= 0)
-				analysisResult.recordExecutableInstruction(currentInstructionAst);
+				analysisResult.recordExecutableInstruction(currentInstructionAst.source());
 		} else {
-			errorCollector.addError("Instruction emitted/visited multiple times: "
-					+ instruction.getClass().getSimpleName(), currentInstructionAst.location());
+			sink.error(DiagnosticCode.INVALID_EMISSION,
+					"Instruction emitted/visited multiple times: " + instruction.getClass().getSimpleName(),
+					currentInstructionAst == null ? null : currentInstructionAst.location());
 		}
 	}
 
-	private void recordLabelReference(@Nullable ASTInstruction instruction, @NotNull String labelName) {
-		if (instruction == null) {
+	private void recordLabelReference(@Nullable SemanticInstruction instruction, @NotNull String labelName) {
+		if (instruction == null)
 			return;
-		}
-		referencedLabels.computeIfAbsent(instruction, ignored -> new ArrayList<>()).add(labelName);
+		referencedLabels.computeIfAbsent(instruction.source(), ignored -> new ArrayList<>()).add(labelName);
 	}
 
 	private void validateReferencedLabels() {
 		for (Map.Entry<ASTInstruction, List<String>> entry : referencedLabels.entrySet()) {
 			for (String labelName : entry.getValue()) {
-				if (definedLabels.contains(labelName)) {
+				if (definedLabels.contains(labelName))
 					continue;
-				}
+
 				ASTInstruction instruction = entry.getKey();
 				analysisResult.setAnalysisFailure(new AnalysisException(
 						AnalysisException.FailureKind.INVALID_CONTROL_FLOW,
 						"Target for branch instruction does not exist: " + labelName
 				));
-				errorCollector.addError("Target for branch instruction does not exist: " + labelName, instruction.location());
+				sink.error(DiagnosticCode.MISSING_LABEL, "Target for branch instruction does not exist: " + labelName, instruction.location());
 				return;
 			}
 		}
