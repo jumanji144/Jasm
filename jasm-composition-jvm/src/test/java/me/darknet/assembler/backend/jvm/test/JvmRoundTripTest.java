@@ -1,12 +1,12 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.ValuedJvmAnalysisEngine;
-import me.darknet.assembler.test.BinarySampleFixture;
-import me.darknet.assembler.test.JvmAssemblerFixture;
-import me.darknet.assembler.test.JvmCompilation;
-import me.darknet.assembler.test.JvmDecompilationFixture;
-import me.darknet.assembler.test.JvmDisassemblyFixture;
-import me.darknet.assembler.test.JvmRoundTripFixture;
+import me.darknet.assembler.backend.jvm.test.BinarySampleFixture;
+import me.darknet.assembler.backend.jvm.test.JvmAssemblerFixture;
+import me.darknet.assembler.backend.jvm.test.JvmCompilation;
+import me.darknet.assembler.backend.jvm.test.JvmDecompilationFixture;
+import me.darknet.assembler.backend.jvm.test.JvmDisassemblyFixture;
+import me.darknet.assembler.backend.jvm.test.JvmRoundTripFixture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -25,7 +25,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static me.darknet.assembler.TestUtils.processJvm;
+import static me.darknet.assembler.backend.jvm.test.TestUtils.processJvm;
 import static me.darknet.assembler.test.SourceNormalization.normalize;
 import static org.junit.jupiter.api.Assertions.*;
 

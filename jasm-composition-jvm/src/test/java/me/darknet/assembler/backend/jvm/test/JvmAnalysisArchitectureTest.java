@@ -1,4 +1,4 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTLabel;
@@ -8,9 +8,9 @@ import me.darknet.assembler.backend.jvm.compile.analysis.VarCache;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.Frame;
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.ValuedJvmAnalysisEngine;
-import me.darknet.assembler.test.BinarySampleFixture;
-import me.darknet.assembler.test.JvmAssemblerFixture;
-import me.darknet.assembler.test.JvmCompilation;
+import me.darknet.assembler.backend.jvm.test.BinarySampleFixture;
+import me.darknet.assembler.backend.jvm.test.JvmAssemblerFixture;
+import me.darknet.assembler.backend.jvm.test.JvmCompilation;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.AbstractInsnNode;

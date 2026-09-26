@@ -1,4 +1,4 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.backend.jvm.compile.MethodVariableLayout;
 import org.junit.jupiter.api.Test;

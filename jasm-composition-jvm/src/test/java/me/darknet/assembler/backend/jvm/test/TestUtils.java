@@ -1,12 +1,12 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.backend.jvm.compile.JavaCompileResult;
 import me.darknet.assembler.backend.jvm.compile.JvmCompilerOptions;
 import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.test.DiagnosticAssertions;
-import me.darknet.assembler.test.JvmAnalysisAssertions;
-import me.darknet.assembler.test.JvmCompilation;
-import me.darknet.assembler.test.JvmAssemblerFixture;
+import me.darknet.assembler.backend.jvm.test.JvmAnalysisAssertions;
+import me.darknet.assembler.backend.jvm.test.JvmCompilation;
+import me.darknet.assembler.backend.jvm.test.JvmAssemblerFixture;
 import me.darknet.assembler.test.SourceNormalization;
 
 import org.jetbrains.annotations.NotNull;

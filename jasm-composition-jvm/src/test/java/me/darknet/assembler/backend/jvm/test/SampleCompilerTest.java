@@ -1,4 +1,4 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.backend.jvm.compile.JavaClassRepresentation;
@@ -18,13 +18,13 @@ import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.backend.jvm.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
-import me.darknet.assembler.test.BinarySampleFixture;
+import me.darknet.assembler.backend.jvm.test.BinarySampleFixture;
 import me.darknet.assembler.test.ClassDefiner;
-import me.darknet.assembler.test.JvmAssemblerFixture;
-import me.darknet.assembler.test.JvmCompilation;
-import me.darknet.assembler.test.JvmDecompilationFixture;
-import me.darknet.assembler.test.JvmDisassemblyFixture;
-import me.darknet.assembler.test.JvmRoundTripFixture;
+import me.darknet.assembler.backend.jvm.test.JvmAssemblerFixture;
+import me.darknet.assembler.backend.jvm.test.JvmCompilation;
+import me.darknet.assembler.backend.jvm.test.JvmDecompilationFixture;
+import me.darknet.assembler.backend.jvm.test.JvmDisassemblyFixture;
+import me.darknet.assembler.backend.jvm.test.JvmRoundTripFixture;
 import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
@@ -47,7 +47,7 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-import static me.darknet.assembler.TestUtils.*;
+import static me.darknet.assembler.backend.jvm.test.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;

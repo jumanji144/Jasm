@@ -1,10 +1,10 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.error.Diagnostic;
-import me.darknet.assembler.test.BinarySampleFixture;
-import me.darknet.assembler.test.JvmAssemblerFixture;
-import me.darknet.assembler.test.JvmCompilation;
+import me.darknet.assembler.backend.jvm.test.BinarySampleFixture;
+import me.darknet.assembler.backend.jvm.test.JvmAssemblerFixture;
+import me.darknet.assembler.backend.jvm.test.JvmCompilation;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

@@ -1,4 +1,4 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.backend.jvm.compile.JvmCompilerOptions;
 import me.darknet.assembler.backend.jvm.printer.JvmClassPrinter;
@@ -9,8 +9,8 @@ import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import static me.darknet.assembler.TestUtils.normalize;
-import static me.darknet.assembler.TestUtils.processJvm;
+import static me.darknet.assembler.backend.jvm.test.TestUtils.normalize;
+import static me.darknet.assembler.backend.jvm.test.TestUtils.processJvm;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;

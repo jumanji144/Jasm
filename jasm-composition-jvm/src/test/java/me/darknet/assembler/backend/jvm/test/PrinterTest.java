@@ -1,4 +1,4 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.backend.jvm.JvmTargetContext;

@@ -1,7 +1,5 @@
 package me.darknet.assembler.backend.jvm.test;
 
-import me.darknet.assembler.TestJvmCompilerOptions;
-import me.darknet.assembler.TestUtils;
 import me.darknet.assembler.backend.jvm.instructions.JvmInstructions;
 import me.darknet.assembler.backend.jvm.instructions.JvmLowering;
 import me.darknet.assembler.instructions.Instruction;

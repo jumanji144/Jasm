@@ -1,5 +1,6 @@
-package me.darknet.assembler.test;
+package me.darknet.assembler.backend.jvm.test;
 
+import me.darknet.assembler.test.SampleSourceFixture;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;

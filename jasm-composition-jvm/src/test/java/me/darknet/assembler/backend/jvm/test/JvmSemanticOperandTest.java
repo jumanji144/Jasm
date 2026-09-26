@@ -1,6 +1,5 @@
 package me.darknet.assembler.backend.jvm.test;
 
-import me.darknet.assembler.TestJvmCompilerOptions;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.backend.jvm.JvmTargetContext;
 import me.darknet.assembler.backend.jvm.instructions.JvmInstructions;
@@ -13,7 +12,7 @@ import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.processing.ValidatedUnit;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
-import me.darknet.assembler.test.JvmAssemblerFixture;
+import me.darknet.assembler.backend.jvm.test.JvmAssemblerFixture;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.AbstractInsnNode;

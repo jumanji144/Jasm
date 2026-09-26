@@ -1,6 +1,5 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.compile;
 
-import me.darknet.assembler.backend.jvm.compile.JvmClassWriter;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.TypeAwareness;
 import me.darknet.assembler.error.DiagnosticSink;

@@ -1,4 +1,4 @@
-package me.darknet.assembler.test;
+package me.darknet.assembler.backend.jvm.test;
 
 import org.benf.cfr.reader.api.CfrDriver;
 import org.benf.cfr.reader.api.ClassFileSource;

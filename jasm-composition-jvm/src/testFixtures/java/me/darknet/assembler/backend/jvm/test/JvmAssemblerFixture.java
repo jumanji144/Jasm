@@ -1,6 +1,8 @@
-package me.darknet.assembler.test;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.DiagnosticAssertions;
 import me.darknet.assembler.backend.jvm.JvmTargetContext;
 import me.darknet.assembler.backend.jvm.compile.JavaClassRepresentation;
 import me.darknet.assembler.backend.jvm.compile.JavaCompileResult;

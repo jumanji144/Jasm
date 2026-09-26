@@ -1,12 +1,12 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
-import me.darknet.assembler.test.BinarySampleFixture;
-import me.darknet.assembler.test.JvmAnalysisAssertions;
-import me.darknet.assembler.test.JvmAssemblerFixture;
-import me.darknet.assembler.test.JvmCompilation;
+import me.darknet.assembler.backend.jvm.test.BinarySampleFixture;
+import me.darknet.assembler.backend.jvm.test.JvmAnalysisAssertions;
+import me.darknet.assembler.backend.jvm.test.JvmAssemblerFixture;
+import me.darknet.assembler.backend.jvm.test.JvmCompilation;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
