@@ -28,8 +28,10 @@ class JvmFloatPrintingTest {
     @Test
     void losslessHexRoundTripPreservesNaNPayloadBits() {
         JvmCompilation original = compile(SOURCE);
-        String printed = JvmDisassemblyFixture.disassembleJvm(original.requireClassBytes(), context ->
-                context.setFloatPrintMode(PrintContext.FloatPrintMode.HEX));
+        assertEquals(FLOAT_NAN_BITS, fieldValue(original.requireClassBytes(), "floatValue"));
+        assertEquals(DOUBLE_NAN_BITS, fieldValue(original.requireClassBytes(), "doubleValue"));
+        String printed = JvmDisassemblyFixture.disassembleJvm(original.requireClassBytes(),
+		        context -> context.setFloatPrintMode(PrintContext.FloatPrintMode.HEX));
 
         assertTrue(printed.contains("#0x7FC00001"), printed);
         assertTrue(printed.contains("#0x7FF8000000000001"), printed);
@@ -53,8 +55,8 @@ class JvmFloatPrintingTest {
     @Test
     void binaryModeUsesFixedWidthRawBits() {
         JvmCompilation original = compile(SOURCE);
-        String printed = JvmDisassemblyFixture.disassembleJvm(original.requireClassBytes(), context ->
-                context.setFloatPrintMode(PrintContext.FloatPrintMode.BINARY));
+        String printed = JvmDisassemblyFixture.disassembleJvm(original.requireClassBytes(),
+		        context -> context.setFloatPrintMode(PrintContext.FloatPrintMode.BINARY));
 
         assertTrue(printed.contains("#0b01111111110000000000000000000001"), printed);
         assertTrue(printed.contains("#0b0111111111111000000000000000000000000000000000000000000000000001"), printed);
@@ -72,5 +74,43 @@ class JvmFloatPrintingTest {
 
     private static FieldNode field(ClassNode node, String name) {
         return node.fields.stream().filter(candidate -> candidate.name.equals(name)).findFirst().orElseThrow();
+    }
+
+    /**
+     * @param classFile
+     * 		Complete class file bytes.
+     * @param fieldName
+     * 		Name of the constant field to read.
+     *
+     * @return Raw bits of the field's constant value, widened to {@code long} so one accessor covers both widths.
+     *
+     * @throws IllegalStateException
+     * 		If the class declares no such field, or the field carries no constant value.
+     */
+    private static long fieldValue(byte[] classFile, String fieldName) {
+        ClassNode node = new ClassNode();
+        new ClassReader(classFile).accept(node, 0);
+
+        FieldNode field = null;
+        for (FieldNode candidate : node.fields) {
+            if (candidate.name.equals(fieldName)) {
+                field = candidate;
+                break;
+            }
+        }
+
+        if (field == null)
+            throw new IllegalStateException("No field named " + fieldName + " in " + node.name);
+
+        Object value = field.value;
+        return switch (value) {
+            case null -> throw new IllegalStateException("Field " + fieldName + " has no constant value");
+            case Float floatValue -> Integer.toUnsignedLong(Float.floatToRawIntBits(floatValue));
+            case Double doubleValue -> Double.doubleToRawLongBits(doubleValue);
+            case Integer intValue -> Integer.toUnsignedLong(intValue);
+            case Long longValue -> longValue;
+            default -> throw new IllegalStateException(
+                    "Field " + fieldName + " holds " + value.getClass().getSimpleName() + ", which has no raw bit form here");
+        };
     }
 }
