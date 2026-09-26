@@ -1,5 +1,8 @@
 package me.darknet.assembler.backend.jvm.util;
 
+/**
+ * Generates stable alphabetic names for JVM bytecode label indices.
+ */
 public class LabelUtil {
 
     public static String getLabelName(int index) {

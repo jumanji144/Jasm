@@ -7,6 +7,7 @@ import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 
 /**
@@ -26,6 +27,7 @@ public class PrintContext<T extends PrintContext<?>> {
     protected boolean debugTryCatchRanges;
     protected boolean ignoreExistingVariableNames;
     protected boolean forceWholeNumberRepresentation;
+    protected FloatPrintMode floatPrintMode = FloatPrintMode.STANDARD;
 
     public PrintContext(String indentStep, Writer writer) {
         this.indentStep = indentStep;
@@ -40,6 +42,7 @@ public class PrintContext<T extends PrintContext<?>> {
         this.debugTryCatchRanges = ctx.debugTryCatchRanges;
         this.ignoreExistingVariableNames = ctx.ignoreExistingVariableNames;
         this.forceWholeNumberRepresentation = ctx.forceWholeNumberRepresentation;
+        this.floatPrintMode = ctx.floatPrintMode;
         this.indentStep = ctx.indentStep;
         this.writer = ctx.writer;
         this.indent = ctx.indent;
@@ -65,6 +68,10 @@ public class PrintContext<T extends PrintContext<?>> {
         this.forceWholeNumberRepresentation = forceWholeNumberRepresentation;
     }
 
+    public void setFloatPrintMode(FloatPrintMode floatPrintMode) {
+        this.floatPrintMode = Objects.requireNonNull(floatPrintMode, "floatPrintMode");
+    }
+
     public String labelPrefix() {
         return labelPrefix;
     }
@@ -79,6 +86,10 @@ public class PrintContext<T extends PrintContext<?>> {
 
     public boolean forceWholeNumberRepresentation() {
         return forceWholeNumberRepresentation;
+    }
+
+    public FloatPrintMode floatPrintMode() {
+        return floatPrintMode;
     }
 
     public T append(String s) {
@@ -187,6 +198,15 @@ public class PrintContext<T extends PrintContext<?>> {
 
     public String getIndent() {
         return indent;
+    }
+
+    /**
+     * Selects the spelling used for floating-point constants.
+     */
+    public enum FloatPrintMode {
+        STANDARD,
+        HEX,
+        BINARY
     }
 
     public static class ObjectPrint extends PrintContext<ObjectPrint> {

@@ -24,8 +24,10 @@ import java.util.Map;
  * Largely intended for testing and debugging purposes.
  * You can even use this to make custom IntelliJ type renderers for ASM instructions.
  */
-public class JvmPrinterUtil {
+public final class JvmPrinterUtil {
 	private static final Variables NO_VARIABLES = new Variables(Collections.emptyNavigableMap(), Collections.emptyList());
+
+	private JvmPrinterUtil() {}
 
 	/**
 	 * Print a sequence of instructions to the JASM format.

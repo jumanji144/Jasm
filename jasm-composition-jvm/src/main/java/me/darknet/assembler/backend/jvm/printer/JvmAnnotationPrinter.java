@@ -12,6 +12,9 @@ import org.objectweb.asm.tree.TypeAnnotationNode;
 import java.lang.reflect.Array;
 import java.util.List;
 
+/**
+ * Prints JVM annotation nodes as source-level annotation declarations and values.
+ */
 public class JvmAnnotationPrinter implements AnnotationPrinter {
     protected final AnnotationNode annotation;
     protected final Boolean visible;
@@ -76,14 +79,8 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
             case null -> ctx.print("null");
             case Integer ei -> ctx.print(Integer.toString(ei));
             case Long el -> ctx.print(el + "L");
-            case Float ef -> ctx.print(ef + "F");
-            case Double ed -> {
-                String content = Double.toString(ed);
-                ctx.print(content);
-                if (!content.matches("\\D+")) {
-                    ctx.print("D");
-                }
-            }
+            case Float ef -> JvmConstantPrinter.printFloat(ef, ctx);
+            case Double ed -> JvmConstantPrinter.printDouble(ed, ctx);
             case String es -> ctx.string(es);
             case Boolean eb -> ctx.print(Boolean.toString(eb));
             case Byte eb -> ctx.print(Byte.toString(eb));

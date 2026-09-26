@@ -99,6 +99,18 @@ class JvmPrinterUtilTest {
 	}
 
 	@Test
+	void derivesTableSwitchMaximumFromCaseLabels() {
+		LabelNode caseA = new LabelNode();
+		LabelNode caseB = new LabelNode();
+		LabelNode defaultLabel = new LabelNode();
+
+		assertEquals(
+				"tableswitch {\nmin: 3,\nmax: 4,\ncases: { A, B },\ndefault: C\n}",
+				tos(new TableSwitchInsnNode(3, 99, defaultLabel, caseA, caseB))
+		);
+	}
+
+	@Test
 	void printsInvokeDynamicAndConstantDynamic() {
 		Handle bootstrap = new Handle(
 				Opcodes.H_INVOKESTATIC,
