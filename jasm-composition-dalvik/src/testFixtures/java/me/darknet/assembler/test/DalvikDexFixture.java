@@ -1,7 +1,7 @@
 package me.darknet.assembler.test;
 
-import me.darknet.assembler.io.DalvikDexIO;
-import me.darknet.assembler.printer.DalvikClassPrinter;
+import me.darknet.assembler.backend.dalvik.io.DalvikDexIO;
+import me.darknet.assembler.backend.dalvik.printer.DalvikClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.dex.tree.DexFile;
 import me.darknet.dex.tree.definitions.ClassDefinition;

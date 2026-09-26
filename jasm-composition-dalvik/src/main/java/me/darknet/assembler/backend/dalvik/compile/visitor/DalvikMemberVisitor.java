@@ -1,4 +1,4 @@
-package me.darknet.assembler.compile.visitor;
+package me.darknet.assembler.backend.dalvik.compile.visitor;
 
 import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
@@ -50,11 +50,8 @@ public class DalvikMemberVisitor<T extends Member<?>> implements ASTDeclarationV
                 case CONSUMED -> {
                     return;
                 }
-                case ERROR -> throw new IllegalStateException(
-                        "Invalid member annotation: " + annotation.annotation().type().internalName()
-                );
-                case PRESERVE -> {
-                }
+                case ERROR -> throw new IllegalStateException("Invalid member annotation: " + annotation.annotation().type().internalName());
+                case PRESERVE -> {}
             }
         }
         member.addAnnotation(annotation);

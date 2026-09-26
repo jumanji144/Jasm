@@ -1,6 +1,6 @@
-package me.darknet.assembler.compile.visitor;
+package me.darknet.assembler.backend.dalvik.compile.visitor;
 
-import me.darknet.assembler.DalvikModifiers;
+import me.darknet.assembler.backend.dalvik.DalvikModifiers;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
@@ -201,8 +201,7 @@ public final class DalvikClassVisitor implements ASTClassVisitor {
 				case CONSUMED -> {
 					return;
 				}
-				case ERROR ->
-						throw new IllegalStateException("Invalid class annotation: " + annotation.annotation().type().internalName());
+				case ERROR -> throw new IllegalStateException("Invalid class annotation: " + annotation.annotation().type().internalName());
 				case PRESERVE -> {}
 			}
 		}

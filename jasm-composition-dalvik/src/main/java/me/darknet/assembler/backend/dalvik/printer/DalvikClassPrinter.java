@@ -1,6 +1,8 @@
-package me.darknet.assembler.printer;
+package me.darknet.assembler.backend.dalvik.printer;
 
-import me.darknet.assembler.DalvikModifiers;
+import me.darknet.assembler.printer.*;
+
+import me.darknet.assembler.backend.dalvik.DalvikModifiers;
 import me.darknet.dex.tree.definitions.ClassDefinition;
 import me.darknet.dex.tree.definitions.FieldMember;
 import me.darknet.dex.tree.definitions.InnerClass;

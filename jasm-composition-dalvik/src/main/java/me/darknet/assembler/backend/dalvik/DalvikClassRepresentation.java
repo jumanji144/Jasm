@@ -1,4 +1,4 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.dalvik;
 
 import me.darknet.dex.tree.DexFile;
 import me.darknet.dex.tree.definitions.ClassDefinition;

@@ -1,4 +1,4 @@
-package me.darknet.assembler.io;
+package me.darknet.assembler.backend.dalvik.io;
 
 import me.darknet.dex.file.DexHeader;
 import me.darknet.dex.file.DexMapBuilder;

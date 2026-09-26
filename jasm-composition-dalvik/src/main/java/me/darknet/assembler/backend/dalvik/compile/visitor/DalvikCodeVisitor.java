@@ -1,4 +1,4 @@
-package me.darknet.assembler.compile.visitor;
+package me.darknet.assembler.backend.dalvik.compile.visitor;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTArray;
@@ -14,7 +14,7 @@ import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
 import me.darknet.assembler.backend.dalvik.instructions.SignedLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
 import me.darknet.assembler.backend.dalvik.visitor.ASTDalvikInstructionVisitor;
-import me.darknet.assembler.compile.DalvikConstantMapper;
+import me.darknet.assembler.backend.dalvik.compile.DalvikConstantMapper;
 import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticPhase;
@@ -242,7 +242,6 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
 	/**
 	 * Reports a register reference outside the declared register count.
-	 *
 	 * <p>
 	 * The diagnostic is recorded and traversal continues so the instruction's other operands are validated.
 	 * Callers must therefore tolerate an out-of-range slot after this method reports an error.

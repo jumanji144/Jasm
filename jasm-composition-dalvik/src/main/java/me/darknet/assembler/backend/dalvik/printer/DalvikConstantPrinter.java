@@ -1,4 +1,6 @@
-package me.darknet.assembler.printer;
+package me.darknet.assembler.backend.dalvik.printer;
+
+import me.darknet.assembler.printer.*;
 
 import me.darknet.assembler.util.EscapeUtil;
 import me.darknet.dex.tree.definitions.MemberIdentifier;
@@ -11,7 +13,7 @@ import me.darknet.dex.tree.type.Type;
 import java.util.List;
 import java.util.Map;
 
-import static me.darknet.assembler.printer.DalvikAnnotationPrinter.VISIBILITY_INTERNAL;
+import static me.darknet.assembler.backend.dalvik.printer.DalvikAnnotationPrinter.VISIBILITY_INTERNAL;
 
 public class DalvikConstantPrinter {
 

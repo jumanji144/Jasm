@@ -1,6 +1,6 @@
-package me.darknet.assembler.compile;
+package me.darknet.assembler.backend.dalvik.compile;
 
-import me.darknet.assembler.DalvikClassRepresentation;
+import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
 import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.TypeAwareness;

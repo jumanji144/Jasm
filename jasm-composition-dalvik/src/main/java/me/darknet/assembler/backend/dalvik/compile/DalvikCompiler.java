@@ -1,11 +1,11 @@
-package me.darknet.assembler.compile;
+package me.darknet.assembler.backend.dalvik.compile;
 
-import me.darknet.assembler.DalvikClassRepresentation;
+import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
-import me.darknet.assembler.compile.visitor.DalvikRootVisitor;
+import me.darknet.assembler.backend.dalvik.compile.visitor.DalvikRootVisitor;
 import me.darknet.assembler.compiler.Compiler;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticPhase;

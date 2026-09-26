@@ -1,9 +1,9 @@
-package me.darknet.assembler.compile.visitor;
+package me.darknet.assembler.backend.dalvik.compile.visitor;
 
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.specific.ASTEnum;
 import me.darknet.assembler.ast.specific.ASTValue;
-import me.darknet.assembler.compile.DalvikConstantMapper;
+import me.darknet.assembler.backend.dalvik.compile.DalvikConstantMapper;
 import me.darknet.assembler.visitor.ASTAnnotationArrayVisitor;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.dex.tree.definitions.constant.AnnotationConstant;

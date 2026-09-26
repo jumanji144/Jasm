@@ -1,10 +1,12 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.compile.DalvikClassResult;
-import me.darknet.assembler.compile.DalvikCompiler;
-import me.darknet.assembler.compile.DalvikCompilerOptions;
+import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
+import me.darknet.assembler.backend.dalvik.DalvikModifiers;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
+import me.darknet.assembler.backend.dalvik.compile.DalvikClassResult;
+import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
+import me.darknet.assembler.backend.dalvik.compile.DalvikCompilerOptions;
 import me.darknet.assembler.compiler.EmptyInheritanceChecker;
 import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.error.Outcome;

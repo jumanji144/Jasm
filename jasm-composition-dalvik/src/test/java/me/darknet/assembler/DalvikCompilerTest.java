@@ -1,13 +1,14 @@
 package me.darknet.assembler;
 
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.compile.DalvikClassResult;
-import me.darknet.assembler.compile.DalvikCompiler;
+import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
+import me.darknet.assembler.backend.dalvik.compile.DalvikClassResult;
+import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
 import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.processing.SemanticProcessor;
-import me.darknet.assembler.io.DalvikDexIO;
-import me.darknet.assembler.printer.DalvikClassPrinter;
+import me.darknet.assembler.backend.dalvik.io.DalvikDexIO;
+import me.darknet.assembler.backend.dalvik.printer.DalvikClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.test.AssemblyParseFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;

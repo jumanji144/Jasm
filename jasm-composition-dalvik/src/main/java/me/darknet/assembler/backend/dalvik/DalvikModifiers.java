@@ -1,4 +1,4 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.dalvik;
 
 import me.darknet.assembler.visitor.Modifiers;
 import me.darknet.dex.tree.definitions.AccessFlags;
@@ -6,7 +6,6 @@ import me.darknet.dex.tree.definitions.AccessFlags;
 import java.util.Map;
 
 public class DalvikModifiers implements AccessFlags {
-
     public static final int CLASS = 1;
     public static final int METHOD = 2;
     public static final int FIELD = 3;
