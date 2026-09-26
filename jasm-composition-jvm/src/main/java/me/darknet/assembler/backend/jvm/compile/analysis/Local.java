@@ -7,6 +7,9 @@ import org.objectweb.asm.Type;
 
 import java.util.Objects;
 
+/**
+ * Describes a local variable slot, its source name, and its currently known JVM type.
+ */
 public class Local {
     protected final int index;
     protected final String name;

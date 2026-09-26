@@ -6,6 +6,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
 
+/**
+ * Utility methods used by JVM bytecode analysis.
+ */
 public class AnalysisUtils {
 	/**
 	 * @param checker

@@ -17,6 +17,9 @@ import org.objectweb.asm.tree.AbstractInsnNode;
  * </ul>
  */
 public class AnalysisException extends RuntimeException {
+	/**
+	 * Category of failure reported by a JVM analysis run.
+	 */
 	public enum FailureKind {
 		FRAME_MERGE,
 		INVALID_CONTROL_FLOW,

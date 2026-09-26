@@ -7,6 +7,9 @@ import org.objectweb.asm.Type;
 
 import java.util.Objects;
 
+/**
+ * A local variable description paired with the value tracked by JVM analysis.
+ */
 public class ValuedLocal extends Local {
 	private final Value value;
 

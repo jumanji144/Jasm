@@ -129,6 +129,12 @@ public non-sealed interface ValuedFrame extends Frame {
 		}
 	}
 
+	/**
+	 * Pushes values onto the stack without inserting reserved slots for wide values.
+	 *
+	 * @param values
+	 * 		Values to push onto the stack.
+	 */
 	default void pushRaw(@NotNull Value... values) {
 		for (Value value : values) {
 			pushRaw(value);
