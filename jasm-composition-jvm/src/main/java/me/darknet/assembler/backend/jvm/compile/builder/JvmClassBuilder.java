@@ -19,6 +19,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Builds and updates the ASM class model emitted by the JVM compiler.
+ */
 public class JvmClassBuilder implements MethodAnalysisLookup {
     private ClassNode classNode = new ClassNode();
 

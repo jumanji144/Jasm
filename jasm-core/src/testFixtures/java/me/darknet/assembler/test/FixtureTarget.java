@@ -18,6 +18,7 @@ import me.darknet.assembler.target.MethodAttributeRegistry;
 import me.darknet.assembler.target.TargetContext;
 import me.darknet.assembler.target.TargetId;
 import me.darknet.assembler.visitor.ASTInstructionVisitor;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -38,17 +39,17 @@ public final class FixtureTarget implements AssemblyTarget {
     }
 
     @Override
-    public TargetId id() {
+    public @NotNull TargetId id() {
         return id;
     }
 
     @Override
-    public String displayName() {
+    public @NotNull String displayName() {
         return id.value();
     }
 
     @Override
-    public TargetContext context() {
+    public @NotNull TargetContext context() {
         return context;
     }
 

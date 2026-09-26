@@ -6,13 +6,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Result of a Java compilation.
+ * Result of a JVM class compilation.
  *
  * @param representation
- * 		The created class.
+ * 		Emitted class file, or {@code null} when compilation failed.
  * @param analysisLookup
- * 		Lookup to get method stack analysis information for
- * 		declared methods.
+ * 		Lookup for stack-analysis results associated with declared methods.
  */
 public record JavaCompileResult(@Nullable JavaClassRepresentation representation,
                                 @NotNull MethodAnalysisLookup analysisLookup) implements ClassResult<JavaClassRepresentation> {}

@@ -1,9 +1,9 @@
 package me.darknet.assembler.backend.jvm.compile;
 
 /**
- * Target-local JVM class-file representation.
+ * Emitted JVM class file.
  *
  * @param classFile
- * 		Raw class file.
+ * 		Raw class file bytes.
  */
 public record JavaClassRepresentation(byte[] classFile) {}

@@ -9,10 +9,14 @@ import me.darknet.assembler.compiler.CompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.compiler.TypeAwareness;
+import me.darknet.assembler.error.Diagnostic;
+import me.darknet.assembler.error.Outcome;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -27,6 +31,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions, J
 	protected int version;
 	protected JavaClassRepresentation overlay;
 	protected String annotationPath;
+	protected @Nullable AnnotationTarget annotationTarget;
 	protected TypeAwareness typeAwareness; // Optional, disabled by default to reduce warning noise.
 	protected InheritanceChecker inheritanceChecker = ReflectiveInheritanceChecker.INSTANCE;
 	protected JvmAnalysisEngineFactory engineProvider = TypedJvmAnalysisEngine::new;
@@ -151,20 +156,42 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions, J
 
 	/**
 	 * @param path
-	 * 		Path to the annotation file to use for compilation.
+	 * 		Path to the annotation target to use for compilation, or {@code null} to clear it.
 	 *
 	 * @return This options object.
 	 */
-	public @NotNull JvmCompilerOptions withAnnotationPath(String path) {
+	public @NotNull JvmCompilerOptions withAnnotationPath(@Nullable String path) {
 		this.annotationPath = path;
 		return this;
 	}
 
 	/**
-	 * @return Configured annotation file path to use for compilation.
+	 * @return Configured annotation target path, or {@code null} when none was set.
 	 */
-	public String getAnnotationPath() {
+	public @Nullable String getAnnotationPath() {
 		return annotationPath;
+	}
+
+	/**
+	 * @return Resolved annotation target, or {@code null} when no path was configured or the path could not be parsed.
+	 */
+	public @Nullable AnnotationTarget getAnnotationTarget() {
+		return annotationTarget;
+	}
+
+	/**
+	 * Resolves the configured annotation target path.
+	 *
+	 * @return Diagnostics describing an unusable path, or an empty list when the path resolves or none was configured.
+	 */
+	public @NotNull List<Diagnostic> resolveAnnotationTarget() {
+		if (annotationPath == null) {
+			annotationTarget = null;
+			return List.of();
+		}
+		Outcome<AnnotationTarget> parsed = AnnotationTarget.parse(annotationPath);
+		annotationTarget = parsed.hasErrors() ? null : parsed.requireValue();
+		return parsed.diagnostics();
 	}
 
 	/**

@@ -2,5 +2,6 @@ apply plugin: 'java-library'
 apply plugin: 'java-test-fixtures'
 
 dependencies {
+    testFixturesImplementation 'org.jetbrains:annotations:22.0.0'
     testFixturesImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.4'
 }
