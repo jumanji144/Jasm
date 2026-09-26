@@ -1,6 +1,6 @@
 package me.darknet.assembler.test;
 
-import me.darknet.assembler.printer.JvmClassPrinter;
+import me.darknet.assembler.backend.jvm.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
 import java.io.IOException;

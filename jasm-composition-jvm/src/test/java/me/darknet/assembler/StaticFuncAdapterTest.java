@@ -1,8 +1,8 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compile.analysis.Value;
-import me.darknet.assembler.compile.analysis.Values;
-import me.darknet.assembler.compile.analysis.func.*;
+import me.darknet.assembler.backend.jvm.compile.analysis.Value;
+import me.darknet.assembler.backend.jvm.compile.analysis.Values;
+import me.darknet.assembler.backend.jvm.compile.analysis.func.*;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

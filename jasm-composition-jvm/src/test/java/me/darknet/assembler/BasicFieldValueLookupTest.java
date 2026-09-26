@@ -1,8 +1,8 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compile.analysis.BasicFieldValueLookup;
-import me.darknet.assembler.compile.analysis.Value;
-import me.darknet.assembler.compile.analysis.Values;
+import me.darknet.assembler.backend.jvm.compile.analysis.BasicFieldValueLookup;
+import me.darknet.assembler.backend.jvm.compile.analysis.Value;
+import me.darknet.assembler.backend.jvm.compile.analysis.Values;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;

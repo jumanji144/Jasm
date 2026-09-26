@@ -1,6 +1,6 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.printer.JvmPrinterUtil;
+import me.darknet.assembler.backend.jvm.printer.JvmPrinterUtil;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ConstantDynamic;
 import org.objectweb.asm.Handle;

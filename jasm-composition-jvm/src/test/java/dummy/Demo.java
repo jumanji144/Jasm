@@ -1,6 +1,6 @@
 package dummy;
 
-import me.darknet.assembler.compile.analysis.jvm.JvmAnalysisRunner;
+import me.darknet.assembler.backend.jvm.compile.analysis.jvm.JvmAnalysisRunner;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;

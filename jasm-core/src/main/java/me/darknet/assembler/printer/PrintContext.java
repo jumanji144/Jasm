@@ -65,7 +65,23 @@ public class PrintContext<T extends PrintContext<?>> {
         this.forceWholeNumberRepresentation = forceWholeNumberRepresentation;
     }
 
-    T append(String s) {
+    public String labelPrefix() {
+        return labelPrefix;
+    }
+
+    public boolean debugTryCatchRanges() {
+        return debugTryCatchRanges;
+    }
+
+    public boolean ignoreExistingVariableNames() {
+        return ignoreExistingVariableNames;
+    }
+
+    public boolean forceWholeNumberRepresentation() {
+        return forceWholeNumberRepresentation;
+    }
+
+    public T append(String s) {
         try {
             writer.append(s);
         } catch (IOException e) {
@@ -74,7 +90,7 @@ public class PrintContext<T extends PrintContext<?>> {
         return (T) this;
     }
 
-    T append(char c) {
+    public T append(char c) {
         try {
             writer.append(c);
         } catch (IOException e) {

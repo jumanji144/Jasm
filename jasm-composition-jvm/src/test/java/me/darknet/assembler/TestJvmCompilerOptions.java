@@ -1,6 +1,6 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compile.JvmCompilerOptions;
+import me.darknet.assembler.backend.jvm.compile.JvmCompilerOptions;
 import me.darknet.assembler.compiler.InheritanceChecker;
 
 public class TestJvmCompilerOptions extends JvmCompilerOptions {

@@ -1,6 +1,6 @@
 package me.darknet.assembler.test;
 
-import me.darknet.assembler.compile.JvmCompilerOptions;
+import me.darknet.assembler.backend.jvm.compile.JvmCompilerOptions;
 
 /**
  * Utilities for performing a round-trip of compiling JVM assembly source code into a JVM class representation

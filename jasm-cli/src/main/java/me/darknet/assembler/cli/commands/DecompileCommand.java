@@ -2,7 +2,7 @@ package me.darknet.assembler.cli.commands;
 
 import me.darknet.assembler.cli.dalvik.DalvikInputSupport;
 import me.darknet.assembler.printer.DalvikClassPrinter;
-import me.darknet.assembler.printer.JvmClassPrinter;
+import me.darknet.assembler.backend.jvm.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.printer.Printer;
 import me.darknet.dex.tree.DexFile;

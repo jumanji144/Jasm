@@ -7,7 +7,7 @@ import me.darknet.assembler.backend.jvm.instructions.JvmLowering;
 import me.darknet.assembler.instructions.Instruction;
 import me.darknet.assembler.instructions.InstructionTrait;
 import me.darknet.assembler.instructions.OperandRole;
-import me.darknet.assembler.util.JvmOpcodes;
+import me.darknet.assembler.backend.jvm.util.JvmOpcodes;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

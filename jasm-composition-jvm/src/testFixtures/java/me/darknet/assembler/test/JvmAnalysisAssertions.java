@@ -1,6 +1,6 @@
 package me.darknet.assembler.test;
 
-import me.darknet.assembler.compile.analysis.AnalysisResults;
+import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisResults;
 import org.junit.jupiter.api.Assertions;
 
 /**

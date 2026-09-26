@@ -12,7 +12,7 @@ import me.darknet.assembler.instructions.Instructions;
 import me.darknet.assembler.instructions.MemberPath;
 import me.darknet.assembler.instructions.OperandRole;
 import me.darknet.assembler.instructions.SwitchShape;
-import me.darknet.assembler.util.JvmOpcodes;
+import me.darknet.assembler.backend.jvm.util.JvmOpcodes;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumSet;

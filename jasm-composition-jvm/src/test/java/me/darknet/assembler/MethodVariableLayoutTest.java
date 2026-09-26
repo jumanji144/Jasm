@@ -1,6 +1,6 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compile.MethodVariableLayout;
+import me.darknet.assembler.backend.jvm.compile.MethodVariableLayout;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;

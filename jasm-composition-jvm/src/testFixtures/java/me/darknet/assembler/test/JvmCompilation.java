@@ -1,8 +1,8 @@
 package me.darknet.assembler.test;
 
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.compile.JavaClassRepresentation;
-import me.darknet.assembler.compile.JavaCompileResult;
+import me.darknet.assembler.backend.jvm.compile.JavaClassRepresentation;
+import me.darknet.assembler.backend.jvm.compile.JavaCompileResult;
 import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.error.Outcome;
 import org.junit.jupiter.api.Assertions;

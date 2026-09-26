@@ -1,0 +1,24 @@
+package me.darknet.assembler.backend.jvm.compile.analysis.jvm;
+
+import me.darknet.assembler.backend.jvm.compile.analysis.Value;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.tree.FieldInsnNode;
+
+/**
+ * Used to plug in field values into the analysis engine.
+ *
+ * @see ValuedJvmAnalysisEngine
+ */
+public interface FieldValueLookup {
+	/**
+	 * @param instruction
+	 * 		Instruction with field declaration.
+	 * @param context
+	 * 		Field context, for non-static getters.
+	 *
+	 * @return Value of field, or {@code null} if unknown.
+	 */
+	@Nullable
+	Value accept(@NotNull FieldInsnNode instruction, @Nullable Value.ObjectValue context);
+}

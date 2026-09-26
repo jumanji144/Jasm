@@ -1,7 +1,7 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compile.JvmCompilerOptions;
-import me.darknet.assembler.printer.JvmClassPrinter;
+import me.darknet.assembler.backend.jvm.compile.JvmCompilerOptions;
+import me.darknet.assembler.backend.jvm.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
 import org.junit.jupiter.api.Disabled;

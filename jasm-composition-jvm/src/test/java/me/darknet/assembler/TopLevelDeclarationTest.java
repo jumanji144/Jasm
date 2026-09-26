@@ -1,6 +1,6 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compile.JavaClassRepresentation;
+import me.darknet.assembler.backend.jvm.compile.JavaClassRepresentation;
 import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.test.JvmAssemblerFixture;
 import me.darknet.assembler.test.JvmCompilation;

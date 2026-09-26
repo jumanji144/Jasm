@@ -2,12 +2,12 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTLabel;
-import me.darknet.assembler.compile.analysis.AnalysisException;
-import me.darknet.assembler.compile.analysis.AnalysisResults;
-import me.darknet.assembler.compile.analysis.VarCache;
-import me.darknet.assembler.compile.analysis.frame.Frame;
-import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
-import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
+import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisException;
+import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisResults;
+import me.darknet.assembler.backend.jvm.compile.analysis.VarCache;
+import me.darknet.assembler.backend.jvm.compile.analysis.frame.Frame;
+import me.darknet.assembler.backend.jvm.compile.analysis.jvm.TypedJvmAnalysisEngine;
+import me.darknet.assembler.backend.jvm.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.test.BinarySampleFixture;
 import me.darknet.assembler.test.JvmAssemblerFixture;
 import me.darknet.assembler.test.JvmCompilation;
@@ -174,7 +174,7 @@ class JvmAnalysisArchitectureTest {
 
         assertNull(results.getAnalysisFailure());
         Frame endFrame = results.frames().lastEntry().getValue();
-        assertEquals(me.darknet.assembler.util.JvmTypeUtils.OBJECT, endFrame.getLocalType(0));
+        assertEquals(me.darknet.assembler.backend.jvm.util.JvmTypeUtils.OBJECT, endFrame.getLocalType(0));
     }
 
     @Test

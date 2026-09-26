@@ -1,7 +1,7 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compile.JavaCompileResult;
-import me.darknet.assembler.compile.JvmCompilerOptions;
+import me.darknet.assembler.backend.jvm.compile.JavaCompileResult;
+import me.darknet.assembler.backend.jvm.compile.JvmCompilerOptions;
 import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.test.DiagnosticAssertions;
 import me.darknet.assembler.test.JvmAnalysisAssertions;

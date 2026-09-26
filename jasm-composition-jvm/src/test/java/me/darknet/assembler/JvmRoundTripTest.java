@@ -1,6 +1,6 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
+import me.darknet.assembler.backend.jvm.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.test.BinarySampleFixture;
 import me.darknet.assembler.test.JvmAssemblerFixture;
 import me.darknet.assembler.test.JvmCompilation;

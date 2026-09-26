@@ -8,7 +8,7 @@ import me.darknet.assembler.parser.DeclarationParser;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.Tokenizer;
 import me.darknet.assembler.parser.processor.ASTProcessor;
-import me.darknet.assembler.printer.JvmClassPrinter;
+import me.darknet.assembler.backend.jvm.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.assembler.util.Location;
 

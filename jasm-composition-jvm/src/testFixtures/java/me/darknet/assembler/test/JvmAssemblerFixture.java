@@ -2,10 +2,10 @@ package me.darknet.assembler.test;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.backend.jvm.JvmTargetContext;
-import me.darknet.assembler.compile.JavaClassRepresentation;
-import me.darknet.assembler.compile.JavaCompileResult;
-import me.darknet.assembler.compile.JvmCompiler;
-import me.darknet.assembler.compile.JvmCompilerOptions;
+import me.darknet.assembler.backend.jvm.compile.JavaClassRepresentation;
+import me.darknet.assembler.backend.jvm.compile.JavaCompileResult;
+import me.darknet.assembler.backend.jvm.compile.JvmCompiler;
+import me.darknet.assembler.backend.jvm.compile.JvmCompilerOptions;
 import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.processing.ValidatedUnit;

@@ -1,7 +1,7 @@
 package me.darknet.assembler;
 
-import me.darknet.assembler.compile.analysis.jvm.TypedJvmAnalysisEngine;
-import me.darknet.assembler.compile.analysis.jvm.ValuedJvmAnalysisEngine;
+import me.darknet.assembler.backend.jvm.compile.analysis.jvm.TypedJvmAnalysisEngine;
+import me.darknet.assembler.backend.jvm.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.test.BinarySampleFixture;
 import me.darknet.assembler.test.JvmAnalysisAssertions;
