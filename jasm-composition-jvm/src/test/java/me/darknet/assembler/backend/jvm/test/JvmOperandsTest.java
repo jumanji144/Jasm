@@ -151,7 +151,7 @@ class JvmOperandsTest {
 	@Test
 	void wideConstantRejectsNarrowValues() {
 		// The schema owns the domain the translator needs, so a narrow value can no longer be accepted
-		// here and silently emitted as a plain `ldc` by the emitter.
+		// here and silently emitted as a plain 'ldc' by the emitter.
 		assertErrorContains("""
 				.method public static test ()V {
 				  code: {
@@ -256,7 +256,7 @@ class JvmOperandsTest {
 
 	@Test
 	void tableSwitchMaxMustMatchTheCaseCount() {
-		// The emitter derives the upper bound from the case labels, so a wrong `max` used to compile and
+		// The emitter derives the upper bound from the case labels, so a wrong 'max' used to compile and
 		// silently vanish; the payload schema now rejects the disagreement.
 		assertErrorContains("""
 				.method public static test ()V {
@@ -316,7 +316,7 @@ class JvmOperandsTest {
 
 	@Test
 	void reportsInvalidDescriptorForms() {
-		// `new` allocates an instance, so an array type used to reach the emitter and throw a bare
+		// 'new' allocates an instance, so an array type used to reach the emitter and throw a bare
 		// IllegalStateException with no source location at all.
 		assertErrorContains("""
 				.method public static test ()V {

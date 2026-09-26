@@ -62,6 +62,33 @@ public class TopLevelDeclarationTest {
 	}
 
 	@Test
+	void classVersionDirectiveOverridesCompilerOption() {
+		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		options.withVersion(8);
+
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
+				".version 21 .super java/lang/Object .class public version/Example {}",
+				options
+		);
+
+		assertEquals(Opcodes.V21, readClass(compilation.requireClassBytes()).version);
+	}
+
+	@Test
+	void classVersionDirectiveOverridesCompilerOptionAndOverlayVersion() {
+		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		options.withVersion(8);
+		options.withOverlay(new JavaClassRepresentation(buildOverlayClass("version/Example", Opcodes.V1_8)));
+
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
+				".version 21 .super java/lang/Object .class public version/Example {}",
+				options
+		);
+
+		assertEquals(Opcodes.V21, readClass(compilation.requireClassBytes()).version);
+	}
+
+	@Test
 	void compilesTopLevelMethodIntoOverlayClass() {
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
 				"""

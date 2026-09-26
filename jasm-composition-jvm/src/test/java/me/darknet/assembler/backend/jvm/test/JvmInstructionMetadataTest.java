@@ -163,7 +163,7 @@ class JvmInstructionMetadataTest {
 			Instruction<?> instruction = JvmInstructions.INSTANCE.get(name);
 			assertNotNull(instruction, name);
 			if (instruction.lowering() == null)
-				continue; // Source-only forms such as `line` have no emitted opcode.
+				continue; // Source-only forms such as 'line' have no emitted opcode.
 
 			assertDoesNotThrow(() -> JvmOpcodes.opcode(instruction.canonicalName()),
 					name + " has no opcode under its canonical mnemonic");

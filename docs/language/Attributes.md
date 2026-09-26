@@ -67,6 +67,12 @@ Marks the immediately following class, field, or method as deprecated.
 
 ## Class
 
+### Version
+```
+.version version
+```
+Selects the Java class-file version scale. For example, `.version 8` emits class-file major version 52. The version must be an integer from 1 through 211.
+
 ### Super
 ```
 .super supertype
