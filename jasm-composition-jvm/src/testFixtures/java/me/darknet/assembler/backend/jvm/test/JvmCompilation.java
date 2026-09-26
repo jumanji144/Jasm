@@ -115,22 +115,11 @@ public record JvmCompilation(
 	 */
 	public static JvmCompilation from(String sourceName, String source, Outcome<List<ASTElement>> astResult,
 	                                  Outcome<JavaCompileResult> compileResult) {
-		return from(sourceName, source, astResult, compileResult, List.of());
-	}
-
-	public static JvmCompilation from(String sourceName, String source, Outcome<List<ASTElement>> astResult,
-	                                  Outcome<JavaCompileResult> compileResult, List<Diagnostic> processingDiagnostics) {
 		List<Diagnostic> errors = new ArrayList<>();
 		List<Diagnostic> warnings = new ArrayList<>();
 		if (astResult != null) {
 			errors.addAll(astResult.errors());
 			warnings.addAll(astResult.warnings());
-		}
-		for (Diagnostic diagnostic : processingDiagnostics) {
-			if (diagnostic.severity() == me.darknet.assembler.error.Severity.ERROR)
-				errors.add(diagnostic);
-			else
-				warnings.add(diagnostic);
 		}
 		if (compileResult != null) {
 			errors.addAll(compileResult.errors());

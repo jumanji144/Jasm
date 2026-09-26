@@ -10,7 +10,6 @@ import me.darknet.assembler.backend.jvm.compile.JvmCompiler;
 import me.darknet.assembler.backend.jvm.compile.JvmCompilerOptions;
 import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.processing.SemanticProcessor;
-import me.darknet.assembler.processing.ValidatedUnit;
 import org.junit.jupiter.api.Assertions;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.CheckClassAdapter;
@@ -53,16 +52,17 @@ public final class JvmAssemblerFixture {
 			return JvmCompilation.from(sourceName, source, astResult, null);
 
 		List<ASTElement> ast = DiagnosticAssertions.requireSuccess(astResult, "Failed to prepare AST for JVM compilation");
-		Outcome<ValidatedUnit> processingResult = SemanticProcessor.process(ast, JvmTargetContext.INSTANCE);
-		if (processingResult.hasErrors())
-			return JvmCompilation.from(sourceName, source, astResult, null, processingResult.diagnostics());
+		var unit = DiagnosticAssertions.requireSuccess(
+				SemanticProcessor.process(ast, JvmTargetContext.INSTANCE),
+				"Failed to prepare processed JVM unit"
+		);
 
 		JvmCompiler compiler = new JvmCompiler();
-		Outcome<JavaCompileResult> compileResult = compiler.compile(processingResult.requireValue(), options);
+		Outcome<JavaCompileResult> compileResult = compiler.compile(unit, options);
 		if (compileResult.isSuccess()) {
 			verifyGeneratedClass(compileResult.requireValue().representation());
 		}
-		return JvmCompilation.from(sourceName, source, astResult, compileResult, processingResult.diagnostics());
+		return JvmCompilation.from(sourceName, source, astResult, compileResult);
 	}
 
 	/**
