@@ -5,6 +5,9 @@ import me.darknet.assembler.printer.*;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.TypeAnnotationNode;
 
+/**
+ * Prints ASM type-annotation nodes with their type-reference and type-path metadata.
+ */
 public class JvmTypeAnnotationPrinter extends JvmAnnotationPrinter {
     private final TypeAnnotationNode annotation;
 

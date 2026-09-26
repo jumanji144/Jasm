@@ -43,8 +43,8 @@ class JvmRoundTripTest {
 		}
 
 		assertEquals(
-				normalize(source),
-				normalize(roundTrip.disassembledSource()),
+				normalize(withoutVersionDirective(source)),
+				normalize(withoutVersionDirective(roundTrip.disassembledSource())),
 				"There was an unexpected difference in unmodified class: " + sample.name()
 		);
 	}
@@ -75,8 +75,8 @@ class JvmRoundTripTest {
 		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, new TestJvmCompilerOptions());
 
 		assertEquals(
-				normalize(source),
-				normalize(roundTrip.disassembledSource()),
+				normalize(withoutVersionDirective(source)),
+				normalize(withoutVersionDirective(roundTrip.disassembledSource())),
 				"There was an unexpected difference in unmodified class: " + sample.name()
 		);
 	}
@@ -89,8 +89,8 @@ class JvmRoundTripTest {
 
 		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, options);
 		assertEquals(
-				normalize(source.replace("InfinityD", "Infinity").replace("+", "")),
-				normalize(roundTrip.disassembledSource())
+				normalize(withoutVersionDirective(source.replace("InfinityD", "Infinity").replace("+", ""))),
+				normalize(withoutVersionDirective(roundTrip.disassembledSource()))
 		);
 	}
 
@@ -111,7 +111,10 @@ class JvmRoundTripTest {
 		options.withEngineProvider(ValuedJvmAnalysisEngine::new);
 
 		var roundTrip = JvmRoundTripFixture.roundTripJvm(source, options);
-		assertEquals(normalize(source.replace("NaND", "NaN")), normalize(roundTrip.disassembledSource()));
+		assertEquals(
+				normalize(withoutVersionDirective(source.replace("NaND", "NaN"))),
+				normalize(withoutVersionDirective(roundTrip.disassembledSource()))
+		);
 	}
 
 	@Test
@@ -362,17 +365,35 @@ class JvmRoundTripTest {
 				.findFirst()
 				.orElseThrow();
 		assertTrue((roundTrippedMethod.access & Opcodes.ACC_DEPRECATED) != 0);
-		assertEquals(normalize(source), normalize(roundTrip.disassembledSource()));
+		assertEquals(
+				normalize(withoutVersionDirective(source)),
+				normalize(withoutVersionDirective(roundTrip.disassembledSource()))
+		);
 	}
 
 	static List<BinarySampleFixture.JvmTextSample> validSamples() {
 		return BinarySampleFixture.validJvmSamples();
 	}
 
+	/**
+	 * @param source
+	 * 		Source to compare after a compiler-supplied version is removed.
+	 *
+	 * @return Source with standalone version directive lines removed.
+	 */
+	private static String withoutVersionDirective(String source) {
+		return String.join("\n", source.lines()
+				.filter(line -> !line.stripLeading().startsWith(".version "))
+				.toList());
+	}
+
 	private static void assertStableRoundTrip(String source) {
 		processJvm(source, new TestJvmCompilerOptions(), result -> {
 			String newPrinted = JvmDisassemblyFixture.disassembleJvm(result.representation().classFile());
-			assertEquals(TestUtils.normalize(source), TestUtils.normalize(newPrinted));
+			assertEquals(
+					TestUtils.normalize(withoutVersionDirective(source)),
+					TestUtils.normalize(withoutVersionDirective(newPrinted))
+			);
 		});
 	}
 

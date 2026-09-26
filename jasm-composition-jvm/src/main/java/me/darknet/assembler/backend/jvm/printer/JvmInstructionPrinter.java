@@ -3,6 +3,7 @@ package me.darknet.assembler.backend.jvm.printer;
 import me.darknet.assembler.printer.*;
 
 import me.darknet.assembler.helper.Variables;
+import me.darknet.assembler.backend.jvm.instructions.JvmInstructions;
 import me.darknet.assembler.backend.jvm.util.VarNaming;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.Opcodes;
@@ -14,6 +15,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+/**
+ * Prints ASM JVM instruction nodes and their operands as source instructions.
+ */
 public class JvmInstructionPrinter {
     private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u[0-9a-fA-F]{4}");
 
@@ -137,9 +141,9 @@ public class JvmInstructionPrinter {
     }
 
     public void execute(MethodInsnNode instruction) {
-        String opcode = opcodeName(instruction.getOpcode());
-        if (instruction.itf && instruction.getOpcode() != Opcodes.INVOKEINTERFACE) {
-            opcode += "interface";
+        String opcode = JvmInstructions.INSTANCE.getSourceName(instruction.getOpcode(), instruction.itf);
+        if (opcode == null) {
+            opcode = opcodeName(instruction.getOpcode());
         }
         ctx.instruction(opcode).literal(instruction.owner).print(".").literal(instruction.name)
                 .print(" ").literal(instruction.desc).next();
@@ -178,7 +182,7 @@ public class JvmInstructionPrinter {
     public void execute(TableSwitchInsnNode instruction) {
         var obj = ctx.instruction("tableswitch").object();
         obj.value("min").print(String.valueOf(instruction.min)).next();
-        obj.value("max").print(String.valueOf(instruction.max)).next();
+        obj.value("max").print(String.valueOf(instruction.min + instruction.labels.size() - 1)).next();
         var arr = obj.value("cases").array();
         arr.print(instruction.labels, (print, lbl) -> print.print(labelNames.get(lbl)));
         arr.end();

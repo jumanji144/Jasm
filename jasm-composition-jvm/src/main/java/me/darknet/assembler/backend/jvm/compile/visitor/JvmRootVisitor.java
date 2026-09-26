@@ -10,6 +10,7 @@ import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.processing.ProcessedMethod;
 import me.darknet.assembler.backend.jvm.util.JvmModifiers;
+import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTClassVisitor;
 import me.darknet.assembler.visitor.ASTFieldVisitor;
@@ -149,7 +150,7 @@ public final class JvmRootVisitor implements ASTRootVisitor {
 	                                                      @Nullable ASTIdentifier typePath) {
 		List<? extends AnnotationNode> list = listForClass(visible, typeAnnotation);
 		AnnotationNode annotation = typeAnnotation
-				? new TypeAnnotationNode(typeRef == null ? 0 : typeRef.asInt(), parseTypePath(typePath), descriptor)
+				? new TypeAnnotationNode(typeRef == null ? 0 : typeRef.asInt(), JvmTypeUtils.parseTypePath(typePath), descriptor)
 				: new AnnotationNode(descriptor);
 		insert(list, index, annotation);
 		return annotation;
@@ -167,13 +168,13 @@ public final class JvmRootVisitor implements ASTRootVisitor {
 			if (visible) {
 				if (field.visibleTypeAnnotations == null) field.visibleTypeAnnotations = new ArrayList<>();
 				TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef == null ? 0 : typeRef.asInt(),
-						parseTypePath(typePath), annotationDescriptor);
+						JvmTypeUtils.parseTypePath(typePath), annotationDescriptor);
 				insert(field.visibleTypeAnnotations, index, annotation);
 				return annotation;
 			}
 			if (field.invisibleTypeAnnotations == null) field.invisibleTypeAnnotations = new ArrayList<>();
 			TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef == null ? 0 : typeRef.asInt(),
-					parseTypePath(typePath), annotationDescriptor);
+					JvmTypeUtils.parseTypePath(typePath), annotationDescriptor);
 			insert(field.invisibleTypeAnnotations, index, annotation);
 			return annotation;
 		}
@@ -200,13 +201,13 @@ public final class JvmRootVisitor implements ASTRootVisitor {
 			if (visible) {
 				if (method.visibleTypeAnnotations == null) method.visibleTypeAnnotations = new ArrayList<>();
 				TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef == null ? 0 : typeRef.asInt(),
-						parseTypePath(typePath), annotationDescriptor);
+						JvmTypeUtils.parseTypePath(typePath), annotationDescriptor);
 				insert(method.visibleTypeAnnotations, index, annotation);
 				return annotation;
 			}
 			if (method.invisibleTypeAnnotations == null) method.invisibleTypeAnnotations = new ArrayList<>();
 			TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef == null ? 0 : typeRef.asInt(),
-					parseTypePath(typePath), annotationDescriptor);
+					JvmTypeUtils.parseTypePath(typePath), annotationDescriptor);
 			insert(method.invisibleTypeAnnotations, index, annotation);
 			return annotation;
 		}
@@ -261,10 +262,4 @@ public final class JvmRootVisitor implements ASTRootVisitor {
 				|| "INVIS_TYPE_ANNO".equalsIgnoreCase(name) || "invis-type-a".equalsIgnoreCase(name);
 	}
 
-	private static @Nullable org.objectweb.asm.TypePath parseTypePath(@Nullable ASTIdentifier typePath) {
-		if (typePath == null)
-			return null;
-		String content = typePath.content();
-		return "_".equals(content) ? null : org.objectweb.asm.TypePath.fromString(content);
-	}
 }

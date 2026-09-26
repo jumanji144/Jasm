@@ -16,6 +16,9 @@ import org.objectweb.asm.tree.TypeAnnotationNode;
 import java.util.List;
 import java.util.function.Function;
 
+/**
+ * Prints shared class, field, method, and record-component metadata and annotations.
+ */
 public final class JvmMemberPrinter {
     private final List<AnnotationNode> visibleAnnotations;
     private final List<AnnotationNode> invisibleAnnotations;
@@ -129,6 +132,9 @@ public final class JvmMemberPrinter {
         return null;
     }
 
+    /**
+     * Member categories whose declarations and metadata this printer emits.
+     */
     public enum Type {
         CLASS,
         FIELD,

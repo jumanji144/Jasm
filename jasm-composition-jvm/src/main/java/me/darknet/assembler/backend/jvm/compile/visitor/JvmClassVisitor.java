@@ -12,6 +12,7 @@ import me.darknet.assembler.backend.jvm.compile.builder.JvmClassBuilder;
 import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.processing.ProcessedMethod;
 import me.darknet.assembler.backend.jvm.util.JvmModifiers;
+import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTClassVisitor;
 import me.darknet.assembler.visitor.ASTFieldVisitor;
@@ -22,7 +23,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.TypePath;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.InnerClassNode;
 import org.objectweb.asm.tree.TypeAnnotationNode;
@@ -186,7 +186,7 @@ public class JvmClassVisitor implements ASTClassVisitor {
 
 	private @NotNull TypeAnnotationNode addRuntimeTypeAnnotation(boolean visible, @NotNull String internalName,
 	                                                             int typeRef, @Nullable ASTIdentifier typePath) {
-		TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef, parseTypePath(typePath),
+		TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef, JvmTypeUtils.parseTypePath(typePath),
 				Type.getObjectType(internalName).getDescriptor());
 		if (visible) {
 			if (builder.node().visibleTypeAnnotations == null)
@@ -200,10 +200,4 @@ public class JvmClassVisitor implements ASTClassVisitor {
 		return annotation;
 	}
 
-	private static @Nullable TypePath parseTypePath(@Nullable ASTIdentifier typePath) {
-		if (typePath == null)
-			return null;
-		String content = typePath.content();
-		return "_".equals(content) ? null : TypePath.fromString(content);
-	}
 }

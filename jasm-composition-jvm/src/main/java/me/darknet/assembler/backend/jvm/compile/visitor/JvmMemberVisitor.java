@@ -4,6 +4,7 @@ import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
+import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTDeclarationVisitor;
 import org.jetbrains.annotations.NotNull;
@@ -39,7 +40,7 @@ public abstract class JvmMemberVisitor implements ASTDeclarationVisitor {
 		return new JvmAnnotationVisitor(addRuntimeTypeAnnotation(
 				visibility == AnnotationVisibility.VISIBLE,
 				typeRef.asInt(),
-				parseTypePath(typePath),
+				JvmTypeUtils.parseTypePath(typePath),
 				Type.getObjectType(classType.literal()).getDescriptor()
 		));
 	}
@@ -59,10 +60,4 @@ public abstract class JvmMemberVisitor implements ASTDeclarationVisitor {
 	public void visitEnd() {
 	}
 
-	private static @Nullable TypePath parseTypePath(@Nullable ASTIdentifier typePath) {
-		if (typePath == null)
-			return null;
-		String content = typePath.content();
-		return "_".equals(content) ? null : TypePath.fromString(content);
-	}
 }

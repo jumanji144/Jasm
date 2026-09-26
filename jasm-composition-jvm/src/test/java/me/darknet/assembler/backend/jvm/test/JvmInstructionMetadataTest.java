@@ -14,6 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -172,6 +174,16 @@ class JvmInstructionMetadataTest {
 			assertEquals(instruction.canonicalName(), JvmInstructions.INSTANCE.getSourceName(
 					lowering.opcode(), instruction.hasTrait(InstructionTrait.INTERFACE_INVOKE)), name);
 		}
+	}
+
+	@Test
+	void unknownOpcodeLookupReportsMissingMnemonic() {
+		assertNull(JvmOpcodes.opcodeOrNull("unknown-opcode"));
+		IllegalStateException error = assertThrows(
+				IllegalStateException.class,
+				() -> JvmOpcodes.opcode("unknown-opcode")
+		);
+		assertEquals("No ASM opcode for mnemonic: unknown-opcode", error.getMessage());
 	}
 
 	@Test

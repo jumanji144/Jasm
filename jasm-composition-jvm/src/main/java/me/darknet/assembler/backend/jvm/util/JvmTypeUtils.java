@@ -1,13 +1,18 @@
 package me.darknet.assembler.backend.jvm.util;
 
+import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.TypePath;
 
 import java.util.UUID;
 
+/**
+ * Provides conversions and queries for JVM descriptors, types, and type paths.
+ */
 public class JvmTypeUtils {
     public static boolean debug = false; // To prevent abuse, we generate a random package name for non-debug runs.
     private static final String DEBUG_PACKAGE = "jasm/analysis/";
@@ -173,5 +178,21 @@ public class JvmTypeUtils {
             return commonSuperclass == null ? OBJECT : objectType(commonSuperclass);
         }
         return null;
+    }
+
+    /**
+     * Converts a source type path into an ASM {@link TypePath}.
+     *
+     * @param typePath
+     * 		Source type path, or {@code null} when the annotation has no path.
+     *
+     * @return Parsed type path, or {@code null} when absent or written as the root placeholder {@code _}.
+     */
+    public static @Nullable TypePath parseTypePath(@Nullable ASTIdentifier typePath) {
+        if (typePath == null) {
+            return null;
+        }
+        String content = typePath.content();
+        return "_".equals(content) ? null : TypePath.fromString(content);
     }
 }

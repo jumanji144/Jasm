@@ -32,6 +32,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 
+/**
+ * Prints an ASM method node, including its instructions, variables, and annotations, as source.
+ */
 public class JvmMethodPrinter implements MethodPrinter {
 	protected final MethodNode method;
 	protected final MethodNode printableMethod;
@@ -672,6 +675,24 @@ public class JvmMethodPrinter implements MethodPrinter {
 		return EscapeUtil.escapeLiteral(name);
 	}
 
+	/**
+	 * Sanitized local-variable metadata used to derive printable variable names and scopes.
+	 *
+	 * @param index
+	 * 		Local-variable slot index.
+	 * @param start
+	 * 		Start instruction index of the local scope.
+	 * @param end
+	 * 		End instruction index of the local scope.
+	 * @param baseName
+	 * 		Escaped base name from the local-variable metadata.
+	 * @param descriptor
+	 * 		JVM descriptor of the local variable.
+	 * @param type
+	 * 		{@link Type} represented by the descriptor.
+	 * @param escaped
+	 * 		Whether the original local name required escaping.
+	 */
 	private record LocalInfo(int index, int start, int end, @NotNull String baseName, @NotNull String descriptor,
 	                         @NotNull Type type, boolean escaped) {
 		private @NotNull LocalInfo withStart(int newStart) {
@@ -679,9 +700,33 @@ public class JvmMethodPrinter implements MethodPrinter {
 		}
 	}
 
+	/**
+	 * Key for reusing a printable name across split local-variable-table entries.
+	 *
+	 * @param index
+	 * 		Local-variable slot index.
+	 * @param baseName
+	 * 		Escaped base name associated with the slot.
+	 */
 	private record LocalNameReuseKey(int index, @NotNull String baseName) {}
 
+	/**
+	 * Instruction-index bounds for a sanitized local-variable scope.
+	 *
+	 * @param start
+	 * 		Start instruction index of the scope.
+	 * @param end
+	 * 		End instruction index of the scope.
+	 */
 	private record LocalRange(int start, int end) {}
 
+	/**
+	 * Parameter annotation retained with the visibility needed when it is printed.
+	 *
+	 * @param annotation
+	 * 		{@link AnnotationNode} to print.
+	 * @param visible
+	 * 		Whether the annotation is visible at runtime.
+	 */
 	private record ParameterAnnotationEntry(@NotNull AnnotationNode annotation, boolean visible) {}
 }

@@ -89,6 +89,31 @@ public class TopLevelDeclarationTest {
 	}
 
 	@Test
+	void disassemblyPrintsJavaVersionScale() {
+		String source = JvmDisassemblyFixture.disassembleJvm(
+				buildOverlayClass("version/Printed", Opcodes.V21)
+		);
+
+		assertEquals(".version 21", source.lines().findFirst().orElseThrow());
+	}
+
+	@Test
+	void compileDisassembleRecompilePreservesClassVersion() {
+		String source = ".version 21 .super java/lang/Object .class public version/RoundTrip {}";
+		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		options.withVersion(8);
+		JvmCompilation first = JvmAssemblerFixture.compileJvm(source, options);
+		String disassembled = JvmDisassemblyFixture.disassembleJvm(first.requireClassBytes());
+
+		assertTrue(disassembled.lines().anyMatch(line -> line.equals(".version 21")));
+
+		TestJvmCompilerOptions secondOptions = new TestJvmCompilerOptions();
+		secondOptions.withVersion(8);
+		JvmCompilation second = JvmAssemblerFixture.compileJvm(disassembled, secondOptions);
+		assertEquals(Opcodes.V21, readClass(second.requireClassBytes()).version);
+	}
+
+	@Test
 	void compilesTopLevelMethodIntoOverlayClass() {
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
 				"""

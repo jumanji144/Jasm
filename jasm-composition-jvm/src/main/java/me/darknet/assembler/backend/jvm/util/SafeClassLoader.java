@@ -9,6 +9,9 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 
+/**
+ * Loads classes from configured URLs while defining a minimal ASM-derived class representation.
+ */
 public final class SafeClassLoader extends URLClassLoader {
 
     private final URL[] urls;

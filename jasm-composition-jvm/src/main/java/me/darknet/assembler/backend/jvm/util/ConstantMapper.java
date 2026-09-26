@@ -10,8 +10,9 @@ import me.darknet.assembler.helper.Handle;
 import org.objectweb.asm.ConstantDynamic;
 import org.objectweb.asm.Type;
 
-import java.util.List;
-
+/**
+ * Maps source constant representations to ASM constants and bootstrap values.
+ */
 public class ConstantMapper {
 
     public static org.objectweb.asm.Handle methodHandleFromArray(ASTArray array) {

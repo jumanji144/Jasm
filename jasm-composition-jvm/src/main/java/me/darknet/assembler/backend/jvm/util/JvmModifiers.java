@@ -6,6 +6,9 @@ import static org.objectweb.asm.Opcodes.*;
 
 import java.util.Map;
 
+/**
+ * Converts JVM access flags and source modifier names in both directions.
+ */
 public class JvmModifiers {
 
     public static final int CLASS = 1;

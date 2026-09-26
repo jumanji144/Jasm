@@ -5,6 +5,9 @@ import me.darknet.assembler.printer.*;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.tree.FieldNode;
 
+/**
+ * Prints an ASM field node and its annotations as source.
+ */
 public class JvmFieldPrinter implements FieldPrinter {
     protected final FieldNode field;
     protected final JvmMemberPrinter memberPrinter;

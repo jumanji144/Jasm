@@ -3,12 +3,12 @@ package me.darknet.assembler.backend.jvm.compile.visitor;
 import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
+import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTRecordComponentVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.TypePath;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.RecordComponentNode;
 import org.objectweb.asm.tree.TypeAnnotationNode;
@@ -51,7 +51,7 @@ public class JvmRecordComponentVisitor implements ASTRecordComponentVisitor, Jvm
 
 	private @NotNull TypeAnnotationNode addRuntimeTypeAnnotation(boolean visible, @NotNull String internalName,
 	                                                             int typeRef, @Nullable ASTIdentifier typePath) {
-		TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef, parseTypePath(typePath),
+		TypeAnnotationNode annotation = new TypeAnnotationNode(typeRef, JvmTypeUtils.parseTypePath(typePath),
 				Type.getObjectType(internalName).getDescriptor());
 		if (visible) {
 			if (component.visibleTypeAnnotations == null)
@@ -65,10 +65,4 @@ public class JvmRecordComponentVisitor implements ASTRecordComponentVisitor, Jvm
 		return annotation;
 	}
 
-	private static @Nullable TypePath parseTypePath(@Nullable ASTIdentifier typePath) {
-		if (typePath == null)
-			return null;
-		String content = typePath.content();
-		return "_".equals(content) ? null : TypePath.fromString(content);
-	}
 }

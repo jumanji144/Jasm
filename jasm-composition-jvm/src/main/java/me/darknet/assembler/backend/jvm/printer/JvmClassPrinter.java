@@ -16,6 +16,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Prints an ASM class model, including its fields, methods, and annotations, as source.
+ */
 public class JvmClassPrinter implements ClassPrinter {
     protected final ClassNode view;
     protected final JvmMemberPrinter memberPrinter;
@@ -32,6 +35,10 @@ public class JvmClassPrinter implements ClassPrinter {
 
     @Override
     public void print(PrintContext<?> ctx) {
+        int version = view.version - 44;
+        if (version >= 1)
+            ctx.begin().element(".version").literal(version).end();
+
         for (InnerClassNode innerClass : view.innerClasses) {
             var obj = ctx.begin().element(".inner")
                     .print(JvmModifiers.modifiers(innerClass.access, JvmModifiers.CLASS)).object();

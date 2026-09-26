@@ -1,6 +1,7 @@
 package me.darknet.assembler.backend.jvm.util;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
 
 import java.lang.reflect.Field;
@@ -15,6 +16,20 @@ public class JvmOpcodes {
 	private static final Map<String, Integer> filteredOpcodes = new HashMap<>();
 
 	/**
+	 * @param name
+	 * 		Mnemonic to resolve.
+	 *
+	 * @return ASM opcode value, or {@code null} when the mnemonic has no ASM opcode.
+	 */
+	public static @Nullable Integer opcodeOrNull(String name) {
+		if (name.endsWith("interface")) {
+			String prefix = name.substring(0, name.length() - 9);
+			return prefix.length() == 6 ? Opcodes.INVOKEINTERFACE : opcodes.get(prefix);
+		}
+		return opcodes.get(name);
+	}
+
+	/**
 	 * Resolves a JASM or ASM mnemonic to its opcode value.
 	 * <p>
 	 * Interface invocation aliases are mapped to the corresponding base opcode
@@ -24,16 +39,16 @@ public class JvmOpcodes {
 	 * 		Mnemonic to resolve.
 	 *
 	 * @return ASM opcode value for {@code name}.
+	 *
+	 * @throws IllegalStateException
+	 * 		If {@code name} has no ASM opcode, so an unknown mnemonic fails diagnosably instead of
+	 * 		unboxing {@code null}.
 	 */
 	public static int opcode(String name) {
-		if (name.endsWith("interface")) {
-			String prefix = name.substring(0, name.length() - 9);
-			if (prefix.length() == 6)
-				return Opcodes.INVOKEINTERFACE;
-			else
-				return opcodes.get(prefix);
-		}
-		return opcodes.get(name);
+		Integer opcode = opcodeOrNull(name);
+		if (opcode == null)
+			throw new IllegalStateException("No ASM opcode for mnemonic: " + name);
+		return opcode;
 	}
 
 	/**
