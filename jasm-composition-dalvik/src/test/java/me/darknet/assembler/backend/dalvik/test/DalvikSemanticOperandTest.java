@@ -22,6 +22,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -68,6 +69,22 @@ class DalvikSemanticOperandTest {
 		MemberPath path = instruction.operand(1, MemberPath.class);
 		assertEquals("java/lang/Math", path.owner());
 		assertEquals("abs", path.name());
+	}
+
+	@Test
+	void resolvedRegisterListsAreImmutable() {
+		ProcessedInstruction instruction = firstInstruction("""
+				.method public static test ()V {
+				  code: {
+				    filled-new-array { v0, v1 } [I
+				    move-result-object v2
+				    return-void
+				  }
+				}
+			""");
+
+		RegisterOperands registers = instruction.operand(0, RegisterOperands.class);
+		assertThrows(UnsupportedOperationException.class, () -> registers.registers().clear());
 	}
 
 	@Test
@@ -129,6 +146,7 @@ class DalvikSemanticOperandTest {
 		ArrayData data = instruction.operand(1, ArrayData.class);
 		assertEquals(4, data.elementWidth());
 		assertEquals(List.of("1", "2", "3"), data.values().stream().map(ASTElement::content).toList());
+		assertThrows(UnsupportedOperationException.class, () -> data.values().clear());
 	}
 
 	@Test
@@ -138,7 +156,7 @@ class DalvikSemanticOperandTest {
 						.method public static test ()V {
 						  code: {
 						    packed-switch v0 { first: 0x10, targets: { A } }
-						    sparse-switch v1 { -1: A, 0b10: B }
+						    sparse-switch v1 { 0b10: B, -1: A }
 						  A:
 						    return-void
 						  B:
@@ -159,9 +177,12 @@ class DalvikSemanticOperandTest {
 
 		ProcessedInstruction sparse = (ProcessedInstruction) code.get(1);
 		SparseSwitchPayload sparsePayload = sparse.operand(1, SparseSwitchPayload.class);
-		// -1 proves sign handling and 0b10 proves radix handling moved to processing.
+		// Sign, radix, and source ordering are resolved before emission.
 		assertEquals("A", sparsePayload.targets().get(-1));
 		assertEquals("B", sparsePayload.targets().get(2));
+		assertEquals(List.of(2, -1), List.copyOf(sparsePayload.targets().keySet()));
+		assertThrows(UnsupportedOperationException.class, () -> sparsePayload.targets().clear());
+		assertThrows(UnsupportedOperationException.class, () -> packedPayload.targets().clear());
 	}
 
 	@Test

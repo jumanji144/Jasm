@@ -27,6 +27,7 @@ import me.darknet.assembler.parser.processor.ProcessorContext;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -255,10 +256,9 @@ public enum DalvikOperands implements Operands {
 		if (values == null)
 			return null;
 		List<RegisterRef> registers = new ArrayList<>(values.size());
-		for (ASTElement value : values) {
+		for (ASTElement value : values)
 			registers.add((RegisterRef) resolveRegister(context, value));
-		}
-		return new RegisterList(registers);
+		return new RegisterList(Collections.unmodifiableList(registers));
 	}
 
 	/**
@@ -343,7 +343,7 @@ public enum DalvikOperands implements Operands {
 					targets.add(identifier.content());
 			}
 		}
-		return new PackedSwitchPayload(key.value(), targets);
+		return new PackedSwitchPayload(key.value(), Collections.unmodifiableList(targets));
 	}
 
 	/**
@@ -365,7 +365,7 @@ public enum DalvikOperands implements Operands {
 			if (target instanceof ASTIdentifier identifier)
 				targets.put(key.value(), identifier.content());
 		}
-		return new SparseSwitchPayload(targets);
+		return new SparseSwitchPayload(Collections.unmodifiableMap(targets));
 	}
 
 	/**
@@ -395,7 +395,7 @@ public enum DalvikOperands implements Operands {
 		}
 
 		if (declaredWidth != null)
-			return new ArrayData(declaredWidth, values);
+			return new ArrayData(declaredWidth, Collections.unmodifiableList(values));
 
 		// Without a declared width the payload has to be as wide as its widest literal, otherwise the
 		// narrowest value that keeps every literal lossless.
@@ -421,7 +421,7 @@ public enum DalvikOperands implements Operands {
 				elementWidth = Math.max(elementWidth, Short.BYTES);
 			}
 		}
-		return new ArrayData(elementWidth, values);
+		return new ArrayData(elementWidth, Collections.unmodifiableList(values));
 	}
 
 	/**
