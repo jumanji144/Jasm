@@ -209,7 +209,7 @@ record JvmConstantPrinter(PrintContext<?> ctx) {
 	private static String rawBits(long bits, int width, int radix) {
 		String digits = Long.toUnsignedString(bits, radix);
 		if (radix == 16)
-			digits = digits.toUpperCase(Locale.ROOT);
+			digits = digits.toUpperCase();
 		return "#0" + (radix == 16 ? "x" : "b") + "0".repeat(width - digits.length()) + digits;
 	}
 }

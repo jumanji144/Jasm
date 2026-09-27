@@ -1,43 +1,19 @@
 package me.darknet.assembler.cli.commands;
 
-import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
-import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.backend.jvm.util.SafeClassLoader;
-import me.darknet.assembler.backend.dalvik.compile.DalvikClassResult;
-import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
-import me.darknet.assembler.backend.dalvik.compile.DalvikCompilerOptions;
-import me.darknet.assembler.backend.jvm.compile.JavaClassRepresentation;
-import me.darknet.assembler.backend.jvm.compile.JavaCompileResult;
-import me.darknet.assembler.backend.jvm.compile.JvmCompiler;
-import me.darknet.assembler.backend.jvm.compile.JvmCompilerOptions;
-import me.darknet.assembler.compiler.EmptyInheritanceChecker;
-import me.darknet.assembler.compiler.InheritanceChecker;
-import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
-import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
-import me.darknet.assembler.backend.jvm.JvmTargetContext;
-import me.darknet.assembler.error.Diagnostic;
-import me.darknet.assembler.error.Outcome;
-import me.darknet.assembler.error.Severity;
-import me.darknet.assembler.helper.Processor;
-import me.darknet.assembler.processing.SemanticProcessor;
-import me.darknet.assembler.processing.ValidatedUnit;
-import me.darknet.assembler.backend.dalvik.io.DalvikDexIO;
-import me.darknet.assembler.target.TargetContext;
-import me.darknet.dex.tree.DexFile;
-import me.darknet.dex.tree.definitions.ClassDefinition;
+import me.darknet.assembler.cli.targets.CliRuntime;
+import me.darknet.assembler.cli.targets.CliTarget;
+import me.darknet.assembler.cli.targets.CliTargetCandidates;
+import me.darknet.assembler.cli.targets.CliTargets;
+import me.darknet.assembler.cli.targets.CompileRequest;
+import me.darknet.assembler.cli.targets.SourceUnit;
 import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.Callable;
 
 @CommandLine.Command(
@@ -48,6 +24,9 @@ public class CompileCommand implements Callable<Integer> {
     @CommandLine.Spec
     private CommandLine.Model.CommandSpec commandSpec;
 
+    @CommandLine.ParentCommand
+    private MainCommand parentCommand;
+
     @CommandLine.Parameters(index = "0..*", description = "Source file(s)", arity = "0..*", paramLabel = "file")
     private List<File> sources = new ArrayList<>();
 
@@ -57,58 +36,68 @@ public class CompileCommand implements Callable<Integer> {
     @CommandLine.Option(names = {"-s", "--source"}, description = "Source code", paramLabel = "code")
     private Optional<String> sourceCode = Optional.empty();
 
-    @CommandLine.Option(
-            names = {"-ov", "--overlay"}, description = "Overlay class file\nRequired for non-class code", paramLabel = "file"
-    )
+    @CommandLine.Option(names = {"-ov", "--overlay"}, description = "Overlay class file\nRequired for non-class code", paramLabel = "file")
     private Optional<File> overlay = Optional.empty();
 
-    @CommandLine.Option(
-            names = {"-at", "--annotation-target"}, description = "Annotation target", paramLabel = "target"
-    )
+    @CommandLine.Option(names = {"-at", "--annotation-target"}, description = "Annotation target", paramLabel = "target")
     private Optional<String> annotationTarget = Optional.empty();
 
-    @CommandLine.Option(
-            names = {"-bv", "--bytecode-version"}, description = "Bytecode version", paramLabel = "version"
-    )
+    @CommandLine.Option(names = {"-bv", "--bytecode-version"}, description = "Bytecode version", paramLabel = "version")
     private Optional<Integer> bytecodeVersion = Optional.empty();
 
-    @CommandLine.Option(
-            names = {"-lib", "--library-folder"}, description = "Library folder path", paramLabel = "path"
-    )
+    @CommandLine.Option(names = {"-lib", "--library-folder"}, description = "Library folder path", paramLabel = "path")
     private Optional<String> libraryFolder = Optional.empty();
 
     @CommandLine.Option(
-            names = {"-ic", "--inheritance-checker"}, description = "Enable the inheritance checker (default: ${DEFAULT-VALUE})", defaultValue = "true", paramLabel = "boolean"
+            names = {"-ic", "--inheritance-checker"},
+            description = "Enable the inheritance checker (default: ${DEFAULT-VALUE})",
+            defaultValue = "true", paramLabel = "boolean"
     )
     private boolean enableInheritanceChecker;
 
-    private JvmCompilerOptions jvmOptions;
-    private DalvikCompilerOptions dalvikOptions;
-    private int resolvedVersion;
-
-    private CommandLine.ExecutionException failure(String message) {
-        return new CommandLine.ExecutionException(commandSpec.commandLine(), message);
-    }
-
-    private CommandLine.ExecutionException failure(String message, Throwable cause) {
-        return new CommandLine.ExecutionException(commandSpec.commandLine(), message + " ("
-                + cause.getClass().getSimpleName() + ": " + cause.getMessage() + ")");
-    }
+    @CommandLine.Option(
+            names = {"-t", "--target"}, completionCandidates = CliTargetCandidates.class,
+            description = "Target platform (overrides the root target)", paramLabel = "target"
+    )
+    private Optional<String> targetOverride = Optional.empty();
 
     @Override
     public Integer call() {
-        List<SourceUnit> units = readSources();
-        configureCompiler(units.size());
-        return switch (MainCommand.target) {
-            case DALVIK -> compileDalvik(units);
-            case JVM -> compileJvm(units.getFirst());
-            default -> throw failure("Unknown target: " + MainCommand.target);
-        };
+        CliRuntime runtime = new CliRuntime(commandSpec.commandLine());
+        CliTarget target = resolveTarget(runtime);
+        List<SourceUnit> units = readSources(runtime);
+        CompileRequest request = new CompileRequest(
+                runtime,
+                units,
+                Optional.ofNullable(output),
+                overlay,
+                annotationTarget,
+                bytecodeVersion.orElse(target.defaultBytecodeVersion()),
+                libraryFolder,
+                enableInheritanceChecker
+        );
+        try {
+            return target.compile(request);
+        } catch (CommandLine.ExecutionException exception) {
+            throw exception;
+        } catch (IOException exception) {
+            throw runtime.failure("Failed to compile source file: " + exception.getMessage(), exception);
+        }
     }
 
-    private List<SourceUnit> readSources() {
+    private CliTarget resolveTarget(CliRuntime runtime) {
+        String value = targetOverride.orElse(parentCommand.target());
+        CliTarget target = CliTargets.findStrategy(value);
+        if (target == null) {
+            String validIds = String.join(", ", CliTargets.registry().ids().stream().map(id -> id.value()).toList());
+            throw runtime.failure("Unknown target: " + value + ". Valid targets: " + validIds);
+        }
+        return target;
+    }
+
+    private List<SourceUnit> readSources(CliRuntime runtime) {
         if (sourceCode.isPresent() && !sources.isEmpty()) {
-            throw failure("--source cannot be combined with source files");
+            throw runtime.failure("--source cannot be combined with source files");
         }
         if (sources.isEmpty()) {
             return List.of(new SourceUnit("<stdin>", sourceCode.map(String::trim).orElse(""), null));
@@ -119,240 +108,9 @@ public class CompileCommand implements Callable<Integer> {
             try {
                 units.add(new SourceUnit(source.getAbsolutePath(), Files.readString(source.toPath()), source.getName()));
             } catch (IOException exception) {
-                throw failure("Failed to read source file: " + exception.getMessage(), exception);
+                throw runtime.failure("Failed to read source file: " + exception.getMessage(), exception);
             }
         }
         return List.copyOf(units);
-    }
-
-    private void configureCompiler(int unitCount) {
-        resolvedVersion = bytecodeVersion.orElse(MainCommand.target == MainCommand.Target.DALVIK ? 35 : 8);
-        switch (MainCommand.target) {
-            case JVM -> configureJvmCompiler(unitCount);
-            case DALVIK -> configureDalvikCompiler(unitCount);
-            default -> throw failure("Unknown target: " + MainCommand.target);
-        }
-    }
-
-    private void configureDalvikCompiler(int unitCount) {
-        if (resolvedVersion < 35 || resolvedVersion > 41) {
-            throw failure("Dalvik bytecode version must be between 35 and 41");
-        }
-        if (libraryFolder.isPresent()) {
-            throw failure("--library-folder is only supported for the JVM target");
-        }
-        if (annotationTarget.isPresent()) {
-            throw failure("--annotation-target is only supported for the JVM target");
-        }
-        if (overlay.isPresent() && unitCount != 1) {
-            throw failure("Dalvik overlays require exactly one source unit");
-        }
-
-        dalvikOptions = new DalvikCompilerOptions()
-                .withVersion(resolvedVersion)
-                .withInheritanceChecker(EmptyInheritanceChecker.INSTANCE);
-
-        overlay.ifPresent(file -> {
-            if (file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".apk")) {
-                throw failure("Dalvik overlays must be standalone DEX files");
-            }
-            try {
-                DexFile dex = DalvikDexIO.read(Files.readAllBytes(file.toPath()));
-                if (dex.definitions().size() != 1) {
-                    throw failure("Dalvik overlay must contain exactly one class");
-                }
-                dalvikOptions.withOverlay(new DalvikClassRepresentation(dex.definitions().getFirst()));
-            } catch (IOException exception) {
-                throw failure("Failed to read overlay file: " + exception.getMessage(), exception);
-            }
-        });
-    }
-
-    private void configureJvmCompiler(int unitCount) {
-        if (unitCount != 1) {
-            throw failure("The JVM target accepts exactly one source unit");
-        }
-        jvmOptions = new JvmCompilerOptions();
-
-        InheritanceChecker inheritanceChecker;
-        if (!enableInheritanceChecker) {
-            inheritanceChecker = EmptyInheritanceChecker.INSTANCE;
-        } else {
-            ClassLoader classLoader = new SafeClassLoader(new URL[0]);
-            if (libraryFolder.isPresent()) {
-                URL[] urls;
-                try (var stream = Files.walk(Paths.get(libraryFolder.get()))) {
-                    urls = stream
-                            .filter(Files::isRegularFile)
-                            .filter(path -> path.toString().endsWith(".class") || path.toString().endsWith(".jar"))
-                            .map(Path::toUri)
-                            .map(uri -> {
-                                try {
-                                    return uri.toURL();
-                                } catch (Exception exception) {
-                                    throw failure("Failed to convert path to URL: " + exception.getMessage(), exception);
-                                }
-                            }).toArray(URL[]::new);
-                } catch (IOException exception) {
-                    throw failure("Failed to read library folder: " + exception.getMessage(), exception);
-                }
-                classLoader = new SafeClassLoader(urls);
-            }
-            inheritanceChecker = new ReflectiveInheritanceChecker(classLoader);
-        }
-
-        jvmOptions.withVersion(resolvedVersion)
-                .withAnnotationPath(annotationTarget.orElse(null))
-                .withInheritanceChecker(inheritanceChecker);
-
-        overlay.ifPresent(file -> {
-            try {
-                jvmOptions.withOverlay(new JavaClassRepresentation(Files.readAllBytes(file.toPath())));
-            } catch (IOException exception) {
-                throw failure("Failed to read overlay file: " + exception.getMessage(), exception);
-            }
-        });
-    }
-
-    private Integer compileJvm(SourceUnit unit) {
-        JavaClassRepresentation representation = compileJvmUnit(unit);
-        Path outputPath = output == null
-                ? Paths.get(defaultOutputName(unit.fileName(), ".class"))
-                : output.toPath();
-        writeOutput(outputPath, representation.classFile());
-        return 0;
-    }
-
-    private Integer compileDalvik(List<SourceUnit> units) {
-        List<ClassDefinition> definitions = new ArrayList<>(units.size());
-        Set<String> names = new HashSet<>();
-        for (SourceUnit unit : units) {
-            DalvikClassRepresentation representation = compileDalvikUnit(unit);
-            ClassDefinition definition = representation.definition();
-            String name = definition.getType().internalName();
-            if (!names.add(name)) {
-                throw failure("Duplicate class definition: " + name);
-            }
-            definitions.add(definition);
-        }
-
-        Path outputPath = output == null
-                ? Paths.get(units.size() == 1 && units.getFirst().fileName() != null
-                ? defaultOutputName(units.getFirst().fileName(), ".dex")
-                : "output.dex")
-                : output.toPath();
-        if (outputPath.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".apk")) {
-            throw failure("Dalvik compilation writes a standalone DEX file, not an APK");
-        }
-        try {
-            writeOutput(outputPath, DalvikDexIO.write(new DexFile(resolvedVersion, List.copyOf(definitions))));
-        } catch (IOException exception) {
-            throw failure("Failed to write output file: " + exception.getMessage(), exception);
-        }
-        return 0;
-    }
-
-    private JavaClassRepresentation compileJvmUnit(SourceUnit source) {
-        ValidatedUnit unit = processUnit(source, JvmTargetContext.INSTANCE);
-        Outcome<JavaCompileResult> result = new JvmCompiler().compile(unit, jvmOptions);
-        printWarnings(result.warnings());
-        if (result.hasErrors()) {
-            throw failure("Failed to compile source file:\n" + formatDiagnostics(result.errors()));
-        }
-        JavaClassRepresentation representation = result.requireValue().representation();
-        if (representation == null) {
-            throw failure("Compiler returned no class representation");
-        }
-        return representation;
-    }
-
-    private DalvikClassRepresentation compileDalvikUnit(SourceUnit source) {
-        ValidatedUnit unit = processUnit(source, DalvikTargetContext.INSTANCE);
-        Outcome<DalvikClassResult> result = new DalvikCompiler().compile(unit, dalvikOptions);
-        printWarnings(result.warnings());
-        if (result.hasErrors()) {
-            throw failure("Failed to compile source file:\n" + formatDiagnostics(result.errors()));
-        }
-        DalvikClassRepresentation representation = result.requireValue().representation();
-        if (representation == null) {
-            throw failure("Compiler returned no class representation");
-        }
-        return representation;
-    }
-
-    private ValidatedUnit processUnit(SourceUnit source, TargetContext target) {
-        Outcome<List<ASTElement>> parsed = Processor.processSourceResult(
-                source.code(), source.sourceName(), target
-        );
-        printWarnings(parsed.warnings());
-        if (parsed.hasErrors()) {
-            throw failure("Failed to parse source file:\n" + formatDiagnostics(parsed.errors()));
-        }
-        List<ASTElement> ast = parsed.requireValue();
-        validateAst(ast);
-
-        Outcome<ValidatedUnit> processed = SemanticProcessor.process(ast, target);
-        printWarnings(processed.warnings());
-        if (processed.hasErrors()) {
-            throw failure("Failed to compile source file:\n" + formatDiagnostics(processed.errors()));
-        }
-        return processed.requireValue();
-    }
-
-    private void validateAst(List<ASTElement> ast) {
-        if (ast.size() != 1) {
-            throw failure("Expected exactly one class, method or field declaration");
-        }
-
-        switch (ast.getFirst().type()) {
-            case CLASS -> {
-            }
-            case METHOD, FIELD -> {
-                if (overlay.isEmpty()) {
-                    throw failure("Overlay is required for non-class code");
-                }
-            }
-            case ANNOTATION -> {
-                if (overlay.isEmpty() || annotationTarget.isEmpty()) {
-                    throw failure("Overlay and annotation target are required for annotation code");
-                }
-            }
-            default -> throw failure("Expected exactly one class, method or field declaration");
-        }
-    }
-
-    private static String formatDiagnostics(List<Diagnostic> diagnostics) {
-        return String.join("\n", diagnostics.stream().map(String::valueOf).toList());
-    }
-
-    private void printWarnings(List<Diagnostic> diagnostics) {
-        for (Diagnostic diagnostic : diagnostics) {
-            if (diagnostic.severity() == Severity.WARNING)
-                commandSpec.commandLine().getErr().println(diagnostic);
-        }
-    }
-
-    private void writeOutput(Path outputPath, byte[] bytes) {
-        try {
-            Path parent = outputPath.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            Files.write(outputPath, bytes);
-        } catch (IOException exception) {
-            throw failure("Failed to write output file: " + exception.getMessage(), exception);
-        }
-    }
-
-    private static String defaultOutputName(String fileName, String extension) {
-        if (fileName == null) {
-            return "output" + extension;
-        }
-        return fileName.endsWith(".jasm")
-                ? fileName.substring(0, fileName.length() - ".jasm".length()) + extension
-                : fileName + extension;
-    }
-
-    private record SourceUnit(String sourceName, String code, String fileName) {
     }
 }

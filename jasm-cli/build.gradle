@@ -9,9 +9,8 @@ dependencies {
     annotationProcessor 'info.picocli:picocli-codegen:4.7.5'
 
     // jvm
-    // asm
-    implementation 'org.ow2.asm:asm:9.7.1'
     api project(path: ':jasm-composition-jvm')
+    testImplementation(testFixtures(project(path: ':jasm-composition-jvm')))
 
     // dalvik
     api project(path: ':jasm-composition-dalvik')

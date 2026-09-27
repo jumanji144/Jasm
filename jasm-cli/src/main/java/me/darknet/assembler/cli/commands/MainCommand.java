@@ -1,5 +1,6 @@
 package me.darknet.assembler.cli.commands;
 
+import me.darknet.assembler.cli.targets.CliTargetCandidates;
 import picocli.CommandLine;
 
 @CommandLine.Command(
@@ -8,13 +9,16 @@ import picocli.CommandLine;
 )
 public class MainCommand implements Runnable {
 
-    protected enum Target { JVM, DALVIK }
-
     @CommandLine.Option(
-            names = { "-t", "--target" }, description = "Target platform\n"
-                    + "Possible values: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "JVM"
+            names = { "-t", "--target" }, completionCandidates = CliTargetCandidates.class,
+            description = "Target platform\nPossible values: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})",
+            defaultValue = "JVM"
     )
-    protected static Target target;
+    private String target = "JVM";
+
+    String target() {
+        return target;
+    }
 
     @Override
     public void run() {

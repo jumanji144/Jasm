@@ -1,6 +1,7 @@
 package me.darknet.assembler.printer;
 
 import me.darknet.assembler.util.EscapeUtil;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -206,7 +207,23 @@ public class PrintContext<T extends PrintContext<?>> {
     public enum FloatPrintMode {
         STANDARD,
         HEX,
-        BINARY
+        BINARY;
+
+        /**
+         * Converts a string to a FloatPrintMode enum value.
+         *
+         * @param mode The string representation of the float print mode.
+         * @return The corresponding FloatPrintMode enum value.
+         * @throws IllegalArgumentException If the provided string does not match any known mode.
+         */
+        public static @NotNull FloatPrintMode fromString(@NotNull String mode) {
+            return switch (mode.toLowerCase()) {
+                case "standard" -> STANDARD;
+                case "hex" -> HEX;
+                case "binary" -> BINARY;
+                default -> throw new IllegalArgumentException("Unknown float print mode: " + mode);
+            };
+        }
     }
 
     public static class ObjectPrint extends PrintContext<ObjectPrint> {
