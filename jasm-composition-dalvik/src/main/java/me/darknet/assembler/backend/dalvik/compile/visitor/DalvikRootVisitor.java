@@ -12,7 +12,6 @@ import me.darknet.assembler.visitor.*;
 import me.darknet.dex.tree.definitions.ClassDefinition;
 import me.darknet.dex.tree.definitions.FieldMember;
 import me.darknet.dex.tree.definitions.MethodMember;
-import me.darknet.dex.tree.definitions.constant.Constant;
 import me.darknet.dex.tree.type.ClassType;
 import me.darknet.dex.tree.type.InstanceType;
 import me.darknet.dex.tree.type.MethodType;
@@ -22,15 +21,12 @@ import me.darknet.dex.tree.type.Types;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * Visits a top-level assembler declaration and builds the Dalvik {@link ClassDefinition} tree.
  */
 public class DalvikRootVisitor implements ASTRootVisitor {
     private final DiagnosticSink sink;
-    private final Map<String, Constant> annotationDefaults = new LinkedHashMap<>();
     private ClassDefinition definition;
 
     /**
@@ -49,14 +45,6 @@ public class DalvikRootVisitor implements ASTRootVisitor {
      */
     public @Nullable ClassDefinition getDefinition() {
         return definition;
-    }
-
-    /**
-     * Completes the visitor and adds any annotation defaults to the class definition.
-     */
-    public void complete() {
-        if (definition != null)
-            DalvikClassVisitor.addAnnotationDefaults(definition, annotationDefaults);
     }
 
     @Override
@@ -99,7 +87,7 @@ public class DalvikRootVisitor implements ASTRootVisitor {
 
         MethodMember member = new MethodMember(name.literal(), methodType, DalvikModifiers.getMethodModifiers(modifiers));
         definition.putMethod(member);
-        return new DalvikMethodVisitor(member, processed, sink, annotationDefaults::put);
+        return new DalvikMethodVisitor(member, processed, sink);
     }
 
     /**

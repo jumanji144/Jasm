@@ -15,6 +15,7 @@ import me.darknet.assembler.visitor.ASTAnnotationVisitor;
 import me.darknet.assembler.visitor.ASTInstructionVisitor;
 import me.darknet.assembler.visitor.ASTMethodVisitor;
 import me.darknet.dex.tree.definitions.MethodMember;
+import me.darknet.dex.tree.definitions.annotation.Annotation;
 import me.darknet.dex.tree.definitions.code.Code;
 import me.darknet.dex.tree.definitions.code.CodeBuilder;
 import me.darknet.dex.tree.definitions.constant.Constant;
@@ -29,7 +30,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
 
 /**
  * Visits a Dalvik method declaration and builds its dex member, code, registers, and debug information.
@@ -39,7 +39,6 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     private final ASTMethod source;
     private final @Nullable DalvikMethodData methodData;
     private final DiagnosticSink sink;
-    private final BiConsumer<String, Constant> annotationDefaultConsumer;
     private Integer declaredRegisterCount;
     private int incomingRegisterCount;
     private CodeBuilder codeBuilder;
@@ -55,13 +54,11 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
      * 		Sink reporting forms and register layouts this backend cannot encode.
      */
     public DalvikMethodVisitor(MethodMember member, @NotNull ProcessedMethod processed,
-                               @NotNull DiagnosticSink sink,
-                               @NotNull BiConsumer<String, Constant> annotationDefaultConsumer) {
+                               @NotNull DiagnosticSink sink) {
         super(member);
         this.source = processed.source();
         this.methodData = processed.extensions().get(DalvikMethodData.class);
         this.sink = sink;
-        this.annotationDefaultConsumer = annotationDefaultConsumer;
     }
 
     @Override
@@ -91,16 +88,30 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
         if (sink.hasErrors() || captured.size() != 1)
             return;
 
-        // The model holds the bare value. The dex writer collects these per element into the class-level
-        // dalvik/annotation/AnnotationDefault annotation, so storing the wrapper here would nest it twice.
-        annotationDefaultConsumer.accept(member.getName(), captured.getFirst());
+        member.setDefaultValue(captured.getFirst());
     }
 
     @Override
     public ASTAnnotationVisitor visitParameterAnnotation(@NotNull AnnotationVisibility visibility, int index,
                                                          @NotNull ASTIdentifier classType) {
-        sink.error(DiagnosticCode.UNSUPPORTED_CAPABILITY, "Target does not support parameter annotations", classType.location());
-        return null;
+        int parameterCount = member.getType().parameterTypes().size();
+        if (index < 0 || index >= parameterCount)
+            return null;
+        byte mapped = switch (visibility) {
+            case VISIBLE -> DalvikAnnotationVisitor.RUNTIME;
+            case INVISIBLE -> DalvikAnnotationVisitor.BUILD;
+            case SYSTEM -> DalvikAnnotationVisitor.SYSTEM;
+        };
+        return new DalvikAnnotationVisitor(mapped, classType, annotation -> {
+            List<List<Annotation>> parameterAnnotations = new ArrayList<>(member.getParameterAnnotations());
+            while (parameterAnnotations.size() <= index)
+                parameterAnnotations.add(List.of());
+
+            List<Annotation> forParameter = new ArrayList<>(parameterAnnotations.get(index));
+            forParameter.add(annotation);
+            parameterAnnotations.set(index, List.copyOf(forParameter));
+            member.setParameterAnnotations(parameterAnnotations);
+        });
     }
 
     @Override

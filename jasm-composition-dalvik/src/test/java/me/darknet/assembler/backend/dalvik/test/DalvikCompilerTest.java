@@ -309,6 +309,73 @@ class DalvikCompilerTest {
     }
 
     @Test
+    void compilesNestPermittedAndRecordMetadata() {
+        TestUtils.processDalvik("""
+                .super java/lang/Object
+                .nest-host java/lang/Object
+                .nest-member Example$Inner
+                .permitted-subclass Example$Impl
+                .visible-annotation demo/ComponentMarker {}
+                .record-component name Ljava/lang/String;
+                .class public final Example {
+                }
+                """, TestUtils.options(), result -> {
+            ClassDefinition definition = ((DalvikClassRepresentation) result.representation()).definition();
+            assertEquals("java/lang/Object", definition.getNestHost().internalName());
+            assertEquals("Example$Inner", definition.getNestMembers().getFirst().internalName());
+            assertEquals("Example$Impl", definition.getPermittedSubclasses().getFirst().internalName());
+            var component = definition.getRecordComponents().getFirst();
+            assertEquals("name", component.name());
+            assertEquals("Ljava/lang/String;", component.type().descriptor());
+            assertEquals(1, component.annotations().size());
+            assertEquals(me.darknet.dex.tree.definitions.annotation.Annotation.VISIBILITY_RUNTIME,
+                    component.annotations().getFirst().visibility());
+        });
+    }
+
+    @Test
+    void compilesAnnotationDefaultOntoElementMethod() {
+        TestUtils.processDalvik("""
+                .super java/lang/Object
+                .class public abstract interface Example {
+                    .method public abstract value ()I {
+                        default-value: 42
+                    }
+                }
+                """, TestUtils.options(), result -> {
+            var method = result.representation().definition().getMethod("value", "()I");
+            assertNotNull(method, "Expected the annotation element method");
+            assertEquals(new me.darknet.dex.tree.definitions.constant.IntConstant(42), method.getDefaultValue());
+        });
+    }
+
+    @Test
+    void compilesParameterAnnotationsWithPositionPreserved() {
+        TestUtils.processDalvik("""
+                .super java/lang/Object
+                .class public abstract interface Example {
+                    .method public abstract value (ILjava/lang/String;)V {
+                        parameters: { first, second },
+                        parameter-annotations: {
+                            second: {
+                                .visible-annotation java/lang/Deprecated {}
+                            }
+                        }
+                    }
+                }
+                """, TestUtils.options(), result -> {
+            var method = result.representation().definition().getMethod("value", "(ILjava/lang/String;)V");
+            assertNotNull(method, "Expected the annotated method");
+            var annotations = method.getParameterAnnotations();
+            assertEquals(2, annotations.size(), "Expected an entry per declared parameter");
+            assertTrue(annotations.get(0).isEmpty(), "The unannotated first parameter keeps its position");
+            assertEquals(1, annotations.get(1).size(), "The annotation belongs to the second parameter");
+            assertEquals(me.darknet.dex.tree.definitions.annotation.Annotation.VISIBILITY_RUNTIME,
+                    annotations.get(1).getFirst().visibility());
+        });
+    }
+
+    @Test
     void compilesMethodHandleAndMethodTypeConstants() {
         TestUtils.processDalvik("""
                 .super java/lang/Object

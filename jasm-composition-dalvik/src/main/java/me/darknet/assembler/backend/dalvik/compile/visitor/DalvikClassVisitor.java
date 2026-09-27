@@ -8,6 +8,7 @@ import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.ast.specific.ASTOuterMethod;
+import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.processing.ProcessedMethod;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
@@ -21,11 +22,9 @@ import me.darknet.dex.tree.definitions.FieldMember;
 import me.darknet.dex.tree.definitions.InnerClass;
 import me.darknet.dex.tree.definitions.MemberIdentifier;
 import me.darknet.dex.tree.definitions.MethodMember;
+import me.darknet.dex.tree.definitions.RecordComponent;
 import me.darknet.dex.tree.definitions.annotation.Annotation;
-import me.darknet.dex.tree.definitions.annotation.AnnotationPart;
 import me.darknet.dex.tree.definitions.annotation.AnnotationProcessing;
-import me.darknet.dex.tree.definitions.constant.AnnotationConstant;
-import me.darknet.dex.tree.definitions.constant.Constant;
 import me.darknet.dex.tree.type.ClassType;
 import me.darknet.dex.tree.type.MethodType;
 import me.darknet.dex.tree.type.Type;
@@ -34,13 +33,12 @@ import me.darknet.dex.tree.type.Types;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class DalvikClassVisitor implements ASTClassVisitor {
 	private final ClassDefinition definition;
 	private final DiagnosticSink sink;
-	private Map<String, Constant> annotationDefaults;
 
 	public DalvikClassVisitor(ClassDefinition definition, DiagnosticSink sink) {
 		this.definition = definition;
@@ -95,29 +93,36 @@ public final class DalvikClassVisitor implements ASTClassVisitor {
 
 	@Override
 	public void visitPermittedSubclass(@NotNull ASTIdentifier subclass) {
-		throw new IllegalStateException("Dalvik permitted-subclass metadata is not supported by the current dex tree");
+		definition.addPermittedSubclass(Types.instanceTypeFromInternalName(subclass.literal()));
 	}
 
 	@Override
 	public void visitNestHost(@Nullable ASTIdentifier nestHost) {
-		if (nestHost != null)
-			throw new IllegalStateException("Dalvik nest metadata is not supported by the current dex tree");
+		definition.setNestHost(nestHost == null ? null : Types.instanceTypeFromInternalName(nestHost.literal()));
 	}
 
 	@Override
 	public void visitNestMember(@NotNull ASTIdentifier nestMember) {
-		throw new IllegalStateException("Dalvik nest metadata is not supported by the current dex tree");
+		definition.addNestMember(Types.instanceTypeFromInternalName(nestMember.literal()));
 	}
 
 	@Override
 	public ASTRecordComponentVisitor visitRecordComponent(@NotNull ASTIdentifier name, @NotNull ASTIdentifier descriptor, @Nullable ASTString signature) {
-		throw new IllegalStateException("Dalvik record components are not supported by the current dex tree");
+		ClassType type = new TypeParser(descriptor.literal()).requireClassType();
+		List<Annotation> annotations = new ArrayList<>();
+		definition.addRecordComponent(new RecordComponent(name.literal(), type,
+				signature == null ? null : signature.content(), annotations));
+		return new DalvikRecordComponentVisitor(annotations);
 	}
 
 	@Override
 	public void visitInnerClass(@NotNull Modifiers modifiers, @Nullable ASTIdentifier name, @Nullable ASTIdentifier outerClass, @Nullable ASTIdentifier innerClass) {
 		if (innerClass == null || outerClass == null) {
-			throw new IllegalStateException("Dalvik inner classes require inner and outer class identifiers");
+			ASTIdentifier located = innerClass != null ? innerClass : outerClass != null ? outerClass : name;
+			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
+					"Dalvik inner classes require inner and outer class identifiers",
+					located == null ? null : located.location());
+			return;
 		}
 		definition.addInnerClass(new InnerClass(
 				innerClass.literal(),
@@ -147,13 +152,7 @@ public final class DalvikClassVisitor implements ASTClassVisitor {
 
 		MethodMember member = new MethodMember(name.literal(), methodType, DalvikModifiers.getMethodModifiers(modifiers));
 		definition.putMethod(member);
-		return new DalvikMethodVisitor(member, processed, sink, this::addAnnotationDefault);
-	}
-
-	private void addAnnotationDefault(String methodName, Constant value) {
-		if (annotationDefaults == null)
-			annotationDefaults = new HashMap<>();
-		annotationDefaults.put(methodName, value);
+		return new DalvikMethodVisitor(member, processed, sink);
 	}
 
 	@Override
@@ -163,18 +162,7 @@ public final class DalvikClassVisitor implements ASTClassVisitor {
 
 	@Override
 	public void visitEnd() {
-		addAnnotationDefaults(definition, annotationDefaults);
-	}
-
-	static void addAnnotationDefaults(@NotNull ClassDefinition definition, @Nullable Map<String, Constant> defaults) {
-		if (defaults == null || defaults.isEmpty())
-			return;
-
-		AnnotationPart defaultElements = new AnnotationPart(definition.getType(), new HashMap<>(defaults));
-		Map<String, Constant> annotationElements = new HashMap<>();
-		annotationElements.put("value", new AnnotationConstant(defaultElements));
-		AnnotationPart annotationDefault = new AnnotationPart(Types.instanceTypeFromInternalName("dalvik/annotation/AnnotationDefault"), annotationElements);
-		definition.addAnnotation(new Annotation((byte) Annotation.VISIBILITY_SYSTEM, annotationDefault));
+		// no-op
 	}
 
 	@Override

@@ -70,7 +70,6 @@ public class DalvikCompiler implements Compiler<DalvikCompilerOptions, DalvikCla
 		DalvikRootVisitor visitor = new DalvikRootVisitor(overlay, sink);
 		try {
 			sink.addAll(new Transformer(visitor).transform(unit));
-			visitor.complete();
 		} catch (Throwable failure) {
 			sink.error(DiagnosticCode.BACKEND_FAILURE,
 					"Failed to compile Dalvik source: " + failure.getMessage(),
