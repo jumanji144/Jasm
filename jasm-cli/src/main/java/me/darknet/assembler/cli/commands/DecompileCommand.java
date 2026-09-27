@@ -1,6 +1,6 @@
 package me.darknet.assembler.cli.commands;
 
-import me.darknet.assembler.cli.dalvik.DalvikInputSupport;
+import me.darknet.assembler.backend.dalvik.io.DalvikDexIO;
 import me.darknet.assembler.backend.dalvik.printer.DalvikClassPrinter;
 import me.darknet.assembler.backend.jvm.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
@@ -71,7 +71,7 @@ public class DecompileCommand implements Callable<Integer> {
     }
 
     private int decompileJvm() throws IOException {
-        String sourceName = source.getName().toLowerCase(Locale.ROOT);
+        String sourceName = source.getName().toLowerCase();
         if (sourceName.endsWith(".jar")) {
             try (ZipFile zipFile = new ZipFile(source)) {
                 if (className.isEmpty()) {
@@ -112,7 +112,7 @@ public class DecompileCommand implements Callable<Integer> {
     }
 
     private int decompileDalvik() throws IOException {
-        List<ClassDefinition> definitions = flatten(DalvikInputSupport.read(source.toPath()));
+        List<ClassDefinition> definitions = flatten(DalvikDexIO.read(source.toPath()));
         String requestedName = className.map(DecompileCommand::internalName).orElse(null);
         if (requestedName != null) {
             ClassDefinition definition = definitions.stream()

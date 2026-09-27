@@ -24,8 +24,7 @@ public final class DalvikTargetContext implements TargetContext {
     public static final DalvikTargetContext INSTANCE = new DalvikTargetContext();
 
     private static final AnnotationCapabilities ANNOTATION_CAPABILITIES =
-            capability -> capability != AnnotationCapability.TYPE_ANNOTATIONS
-                            && capability != AnnotationCapability.PARAMETER_ANNOTATIONS;
+            capability -> capability != AnnotationCapability.TYPE_ANNOTATIONS;
     private static final MethodAttributeRegistry METHOD_ATTRIBUTES = createMethodAttributes();
 
     private DalvikTargetContext() {}

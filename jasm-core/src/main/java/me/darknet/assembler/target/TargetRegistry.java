@@ -60,9 +60,9 @@ public final class TargetRegistry {
      */
     public @Nullable AssemblyTarget find(@NotNull TargetId id) {
         Objects.requireNonNull(id, "id");
-        String requested = id.value().toLowerCase(Locale.ROOT);
+        String requested = id.value().toLowerCase();
         for (AssemblyTarget target : targets) {
-            if (target.id().value().toLowerCase(Locale.ROOT).equals(requested))
+            if (target.id().value().toLowerCase().equals(requested))
                 return target;
         }
         return null;
