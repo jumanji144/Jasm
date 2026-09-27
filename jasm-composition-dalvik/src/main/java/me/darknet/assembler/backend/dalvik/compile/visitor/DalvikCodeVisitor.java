@@ -86,6 +86,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -717,7 +718,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
 	@Override
 	public void visitSparseSwitch(RegisterRef register, SparseSwitchPayload payload) {
-		Map<Integer, Label> targets = new HashMap<>();
+		Map<Integer, Label> targets = new LinkedHashMap<>();
 		for (Map.Entry<Integer, String> entry : payload.targets().entrySet()) {
 			targets.put(entry.getKey(), getLabel(entry.getValue()));
 		}
@@ -875,7 +876,22 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	@Override
 	public void visitInvokePolymorphic(RegisterOperands registers, MemberPath method, ASTIdentifier descriptor,
 	                                   ASTIdentifier proto) {
-		throw new IllegalStateException("invoke-polymorphic is not supported by the current dex-core backend");
+		List<Integer> registerValues = resolveInvokeRegisters(registers);
+		if (registerValues == null)
+			return;
+
+		ReferenceType owner = parseReferenceType(method.owner());
+		MethodType methodType = parseMethodType(descriptor);
+		MethodType callSiteType = parseMethodType(proto);
+		updateOutRegisters(argumentWordCount(registerValues, registers.isRange()));
+		if (registers.isRange()) {
+			addInstruction(InvokeInstruction.polymorphicRange(
+					owner, method.name(), methodType, callSiteType,
+					registerValues.get(1) - registerValues.get(0) + 1, registerValues.get(0)));
+		} else {
+			addInstruction(InvokeInstruction.polymorphic(
+					owner, method.name(), methodType, callSiteType, toIntArray(registerValues)));
+		}
 	}
 
 	/**

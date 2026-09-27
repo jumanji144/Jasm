@@ -469,6 +469,7 @@ class DalvikCompilerTest {
             assertTrue(printed.contains("sparse-switch v1"), printed);
             assertTrue(printed.contains("first: 5"), printed);
             assertTrue(printed.contains("7: C"), printed);
+            assertTrue(printed.indexOf("7: C") < printed.indexOf("8: D"), printed);
             TestUtils.assertParsesDalvik(printed);
         });
     }
@@ -563,29 +564,69 @@ class DalvikCompilerTest {
     }
 
     @Test
-    void rejectsInvokePolymorphicUntilBackendSupportExists() {
-        Outcome<List<ASTElement>> astResult =
-                AssemblyParseFixture.processDeclarations("<test>", """
-                        .method public static test ()V {
-                            code: {
-                                invoke-polymorphic { v0 } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; ([Ljava/lang/Object;)Ljava/lang/Object;
-                                return-void
-                            }
+    void compilesInvokePolymorphicWithSeparateDeclaredAndCallSitePrototypes() {
+        TestUtils.processDalvik("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static poly (Ljava/lang/Object;)I {
+                        registers: 3,
+                        parameters: { receiver },
+                        code: {
+                            invoke-polymorphic { receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
+                            move-result v0
+                            return v0
                         }
-                        """, DalvikTargetContext.INSTANCE);
+                    }
+                    .method public static polyRange (Ljava/lang/Object;)I {
+                        registers: 3,
+                        parameters: { receiver },
+                        code: {
+                            invoke-polymorphic/range { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
+                            move-result v0
+                            return v0
+                        }
+                    }
+                }
+                """, TestUtils.options(), result -> {
+            ClassDefinition definition = result.representation().definition();
+            var listMethod = definition.getMethod("poly", "(Ljava/lang/Object;)I");
+            var rangeMethod = definition.getMethod("polyRange", "(Ljava/lang/Object;)I");
+            assertNotNull(listMethod, "Expected the list-form method");
+            assertNotNull(rangeMethod, "Expected the range-form method");
+
+            var listInvoke = (me.darknet.dex.tree.definitions.instructions.InvokeInstruction)
+                    listMethod.getCode().getInstructions().getFirst();
+            assertEquals(Opcodes.INVOKE_POLYMORPHIC, listInvoke.opcode());
+            assertEquals("([Ljava/lang/Object;)Ljava/lang/Object;", listInvoke.methodType().descriptor());
+            assertEquals("(Ljava/lang/Object;)I", listInvoke.type().descriptor());
+            assertEquals(4, listInvoke.unitSize());
+
+            var rangeInvoke = (me.darknet.dex.tree.definitions.instructions.InvokeInstruction)
+                    rangeMethod.getCode().getInstructions().getFirst();
+            assertEquals(Opcodes.INVOKE_POLYMORPHIC, rangeInvoke.opcode(),
+                    "The model uses the base opcode for either register encoding form");
+            assertEquals("([Ljava/lang/Object;)Ljava/lang/Object;", rangeInvoke.methodType().descriptor());
+            assertEquals("(Ljava/lang/Object;)I", rangeInvoke.type().descriptor());
+            assertEquals(4, rangeInvoke.unitSize());
+        });
+    }
+
+    @Test
+    void rejectsMalformedInvokePolymorphicPrototypeDuringSemanticProcessing() {
+        Outcome<List<ASTElement>> astResult = AssemblyParseFixture.processDeclarations("<test>", """
+                .method public static test ()V {
+                    code: {
+                        invoke-polymorphic { v0 } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; notADescriptor
+                        return-void
+                    }
+                }
+                """, DalvikTargetContext.INSTANCE);
         assertFalse(astResult.hasErrors(), DiagnosticAssertions.formatErrors(astResult.errors()));
 
-        var unit = DiagnosticAssertions.requireSuccess(
-                SemanticProcessor.process(astResult.requireValue(), DalvikTargetContext.INSTANCE),
-                "Failed to process Dalvik semantic unit"
-        );
-        Outcome<DalvikClassResult> compilation = new DalvikCompiler().compile(
-                unit,
-                TestUtils.overlayOptions("top/level/OverlayExample")
-        );
-        assertTrue(compilation.hasErrors(), "invoke-polymorphic should fail until the backend supports it");
-        assertTrue(DiagnosticAssertions.formatErrors(compilation.errors()).contains("invoke-polymorphic is not supported"),
-                DiagnosticAssertions.formatErrors(compilation.errors()));
+        var processed = SemanticProcessor.process(astResult.requireValue(), DalvikTargetContext.INSTANCE);
+        DiagnosticAssertions.assertHasErrors(processed, "A malformed call-site prototype should be rejected");
+        DiagnosticAssertions.assertPhase(processed.errors(), me.darknet.assembler.error.DiagnosticPhase.SEMANTIC_LOWERING,
+                "Call-site prototypes are validated during semantic lowering");
     }
 
 }
