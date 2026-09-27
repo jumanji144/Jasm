@@ -3,7 +3,6 @@ package me.darknet.assembler.backend.dalvik.printer;
 import me.darknet.assembler.printer.*;
 
 import me.darknet.dex.tree.definitions.annotation.Annotation;
-import me.darknet.dex.tree.definitions.annotation.AnnotationPart;
 import me.darknet.dex.tree.definitions.constant.*;
 import org.jetbrains.annotations.NotNull;
 
@@ -44,11 +43,6 @@ public record DalvikAnnotationPrinter(Annotation annotation) implements Annotati
         }, this::printEntry);
         obj.end();
         ctx.newline();
-    }
-
-    private void printAnnotation(PrintContext<?> ctx, AnnotationPart part) {
-        var printer = new DalvikAnnotationPrinter(new Annotation(VISIBILITY_INTERNAL, part));
-        printer.print(ctx);
     }
 
     private void printEntry(PrintContext.ObjectPrint ctx, Map.Entry<String, Constant> entry) {

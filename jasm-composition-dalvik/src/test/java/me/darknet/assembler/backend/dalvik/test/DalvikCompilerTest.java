@@ -629,4 +629,314 @@ class DalvikCompilerTest {
                 "Call-site prototypes are validated during semantic lowering");
     }
 
+    @Test
+    void roundTripsInvokePolymorphicThroughPrinting() {
+        String source = """
+                .super java/lang/Object
+                .class public Example {
+                    .method public static poly (Ljava/lang/Object;)I {
+                        registers: 3,
+                        parameters: { receiver },
+                        code: {
+                            invoke-polymorphic { receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
+                            move-result v0
+                            return v0
+                        }
+                    }
+                }
+                """;
+        TestUtils.processDalvik(source, TestUtils.options(), result -> {
+            PrintContext<?> ctx = new PrintContext<>(PrintContext.TAB_INDENT);
+            new DalvikClassPrinter(result.representation().definition()).print(ctx);
+            String printed = TestUtils.normalize(ctx.toString());
+            assertTrue(printed.contains("invoke-polymorphic"), printed);
+            assertTrue(printed.contains("([Ljava/lang/Object;)Ljava/lang/Object;"), printed);
+            assertTrue(printed.contains("(Ljava/lang/Object;)I"), printed);
+            TestUtils.assertParsesDalvik(printed);
+        });
+    }
+
+    @Test
+    void roundTripsAnnotationDefaultValueThroughPrinting() {
+        ClassDefinition definition = compileDefinition("""
+                .super java/lang/Object
+                .class public abstract interface Example {
+                    .method public abstract value ()I {
+                        default-value: 42
+                    }
+                }
+                """);
+        String printed = printDefinition(definition);
+        assertTrue(printed.contains("default-value"), printed);
+        assertTrue(printed.contains("42"), printed);
+        TestUtils.assertParsesDalvik(printed);
+        assertEquals(new me.darknet.dex.tree.definitions.constant.IntConstant(42),
+                compileDefinition(printed).getMethod("value", "()I").getDefaultValue());
+    }
+
+    @Test
+    void printsParameterAnnotationsWithTheirParameterNames() {
+        ClassDefinition definition = compileDefinition("""
+                .super java/lang/Object
+                .class public abstract interface Example {
+                    .method public abstract value (ILjava/lang/String;)V {
+                        parameters: { first, second },
+                        parameter-annotations: {
+                            second: {
+                                .visible-annotation java/lang/Deprecated {}
+                            }
+                        }
+                    }
+                }
+                """);
+        String printed = printDefinition(definition);
+        assertTrue(printed.contains("parameter-annotations"), printed);
+        assertTrue(printed.contains("second"), printed);
+        TestUtils.assertParsesDalvik(printed);
+        var reread = compileDefinition(printed).getMethod("value", "(ILjava/lang/String;)V");
+        assertTrue(reread.getParameterAnnotations().get(0).isEmpty());
+        assertEquals(1, reread.getParameterAnnotations().get(1).size());
+    }
+
+    @Test
+    void printsNestPermittedAndRecordMetadata() {
+        ClassDefinition definition = compileDefinition("""
+                .super java/lang/Object
+                .nest-host java/lang/Object
+                .nest-member Example$Inner
+                .permitted-subclass Example$Impl
+                .visible-annotation demo/ComponentMarker {}
+                .record-component name Ljava/lang/String;
+                .class public final Example {
+                }
+                """);
+        String printed = printDefinition(definition);
+        assertTrue(printed.contains(".nest-host java/lang/Object"), printed);
+        assertTrue(printed.contains(".nest-member Example$Inner"), printed);
+        assertTrue(printed.contains(".permitted-subclass Example$Impl"), printed);
+        assertTrue(printed.contains(".visible-annotation demo/ComponentMarker"), printed);
+        assertTrue(printed.contains(".record-component name Ljava/lang/String;"), printed);
+        TestUtils.assertParsesDalvik(printed);
+        var component = compileDefinition(printed).getRecordComponents().getFirst();
+        assertEquals(1, component.annotations().size());
+    }
+
+    @Test
+    void printsStrictfpForTheStrictFlag() {
+        ClassDefinition definition = compileDefinition("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static strictfp m ()V {
+                        registers: 0,
+                        code: {
+                            return-void
+                        }
+                    }
+                }
+                """);
+        String printed = printDefinition(definition);
+        assertTrue(printed.contains("strictfp"), printed);
+        assertFalse(printed.matches("(?s).*\\bstrict\\b(?!fp).*"), printed);
+        TestUtils.assertParsesDalvik(printed);
+    }
+
+    @Test
+    void printsHandleKeywordsTheParserAccepts() {
+        ClassDefinition definition = compileDefinition("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static m ()V {
+                        registers: 0,
+                        code: {
+                            invoke-custom { } callsite ()V { invokespecial, java/lang/Object.<init>, ()V } { }
+                            return-void
+                        }
+                    }
+                }
+                """);
+        String printed = printDefinition(definition);
+        assertTrue(printed.contains("invokespecial"), printed);
+        assertFalse(printed.contains("invokedirect"), printed);
+        assertFalse(printed.contains("invokeconstructor"), printed);
+        TestUtils.assertParsesDalvik(printed);
+    }
+
+    @Test
+    void recoversSafeLocalNamesAndPreservesRegisterLayout() {
+        ClassDefinition definition = compileDefinition("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static named ()V {
+                        registers: 2,
+                        code: {
+                            const v0 1
+                            const v1 2
+                            return-void
+                        }
+                    }
+                }
+                """);
+        var method = definition.getMethod("named", "()V");
+        var code = method.getCode();
+        code.setDebugInfo(new me.darknet.dex.tree.definitions.debug.DebugInformation(List.of(), List.of(), List.of(
+                local(0, "first"),
+                local(0, "renamed"),
+                local(1, "second")
+        )));
+
+        String printed = printDefinition(definition);
+        assertTrue(printed.contains("const first 1"), printed);
+        assertTrue(printed.contains("const second 2"), printed);
+        assertFalse(printed.contains("renamed"), printed);
+        var reread = compileDefinition(printed).getMethod("named", "()V").getCode();
+        assertEquals(code.getRegisters(), reread.getRegisters());
+        assertEquals(code.getIn(), reread.getIn());
+        assertEquals(code.getOut(), reread.getOut());
+        assertEquals(code.getInstructions(), reread.getInstructions());
+    }
+
+    @Test
+    void fallsBackWhenFirstMentionWouldMoveALocalSlot() {
+        ClassDefinition definition = compileDefinition("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static moved ()V {
+                        registers: 2,
+                        code: {
+                            const v1 1
+                            const v0 2
+                            return-void
+                        }
+                    }
+                }
+                """);
+        definition.getMethod("moved", "()V").getCode().setDebugInfo(
+                new me.darknet.dex.tree.definitions.debug.DebugInformation(List.of(), List.of(), List.of(
+                        local(0, "zero"), local(1, "one")
+                )));
+        String printed = printDefinition(definition);
+        assertTrue(printed.contains("const v1 1"), printed);
+        assertTrue(printed.contains("const v0 2"), printed);
+        assertFalse(printed.contains("const zero"), printed);
+        assertFalse(printed.contains("const one"), printed);
+        TestUtils.assertParsesDalvik(printed);
+    }
+
+    @Test
+    void rejectsUnsafeAndDuplicateLocalNames() {
+        ClassDefinition collision = compileDefinition("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static collision (I)V {
+                        registers: 2,
+                        code: {
+                            const v0 1
+                            return-void
+                        }
+                    }
+                }
+                """);
+        var method = collision.getMethod("collision", "(I)V");
+        for (String name : List.of("v0", "p0")) {
+            method.getCode().setDebugInfo(new me.darknet.dex.tree.definitions.debug.DebugInformation(
+                    List.of(), List.of(), List.of(local(0, name))));
+            String printed = printDefinition(collision);
+            assertTrue(printed.contains("const v0 1"), printed);
+            assertFalse(printed.contains("const p0 1"), printed);
+        }
+
+        ClassDefinition duplicate = compileDefinition("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static duplicate ()V {
+                        registers: 2,
+                        code: {
+                            const v0 1
+                            const v1 2
+                            return-void
+                        }
+                    }
+                }
+                """);
+        duplicate.getMethod("duplicate", "()V").getCode().setDebugInfo(
+                new me.darknet.dex.tree.definitions.debug.DebugInformation(List.of(), List.of(), List.of(
+                        local(0, "same"), local(1, "same")
+                )));
+        String printed = printDefinition(duplicate);
+        assertTrue(printed.contains("const v0 1"), printed);
+        assertTrue(printed.contains("const v1 2"), printed);
+        assertFalse(printed.contains("const same"), printed);
+    }
+
+    @Test
+    void omitsUnknownAndPartialParameterNames() {
+        ClassDefinition unknown = compileDefinition("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static unknown (I)V {
+                        registers: 2,
+                        code: {
+                            const v0 1
+                            return-void
+                        }
+                    }
+                }
+                """);
+        assertFalse(printDefinition(unknown).contains("parameters:"));
+
+        ClassDefinition complete = compileDefinition("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static complete (II)V {
+                        registers: 2,
+                        parameters: { left, right },
+                        code: {
+                            return-void
+                        }
+                    }
+                }
+                """);
+        String printed = printDefinition(complete);
+        assertTrue(printed.contains("parameters:"), printed);
+        assertTrue(printed.contains("left"), printed);
+        assertTrue(printed.contains("right"), printed);
+
+        ClassDefinition partial = compileDefinition("""
+                .super java/lang/Object
+                .class public Example {
+                    .method public static partial (II)V {
+                        registers: 2,
+                        code: {
+                            return-void
+                        }
+                    }
+                }
+                """);
+        partial.getMethod("partial", "(II)V").setParameterNames(List.of("left"));
+        assertFalse(printDefinition(partial).contains("parameters:"));
+    }
+
+    private static me.darknet.dex.tree.definitions.debug.DebugInformation.LocalVariable local(int register, String name) {
+        return new me.darknet.dex.tree.definitions.debug.DebugInformation.LocalVariable(
+                register, name, null, null, null, null);
+    }
+
+    private static ClassDefinition compileDefinition(String source) {
+        Outcome<List<ASTElement>> ast =
+                AssemblyParseFixture.processDeclarations("<test>", source, DalvikTargetContext.INSTANCE);
+        assertFalse(ast.hasErrors(), DiagnosticAssertions.formatErrors(ast.errors()));
+        var unit = DiagnosticAssertions.requireSuccess(
+                SemanticProcessor.process(ast.requireValue(), DalvikTargetContext.INSTANCE),
+                "Failed to process Dalvik source");
+        Outcome<DalvikClassResult> result = new DalvikCompiler().compile(unit, TestUtils.options());
+        assertFalse(result.hasErrors(), DiagnosticAssertions.formatErrors(result.errors()));
+        return ((DalvikClassRepresentation) result.requireValue().representation()).definition();
+    }
+
+    private static String printDefinition(ClassDefinition definition) {
+        PrintContext<?> context = new PrintContext<>("\t");
+        new DalvikClassPrinter(definition).print(context);
+        return TestUtils.normalize(context.toString());
+    }
+
 }

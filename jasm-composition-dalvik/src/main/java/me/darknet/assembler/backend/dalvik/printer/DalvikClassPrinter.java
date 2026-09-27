@@ -7,6 +7,7 @@ import me.darknet.dex.tree.definitions.ClassDefinition;
 import me.darknet.dex.tree.definitions.FieldMember;
 import me.darknet.dex.tree.definitions.InnerClass;
 import me.darknet.dex.tree.definitions.MethodMember;
+import me.darknet.dex.tree.definitions.RecordComponent;
 import me.darknet.dex.tree.definitions.annotation.Annotation;
 import me.darknet.dex.tree.definitions.annotation.AnnotationPart;
 import me.darknet.dex.tree.definitions.constant.ArrayConstant;
@@ -78,6 +79,9 @@ public class DalvikClassPrinter implements ClassPrinter {
         }
         printInnerClassMetadata(ctx);
         printMemberClassesMetadata(ctx);
+        printNestMetadata(ctx);
+        printPermittedSubclassesMetadata(ctx);
+        printRecordComponentsMetadata(ctx);
 
         String sourceFile = definition.getSourceFile();
         if (sourceFile != null) {
@@ -140,5 +144,29 @@ public class DalvikClassPrinter implements ClassPrinter {
                 Map.of("value", new ArrayConstant(members))
         );
         new DalvikAnnotationPrinter(new Annotation((byte) Annotation.VISIBILITY_SYSTEM, part)).print(ctx);
+    }
+
+    private void printNestMetadata(PrintContext<?> ctx) {
+        if (definition.getNestHost() != null)
+            ctx.begin().element(".nest-host").literal(definition.getNestHost().internalName()).end();
+        for (InstanceType nestMember : definition.getNestMembers())
+            ctx.begin().element(".nest-member").literal(nestMember.internalName()).end();
+    }
+
+    private void printPermittedSubclassesMetadata(PrintContext<?> ctx) {
+        for (InstanceType permittedSubclass : definition.getPermittedSubclasses())
+            ctx.begin().element(".permitted-subclass").literal(permittedSubclass.internalName()).end();
+    }
+
+    private void printRecordComponentsMetadata(PrintContext<?> ctx) {
+        for (RecordComponent component : definition.getRecordComponents()) {
+            for (Annotation annotation : component.annotations())
+                new DalvikAnnotationPrinter(annotation).print(ctx);
+            if (component.signature() != null)
+                ctx.begin().element(".signature").string(component.signature()).next();
+            ctx.begin().element(".record-component")
+                    .literal(component.name()).print(" ")
+                    .literal(component.type().descriptor()).end();
+        }
     }
 }

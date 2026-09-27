@@ -30,9 +30,6 @@ public class DalvikCodePrinter implements ExecutionEngine {
             return invokeCustomInstruction.isRange() ? "invoke-custom/range" : "invoke-custom";
         }
         if (instruction instanceof InvokeInstruction invokeInstruction) {
-            if (invokeInstruction.opcode() == Opcodes.INVOKE_POLYMORPHIC) {
-                throw new IllegalStateException("invoke-polymorphic is not supported by the current dex-core backend");
-            }
             String name = OpcodeNames.name(invokeInstruction.opcode());
             return invokeInstruction.isRange() ? name + "/range" : name;
         }
@@ -178,8 +175,8 @@ public class DalvikCodePrinter implements ExecutionEngine {
     @Override
     public void execute(ConstInstruction constInstruction) {
         ctx.instruction("const")
-                .print(register(constInstruction.register())).arg()
-                .print(String.valueOf(constInstruction.value()));
+                .print(register(constInstruction.register())).arg();
+        DalvikConstantPrinter.printFloat(ctx, Float.intBitsToFloat(constInstruction.value()));
     }
 
     @Override
@@ -192,8 +189,8 @@ public class DalvikCodePrinter implements ExecutionEngine {
     @Override
     public void execute(ConstWideInstruction constWideInstruction) {
         ctx.instruction("const-wide")
-                .print(register(constWideInstruction.register())).arg()
-                .print(constWideInstruction.value() + "L");
+                .print(register(constWideInstruction.register())).arg();
+        DalvikConstantPrinter.printDouble(ctx, Double.longBitsToDouble(constWideInstruction.value()));
     }
 
     @Override
@@ -347,7 +344,10 @@ public class DalvikCodePrinter implements ExecutionEngine {
         ctx.arg().literal(invokeInstruction.owner().internalName())
                 .print(".")
                 .literal(invokeInstruction.name()).arg()
-                .literal(invokeInstruction.type().descriptor());
+                .literal(invokeInstruction.methodType().descriptor());
+
+        if (invokeInstruction.opcode() == Opcodes.INVOKE_POLYMORPHIC)
+            ctx.arg().literal(invokeInstruction.type().descriptor());
     }
 
     @Override
