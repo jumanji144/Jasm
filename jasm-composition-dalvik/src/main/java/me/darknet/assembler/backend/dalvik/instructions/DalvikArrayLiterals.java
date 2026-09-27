@@ -16,10 +16,9 @@ public final class DalvikArrayLiterals {
 	 * @return {@code true} when the literal denotes a floating-point value rather than an integer.
 	 */
 	public static boolean isFloating(@NotNull ASTNumber number) {
-		String literal = number.content().toLowerCase();
-
 		// Radix-prefixed literals are integer literals even though the parser marks them as having a
-		// fractional form; only a genuine decimal point or exponent makes a value floating point.
+		// fractional form, and only a genuine decimal point or exponent makes a value floating point.
+		String literal = number.content().toLowerCase();
 		if (literal.startsWith("0x") || literal.startsWith("-0x") || literal.startsWith("0b") || literal.startsWith("-0b"))
 			return false;
 
@@ -41,6 +40,7 @@ public final class DalvikArrayLiterals {
 		if (negative)
 			literal = literal.substring(1);
 
+		// Determine the radix from the prefix, if any.
 		int radix = 10;
 		if (literal.startsWith("0x")) {
 			radix = 16;
@@ -50,18 +50,17 @@ public final class DalvikArrayLiterals {
 			literal = literal.substring(2);
 		}
 
-		// The long suffix is a source marker only; the value itself is what gets encoded.
+		// Cut off long indicator suffix.
 		if (literal.endsWith("l"))
 			literal = literal.substring(0, literal.length() - 1);
 
+		// After cutting, the literal must still have some digits to parse.
 		if (literal.isEmpty())
 			throw new NumberFormatException("Expected integral literal");
 
+		// Parse the literal.
 		if (negative)
 			return -Long.parseLong(literal, radix);
-
-		// A radix-prefixed literal is unsigned so a full-width pattern such as 0xFFFFFFFFFFFFFFFF
-		// stays expressible without a sign.
 		if (radix != 10)
 			return Long.parseUnsignedLong(literal, radix);
 		return Long.parseLong(literal, radix);

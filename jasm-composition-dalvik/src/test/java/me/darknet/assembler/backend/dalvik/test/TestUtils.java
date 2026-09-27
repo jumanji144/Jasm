@@ -1,4 +1,4 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.dalvik.test;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
@@ -12,7 +12,6 @@ import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.test.AssemblyParseFixture;
-import me.darknet.assembler.test.DalvikDexFixture;
 import me.darknet.assembler.test.DiagnosticAssertions;
 import me.darknet.assembler.test.SourceNormalization;
 import me.darknet.dex.tree.DexFile;

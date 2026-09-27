@@ -1,4 +1,4 @@
-package me.darknet.assembler.test;
+package me.darknet.assembler.backend.dalvik.test;
 
 import me.darknet.assembler.backend.dalvik.io.DalvikDexIO;
 import me.darknet.assembler.backend.dalvik.printer.DalvikClassPrinter;

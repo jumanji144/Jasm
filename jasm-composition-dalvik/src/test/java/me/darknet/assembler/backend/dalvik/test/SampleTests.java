@@ -1,6 +1,5 @@
-package me.darknet.assembler;
+package me.darknet.assembler.backend.dalvik.test;
 
-import me.darknet.assembler.test.DalvikSampleFixture;
 import org.junit.jupiter.api.Test;
 
 

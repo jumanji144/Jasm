@@ -8,7 +8,7 @@ import org.jetbrains.annotations.NotNull;
  * Validated Dalvik method register metadata.
  *
  * @param registers
- * 		Declared register count.
+ * 		Declared register count. Numeric-but-invalid source values retain their parsed value for diagnostics.
  * @param source
  * 		Source number that declared the register count.
  */

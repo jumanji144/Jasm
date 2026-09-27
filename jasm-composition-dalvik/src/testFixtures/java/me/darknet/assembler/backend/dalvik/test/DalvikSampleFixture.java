@@ -1,4 +1,6 @@
-package me.darknet.assembler.test;
+package me.darknet.assembler.backend.dalvik.test;
+
+import me.darknet.assembler.test.SampleSourceFixture;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
