@@ -1,9 +1,11 @@
 package me.darknet.assembler.backend.jvm.compile.visitor;
 
+import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.ast.specific.ASTMethod;
+import me.darknet.assembler.backend.jvm.compile.AnnotationTarget;
 import me.darknet.assembler.backend.jvm.compile.JvmCompilerOptions;
 import me.darknet.assembler.backend.jvm.compile.builder.JvmClassBuilder;
 import me.darknet.assembler.error.DiagnosticCode;
@@ -55,36 +57,18 @@ public final class JvmRootVisitor implements ASTRootVisitor {
 
 	@Override
 	public @Nullable ASTAnnotationVisitor visitAnnotation(@NotNull ASTAnnotation annotation) {
-		String path = options.getAnnotationPath();
-		if (path == null || path.isBlank()) {
+		AnnotationTarget target = options.getAnnotationTarget();
+		if (target == null) {
 			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
 					"Annotation target path was not specified", annotation.location());
 			return null;
 		}
 
-		String[] parts = path.split("\\.");
-		if (parts.length < 2) {
-			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
-					"Invalid annotation target path: " + path, annotation.location());
-			return null;
-		}
-
-		int last = parts.length - 1;
-		int index;
-		try {
-			index = Integer.parseInt(parts[last]);
-		} catch (NumberFormatException ex) {
-			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
-					"Invalid annotation target index: " + parts[last], annotation.location());
-			return null;
-		}
-
-		String kind = parts[last - 1];
-		boolean visible = visibleAnnotationKind(kind);
-		boolean typeAnnotation = annotation.isTypeAnnotation() || typeAnnotationKind(kind);
+		boolean visible = annotation.getVisibility() == AnnotationVisibility.VISIBLE;
+		boolean typeAnnotation = annotation.isTypeAnnotation();
 		String descriptor = Type.getObjectType(annotation.getClassType().literal()).getDescriptor();
 		try {
-			AnnotationNode installed = selectAnnotationTarget(parts, index, visible, typeAnnotation, descriptor,
+			AnnotationNode installed = selectAnnotationTarget(target, visible, typeAnnotation, descriptor,
 					annotation.getTypeRef(), annotation.getTypePath());
 			return new JvmAnnotationVisitor(installed);
 		} catch (RuntimeException ex) {
@@ -127,21 +111,19 @@ public final class JvmRootVisitor implements ASTRootVisitor {
 		);
 	}
 
-	private @NotNull AnnotationNode selectAnnotationTarget(@NotNull String[] parts, int index, boolean visible,
+	private @NotNull AnnotationNode selectAnnotationTarget(@NotNull AnnotationTarget target, boolean visible,
 	                                                       boolean typeAnnotation, @NotNull String descriptor,
 	                                                       @Nullable me.darknet.assembler.ast.primitive.ASTNumber typeRef,
 	                                                       @Nullable ASTIdentifier typePath) {
-		if (parts.length >= 5) {
-			String target = parts[parts.length - 5];
-			String member = parts[parts.length - 4];
-			String memberDescriptor = parts[parts.length - 3];
-			return switch (target) {
-				case "field" -> installFieldAnnotation(member, memberDescriptor, visible, typeAnnotation, index, descriptor, typeRef, typePath);
-				case "method" -> installMethodAnnotation(member, memberDescriptor, visible, typeAnnotation, index, descriptor, typeRef, typePath);
-				default -> installClassAnnotation(visible, typeAnnotation, index, descriptor, typeRef, typePath);
+		if (target instanceof AnnotationTarget.MemberTarget member) {
+			return switch (member.kind()) {
+				case FIELD -> installFieldAnnotation(member.name(), member.descriptor(), visible, typeAnnotation,
+						target.index(), descriptor, typeRef, typePath);
+				case METHOD -> installMethodAnnotation(member.name(), member.descriptor(), visible, typeAnnotation,
+						target.index(), descriptor, typeRef, typePath);
 			};
 		}
-		return installClassAnnotation(visible, typeAnnotation, index, descriptor, typeRef, typePath);
+		return installClassAnnotation(visible, typeAnnotation, target.index(), descriptor, typeRef, typePath);
 	}
 
 	private @NotNull AnnotationNode installClassAnnotation(boolean visible, boolean typeAnnotation, int index,
@@ -247,19 +229,5 @@ public final class JvmRootVisitor implements ASTRootVisitor {
 		else raw.add(annotation);
 	}
 
-	private static boolean visibleAnnotationKind(@Nullable String name) {
-		if (name == null || "VIS_ANNO".equalsIgnoreCase(name) || "vis-a".equalsIgnoreCase(name))
-			return true;
-		if ("VIS_TYPE_ANNO".equalsIgnoreCase(name) || "vis-type-a".equalsIgnoreCase(name)
-				|| "INVIS_ANNO".equalsIgnoreCase(name) || "invis-a".equalsIgnoreCase(name)
-				|| "INVIS_TYPE_ANNO".equalsIgnoreCase(name) || "invis-type-a".equalsIgnoreCase(name))
-			return false;
-		return true;
-	}
-
-	private static boolean typeAnnotationKind(@Nullable String name) {
-		return "VIS_TYPE_ANNO".equalsIgnoreCase(name) || "vis-type-a".equalsIgnoreCase(name)
-				|| "INVIS_TYPE_ANNO".equalsIgnoreCase(name) || "invis-type-a".equalsIgnoreCase(name);
-	}
 
 }

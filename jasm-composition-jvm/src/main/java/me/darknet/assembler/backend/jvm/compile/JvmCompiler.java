@@ -1,8 +1,10 @@
 package me.darknet.assembler.backend.jvm.compile;
 
 import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.ast.specific.ASTClass;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.ast.specific.ASTAnnotation;
+import me.darknet.assembler.ast.specific.ASTClass;
+import me.darknet.assembler.backend.jvm.JvmTargetContext;
 import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisException;
 import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisResults;
 import me.darknet.assembler.backend.jvm.compile.analysis.Local;
@@ -16,7 +18,7 @@ import me.darknet.assembler.backend.jvm.compile.analysis.jvm.JvmAnalysisEngine;
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.JvmAnalysisRunner;
 import me.darknet.assembler.backend.jvm.compile.builder.JvmClassBuilder;
 import me.darknet.assembler.backend.jvm.compile.visitor.JvmRootVisitor;
-import me.darknet.assembler.backend.jvm.JvmTargetContext;
+import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import me.darknet.assembler.compiler.Compiler;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticPhase;
@@ -24,7 +26,6 @@ import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.processing.ValidatedUnit;
 import me.darknet.assembler.transformer.Transformer;
-import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -55,7 +56,7 @@ import static me.darknet.assembler.backend.jvm.compile.builder.JvmClassBuilder.m
 public class JvmCompiler implements Compiler<JvmCompilerOptions, JavaClassRepresentation, JavaCompileResult> {
 	@Override
 	public @NotNull Outcome<JavaCompileResult> compile(@NotNull ValidatedUnit unit,
-	                                                    @NotNull JvmCompilerOptions jvmOptions) {
+	                                                   @NotNull JvmCompilerOptions jvmOptions) {
 		List<ASTElement> declarations = unit.declarations();
 		JvmClassBuilder builder = new JvmClassBuilder();
 		DiagnosticSink sink = new DiagnosticSink(DiagnosticPhase.BACKEND_EMISSION);
@@ -80,6 +81,20 @@ public class JvmCompiler implements Compiler<JvmCompilerOptions, JavaClassRepres
 		// If the overlay somehow failed, we need to abort.
 		if (sink.hasErrors())
 			return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
+
+		// Resolve target syntax and member existence before traversal so invalid paths become diagnostics.
+		sink.addAll(jvmOptions.resolveAnnotationTarget());
+		if (sink.hasErrors())
+			return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
+		AnnotationTarget annotationTarget = jvmOptions.getAnnotationTarget();
+		if (annotationTarget == null && declarations.getFirst() instanceof ASTAnnotation annotation) {
+			sink.error(DiagnosticCode.MALFORMED_DECLARATION, "Annotation target path was not specified", annotation.location());
+			return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
+		}
+		if (annotationTarget instanceof AnnotationTarget.MemberTarget member && !hasMember(builder, member)) {
+			sink.error(DiagnosticCode.MALFORMED_DECLARATION, "Annotation target member not found: " + member.name() + member.descriptor(), null);
+			return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
+		}
 
 		// The requested output version takes precedence over any version carried by the overlay.
 		builder.setVersion(jvmOptions.getVersion());
@@ -306,6 +321,22 @@ public class JvmCompiler implements Compiler<JvmCompilerOptions, JavaClassRepres
 			sink.error(DiagnosticCode.BACKEND_FAILURE,
 					"Failed to read overlay: " + t.getMessage(), null);
 		}
+	}
+
+	/**
+	 * @param builder
+	 * 		Builder to check for the member in.
+	 * @param member
+	 * 		Member target to check for existence of.
+	 *
+	 * @return {@code true} if the member exists in the builder, {@code false} otherwise.
+	 */
+	private static boolean hasMember(@NotNull JvmClassBuilder builder,
+	                                 @NotNull AnnotationTarget.MemberTarget member) {
+		return switch (member.kind()) {
+			case FIELD -> builder.field(member.name(), member.descriptor()) != null;
+			case METHOD -> builder.method(member.name(), member.descriptor()) != null;
+		};
 	}
 
 	/**
