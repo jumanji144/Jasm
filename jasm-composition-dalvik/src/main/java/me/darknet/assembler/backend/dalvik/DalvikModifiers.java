@@ -19,7 +19,7 @@ public class DalvikModifiers implements AccessFlags {
             Map.entry(ACC_NATIVE, "native"),
             Map.entry(ACC_INTERFACE, "interface"),
             Map.entry(ACC_ABSTRACT, "abstract"),
-            Map.entry(ACC_STRICT, "strict"),
+            Map.entry(ACC_STRICT, "strictfp"),
             Map.entry(ACC_SYNTHETIC, "synthetic"),
             Map.entry(ACC_ANNOTATION, "annotation"),
             Map.entry(ACC_ENUM, "enum"),
@@ -33,7 +33,7 @@ public class DalvikModifiers implements AccessFlags {
             ACC_CONSTRUCTOR, "constructor",
             ACC_SYNCHRONIZED, "synchronized",
             ACC_DECLARED_SYNCHRONIZED, "declared-synchronized",
-            ACC_STRICT, "strict"
+            ACC_STRICT, "strictfp"
     );
     private final static Map<Integer, String> FIELD_MODIFIER_NAMES = Map.of(
             ACC_VOLATILE, "volatile",
@@ -76,7 +76,7 @@ public class DalvikModifiers implements AccessFlags {
             case "abstract" -> ACC_ABSTRACT;
             case "interface" -> ACC_INTERFACE;
             case "synthetic" -> ACC_SYNTHETIC;
-            case "strict" -> ACC_STRICT;
+            case "strictfp" -> ACC_STRICT;
             case "annotation" -> ACC_ANNOTATION;
             case "enum" -> ACC_ENUM;
             case "synchronized" -> ACC_SYNCHRONIZED;
@@ -99,7 +99,7 @@ public class DalvikModifiers implements AccessFlags {
             case "abstract" -> ACC_ABSTRACT;
             case "interface" -> ACC_INTERFACE;
             case "synthetic" -> ACC_SYNTHETIC;
-            case "strict" -> ACC_STRICT;
+            case "strictfp" -> ACC_STRICT;
             case "annotation" -> ACC_ANNOTATION;
             case "enum" -> ACC_ENUM;
             default -> 0;
@@ -117,7 +117,7 @@ public class DalvikModifiers implements AccessFlags {
             case "abstract" -> ACC_ABSTRACT;
             case "interface" -> ACC_INTERFACE;
             case "synthetic" -> ACC_SYNTHETIC;
-            case "strict" -> ACC_STRICT;
+            case "strictfp" -> ACC_STRICT;
             case "annotation" -> ACC_ANNOTATION;
             case "enum" -> ACC_ENUM;
             case "constructor" -> ACC_CONSTRUCTOR;
@@ -140,7 +140,7 @@ public class DalvikModifiers implements AccessFlags {
             case "abstract" -> ACC_ABSTRACT;
             case "interface" -> ACC_INTERFACE;
             case "synthetic" -> ACC_SYNTHETIC;
-            case "strict" -> ACC_STRICT;
+            case "strictfp" -> ACC_STRICT;
             case "annotation" -> ACC_ANNOTATION;
             case "enum" -> ACC_ENUM;
             case "volatile" -> ACC_VOLATILE;
