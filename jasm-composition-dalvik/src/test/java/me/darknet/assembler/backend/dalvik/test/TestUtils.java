@@ -4,7 +4,7 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
 import me.darknet.assembler.backend.dalvik.DalvikModifiers;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
-import me.darknet.assembler.backend.dalvik.compile.DalvikClassResult;
+import me.darknet.assembler.backend.dalvik.compile.DalvikCompileResult;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompilerOptions;
 import me.darknet.assembler.compiler.EmptyInheritanceChecker;
@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class TestUtils {
 
     public static void processDalvik(String source, DalvikCompilerOptions options,
-                                     ThrowingConsumer<DalvikClassResult> outputConsumer,
+                                     ThrowingConsumer<DalvikCompileResult> outputConsumer,
                                      Consumer<List<Diagnostic>> warningConsumer) {
         Outcome<List<ASTElement>> astResult =
                 AssemblyParseFixture.processDeclarations("<test>", source, DalvikTargetContext.INSTANCE);
@@ -43,7 +43,7 @@ public class TestUtils {
                 SemanticProcessor.process(astResult.requireValue(), DalvikTargetContext.INSTANCE),
                 "Failed to process Dalvik semantic unit"
         );
-        Outcome<DalvikClassResult> compilation = new DalvikCompiler().compile(unit, options);
+        Outcome<DalvikCompileResult> compilation = new DalvikCompiler().compile(unit, options);
         if (compilation.hasErrors()) {
             fail("Failed to compile Dalvik class\n" + DiagnosticAssertions.formatErrors(compilation.errors()));
         }
@@ -62,7 +62,7 @@ public class TestUtils {
     }
 
     public static void processDalvik(String source, DalvikCompilerOptions options,
-                                     ThrowingConsumer<DalvikClassResult> outputConsumer) {
+                                     ThrowingConsumer<DalvikCompileResult> outputConsumer) {
         processDalvik(source, options, outputConsumer, null);
     }
 

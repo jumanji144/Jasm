@@ -2,7 +2,7 @@ package me.darknet.assembler.backend.dalvik.test;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
-import me.darknet.assembler.backend.dalvik.compile.DalvikClassResult;
+import me.darknet.assembler.backend.dalvik.compile.DalvikCompileResult;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
 import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.processing.SemanticProcessor;
@@ -47,7 +47,7 @@ class SampleTests {
 				ValidatedUnit unit = DiagnosticAssertions.requireSuccess(
 						SemanticProcessor.process(reparsed.requireValue(), DalvikTargetContext.INSTANCE),
 						label + " printed source does not process");
-				Outcome<DalvikClassResult> compiled = new DalvikCompiler().compile(unit, TestUtils.options());
+				Outcome<DalvikCompileResult> compiled = new DalvikCompiler().compile(unit, TestUtils.options());
 				assertFalse(compiled.hasErrors(), label
 						+ " printed source does not recompile:\n"
 						+ DiagnosticAssertions.formatErrors(compiled.errors()) + "\n" + printed);

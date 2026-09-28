@@ -2,7 +2,7 @@ package me.darknet.assembler.cli;
 
 import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
-import me.darknet.assembler.backend.dalvik.compile.DalvikClassResult;
+import me.darknet.assembler.backend.dalvik.compile.DalvikCompileResult;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompilerOptions;
 import me.darknet.assembler.backend.jvm.JvmTargetContext;
@@ -38,7 +38,7 @@ class TypedCompilerContractTest {
 		assertCompilerBinding(JvmCompiler.class, JvmCompilerOptions.class,
 				JavaClassRepresentation.class, JavaCompileResult.class);
 		assertCompilerBinding(DalvikCompiler.class, DalvikCompilerOptions.class,
-				DalvikClassRepresentation.class, DalvikClassResult.class);
+				DalvikClassRepresentation.class, DalvikCompileResult.class);
 	}
 
 	@Test
@@ -77,11 +77,11 @@ class TypedCompilerContractTest {
 	@Test
 	void defaultDalvikOptionsProduceTypedSuccessfulOutput() {
 		ValidatedUnit unit = validated(CLASS_SOURCE, DalvikTargetContext.INSTANCE);
-		Outcome<DalvikClassResult> result = new DalvikCompiler().compile(unit, new DalvikCompilerOptions());
+		Outcome<DalvikCompileResult> result = new DalvikCompiler().compile(unit, new DalvikCompilerOptions());
 
 		// Same as the other test, but for Dalvik.
 		assertFalse(result.hasErrors(), diagnostics(result));
-		DalvikClassResult typedResult = result.requireValue();
+		DalvikCompileResult typedResult = result.requireValue();
 		DalvikClassRepresentation representation = assertInstanceOf(DalvikClassRepresentation.class, typedResult.representation());
 		assertNotNull(representation.definition());
 		assertEquals("Example", representation.definition().getType().internalName());
@@ -92,7 +92,7 @@ class TypedCompilerContractTest {
 		ValidatedUnit dalvikUnit = validated(CLASS_SOURCE, DalvikTargetContext.INSTANCE);
 		ValidatedUnit jvmUnit = validated(CLASS_SOURCE, JvmTargetContext.INSTANCE);
 		Outcome<JavaCompileResult> jvmResult = new JvmCompiler().compile(dalvikUnit, new JvmCompilerOptions());
-		Outcome<DalvikClassResult> dalvikResult = new DalvikCompiler().compile(jvmUnit, new DalvikCompilerOptions());
+		Outcome<DalvikCompileResult> dalvikResult = new DalvikCompiler().compile(jvmUnit, new DalvikCompilerOptions());
 
 		// The compiler must reject a Dalvik-processed unit, and the result must carry no representation.
 		assertTrue(jvmResult.hasErrors(), "JVM compiler must reject a Dalvik-processed unit");

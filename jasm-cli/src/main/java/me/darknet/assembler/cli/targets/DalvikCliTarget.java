@@ -3,7 +3,7 @@ package me.darknet.assembler.cli.targets;
 import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
 import me.darknet.assembler.backend.dalvik.DalvikTarget;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
-import me.darknet.assembler.backend.dalvik.compile.DalvikClassResult;
+import me.darknet.assembler.backend.dalvik.compile.DalvikCompileResult;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompilerOptions;
 import me.darknet.assembler.backend.dalvik.io.DalvikDexIO;
@@ -25,7 +25,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -195,12 +194,12 @@ public final class DalvikCliTarget implements CliTarget {
 	private DalvikClassRepresentation compileUnit(CompileRequest request, DalvikCompilerOptions options, SourceUnit source) {
 		CliRuntime runtime = request.runtime();
 		ValidatedUnit unit = CliCompilePipeline.process(request, source, DalvikTargetContext.INSTANCE);
-		Outcome<DalvikClassResult> result = new DalvikCompiler().compile(unit, options);
+		Outcome<DalvikCompileResult> result = new DalvikCompiler().compile(unit, options);
 		runtime.warnings(result.warnings());
 		if (result.hasErrors()) {
 			throw runtime.failure("Failed to compile source file:\n" + CliUtils.formatErrors(result.errors()));
 		}
-		DalvikClassResult compiled = result.requireValue();
+		DalvikCompileResult compiled = result.requireValue();
 		if (compiled.representation() == null) {
 			throw runtime.failure("Compiler returned no class representation");
 		}

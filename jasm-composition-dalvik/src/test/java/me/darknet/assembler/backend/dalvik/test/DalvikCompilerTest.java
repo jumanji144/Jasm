@@ -2,7 +2,7 @@ package me.darknet.assembler.backend.dalvik.test;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
-import me.darknet.assembler.backend.dalvik.compile.DalvikClassResult;
+import me.darknet.assembler.backend.dalvik.compile.DalvikCompileResult;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
 import me.darknet.assembler.error.Outcome;
@@ -228,7 +228,7 @@ class DalvikCompilerTest {
 
     @Test
     void preservesDalvikRegisterWordsAndDebugLines() throws Exception {
-        final DalvikClassResult[] compiled = new DalvikClassResult[1];
+        final DalvikCompileResult[] compiled = new DalvikCompileResult[1];
         TestUtils.processDalvik("""
                 .super java/lang/Object
                 .class public Example {
@@ -928,7 +928,7 @@ class DalvikCompilerTest {
         var unit = DiagnosticAssertions.requireSuccess(
                 SemanticProcessor.process(ast.requireValue(), DalvikTargetContext.INSTANCE),
                 "Failed to process Dalvik source");
-        Outcome<DalvikClassResult> result = new DalvikCompiler().compile(unit, TestUtils.options());
+        Outcome<DalvikCompileResult> result = new DalvikCompiler().compile(unit, TestUtils.options());
         assertFalse(result.hasErrors(), DiagnosticAssertions.formatErrors(result.errors()));
         return ((DalvikClassRepresentation) result.requireValue().representation()).definition();
     }
