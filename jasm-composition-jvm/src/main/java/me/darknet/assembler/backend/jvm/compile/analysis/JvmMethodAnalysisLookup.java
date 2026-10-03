@@ -10,7 +10,7 @@ import java.util.Map;
  * Container for one or more {@link AnalysisResults}. Typically, this is
  * implemented as a class, and the look-up keys are method identifiers.
  */
-public interface MethodAnalysisLookup {
+public interface JvmMethodAnalysisLookup {
 	/**
 	 * @return Map of method keys to their stack analysis results.
 	 */

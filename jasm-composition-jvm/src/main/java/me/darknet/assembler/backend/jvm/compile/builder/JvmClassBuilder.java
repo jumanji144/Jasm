@@ -1,7 +1,7 @@
 package me.darknet.assembler.backend.jvm.compile.builder;
 
 import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisResults;
-import me.darknet.assembler.backend.jvm.compile.analysis.MethodAnalysisLookup;
+import me.darknet.assembler.backend.jvm.compile.analysis.JvmMethodAnalysisLookup;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
@@ -22,7 +22,7 @@ import java.util.Set;
 /**
  * Builds and updates the ASM class model emitted by the JVM compiler.
  */
-public class JvmClassBuilder implements MethodAnalysisLookup {
+public class JvmClassBuilder implements JvmMethodAnalysisLookup {
     private ClassNode classNode = new ClassNode();
 
     // Linked to preserve method declaration order.

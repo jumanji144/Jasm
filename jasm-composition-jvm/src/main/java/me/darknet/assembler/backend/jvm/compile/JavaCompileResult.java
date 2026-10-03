@@ -1,6 +1,6 @@
 package me.darknet.assembler.backend.jvm.compile;
 
-import me.darknet.assembler.backend.jvm.compile.analysis.MethodAnalysisLookup;
+import me.darknet.assembler.backend.jvm.compile.analysis.JvmMethodAnalysisLookup;
 import me.darknet.assembler.compiler.ClassResult;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -14,4 +14,4 @@ import org.jetbrains.annotations.Nullable;
  * 		Lookup for stack-analysis results associated with declared methods.
  */
 public record JavaCompileResult(@Nullable JavaClassRepresentation representation,
-                                @NotNull MethodAnalysisLookup analysisLookup) implements ClassResult<JavaClassRepresentation> {}
+                                @NotNull JvmMethodAnalysisLookup analysisLookup) implements ClassResult<JavaClassRepresentation> {}

@@ -3,7 +3,7 @@ package me.darknet.assembler.backend.jvm.test;
 import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisResults;
 import me.darknet.assembler.analysis.registry.BasicFieldValueLookup;
 import me.darknet.assembler.analysis.registry.BasicMethodValueLookup;
-import me.darknet.assembler.backend.jvm.compile.analysis.MethodAnalysisLookup;
+import me.darknet.assembler.backend.jvm.compile.analysis.JvmMethodAnalysisLookup;
 import me.darknet.assembler.analysis.Value;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.Frame;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.ValuedFrame;
@@ -231,7 +231,7 @@ public class JvmAnalysisValueTest {
 
 	private static Value getReturnValue(String source) {
 		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(source, VALUE_OPTS);
-		MethodAnalysisLookup lookup = compilation.requireSuccess().analysisLookup();
+		JvmMethodAnalysisLookup lookup = compilation.requireSuccess().analysisLookup();
 
 		for (var entry : lookup.allResults().entrySet()) {
 			if (entry.getKey().name.equals("example")) {
