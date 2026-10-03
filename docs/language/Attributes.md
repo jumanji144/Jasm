@@ -44,9 +44,20 @@ or
 It would depend on how `@Foo` uses `@RetentionPolicy`, but the important note is that the internal `@Bar` usage is just a `.annotation`.
 
 #### Element
+
 An element can be one of the following, with following interpretation:
 - identifer: a type (`Ljava/lang/String;` / `I`)
 - number: a numeric type (`10.3f`)
+    - primitive types / formats can be denoted with suffix and prefix patterns
+    - prefix:
+        - `0x` for hexadecimal
+        - `0b` for binary
+    - suffix:
+        - `L` for long
+        - `F` for float
+        - `D` for double
+        - `B` for byte
+        - `S` for short
 - string: a string value
 - character: a character value
 - array: an array containing elements (`{ element, element }`)

@@ -26,7 +26,8 @@ public class Tokenizer {
     }
 
     public static boolean isNumberSuffix(char c) {
-        return c == 'f' || c == 'F' || c == 'l' || c == 'L' || c == 'd' || c == 'D';
+        return c == 'f' || c == 'F' || c == 'l' || c == 'L' || c == 'd' || c == 'D'
+                || c == 'b' || c == 'B' || c == 's' || c == 'S';
     }
 
     public static boolean isExponent(char c) {
@@ -354,8 +355,8 @@ public class Tokenizer {
                         + "|0[xX]" + HEX_DIGITS + "(?:\\." + HEX_DIGITS + ")?[pP]-?" + DECIMAL_DIGITS
                         + ")[fFdD]?"
                         + "|0[xX]" + HEX_DIGITS + "[Ll]?"
-                        + "|0[bB]" + BINARY_DIGITS + "[Ll]?"
-                        + "|" + DECIMAL_DIGITS + "[LlFfDd]?"
+                        + "|0[bB]" + BINARY_DIGITS + "[LlBbSs]?"
+                        + "|" + DECIMAL_DIGITS + "[LlFfDdBbSs]?"
                         + ")|" + BIT_PATTERN + ")"
         );
 

@@ -52,7 +52,7 @@ public class ASTNumber extends ASTValue {
 			return Double.parseDouble(value);
 		} else if (hasRadixPrefix(lower, "0x")) {
 			return parseInteger(value, 16, 2);
-		} else if (hasRadixPrefix(lower, "0b")) {
+		} else if (hasBinaryPrefix(lower)) {
 			return parseInteger(value, 2, 2);
 		} else {
 			return parseInteger(value, 10, 0);
@@ -255,6 +255,19 @@ public class ASTNumber extends ASTValue {
 	 * @param value
 	 * 		Normalized literal content.
 	 *
+	 * @return {@code true} when the literal has a binary prefix and at least one binary digit.
+	 */
+	private static boolean hasBinaryPrefix(String value) {
+		if (!hasRadixPrefix(value, "0b"))
+			return false;
+		int firstDigit = signOffset(value) + 2;
+		return firstDigit < value.length() && (value.charAt(firstDigit) == '0' || value.charAt(firstDigit) == '1');
+	}
+
+	/**
+	 * @param value
+	 * 		Normalized literal content.
+	 *
 	 * @return {@code true} when the literal is a hex floating-point value,
 	 * identified by a {@code 0x} prefix and binary exponent marker.
 	 */
@@ -299,13 +312,20 @@ public class ASTNumber extends ASTValue {
 		int signOffset = signOffset(value);
 		int digitsStart = signOffset + prefixLength;
 		String digits = value.substring(digitsStart);
+		boolean byteValue = radix != 16 && (digits.endsWith("b") || digits.endsWith("B"));
+		boolean shortValue = digits.endsWith("s") || digits.endsWith("S");
 		boolean wide = digits.endsWith("l") || digits.endsWith("L");
-		if (wide)
+		if (byteValue || shortValue || wide)
 			digits = digits.substring(0, digits.length() - 1);
 		String signedDigits = value.substring(0, signOffset) + digits;
 		if (wide)
 			return Long.parseLong(signedDigits, radix);
-		return Integer.parseInt(signedDigits, radix);
+		int parsed = Integer.parseInt(signedDigits, radix);
+		if (byteValue)
+			return (byte) parsed;
+		if (shortValue)
+			return (short) parsed;
+		return parsed;
 	}
 
 	/**

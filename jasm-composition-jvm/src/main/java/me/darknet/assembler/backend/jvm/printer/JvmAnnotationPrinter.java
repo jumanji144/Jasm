@@ -83,12 +83,12 @@ public class JvmAnnotationPrinter implements AnnotationPrinter {
             case Double ed -> JvmConstantPrinter.printDouble(ed, ctx);
             case String es -> ctx.string(es);
             case Boolean eb -> ctx.print(Boolean.toString(eb));
-            case Byte eb -> ctx.print(Byte.toString(eb));
+            case Byte eb -> ctx.print(Byte.toString(eb)).print("B");
             case Character ec -> {
                 String str = String.valueOf(ec);
                 ctx.print("'").print(EscapeUtil.escapeString(str)).print("'");
             }
-            case Short es -> ctx.print(Short.toString(es));
+            case Short es -> ctx.print(Short.toString(es)).print("S");
             case String[] enumValue -> ctx.element(".enum").literal(Type.getType(enumValue[0]).getInternalName()).print(" ").literal(enumValue[1]);
             case Type et -> JvmConstantPrinter.printTypeLiteral(et, ctx);
             case AnnotationNode ea -> printAnnotation(ctx, ea);

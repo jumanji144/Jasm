@@ -27,7 +27,7 @@ public interface JvmAnnotationElementAdapter {
 				if (number.isWide()) {
 					yield number.asLong();
 				}
-				yield number.asInt();
+				yield number.number();
 			}
 			case CHARACTER -> value.content().charAt(0);
 			case BOOL -> Boolean.parseBoolean(value.content());

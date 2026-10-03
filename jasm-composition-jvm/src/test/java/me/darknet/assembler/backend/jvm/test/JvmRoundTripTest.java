@@ -1,5 +1,6 @@
 package me.darknet.assembler.backend.jvm.test;
 
+import me.darknet.assembler.backend.jvm.compile.JavaClassRepresentation;
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.backend.jvm.test.BinarySampleFixture;
 import me.darknet.assembler.backend.jvm.test.JvmAssemblerFixture;
@@ -17,6 +18,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -30,6 +32,44 @@ import static me.darknet.assembler.test.SourceNormalization.normalize;
 import static org.junit.jupiter.api.Assertions.*;
 
 class JvmRoundTripTest {
+	@Test
+	void roundTripsNarrowAnnotationPrimitiveTypes() {
+		byte[] originalBytes = buildNarrowAnnotationValuesClass();
+		String disassembled = JvmDisassemblyFixture.disassembleJvm(originalBytes);
+		assertTrue(disassembled.contains("byteValue: -7B"));
+		assertTrue(disassembled.contains("zeroByteValue: 0B"));
+		assertTrue(disassembled.contains("shortValue: 1234S"));
+
+		var roundTrip = JvmRoundTripFixture.roundTripJvm(disassembled, new TestJvmCompilerOptions());
+		AnnotationNode annotation = readClass(roundTrip.compilation().requireClassBytes()).visibleAnnotations.stream()
+				.filter(candidate -> candidate.desc.equals("Lhardening/PrimitiveValues;"))
+				.findFirst()
+				.orElseThrow();
+
+		assertEquals((byte) -7, annotationValue(annotation, "byteValue"));
+		assertInstanceOf(Byte.class, annotationValue(annotation, "byteValue"));
+		assertEquals((byte) 0, annotationValue(annotation, "zeroByteValue"));
+		assertInstanceOf(Byte.class, annotationValue(annotation, "zeroByteValue"));
+		assertEquals((short) 1234, annotationValue(annotation, "shortValue"));
+		assertInstanceOf(Short.class, annotationValue(annotation, "shortValue"));
+		assertEquals(Boolean.TRUE, annotationValue(annotation, "booleanValue"));
+		assertEquals(Character.valueOf('c'), annotationValue(annotation, "charValue"));
+		assertEquals(42, annotationValue(annotation, "intValue"));
+		assertInstanceOf(Integer.class, annotationValue(annotation, "intValue"));
+
+		List<?> byteArray = assertInstanceOf(List.class, annotationValue(annotation, "byteArrayValue"));
+		assertEquals((byte) 1, byteArray.get(0));
+		assertEquals((byte) -2, byteArray.get(1));
+		assertInstanceOf(Byte.class, byteArray.get(0));
+		assertInstanceOf(Byte.class, byteArray.get(1));
+
+		List<?> shortArray = assertInstanceOf(List.class, annotationValue(annotation, "shortArrayValue"));
+		assertEquals((short) 2, shortArray.get(0));
+		assertEquals((short) -3, shortArray.get(1));
+		assertInstanceOf(Short.class, shortArray.get(0));
+		assertInstanceOf(Short.class, shortArray.get(1));
+	}
+
 	@ParameterizedTest
 	@MethodSource("validSamples")
 	void all(BinarySampleFixture.JvmTextSample sample) {
@@ -588,6 +628,38 @@ class JvmRoundTripTest {
 					mv.visitEnd();
 				}
 		);
+	}
+
+	private static byte[] buildNarrowAnnotationValuesClass() {
+		return buildClass("hardening/NarrowAnnotationValues", cw -> {
+			AnnotationVisitor annotation = cw.visitAnnotation("Lhardening/PrimitiveValues;", true);
+			annotation.visit("byteValue", (byte) -7);
+			annotation.visit("zeroByteValue", (byte) 0);
+			annotation.visit("shortValue", (short) 1234);
+			annotation.visit("booleanValue", true);
+			annotation.visit("charValue", 'c');
+			annotation.visit("intValue", 42);
+
+			AnnotationVisitor byteArray = annotation.visitArray("byteArrayValue");
+			byteArray.visit(null, (byte) 1);
+			byteArray.visit(null, (byte) -2);
+			byteArray.visitEnd();
+
+			AnnotationVisitor shortArray = annotation.visitArray("shortArrayValue");
+			shortArray.visit(null, (short) 2);
+			shortArray.visit(null, (short) -3);
+			shortArray.visitEnd();
+			annotation.visitEnd();
+		});
+	}
+
+	private static Object annotationValue(AnnotationNode annotation, String name) {
+		List<Object> values = annotation.values;
+		for (int index = 0; index < values.size(); index += 2) {
+			if (name.equals(values.get(index)))
+				return values.get(index + 1);
+		}
+		throw new AssertionError("Missing annotation element " + name);
 	}
 
 	private static byte[] buildClass(String internalName, Consumer<ClassWriter> body) {
