@@ -7,8 +7,10 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Empty resolution.
  */
-public record EmptyResolution() implements Resolution {
+public final class EmptyResolution implements Resolution {
 	public static final EmptyResolution INSTANCE = new EmptyResolution();
+
+	private EmptyResolution() {}
 
 	@Override
 	public @NotNull ASTElement element() {

@@ -64,12 +64,35 @@ public final class AssemblyQueries {
 	 * 		AST to query.
 	 * @param offset
 	 * 		Offset to query at.
+	 * @param targets
+	 * 		Targets whose instruction semantics should be used.
+	 *
+	 * @return Resolution of the content at the given offset, or an empty resolution if no content was found or the offset was invalid.
+	 *
+	 * @see #resolveAt(List, int, int, TargetContext...) For line/column based resolution.
+	 */
+	public static @NotNull Resolution resolveAt(@Nullable List<? extends ASTElement> ast, int offset, @NotNull TargetContext... targets) {
+		for (TargetContext target : targets) {
+			Resolution resolution = resolveAt(ast, offset, target);
+			if (resolution != EmptyResolution.INSTANCE)
+				return resolution;
+		}
+		return EmptyResolution.INSTANCE;
+	}
+
+	/**
+	 * Resolve the content at a given offset within the provided AST.
+	 *
+	 * @param ast
+	 * 		AST to query.
+	 * @param offset
+	 * 		Offset to query at.
 	 * @param target
 	 * 		Target whose instruction semantics should be used.
 	 *
 	 * @return Resolution of the content at the given offset, or an empty resolution if no content was found or the offset was invalid.
 	 *
-	 * @see #resolveAt(List, int, int, TargetContext) For line/column based resolution
+	 * @see #resolveAt(List, int, int, TargetContext) For line/column based resolution.
 	 */
 	public static @NotNull Resolution resolveAt(@Nullable List<? extends ASTElement> ast, int offset, @NotNull TargetContext target) {
 		if (ast == null || offset < 0)
@@ -77,6 +100,29 @@ public final class AssemblyQueries {
 
 		Resolution resolution = resolveOffset(offset, null, ast, target);
 		return resolution == null ? EmptyResolution.INSTANCE : resolution;
+	}
+
+	/**
+	 * Resolve the content at a given line/column within the provided AST.
+	 *
+	 * @param ast
+	 * 		AST to query.
+	 * @param line
+	 * 		Line number to query at (1-based).
+	 * @param column
+	 * 		Column number to query at (1-based).
+	 * @param targets
+	 * 		Targets whose instruction semantics should be used.
+	 *
+	 * @return Resolution of the content at the given line/column, or an empty resolution if no content was found or the line/column was invalid.
+	 */
+	public static @NotNull Resolution resolveAt(@Nullable List<? extends ASTElement> ast, int line, int column, @NotNull TargetContext... targets) {
+		for (TargetContext target : targets) {
+			Resolution resolution = resolveAt(ast, line, column, target);
+			if (resolution != EmptyResolution.INSTANCE)
+				return resolution;
+		}
+		return EmptyResolution.INSTANCE;
 	}
 
 	/**
@@ -104,6 +150,25 @@ public final class AssemblyQueries {
 			return EmptyResolution.INSTANCE;
 
 		return resolveAt(ast, matched.range().start(), target);
+	}
+
+	/**
+	 * Collect variable declarations and usages within the given method.
+	 *
+	 * @param method
+	 * 		Method to query.
+	 * @param targets
+	 * 		Targets whose variable metadata should be used.
+	 *
+	 * @return Declarations and usages of variables within the given method.
+	 */
+	public static @NotNull VariableQueryResult variables(@NotNull ASTMethod method, @NotNull TargetContext... targets) {
+		for (TargetContext target : targets) {
+			VariableQueryResult result = variables(method, target);
+			if (!result.declarations().isEmpty() || !result.usages().isEmpty())
+				return result;
+		}
+		return new VariableQueryResult(Collections.emptyList(), Collections.emptyList());
 	}
 
 	/**
@@ -167,6 +232,25 @@ public final class AssemblyQueries {
 		}
 
 		return new VariableQueryResult(List.copyOf(declarations), List.copyOf(usages));
+	}
+
+	/**
+	 * Collect label declarations and usages within the given method.
+	 *
+	 * @param method
+	 * 		Method to query.
+	 * @param targets
+	 * 		Targets whose label metadata should be used.
+	 *
+	 * @return Declarations and usages of labels within the given method.
+	 */
+	public static @NotNull LabelQueryResult labels(@NotNull ASTMethod method, @NotNull TargetContext... targets) {
+		for (TargetContext target : targets) {
+			LabelQueryResult result = labels(method, target);
+			if (!result.declarations().isEmpty() || !result.usages().isEmpty())
+				return result;
+		}
+		return new LabelQueryResult(Collections.emptyList(), Collections.emptyList());
 	}
 
 	/**
