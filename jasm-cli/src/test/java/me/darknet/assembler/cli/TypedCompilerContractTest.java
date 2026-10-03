@@ -101,6 +101,8 @@ class TypedCompilerContractTest {
 		// Same in reverse for a JVM-processed unit.
 		assertTrue(dalvikResult.hasErrors(), "Dalvik compiler must reject a JVM-processed unit");
 		assertNull(dalvikResult.requireValue().representation());
+		assertNotNull(dalvikResult.requireValue().analysisLookup());
+		assertTrue(dalvikResult.requireValue().analysisLookup().getAllResults().isEmpty());
 	}
 
 	private static ValidatedUnit validated(String source, TargetContext target) {

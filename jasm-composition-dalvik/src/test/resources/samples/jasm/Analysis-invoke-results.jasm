@@ -1,0 +1,12 @@
+.super java/lang/Object
+.class public AnalysisInvokeResults {
+    .method public static absolute (J)J {
+        registers: 4,
+        parameters: { value },
+        code: {
+            invoke-static/range { v2, v3 } java/lang/Math.abs (J)J
+            move-result-wide v0
+            return-wide v0
+        }
+    }
+}

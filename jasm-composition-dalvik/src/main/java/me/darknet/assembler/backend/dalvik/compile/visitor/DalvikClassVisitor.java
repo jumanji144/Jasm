@@ -1,6 +1,11 @@
 package me.darknet.assembler.backend.dalvik.compile.visitor;
 
+import me.darknet.assembler.analysis.MethodReference;
+import me.darknet.assembler.analysis.registry.FieldValueLookup;
+import me.darknet.assembler.analysis.registry.MethodValueLookup;
+import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.backend.dalvik.DalvikModifiers;
+import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisResults;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
@@ -35,14 +40,26 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class DalvikClassVisitor implements ASTClassVisitor {
 	private final ClassDefinition definition;
 	private final DiagnosticSink sink;
+	private final Map<MethodReference, DalvikAnalysisResults> analysisResults;
+	private final InheritanceChecker inheritanceChecker;
+	private final MethodValueLookup methodValueLookup;
+	private final FieldValueLookup fieldValueLookup;
 
-	public DalvikClassVisitor(ClassDefinition definition, DiagnosticSink sink) {
+	public DalvikClassVisitor(ClassDefinition definition, DiagnosticSink sink,
+	                          Map<MethodReference, DalvikAnalysisResults> analysisResults,
+	                          InheritanceChecker inheritanceChecker,
+	                          MethodValueLookup methodValueLookup, FieldValueLookup fieldValueLookup) {
 		this.definition = definition;
 		this.sink = sink;
+		this.analysisResults = analysisResults;
+		this.inheritanceChecker = inheritanceChecker;
+		this.methodValueLookup = methodValueLookup;
+		this.fieldValueLookup = fieldValueLookup;
 	}
 
 	public ClassDefinition definition() {
@@ -152,7 +169,16 @@ public final class DalvikClassVisitor implements ASTClassVisitor {
 
 		MethodMember member = new MethodMember(name.literal(), methodType, DalvikModifiers.getMethodModifiers(modifiers));
 		definition.putMethod(member);
-		return new DalvikMethodVisitor(member, processed, sink);
+		return new DalvikMethodVisitor(
+				member,
+				processed,
+				new MethodReference(definition.getType().internalName(), name.literal(), descriptor.literal()),
+				analysisResults,
+				sink,
+				inheritanceChecker,
+				methodValueLookup,
+				fieldValueLookup
+		);
 	}
 
 	@Override

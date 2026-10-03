@@ -30,7 +30,7 @@ public final class JvmValueMerger {
      * @return Merged value.
      *
      * @throws ValueMergeException
-     * 		Thrown when the two values cannot be merged.
+     * 		When the two values cannot be merged.
      */
     public static @NotNull Value merge(@NotNull InheritanceChecker checker, @NotNull Value left,
                                        @NotNull Value right) throws ValueMergeException {

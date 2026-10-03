@@ -1,6 +1,7 @@
 package me.darknet.assembler.backend.dalvik.compile;
 
 import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
+import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikMethodAnalysisLookup;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.specific.ASTClass;
@@ -33,7 +34,7 @@ public class DalvikCompiler implements Compiler<DalvikCompilerOptions, DalvikCla
 			sink.error(DiagnosticCode.INTERNAL_INVARIANT,
 					"Unit was processed for a different target",
 					declarations.isEmpty() ? null : declarations.getFirst().location());
-			return Outcome.of(new DalvikCompileResult(null), sink.diagnostics());
+			return Outcome.of(new DalvikCompileResult(null, DalvikMethodAnalysisLookup.empty()), sink.diagnostics());
 		}
 
 		// Validate that the unit contains exactly one declaration.
@@ -41,7 +42,7 @@ public class DalvikCompiler implements Compiler<DalvikCompilerOptions, DalvikCla
 			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
 					"Expected exactly one declaration",
 					declarations.isEmpty() ? null : declarations.getFirst().location());
-			return Outcome.of(new DalvikCompileResult(null), sink.diagnostics());
+			return Outcome.of(new DalvikCompileResult(null, DalvikMethodAnalysisLookup.empty()), sink.diagnostics());
 		}
 
 		// Validate that the declaration and overlay are compatible with the Dalvik target context.
@@ -52,22 +53,24 @@ public class DalvikCompiler implements Compiler<DalvikCompilerOptions, DalvikCla
 			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
 					"Standalone annotations are only supported for the JVM target",
 					declaration.location());
-			return Outcome.of(new DalvikCompileResult(null), sink.diagnostics());
+			return Outcome.of(new DalvikCompileResult(null, DalvikMethodAnalysisLookup.empty()), sink.diagnostics());
 		}
 		if ((declaration.type() == ElementType.FIELD || declaration.type() == ElementType.METHOD) && overlay == null) {
 			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
 					"Overlay is required for top-level field and method declarations",
 					declaration.location());
-			return Outcome.of(new DalvikCompileResult(null), sink.diagnostics());
+			return Outcome.of(new DalvikCompileResult(null, DalvikMethodAnalysisLookup.empty()), sink.diagnostics());
 		}
 		if (declaration instanceof ASTClass classDeclaration) {
 			rejectJvmOnlyClassAttributes(classDeclaration, sink);
 			if (sink.hasErrors())
-				return Outcome.of(new DalvikCompileResult(null), sink.diagnostics());
+				return Outcome.of(new DalvikCompileResult(null, DalvikMethodAnalysisLookup.empty()), sink.diagnostics());
 		}
 
 		// Compile the declaration into a Dalvik class representation.
-		DalvikRootVisitor visitor = new DalvikRootVisitor(overlay, sink);
+		DalvikRootVisitor visitor = new DalvikRootVisitor(
+				overlay, sink, dalvikOptions.getInheritanceChecker(),
+				dalvikOptions.getMethodValueLookup(), dalvikOptions.getFieldValueLookup());
 		try {
 			sink.addAll(new Transformer(visitor).transform(unit));
 		} catch (Throwable failure) {
@@ -78,7 +81,7 @@ public class DalvikCompiler implements Compiler<DalvikCompilerOptions, DalvikCla
 
 		// Check for errors, and report a failed outcome if any were found.
 		if (sink.hasErrors())
-			return Outcome.of(new DalvikCompileResult(null), sink.diagnostics());
+			return Outcome.of(new DalvikCompileResult(null, DalvikMethodAnalysisLookup.empty()), sink.diagnostics());
 
 		// Check if the user targeted a field/method of a class, but didn't specify an overlay class.
 		ClassDefinition definition = visitor.getDefinition();
@@ -86,12 +89,12 @@ public class DalvikCompiler implements Compiler<DalvikCompilerOptions, DalvikCla
 			sink.error(DiagnosticCode.MALFORMED_DECLARATION,
 					"Cannot build class, type name not specified",
 					declaration.location());
-			return Outcome.of(new DalvikCompileResult(null), sink.diagnostics());
+			return Outcome.of(new DalvikCompileResult(null, DalvikMethodAnalysisLookup.empty()), sink.diagnostics());
 		}
 
 		// No errors, proper class definition visited, give the user their successful outcome.
 		return Outcome.of(
-				new DalvikCompileResult(new DalvikClassRepresentation(definition)),
+				new DalvikCompileResult(new DalvikClassRepresentation(definition), visitor.getAnalysisLookup()),
 				sink.diagnostics()
 		);
 	}

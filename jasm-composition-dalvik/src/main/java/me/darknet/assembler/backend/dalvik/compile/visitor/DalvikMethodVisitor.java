@@ -4,9 +4,16 @@ import me.darknet.assembler.backend.dalvik.DalvikModifiers;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.specific.ASTMethod;
+import me.darknet.assembler.analysis.MethodReference;
+import me.darknet.assembler.analysis.registry.FieldValueLookup;
+import me.darknet.assembler.analysis.registry.MethodValueLookup;
+import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisEngine;
+import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisResults;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikMethodData;
 import me.darknet.assembler.processing.ProcessedMethod;
+import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.util.Location;
@@ -38,7 +45,12 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     private final List<String> parameterNames = new ArrayList<>();
     private final ASTMethod source;
     private final @Nullable DalvikMethodData methodData;
+    private final MethodReference analysisMethod;
+    private final Map<MethodReference, DalvikAnalysisResults> analysisResults;
     private final DiagnosticSink sink;
+    private final InheritanceChecker inheritanceChecker;
+    private final MethodValueLookup methodValueLookup;
+    private final FieldValueLookup fieldValueLookup;
     private Integer declaredRegisterCount;
     private int incomingRegisterCount;
     private CodeBuilder codeBuilder;
@@ -50,15 +62,29 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
      * 		Method being built.
      * @param processed
      * 		Semantic method view carrying source and target extensions.
+     * @param analysisMethod
+     * 		Full key for this source-emitted method.
+     * @param analysisResults
+     * 		Insertion-ordered collector for emitted method results.
      * @param sink
      * 		Sink reporting forms and register layouts this backend cannot encode.
      */
     public DalvikMethodVisitor(MethodMember member, @NotNull ProcessedMethod processed,
-                               @NotNull DiagnosticSink sink) {
+                               @NotNull MethodReference analysisMethod,
+                               @NotNull Map<MethodReference, DalvikAnalysisResults> analysisResults,
+                               @NotNull DiagnosticSink sink,
+                               @NotNull InheritanceChecker inheritanceChecker,
+                               @NotNull MethodValueLookup methodValueLookup,
+                               @NotNull FieldValueLookup fieldValueLookup) {
         super(member);
         this.source = processed.source();
         this.methodData = processed.extensions().get(DalvikMethodData.class);
+        this.analysisMethod = analysisMethod;
+        this.analysisResults = analysisResults;
         this.sink = sink;
+        this.inheritanceChecker = inheritanceChecker;
+        this.methodValueLookup = methodValueLookup;
+        this.fieldValueLookup = fieldValueLookup;
     }
 
     @Override
@@ -201,6 +227,13 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
             if (debugInfo != null)
                 code.setDebugInfo(debugInfo);
             member.setCode(code);
+
+            Map<Instruction, ASTInstruction> instructionToSource = codeVisitor.buildSourceMap(code.getInstructions());
+            if (!instructionToSource.isEmpty()) {
+                analysisResults.put(analysisMethod, DalvikAnalysisEngine.analyze(
+                        analysisMethod, member, code, instructionToSource, inheritanceChecker,
+                        methodValueLookup, fieldValueLookup));
+            }
         }
     }
 

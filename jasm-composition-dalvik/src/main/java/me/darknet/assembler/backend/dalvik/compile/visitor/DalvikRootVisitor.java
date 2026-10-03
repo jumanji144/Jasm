@@ -1,6 +1,12 @@
 package me.darknet.assembler.backend.dalvik.compile.visitor;
 
+import me.darknet.assembler.analysis.MethodReference;
+import me.darknet.assembler.analysis.registry.FieldValueLookup;
+import me.darknet.assembler.analysis.registry.MethodValueLookup;
 import me.darknet.assembler.backend.dalvik.DalvikModifiers;
+import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisResults;
+import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikMethodAnalysisLookup;
+import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.specific.ASTAnnotation;
 import me.darknet.assembler.ast.specific.ASTMethod;
@@ -21,12 +27,18 @@ import me.darknet.dex.tree.type.Types;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Visits a top-level assembler declaration and builds the Dalvik {@link ClassDefinition} tree.
  */
 public class DalvikRootVisitor implements ASTRootVisitor {
     private final DiagnosticSink sink;
+    private final InheritanceChecker inheritanceChecker;
+    private final MethodValueLookup methodValueLookup;
+    private final FieldValueLookup fieldValueLookup;
+    private final Map<MethodReference, DalvikAnalysisResults> analysisResults = new LinkedHashMap<>();
     private ClassDefinition definition;
 
     /**
@@ -35,9 +47,15 @@ public class DalvikRootVisitor implements ASTRootVisitor {
      * @param sink
      * 		Sink reporting problems this backend cannot express in a dex tree.
      */
-    public DalvikRootVisitor(@Nullable ClassDefinition overlay, @NotNull DiagnosticSink sink) {
+    public DalvikRootVisitor(@Nullable ClassDefinition overlay, @NotNull DiagnosticSink sink,
+                             @NotNull InheritanceChecker inheritanceChecker,
+                             @NotNull MethodValueLookup methodValueLookup,
+                             @NotNull FieldValueLookup fieldValueLookup) {
         this.definition = overlay;
         this.sink = sink;
+        this.inheritanceChecker = inheritanceChecker;
+        this.methodValueLookup = methodValueLookup;
+        this.fieldValueLookup = fieldValueLookup;
     }
 
     /**
@@ -45,6 +63,13 @@ public class DalvikRootVisitor implements ASTRootVisitor {
      */
     public @Nullable ClassDefinition getDefinition() {
         return definition;
+    }
+
+    /**
+     * @return An immutable lookup of methods emitted from the current source.
+     */
+    public @NotNull DalvikMethodAnalysisLookup getAnalysisLookup() {
+        return DalvikMethodAnalysisLookup.of(analysisResults);
     }
 
     @Override
@@ -58,7 +83,8 @@ public class DalvikRootVisitor implements ASTRootVisitor {
         InstanceType type = Types.instanceTypeFromInternalName(name.literal());
         if (definition == null)
             definition = new ClassDefinition(type, null, accessFlags);
-        return new DalvikClassVisitor(definition, sink);
+        return new DalvikClassVisitor(
+                definition, sink, analysisResults, inheritanceChecker, methodValueLookup, fieldValueLookup);
     }
 
     @Override
@@ -87,7 +113,16 @@ public class DalvikRootVisitor implements ASTRootVisitor {
 
         MethodMember member = new MethodMember(name.literal(), methodType, DalvikModifiers.getMethodModifiers(modifiers));
         definition.putMethod(member);
-        return new DalvikMethodVisitor(member, processed, sink);
+        return new DalvikMethodVisitor(
+                member,
+                processed,
+                new MethodReference(definition.getType().internalName(), name.literal(), descriptor.literal()),
+                analysisResults,
+                sink,
+                inheritanceChecker,
+                methodValueLookup,
+                fieldValueLookup
+        );
     }
 
     /**

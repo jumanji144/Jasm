@@ -56,6 +56,9 @@ public class AnalysisException extends RuntimeException {
 		return instruction;
 	}
 
+	/**
+	 * @return Category of failure reported by the analysis engine.
+	 */
 	public @NotNull FailureKind getKind() {
 		return kind;
 	}

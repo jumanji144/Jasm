@@ -3,8 +3,10 @@ package me.darknet.assembler.backend.dalvik.compile.visitor;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
+import me.darknet.assembler.backend.dalvik.compile.DalvikConstantMapper;
 import me.darknet.assembler.backend.dalvik.instructions.ArrayData;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikArrayLiterals;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikLowering;
@@ -14,7 +16,6 @@ import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
 import me.darknet.assembler.backend.dalvik.instructions.SignedLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
 import me.darknet.assembler.backend.dalvik.visitor.ASTDalvikInstructionVisitor;
-import me.darknet.assembler.backend.dalvik.compile.DalvikConstantMapper;
 import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticPhase;
@@ -98,6 +99,9 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	private final CodeBuilder codeBuilder;
 	private final DiagnosticSink sink;
 	private SemanticInstruction currentInstructionAst;
+	private final Map<Instruction, ASTInstruction> instructionToSource = new IdentityHashMap<>();
+	private final List<Instruction> emittedInstructions = new ArrayList<>();
+	private final List<ASTInstruction> emittedSources = new ArrayList<>();
 	private final Map<String, Integer> registerMap = new HashMap<>();
 	private final Set<Integer> usedRegisters = new HashSet<>();
 	private final Map<String, Label> labels = new HashMap<>();
@@ -301,6 +305,39 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	/**
+	 * @param codeInstructions
+	 * 		List of instructions emitted by the code builder.
+	 *
+	 * @return Map of executable instructions to their source AST instructions.
+	 */
+	public @NotNull Map<Instruction, ASTInstruction> buildSourceMap(@NotNull List<Instruction> codeInstructions) {
+		List<Instruction> executableInstructions = new ArrayList<>();
+		for (Instruction instruction : codeInstructions)
+			if (!(instruction instanceof Label))
+				executableInstructions.add(instruction);
+
+		if (executableInstructions.size() != emittedInstructions.size())
+			throw new IllegalStateException("Code builder changed the number of emitted executable instructions");
+
+		boolean preservedIdentities = true;
+		for (int index = 0; index < emittedInstructions.size(); index++) {
+			if (emittedInstructions.get(index) != executableInstructions.get(index)) {
+				preservedIdentities = false;
+				break;
+			}
+		}
+
+		Map<Instruction, ASTInstruction> sources = new IdentityHashMap<>();
+		if (preservedIdentities) {
+			sources.putAll(instructionToSource);
+		} else {
+			for (int index = 0; index < executableInstructions.size(); index++)
+				sources.put(executableInstructions.get(index), emittedSources.get(index));
+		}
+		return sources;
+	}
+
+	/**
 	 * Adds an instruction to the builder, inserting a label first if a line number was pending.
 	 *
 	 * @param instruction
@@ -313,7 +350,13 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 			codeBuilder.add(label);
 			pendingLineNumber = Label.UNASSIGNED;
 		}
+		if (currentInstructionAst == null)
+			throw new IllegalStateException("Executable instruction emitted without a source AST instruction");
 		codeBuilder.add(instruction);
+		ASTInstruction source = currentInstructionAst.source();
+		instructionToSource.put(instruction, source);
+		emittedInstructions.add(instruction);
+		emittedSources.add(source);
 	}
 
 	/**
@@ -916,8 +959,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	public void visitUnaryOperation(@NotNull DalvikLowering lowering, RegisterRef to, RegisterRef from) {
 		addInstruction(new UnaryInstruction(
 				lowering.opcode(),
-				indexOf(from),
-				indexOf(to)
+				indexOf(to),
+				indexOf(from)
 		));
 	}
 
