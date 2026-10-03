@@ -20,6 +20,7 @@ import java.util.Objects;
 /**
  * General AST utilities.
  */
+@SuppressWarnings("unused")
 public final class AssemblyUtils {
 	private AssemblyUtils() {}
 
@@ -42,11 +43,43 @@ public final class AssemblyUtils {
 	/**
 	 * @param name
 	 * 		Instruction name to check.
+	 * @param contexts
+	 * 		Targets whose instruction metadata should be queried.
+	 *
+	 * @return {@code true} if the instruction is a flow control instruction.
+	 */
+	public static boolean isFlowControlInstruction(@Nullable String name, @NotNull TargetContext... contexts) {
+		for (TargetContext context : contexts) {
+			if (isFlowControlInstruction(context, name))
+				return true;
+		}
+		return false;
+	}
+
+	/**
+	 * @param name
+	 * 		Instruction name to check.
 	 *
 	 * @return {@code true} if the instruction is a flow control instruction.
 	 */
 	public static boolean isFlowControlInstruction(@NotNull TargetContext context, @Nullable String name) {
 		return isBranchInstruction(context, name) || isSwitchInstruction(context, name);
+	}
+
+	/**
+	 * @param name
+	 * 		Instruction name to check.
+	 * @param targets
+	 * 		Targets whose instruction metadata should be queried.
+	 *
+	 * @return {@code true} if the instruction is a conditional or unconditional branch.
+	 */
+	public static boolean isBranchInstruction(@Nullable String name, @NotNull TargetContext... targets) {
+		for (TargetContext target : targets) {
+			if (isBranchInstruction(target, name))
+				return true;
+		}
+		return false;
 	}
 
 	/**
@@ -63,6 +96,22 @@ public final class AssemblyUtils {
 	}
 
 	/**
+	 * @param name
+	 * 		Instruction name to check.
+	 * @param targets
+	 * 		Targets whose instruction metadata should be queried.
+	 *
+	 * @return {@code true} if the instruction is a conditional or unconditional branch.
+	 */
+	public static boolean isSwitchInstruction(@Nullable String name, @NotNull TargetContext... targets) {
+		for (TargetContext target : targets) {
+			if (isSwitchInstruction(target, name))
+				return true;
+		}
+		return false;
+	}
+
+	/**
 	 * @param target
 	 * 		Target whose instruction metadata should be queried.
 	 * @param name
@@ -75,6 +124,22 @@ public final class AssemblyUtils {
 	}
 
 	/**
+	 * @param name
+	 * 		Instruction name to check.
+	 * @param targets
+	 * 		Targets whose instruction metadata should be queried.
+	 *
+	 * @return {@code true} if the instruction is a type reference.
+	 */
+	public static boolean isTypeReferenceInstruction(@Nullable String name, @NotNull TargetContext... targets) {
+		for (TargetContext target : targets) {
+			if (isTypeReferenceInstruction(target, name))
+				return true;
+		}
+		return false;
+	}
+
+	/**
 	 * @param target
 	 * 		Target whose instruction metadata should be queried.
 	 * @param name
@@ -84,6 +149,24 @@ public final class AssemblyUtils {
 	 */
 	public static boolean isTypeReferenceInstruction(@NotNull TargetContext target, @Nullable String name) {
 		return hasTrait(target, name, InstructionTrait.TYPE_REFERENCE);
+	}
+
+	/**
+	 * @param name
+	 * 		Instruction name to check.
+	 * @param trait
+	 * 		Trait to check for.
+	 * @param targets
+	 * 		Targets whose instruction metadata should be queried.
+	 *
+	 * @return {@code true} if the instruction has the given trait, {@code false} otherwise.
+	 */
+	public static boolean hasTrait(@Nullable String name, @NotNull InstructionTrait trait, @NotNull TargetContext... targets) {
+		for (TargetContext target : targets) {
+			if (hasTrait(target, name, trait))
+				return true;
+		}
+		return false;
 	}
 
 	/**
@@ -110,14 +193,34 @@ public final class AssemblyUtils {
 	 * 		Position to check for.
 	 * @param line
 	 * 		Line to check for.
+	 * @param contexts
+	 * 		Targets whose instruction metadata should be queried.
+	 *
+	 * @return Instruction at the given position and line, or {@code null} if not found.
+	 */
+	public static @Nullable ASTInstruction findInstruction(@Nullable List<ASTElement> astElements, int position, int line, @NotNull TargetContext... contexts) {
+		for (TargetContext context : contexts) {
+			ASTInstruction instruction = findInstruction(astElements, position, line, context);
+			if (instruction != null)
+				return instruction;
+		}
+		return null;
+	}
+
+	/**
+	 * @param astElements
+	 * 		AST elements to search through.
+	 * @param position
+	 * 		Position to check for.
+	 * @param line
+	 * 		Line to check for.
 	 * @param target
 	 * 		Target whose instruction metadata should be queried.
 	 *
 	 * @return Instruction at the given position and line, or {@code null} if not found.
 	 */
-	@Nullable
-	public static ASTInstruction findInstruction(@Nullable List<ASTElement> astElements, int position, int line,
-	                                             @NotNull TargetContext target) {
+	public static @Nullable ASTInstruction findInstruction(@Nullable List<ASTElement> astElements, int position, int line,
+	                                                       @NotNull TargetContext target) {
 		if (astElements == null)
 			return null;
 
@@ -249,6 +352,23 @@ public final class AssemblyUtils {
 	}
 
 	/**
+	 * @param instruction
+	 * 		Instruction to check.
+	 * @param targets
+	 * 		Targets whose instruction metadata should be queried.
+	 *
+	 * @return Variable access kind if the instruction carries a variable trait, or {@code null} if not.
+	 */
+	public static @Nullable VariableAccessKind variableAccessKind(@NotNull ASTInstruction instruction, @NotNull TargetContext... targets) {
+		for (TargetContext target : targets) {
+			VariableAccessKind kind = variableAccessKind(target, instruction);
+			if (kind != null)
+				return kind;
+		}
+		return null;
+	}
+
+	/**
 	 * @param target
 	 * 		Target whose instruction metadata should be queried.
 	 * @param instruction
@@ -267,6 +387,27 @@ public final class AssemblyUtils {
 			return VariableAccessKind.READ;
 		if (definition.hasTrait(InstructionTrait.VARIABLE_WRITE))
 			return VariableAccessKind.WRITE;
+		return null;
+	}
+
+	/**
+	 * @param offset
+	 * 		Absolute offset to check for.
+	 * @param instruction
+	 * 		Instruction to check.
+	 * @param targets
+	 * 		Targets whose instruction metadata should be queried.
+	 *
+	 * @return Type reference identifier if the instruction is a type reference
+	 * and the offset is within the type reference argument, or {@code null} otherwise.
+	 */
+	public static @Nullable ASTIdentifier resolveInstructionTypeReference(int offset, @NotNull ASTInstruction instruction,
+	                                                                      @NotNull TargetContext... targets) {
+		for (TargetContext target : targets) {
+			ASTIdentifier identifier = resolveInstructionTypeReference(target, offset, instruction);
+			if (identifier != null)
+				return identifier;
+		}
 		return null;
 	}
 

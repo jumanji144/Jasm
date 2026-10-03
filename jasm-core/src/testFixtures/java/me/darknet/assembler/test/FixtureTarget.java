@@ -68,17 +68,17 @@ public final class FixtureTarget implements AssemblyTarget {
         }
 
         @Override
-        public Instructions<?> instructions() {
+        public @NotNull Instructions<?> instructions() {
             return instructions;
         }
 
         @Override
-        public MethodAttributeRegistry methodAttributes() {
+        public @NotNull MethodAttributeRegistry methodAttributes() {
             return methodAttributes;
         }
 
         @Override
-        public AnnotationCapabilities annotationCapabilities() {
+        public @NotNull AnnotationCapabilities annotationCapabilities() {
             return annotationCapabilities;
         }
 

@@ -659,12 +659,12 @@ public class ASTProcessorTest {
             }
 
             @Override
-            public MethodAttributeRegistry methodAttributes() {
+            public @NotNull MethodAttributeRegistry methodAttributes() {
                 return delegate.methodAttributes();
             }
 
             @Override
-            public AnnotationCapabilities annotationCapabilities() {
+            public @NotNull AnnotationCapabilities annotationCapabilities() {
                 return capability -> capability != denied
                         && delegate.annotationCapabilities().supports(capability);
             }
