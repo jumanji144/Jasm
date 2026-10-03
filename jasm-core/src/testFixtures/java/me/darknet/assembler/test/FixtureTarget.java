@@ -27,6 +27,7 @@ import java.util.List;
  * Minimal target implementations used by core structural and parser tests.
  */
 public final class FixtureTarget implements AssemblyTarget {
+    // Note: These are just test models of target contexts.
     public static final FixtureTarget JVM = new FixtureTarget("JVM", false);
     public static final FixtureTarget DALVIK = new FixtureTarget("DALVIK", true);
 

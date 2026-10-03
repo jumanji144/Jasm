@@ -51,6 +51,21 @@ public final class KeywordRegexUtil {
 	}
 
 	/**
+	 * Builds the keyword expression from common JASM keywords and the active targets' services.
+	 *
+	 * @param targets
+	 * 		Targets providing instruction and method-attribute keywords.
+	 *
+	 * @return A word-boundary regular expression matching the targets' JASM keywords.
+	 */
+	public static @NotNull String getKeywordRegex(@NotNull TargetContext[] targets) {
+		Set<String> keywords = getCommonKeywords();
+		for (TargetContext target : targets)
+			keywords.addAll(target.keywordNames());
+		return getKeywordRegex(keywords);
+	}
+
+	/**
 	 * Builds a compact word-boundary regular expression for an arbitrary keyword collection.
 	 * <p>
 	 * Common prefixes and suffixes are factored, and terminal branches are represented as optional
