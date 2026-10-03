@@ -1,16 +1,14 @@
 package me.darknet.assembler.backend.jvm.test;
 
 import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisResults;
-import me.darknet.assembler.backend.jvm.compile.analysis.BasicFieldValueLookup;
-import me.darknet.assembler.backend.jvm.compile.analysis.BasicMethodValueLookup;
+import me.darknet.assembler.analysis.registry.BasicFieldValueLookup;
+import me.darknet.assembler.analysis.registry.BasicMethodValueLookup;
 import me.darknet.assembler.backend.jvm.compile.analysis.MethodAnalysisLookup;
-import me.darknet.assembler.backend.jvm.compile.analysis.Value;
+import me.darknet.assembler.analysis.Value;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.Frame;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.ValuedFrame;
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.ValuedJvmAnalysisEngine;
-import me.darknet.assembler.backend.jvm.test.JvmAssemblerFixture;
-import me.darknet.assembler.backend.jvm.test.JvmCompilation;
 import org.junit.jupiter.api.Test;
 
 import java.util.function.Predicate;

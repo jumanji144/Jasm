@@ -1,11 +1,12 @@
 package me.darknet.assembler.backend.jvm.test;
 
-import me.darknet.assembler.backend.jvm.compile.analysis.BasicFieldValueLookup;
-import me.darknet.assembler.backend.jvm.compile.analysis.BasicMethodValueLookup;
+import me.darknet.assembler.analysis.registry.BasicFieldValueLookup;
+import me.darknet.assembler.analysis.registry.BasicMethodValueLookup;
 import me.darknet.assembler.backend.jvm.compile.analysis.Local;
 import me.darknet.assembler.backend.jvm.compile.analysis.MethodAnalysisResult;
-import me.darknet.assembler.backend.jvm.compile.analysis.Value;
-import me.darknet.assembler.backend.jvm.compile.analysis.Values;
+import me.darknet.assembler.analysis.Value;
+import me.darknet.assembler.descriptor.ClassDescriptor;
+import me.darknet.assembler.analysis.Values;
 import me.darknet.assembler.backend.jvm.compile.analysis.VarCache;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.Frame;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.TypedFrame;
@@ -124,7 +125,7 @@ class JvmAnalysisEngineExecutionTest {
         });
 
         ValuedFrameImpl frame = new ValuedFrameImpl();
-        frame.push(Values.valueOfInstance(Type.getType(ArrayList.class)));
+        frame.push(Values.valueOfInstance(new ClassDescriptor(ArrayList.class.getName().replace('.', '/'))));
         ValuedFrameImpl output = executeWithFrame(engine, frame,
                 new TypeInsnNode(Opcodes.INSTANCEOF, Type.getInternalName(List.class)),
                 null);

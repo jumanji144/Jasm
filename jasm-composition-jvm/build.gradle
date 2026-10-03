@@ -11,6 +11,7 @@ dependencies {
     implementation 'org.ow2.asm:asm:9.8'
     implementation 'org.ow2.asm:asm-util:9.8'
     api project(path: ':jasm-core')
+    api project(path: ':jasm-composition-analysis')
     testFixturesImplementation 'org.benf:cfr:0.152'
     testFixturesImplementation 'org.ow2.asm:asm:9.8'
     testFixturesImplementation 'org.ow2.asm:asm-util:9.8'

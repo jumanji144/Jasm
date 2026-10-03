@@ -3,7 +3,8 @@ package me.darknet.assembler.backend.jvm.compile.analysis.jvm;
 import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisException;
 import me.darknet.assembler.backend.jvm.compile.analysis.Local;
 import me.darknet.assembler.backend.jvm.compile.analysis.MethodAnalysisResult;
-import me.darknet.assembler.backend.jvm.compile.analysis.Value;
+import me.darknet.assembler.analysis.AnalysisWorklist;
+import me.darknet.assembler.analysis.Value;
 import me.darknet.assembler.backend.jvm.compile.analysis.ValuedLocal;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.Frame;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.FrameMergeException;
@@ -11,6 +12,7 @@ import me.darknet.assembler.backend.jvm.compile.analysis.frame.FrameOps;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.TypedFrame;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.ValuedFrame;
 import me.darknet.assembler.compiler.InheritanceChecker;
+import me.darknet.assembler.descriptor.ClassDescriptor;
 import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.Opcodes;
@@ -108,12 +110,15 @@ public class JvmAnalysisRunner implements Opcodes {
 			// Get the receiver local variable and mark it as uninitialized.
 			Local receiver = method.params().getFirst();
 			Type owner = Type.getObjectType(method.owner());
-			Type marker = engine.newUninitializedType(owner);
-			if (initialFrame instanceof TypedFrame typedFrame)
-				typedFrame.setLocal(receiver.index(), new Local(receiver.index(), receiver.name(), marker));
-			else if (initialFrame instanceof ValuedFrame valuedFrame)
-				valuedFrame.setLocal(receiver.index(), new ValuedLocal(receiver.index(), receiver.name(),
-						new Value.UninitializedObjectValue(marker, owner)));
+			if (initialFrame instanceof TypedFrame typedFrame) {
+				Type uninitialized = engine.newUninitializedType(owner);
+				typedFrame.setLocal(receiver.index(), new Local(receiver.index(), receiver.name(), uninitialized));
+			} else if (initialFrame instanceof ValuedFrame valuedFrame) {
+				int identity = engine.newAllocationIdentity();
+				Value.UninitializedReferenceValue uninitialized = new Value.UninitializedReferenceValue(
+						(ClassDescriptor) JvmTypeUtils.toDescriptorType(owner), identity);
+				valuedFrame.setLocal(receiver.index(), new ValuedLocal(receiver.index(), receiver.name(), uninitialized));
+			}
 		}
 		session.putFrame(0, initialFrame);
 		worklist.add(0);

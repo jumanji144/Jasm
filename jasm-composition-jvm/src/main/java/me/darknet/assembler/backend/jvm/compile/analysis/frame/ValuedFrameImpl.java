@@ -1,9 +1,10 @@
 package me.darknet.assembler.backend.jvm.compile.analysis.frame;
 
-import me.darknet.assembler.backend.jvm.compile.analysis.Value;
-import me.darknet.assembler.backend.jvm.compile.analysis.ValueMergeException;
+import me.darknet.assembler.analysis.Value;
+import me.darknet.assembler.analysis.ValueMergeException;
+import me.darknet.assembler.analysis.Values;
 import me.darknet.assembler.backend.jvm.compile.analysis.ValuedLocal;
-import me.darknet.assembler.backend.jvm.compile.analysis.Values;
+import me.darknet.assembler.backend.jvm.compile.analysis.jvm.JvmValueMerger;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import org.jetbrains.annotations.NotNull;
@@ -126,11 +127,12 @@ public class ValuedFrameImpl implements ValuedFrame {
 				newStack.add(Values.TOP_VALUE);
 				continue;
 			}
-			if (value1 == Values.VOID_VALUE || value2 == Values.VOID_VALUE)
+			if (value1 instanceof WideValue || value2 instanceof WideValue) {
 				throw new FrameMergeException(this, other, "Incompatible wide stack values");
+			}
 			Value merged;
 			try {
-				merged = value1.mergeWith(checker, value2);
+				merged = JvmValueMerger.merge(checker, value1, value2);
 			} catch (ValueMergeException ex) {
 				throw new FrameMergeException(this, other, ex.getMessage());
 			}
@@ -166,13 +168,9 @@ public class ValuedFrameImpl implements ValuedFrame {
 
 	@Override
 	public void pushType(@Nullable Type type) {
-		if (type == null) {
-			stack.push(Values.NULL_VALUE);
-		} else {
-			stack.push(Values.valueOf(type));
-			if (JvmTypeUtils.isWide(type))
-				stack.push(Values.VOID_VALUE);
-		}
+		stack.push(ValuedFrameOps.valueOfType(type));
+		if (JvmTypeUtils.isWide(type))
+			stack.push(WideValue.INSTANCE);
 	}
 
 	@Override
@@ -183,9 +181,8 @@ public class ValuedFrameImpl implements ValuedFrame {
 	@Override
 	public void push(@NotNull Value value) {
 		stack.push(value);
-		Type type = value.type();
-		if (JvmTypeUtils.isWide(type))
-			stack.push(Values.VOID_VALUE);
+		if (value instanceof Value.PrimitiveValue primitiveValue && primitiveValue.isWide())
+			stack.push(WideValue.INSTANCE);
 	}
 
 	@Override

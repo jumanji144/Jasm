@@ -1,13 +1,21 @@
 package me.darknet.assembler.backend.jvm.compile.analysis.jvm;
 
-import me.darknet.assembler.backend.jvm.compile.analysis.Value;
+import me.darknet.assembler.analysis.FieldReference;
+import me.darknet.assembler.analysis.registry.FieldValueLookup;
+import me.darknet.assembler.analysis.MethodReference;
+import me.darknet.assembler.analysis.registry.MethodValueLookup;
+import me.darknet.assembler.analysis.Value;
 import me.darknet.assembler.backend.jvm.compile.analysis.ValuedLocal;
-import me.darknet.assembler.backend.jvm.compile.analysis.Values;
+import me.darknet.assembler.analysis.Values;
 import me.darknet.assembler.backend.jvm.compile.analysis.VarCache;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.FrameOps;
+import me.darknet.assembler.backend.jvm.compile.analysis.frame.WideValue;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.ValuedFrame;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.ValuedFrameOps;
 import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
+import me.darknet.assembler.descriptor.ArrayDescriptor;
+import me.darknet.assembler.descriptor.ClassDescriptor;
+import me.darknet.assembler.descriptor.PrimitiveType;
 import me.darknet.assembler.backend.jvm.util.VarNaming;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -75,7 +83,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			case DCONST_0 -> frame.push(Values.DOUBLE_0);
 			case DCONST_1 -> frame.push(Values.DOUBLE_1);
 			case DUP -> {
-				if (frame.peek() == Values.VOID_VALUE) {
+				if (frame.peek() == WideValue.INSTANCE) {
 					warn(instruction, "dup cannot duplicate a category-2 value");
 					ArrayList<Value> raw = new ArrayList<>(frame.getStack());
 					if (raw.size() >= 2) {
@@ -91,7 +99,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			case DUP_X1 -> {
 				Value value1 = frame.pop();
 				Value value2 = frame.pop();
-				if (value1 == Values.VOID_VALUE || value2 == Values.VOID_VALUE)
+				if (value1 == WideValue.INSTANCE || value2 == WideValue.INSTANCE)
 					warn(instruction, "dup_x1 requires two category-1 values");
 				frame.pushRaw(value1, value2, value1);
 			}
@@ -104,7 +112,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			case DUP2 -> {
 				Value value1 = frame.pop();
 				Value value2 = frame.pop();
-				if (value1 != Values.VOID_VALUE && value2 == Values.VOID_VALUE)
+				if (value1 != WideValue.INSTANCE && value2 == WideValue.INSTANCE)
 					warn(instruction, "dup2 requires a category-2 value or two category-1 values");
 				frame.pushRaw(value2, value1, value2, value1);
 			}
@@ -122,36 +130,37 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 				frame.pushRaw(value2, value1, value4, value3, value2, value1);
 			}
 			case POP -> {
-				if (frame.peek() == Values.VOID_VALUE)
+				if (frame.peek() == WideValue.INSTANCE)
 					warn(instruction, "pop cannot remove a category-2 value");
 				frame.pop();
 			}
 			case IRETURN, FRETURN, ARETURN -> {
-				validateReturnValue(instruction, frame.pop().type(), analyzedReturnType());
+				validateValueReturn(instruction, frame.pop(), analyzedReturnType());
 				validateEmptyStack(instruction, frame);
 			}
 			case LRETURN, DRETURN -> {
-				validateReturnValue(instruction, frame.pop2().type(), analyzedReturnType());
+				validateValueReturn(instruction, frame.pop2(), analyzedReturnType());
 				validateEmptyStack(instruction, frame);
 			}
 			case MONITORENTER, MONITOREXIT -> {
 				Value monitor = frame.pop();
-				if (JvmTypeUtils.isUninitialized(monitor.type()))
+				Type monitorType = ValuedLocal.typeOf(monitor);
+				if (monitor instanceof Value.UninitializedReferenceValue)
 					warn(instruction, "Monitor value is uninitialized");
-				else if (monitor.type() != null && !JvmTypeUtils.isReference(monitor.type()))
+				else if (monitorType != null && !JvmTypeUtils.isReference(monitorType))
 					warn(instruction, "Monitor value is not a reference");
 			}
 			case POP2 -> {
 				Value top = frame.peek();
 				frame.pop2();
-				if (top != Values.VOID_VALUE && !frame.getStack().isEmpty()
-						&& frame.peek() == Values.VOID_VALUE)
+				if (top != WideValue.INSTANCE && !frame.getStack().isEmpty()
+						&& frame.peek() == WideValue.INSTANCE)
 					warn(instruction, "pop2 requires a category-2 value or two category-1 values");
 			}
 			case SWAP -> {
 				Value value1 = frame.pop();
 				Value value2 = frame.pop();
-				if (value1 == Values.VOID_VALUE || value2 == Values.VOID_VALUE)
+				if (value1 == WideValue.INSTANCE || value2 == WideValue.INSTANCE)
 					warn(instruction, "swap requires two category-1 values");
 				frame.pushRaw(value1, value2);
 			}
@@ -160,11 +169,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 				if (value instanceof Value.PrimitiveValue primitiveValue) {
 					if (primitiveValue.isWide())
 						warn(instruction, "Value negated is wide");
-					else if (primitiveValue.isReserved())
-						warn(instruction, "Value negated is top");
 					getCurrentFrame().push(primitiveValue.negate());
 				} else {
-					getCurrentFrame().pushType(value.type());
+					pushSameValueType(value);
 					warn(instruction, "Value to negate is not a primitive");
 				}
 			}
@@ -173,11 +180,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 				if (value instanceof Value.PrimitiveValue primitiveValue) {
 					if (!primitiveValue.isWide())
 						warn(instruction, "Value negated is not wide");
-					else if (primitiveValue.isReserved())
-						warn(instruction, "Value negated is top");
 					getCurrentFrame().push(primitiveValue.negate());
 				} else {
-					getCurrentFrame().pushType(value.type());
+					pushSameValueType(value);
 					warn(instruction, "Value to negate is not a primitive");
 				}
 			}
@@ -282,9 +287,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			case DCMPG -> compareDouble(instruction, false);
 			case ATHROW -> {
 				Value thrown = frame.pop();
-				if (thrown.type() == null)
+				Type thrownType = ValuedLocal.typeOf(thrown);
+				if (thrownType == null)
 					warn(instruction, "Cannot throw 'null'");
-				else if (JvmTypeUtils.isUninitialized(thrown.type()) || !JvmTypeUtils.isReference(thrown.type()))
+				else if (thrown instanceof Value.UninitializedReferenceValue || !JvmTypeUtils.isReference(thrownType))
 					warn(instruction, "Thrown value is not a reference");
 				frame.getStack().clear();
 			}
@@ -309,9 +315,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 				doArrayStore(instruction, expected);
 			}
 			case DASTORE, LASTORE -> {
-				Type valueType = frame.pop2().type();
-				Type indexType = frame.pop().type();
-				Type arrayType = frame.pop().type();
+				Type valueType = ValuedLocal.typeOf(frame.pop2());
+				Type indexType = ValuedLocal.typeOf(frame.pop());
+				Type arrayType = ValuedLocal.typeOf(frame.pop());
 				if (!JvmTypeUtils.INT.equals(JvmTypeUtils.verificationType(indexType)))
 					warn(instruction, "Array index on stack is not an int");
 				if (arrayType == null || arrayType.getSort() != Type.ARRAY)
@@ -327,12 +333,12 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			case DALOAD -> arrayLoad(instruction, JvmTypeUtils.DOUBLE);
 			case LALOAD -> arrayLoad(instruction, JvmTypeUtils.LONG);
 			case AALOAD -> {
-				Type indexType = frame.pop().type();
+				Type indexType = ValuedLocal.typeOf(frame.pop());
 				if (!JvmTypeUtils.isPrimitive(indexType))
 					warn(instruction, "Array index on stack is not a primitive");
 				Value arrayRef = frame.pop();
 				if (arrayRef instanceof Value.ArrayValue arrayValue) {
-					Type arrayType = arrayValue.arrayType();
+					Type arrayType = JvmTypeUtils.toAsmType(arrayValue.arrayType());
 					if (JvmTypeUtils.isPrimitive(arrayType.getElementType()))
 						warn(instruction, "aaload requires an array of references");
 					frame.pushType(arrayType.getDimensions() == 1
@@ -345,7 +351,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			}
 			case ARRAYLENGTH -> {
 				Value arrayRef = frame.pop();
-				Type stackType = arrayRef.type();
+				Type stackType = ValuedLocal.typeOf(arrayRef);
 				if (stackType == null)
 					warn(instruction, "Cannot get array length of 'null'");
 				else if (JvmTypeUtils.isPrimitive(stackType))
@@ -378,7 +384,8 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			};
 			Type arrayType = JvmTypeUtils.arrayType(componentType);
 			if (size instanceof Value.KnownIntValue(int value)) {
-				getCurrentFrame().push(Values.valueOfArray(arrayType, value));
+				getCurrentFrame().push(Values.valueOfArray((ArrayDescriptor)
+						JvmTypeUtils.toDescriptorType(arrayType), value));
 			} else {
 				getCurrentFrame().pushType(arrayType);
 			}
@@ -434,7 +441,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 					case ALOAD -> Values.OBJECT_VALUE;
 					default -> throw new IllegalStateException("Unexpected opcode: " + opcode);
 				} : valuedLocal.value();
-				Type actualVarType = value.type();
+				Type actualVarType = ValuedLocal.typeOf(value);
 				if (JvmTypeUtils.isPrimitive(expectedVarType)) {
 					if (actualVarType == null) {
 						warn(instruction, "Loading 'null' as " + expectedVarType.getDescriptor());
@@ -452,7 +459,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 				if (frame.getStack().size() < expectedStackSize)
 					warnInvalidStoreStack(instruction, index, expectedStackSize, frame.getStack().size());
 				Value value = expectedStackSize == 2 ? frame.pop2() : frame.pop();
-				Type actualStackType = value.type();
+				Type actualStackType = ValuedLocal.typeOf(value);
 				Type normalizedStackType = JvmTypeUtils.verificationType(actualStackType);
 				if (JvmTypeUtils.isPrimitive(expectedVarType)) {
 					if (actualStackType == null) {
@@ -508,25 +515,27 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		Type instructionType = Type.getObjectType(instruction.desc);
 		switch (instruction.getOpcode()) {
 			case NEW -> {
-				Type marker = newUninitializedType(instructionType, instruction);
-				frame.push(new Value.UninitializedObjectValue(marker, instructionType));
+				ClassDescriptor desc = (ClassDescriptor) JvmTypeUtils.toDescriptorType(instructionType);
+				frame.push(new Value.UninitializedReferenceValue(desc, allocationIdentity(instruction)));
 			}
 			case CHECKCAST -> {
 				Value originValue = frame.pop();
-				Type originType = originValue.type();
-				if (JvmTypeUtils.isUninitialized(originType))
+				Type originType = ValuedLocal.typeOf(originValue);
+				if (originValue instanceof Value.UninitializedReferenceValue)
 					warn(instruction, "Cannot cast uninitialized object");
 				else if (JvmTypeUtils.isPrimitive(originType))
 					warn(instruction, "Cannot cast primitive to reference");
-				if (Objects.equals(originType, instructionType)) {
+				if (!(originValue instanceof Value.UninitializedReferenceValue)
+						&& Objects.equals(originType, instructionType)) {
 					frame.push(originValue);
 				} else {
-					frame.push(Values.valueOf(instructionType));
+					frame.push(Values.valueOf(JvmTypeUtils.toDescriptorType(instructionType)));
 				}
 			}
 			case INSTANCEOF -> {
-				Type originType = frame.pop().type();
-				if (JvmTypeUtils.isUninitialized(originType)) {
+				Value originValue = frame.pop();
+				Type originType = ValuedLocal.typeOf(originValue);
+				if (originValue instanceof Value.UninitializedReferenceValue) {
 					warn(instruction, "Cannot instanceof uninitialized object");
 					frame.pushType(JvmTypeUtils.INT);
 				} else if (JvmTypeUtils.isPrimitive(originType)) {
@@ -543,11 +552,12 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			}
 			case ANEWARRAY -> {
 				Value size = frame.pop();
-				if (!JvmTypeUtils.INT.equals(JvmTypeUtils.verificationType(size.type())))
+				if (!JvmTypeUtils.INT.equals(JvmTypeUtils.verificationType(ValuedLocal.typeOf(size))))
 					warn(instruction, "Array size is not an int");
 				Type arrayType = JvmTypeUtils.arrayType(instructionType);
 				if (size instanceof Value.KnownIntValue(int value)) {
-					frame.push(Values.valueOfArray(arrayType, value));
+					frame.push(Values.valueOfArray((ArrayDescriptor)
+							JvmTypeUtils.toDescriptorType(arrayType), value));
 				} else {
 					frame.pushType(arrayType);
 				}
@@ -567,10 +577,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			Value value = frame.pop(argumentType);
 			parameters.addFirst(value);
 			canLookup &= value.isKnown();
-			if (value instanceof Value.VoidValue)
-				warn(instruction, "Cannot pass 'void' as method argument");
-			else
-				validateTypeUse(instruction, value.type(), argumentType, "use", "parameter");
+			validateValueUse(instruction, value, argumentType, "use", "parameter");
 		}
 
 		Value.ObjectValue contextObject = null;
@@ -581,24 +588,23 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 				canLookup &= poppedContext.isKnown();
 			}
 
-			Type contextType = contextValue.type();
 			Type owner = Type.getObjectType(instruction.owner);
-			if ("<init>".equals(instruction.name) && contextValue instanceof Value.UninitializedObjectValue uninitialized) {
-				Type allocationOwner = uninitialized.owner();
+			if ("<init>".equals(instruction.name) && contextValue instanceof Value.UninitializedReferenceValue uninitialized) {
+				String allocationOwner = uninitialized.owner().internalName();
 				String currentOwner = analyzedOwner();
-				boolean matching = allocationOwner.equals(owner)
+				boolean matching = allocationOwner.equals(instruction.owner)
 						|| (isConstructor()
-						&& currentOwner != null && currentOwner.equals(allocationOwner.getInternalName())
+						&& currentOwner != null && currentOwner.equals(allocationOwner)
 						&& checker != null
 						&& checker.isSubclassOf(currentOwner, instruction.owner));
 				if (!matching)
 					warn(instruction, "Constructor does not match uninitialized object");
 				else
-					initializeAliases(uninitialized, allocationOwner);
+					initializeAliases(uninitialized);
 			} else if ("<init>".equals(instruction.name)) {
 				warn(instruction, "Constructor invoked on initialized object");
 			} else {
-				validateReceiver(instruction, contextType, owner, "invoke method");
+				validateValueReceiver(instruction, contextValue, owner, "invoke method");
 			}
 		}
 
@@ -606,7 +612,8 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		if (!returnType.equals(JvmTypeUtils.VOID)) {
 			if (canLookup && methodValueLookup != null) {
 				// 3rd parties can register return values for known methods
-				Value value = methodValueLookup.accept(instruction, contextObject, parameters);
+				MethodReference reference = new MethodReference(instruction.owner, instruction.name, instruction.desc);
+				Value value = methodValueLookup.accept(reference, contextObject, parameters);
 				if (value != null) {
 					frame.push(value);
 				} else {
@@ -623,14 +630,14 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		ValuedFrame frame = getCurrentFrame();
 		int opcode = instruction.getOpcode();
 		Type fieldType = Type.getType(instruction.desc);
+		FieldReference reference = new FieldReference(instruction.owner, instruction.name, instruction.desc);
 		switch (opcode) {
 			case GETFIELD -> {
 				Value contextValue = frame.pop();
-				Type contextType = contextValue.type();
-				validateReceiver(instruction, contextType, Type.getObjectType(instruction.owner), "get field");
+				validateValueReceiver(instruction, contextValue, Type.getObjectType(instruction.owner), "get field");
 				if (fieldValueLookup != null && contextValue.isKnown() && contextValue instanceof Value.ObjectValue ov) {
 					// 3rd parties can register values for known fields
-					Value value = fieldValueLookup.accept(instruction, ov);
+					Value value = fieldValueLookup.accept(reference, ov);
 					if (value != null) {
 						frame.push(value);
 					} else {
@@ -644,7 +651,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			case GETSTATIC -> {
 				if (fieldValueLookup != null) {
 					// 3rd parties can register values for known fields
-					Value value = fieldValueLookup.accept(instruction, null);
+					Value value = fieldValueLookup.accept(reference, null);
 					if (value != null) {
 						frame.push(value);
 					} else {
@@ -657,28 +664,28 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			}
 			case PUTFIELD, PUTSTATIC -> {
 				Value value = frame.pop(fieldType);
-				Type valueType = value.type();
+				Type valueType = ValuedLocal.typeOf(value);
 
 				// Validate field context value
 				if (opcode == PUTFIELD) {
 					Value contextValue = frame.pop();
-					Type contextType = contextValue.type();
-					validateReceiver(instruction, contextType, Type.getObjectType(instruction.owner), "put field");
+					validateValueReceiver(instruction, contextValue, Type.getObjectType(instruction.owner), "put field");
 				}
 
 				// Value --> Field type checks
-				validateTypeUse(instruction, valueType, fieldType, "store", "field");
+				validateValueUse(instruction, value, fieldType, "store", "field");
 			}
 			default -> throw new IllegalStateException("Unknown field insn: " + opcode);
 		}
 	}
 
-	private void initializeAliases(@NotNull Value.UninitializedObjectValue marker, @NotNull Type initializedType) {
+	private void initializeAliases(@NotNull Value.UninitializedReferenceValue marker) {
 		ValuedFrame frame = getCurrentFrame();
+		ClassDescriptor initializedType = marker.owner();
 		for (ValuedLocal local : new ArrayList<>(frame.getLocals().values())) {
 			if (marker.equals(local.value()))
-				frame.setLocal(local.index(), new ValuedLocal(local.index(), local.name(), initializedType,
-						Values.valueOfInstance(initializedType)));
+				frame.setLocal(local.index(), new ValuedLocal(local.index(), local.name(),
+						JvmTypeUtils.toAsmType(initializedType), Values.valueOfInstance(initializedType)));
 		}
 		ArrayList<Value> stack = new ArrayList<>(frame.getStack());
 		for (int i = 0; i < stack.size(); i++)
@@ -695,7 +702,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		for (int i = argumentTypes.length; i > 0; i--) {
 			Type parameterType = argumentTypes[i - 1];
 			Value value = frame.pop(parameterType);
-			validateTypeUse(instruction, value.type(), parameterType, "use", "parameter");
+			validateTypeUse(instruction, ValuedLocal.typeOf(value), parameterType, "use", "parameter");
 		}
 		if (!methodType.getReturnType().equals(JvmTypeUtils.VOID))
 			frame.pushType(methodType.getReturnType());
@@ -734,7 +741,7 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 	}
 
 	protected void executeSwitchInsn(@NotNull AbstractInsnNode instruction) {
-		Type type = getCurrentFrame().pop().type();
+		Type type = ValuedLocal.typeOf(getCurrentFrame().pop());
 		if (type == null)
 			warn(instruction, "Cannot switch off 'null' on stack");
 		else if (!JvmTypeUtils.INT.equals(JvmTypeUtils.verificationType(type)))
@@ -778,15 +785,16 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 		};
 		Value fromValue = getCurrentFrame().pop(fromType);
 		if (fromValue instanceof Value.PrimitiveValue primitiveValue) {
-			if (!fromType.equals(JvmTypeUtils.verificationType(fromValue.type()))) {
-				warn(instruction, "Cannot convert " + fromValue.type().getDescriptor()
+			if (!fromType.equals(JvmTypeUtils.verificationType(ValuedLocal.typeOf(fromValue)))) {
+				warn(instruction, "Cannot convert " + ValuedLocal.typeOf(fromValue).getDescriptor()
 						+ " using " + fromType.getDescriptor() + " conversion");
 				getCurrentFrame().pushType(targetType);
 			} else {
-				getCurrentFrame().push(primitiveValue.cast(targetType));
+				getCurrentFrame().push(primitiveValue.cast((PrimitiveType)
+						JvmTypeUtils.toDescriptorType(targetType)));
 			}
 		} else {
-			Type type = fromValue.type();
+			Type type = ValuedLocal.typeOf(fromValue);
 			if (type == null)
 				warn(instruction, "Cannot convert 'null' on stack to primitive");
 			else if (JvmTypeUtils.isReference(type))
@@ -796,8 +804,8 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 	}
 
 	private void arrayLoad(@NotNull AbstractInsnNode instruction, @NotNull Type elementType) {
-		Type indexType = getCurrentFrame().pop().type();
-		Type arrayType = getCurrentFrame().pop().type();
+		Type indexType = ValuedLocal.typeOf(getCurrentFrame().pop());
+		Type arrayType = ValuedLocal.typeOf(getCurrentFrame().pop());
 		if (!JvmTypeUtils.INT.equals(JvmTypeUtils.verificationType(indexType)))
 			warn(instruction, "Array index on stack is not an int");
 		if (arrayType == null || arrayType.getSort() != Type.ARRAY)
@@ -809,9 +817,10 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 
 	private Type doArrayStore(@NotNull AbstractInsnNode instruction, @Nullable Type expectedValueType) {
 		ValuedFrame frame = getCurrentFrame();
-		Type valueType = frame.pop().type();
-		Type indexType = frame.pop().type();
-		Type arrayType = frame.pop().type();
+		Value value = frame.pop();
+		Type valueType = ValuedLocal.typeOf(value);
+		Type indexType = ValuedLocal.typeOf(frame.pop());
+		Type arrayType = ValuedLocal.typeOf(frame.pop());
 		if (!JvmTypeUtils.INT.equals(JvmTypeUtils.verificationType(indexType)))
 			warn(instruction, "Array index on stack is not an int");
 		if (arrayType == null || arrayType.getSort() != Type.ARRAY) {
@@ -820,16 +829,52 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			if (!JvmTypeUtils.isReference(valueType) && valueType != null)
 				warn(instruction, "Value to store in array is not a reference");
 		} else {
-			validateTypeUse(instruction, valueType, arrayType.getElementType(), "store", "array component");
+			validateValueUse(instruction, value, arrayType.getElementType(), "store", "array component");
 		}
 		return valueType;
 	}
 
+	private void validateValueUse(@NotNull AbstractInsnNode instruction, @NotNull Value value,
+	                              @NotNull Type destination, @NotNull String verb, @NotNull String noun) {
+		if (value instanceof Value.UninitializedReferenceValue) {
+			warn(instruction, "Cannot use uninitialized object as " + noun);
+			return;
+		}
+		validateTypeUse(instruction, ValuedLocal.typeOf(value), destination, verb, noun);
+	}
+
+	private void validateValueReceiver(@NotNull AbstractInsnNode instruction, @NotNull Value value,
+	                                   @NotNull Type owner, @NotNull String operation) {
+		if (value instanceof Value.UninitializedReferenceValue) {
+			warn(instruction, "Cannot " + operation + " through uninitialized object");
+			return;
+		}
+		validateReceiver(instruction, ValuedLocal.typeOf(value), owner, operation);
+	}
+
+	private void validateValueReturn(@NotNull AbstractInsnNode instruction, @NotNull Value value,
+	                                 @NotNull Type expected) {
+		if (value instanceof Value.UninitializedReferenceValue) {
+			warn(instruction, "Cannot return an uninitialized object");
+			return;
+		}
+		validateReturnValue(instruction, ValuedLocal.typeOf(value), expected);
+	}
+
+	private void pushSameValueType(@NotNull Value value) {
+		if (value instanceof Value.TopValue || value instanceof Value.NullValue
+				|| value instanceof Value.UninitializedReferenceValue || value instanceof Value.BackendMarker) {
+			getCurrentFrame().pushRaw(value);
+		} else {
+			getCurrentFrame().pushType(ValuedLocal.typeOf(value));
+		}
+	}
+
 	private void primitiveBinaryFallback(@NotNull AbstractInsnNode instruction, @NotNull Value value1,
 	                                     @NotNull Value value2, @NotNull Type resultType) {
-		if (!JvmTypeUtils.isPrimitive(value1.type()))
+		if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value1)))
 			warn(instruction, "Top value to compare is not a primitive");
-		if (!JvmTypeUtils.isPrimitive(value2.type()))
+		if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value2)))
 			warn(instruction, "Bottom value to compare is not a primitive");
 		getCurrentFrame().pushType(resultType);
 	}
@@ -890,9 +935,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			if (value1 instanceof Value.KnownIntValue(int value3) && value2 instanceof Value.KnownIntValue(int value)) {
 				frame.push(Values.valueOf(op(value3, value)));
 			} else {
-				if (!JvmTypeUtils.isPrimitive(value1.type()))
+				if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value1)))
 					warningConsumer.accept("Top value is not a primitive");
-				if (!JvmTypeUtils.isPrimitive(value2.type()))
+				if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value2)))
 					warningConsumer.accept("Bottom value is not a primitive");
 				frame.pushType(JvmTypeUtils.INT);
 			}
@@ -927,9 +972,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			)) {
 				frame.push(Values.valueOf(op(value3, value)));
 			} else {
-				if (!JvmTypeUtils.isPrimitive(value1.type()))
+				if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value1)))
 					warningConsumer.accept("Top value is not a primitive");
-				if (!JvmTypeUtils.isPrimitive(value2.type()))
+				if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value2)))
 					warningConsumer.accept("Bottom value is not a primitive");
 				frame.pushType(JvmTypeUtils.FLOAT);
 			}
@@ -964,9 +1009,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 			)) {
 				frame.push(Values.valueOf(op(value3, value)));
 			} else {
-				if (!JvmTypeUtils.isPrimitive(value1.type()))
+				if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value1)))
 					warningConsumer.accept("Top value is not a primitive");
-				if (!JvmTypeUtils.isPrimitive(value2.type()))
+				if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value2)))
 					warningConsumer.accept("Bottom value is not a primitive");
 				frame.pushType(JvmTypeUtils.LONG);
 			}
@@ -1000,9 +1045,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 					&& value2 instanceof Value.KnownLongValue(long value)) {
 				frame.push(Values.valueOf(op(value, value3)));
 			} else {
-				if (!JvmTypeUtils.isPrimitive(value1.type()))
+				if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value1)))
 					warningConsumer.accept("Top value is not a primitive");
-				if (!JvmTypeUtils.isPrimitive(value2.type()))
+				if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value2)))
 					warningConsumer.accept("Bottom value is not a primitive");
 				frame.pushType(JvmTypeUtils.LONG);
 			}
@@ -1036,9 +1081,9 @@ public class ValuedJvmAnalysisEngine extends JvmAnalysisEngine<ValuedFrame> {
 					&& value2 instanceof Value.KnownDoubleValue(double value)) {
 				frame.push(Values.valueOf(op(value3, value)));
 			} else {
-				if (!JvmTypeUtils.isPrimitive(value1.type()))
+				if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value1)))
 					warningConsumer.accept("Top value is not a primitive");
-				if (!JvmTypeUtils.isPrimitive(value2.type()))
+				if (!JvmTypeUtils.isPrimitive(ValuedLocal.typeOf(value2)))
 					warningConsumer.accept("Bottom value is not a primitive");
 				frame.pushType(JvmTypeUtils.DOUBLE);
 			}

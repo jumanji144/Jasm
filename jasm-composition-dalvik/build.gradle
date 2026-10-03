@@ -11,6 +11,7 @@ dependencies {
     api 'me.darknet:dex-core:0.0.4-alpha'
 
     api project(path: ':jasm-core')
+    api project(path: ':jasm-composition-analysis')
     testFixturesApi 'me.darknet:dex-core:0.0.4-alpha'
     testFixturesImplementation(testFixtures(project(path: ':jasm-core')))
     testFixturesImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.4'

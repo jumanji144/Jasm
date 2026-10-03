@@ -1,6 +1,13 @@
 package me.darknet.assembler.backend.jvm.compile.analysis;
 
+import me.darknet.assembler.analysis.Value;
+import me.darknet.assembler.analysis.ValueMergeException;
+import me.darknet.assembler.analysis.Values;
+import me.darknet.assembler.backend.jvm.compile.analysis.frame.ValuedFrameOps;
+import me.darknet.assembler.backend.jvm.compile.analysis.jvm.JvmValueMerger;
+import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import me.darknet.assembler.compiler.InheritanceChecker;
+import me.darknet.assembler.descriptor.DescriptorType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
@@ -18,12 +25,21 @@ public class ValuedLocal extends Local {
 	}
 
 	public ValuedLocal(int index, @NotNull String name, @NotNull Value value) {
-		this(index, name, value.type(), value);
+		this(index, name, typeOf(value), value);
 	}
 
 	public ValuedLocal(int index, @NotNull String name, @Nullable Type type, @NotNull Value value) {
 		super(index, name, type);
 		this.value = value;
+	}
+
+	public static @Nullable Type typeOf(@NotNull Value value) {
+		if (value instanceof Value.TopValue)
+			return JvmTypeUtils.TOP;
+		if (value instanceof Value.BackendMarker)
+			return null;
+		DescriptorType type = value.type();
+		return type == null ? null : JvmTypeUtils.toAsmType(type);
 	}
 
 	@NotNull
@@ -36,7 +52,7 @@ public class ValuedLocal extends Local {
 	public ValuedLocal adaptType(@NotNull Type newType) {
 		if (Objects.equals(type, newType))
 			return this;
-		return new ValuedLocal(index, name, newType, Values.valueOf(newType));
+		return new ValuedLocal(index, name, newType, ValuedFrameOps.valueOfType(newType));
 	}
 
 	@NotNull
@@ -45,36 +61,30 @@ public class ValuedLocal extends Local {
 			return new ValuedLocal(index, name, Values.TOP_VALUE);
 		if (isNull() && !other.isNull())
 			return other;
-		else if (!isNull() && other.isNull())
+		if (!isNull() && other.isNull())
 			return this;
-		Value newValue = value.mergeWith(checker, other.value);
-		return new ValuedLocal(index, name, newValue.type(), newValue);
+		Value merged = JvmValueMerger.merge(checker, value, other.value);
+		return new ValuedLocal(index, name, typeOf(merged), merged);
 	}
 
 	@NotNull
-	public Value value() {
-		return value;
-	}
+	public Value value() {return value;}
 
 	@Override
-	public boolean equals(Object o) {
-		if (!super.equals(o))
+	public boolean equals(Object other) {
+		if (!super.equals(other))
 			return false;
-
-		ValuedLocal that = (ValuedLocal) o;
-
-		return value.equals(that.value);
+		return value.equals(((ValuedLocal) other).value);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = super.hashCode();
-		result = 31 * result + value.hashCode();
-		return result;
+		return 31 * super.hashCode() + value.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return "ValuedLocal{" + "index=" + index + "'" + ", name='" + name + '\'' + (isNull() ? ", null=true" : ", value=" + value) + '}';
+		return "ValuedLocal{" + "index=" + index + "'" + ", name='" + name + '\''
+				+ (isNull() ? ", null=true" : ", value=" + value) + '}';
 	}
 }

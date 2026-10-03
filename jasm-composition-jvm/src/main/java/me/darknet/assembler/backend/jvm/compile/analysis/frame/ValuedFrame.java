@@ -1,7 +1,7 @@
 package me.darknet.assembler.backend.jvm.compile.analysis.frame;
 
 import me.darknet.assembler.backend.jvm.compile.analysis.Local;
-import me.darknet.assembler.backend.jvm.compile.analysis.Value;
+import me.darknet.assembler.analysis.Value;
 import me.darknet.assembler.backend.jvm.compile.analysis.ValuedLocal;
 import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import org.jetbrains.annotations.NotNull;
@@ -111,8 +111,7 @@ public non-sealed interface ValuedFrame extends Frame {
 	void push(@NotNull Value value);
 
 	/**
-	 * Pushes a raw value onto the stack, without pushing a {@link me.darknet.assembler.backend.jvm.compile.analysis.Values#VOID_VALUE}
-	 * for wide values.
+	 * Pushes a raw value onto the stack, without pushing reserved wide value for category-2 values.
 	 *
 	 * @param value
 	 * 		Value to push onto the stack.

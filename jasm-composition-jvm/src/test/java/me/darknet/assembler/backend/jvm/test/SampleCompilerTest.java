@@ -6,25 +6,21 @@ import me.darknet.assembler.backend.jvm.compile.JvmVariableMode;
 import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisResults;
 import me.darknet.assembler.backend.jvm.compile.analysis.Local;
 import me.darknet.assembler.backend.jvm.compile.analysis.LocalVariableState;
-import me.darknet.assembler.backend.jvm.compile.analysis.Value;
-import me.darknet.assembler.backend.jvm.compile.analysis.Values;
+import me.darknet.assembler.analysis.Value;
+import me.darknet.assembler.analysis.Values;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.Frame;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.ValuedFrame;
-import me.darknet.assembler.backend.jvm.compile.analysis.BasicMethodValueLookup;
-import me.darknet.assembler.backend.jvm.compile.analysis.jvm.MethodValueLookup;
+import me.darknet.assembler.analysis.registry.BasicMethodValueLookup;
+import me.darknet.assembler.analysis.MethodReference;
+import me.darknet.assembler.descriptor.ClassDescriptor;
+import me.darknet.assembler.analysis.registry.MethodValueLookup;
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.TypedJvmAnalysisEngine;
 import me.darknet.assembler.backend.jvm.compile.analysis.jvm.ValuedJvmAnalysisEngine;
 import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
 import me.darknet.assembler.backend.jvm.printer.JvmClassPrinter;
 import me.darknet.assembler.printer.PrintContext;
 
-import me.darknet.assembler.backend.jvm.test.BinarySampleFixture;
 import me.darknet.assembler.test.ClassDefiner;
-import me.darknet.assembler.backend.jvm.test.JvmAssemblerFixture;
-import me.darknet.assembler.backend.jvm.test.JvmCompilation;
-import me.darknet.assembler.backend.jvm.test.JvmDecompilationFixture;
-import me.darknet.assembler.backend.jvm.test.JvmDisassemblyFixture;
-import me.darknet.assembler.backend.jvm.test.JvmRoundTripFixture;
 import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
 import me.darknet.assembler.util.Location;
 import org.jetbrains.annotations.NotNull;
@@ -44,7 +40,6 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 import static me.darknet.assembler.backend.jvm.test.TestUtils.*;
@@ -225,7 +220,7 @@ public class SampleCompilerTest {
 
                 ValuedFrame frame = (ValuedFrame) results.terminalFrames().values().iterator().next();
                 if (frame.peek() instanceof Value.ObjectValue objectValue) {
-                    assertEquals(Type.getType(Class.class), objectValue.type(), "Pushing type to stack did not yield class reference");
+                    assertEquals(new ClassDescriptor("java/lang/Class"), objectValue.type(), "Pushing type to stack did not yield class reference");
                 } else {
                     fail("Did not yield object value");
                 }
@@ -759,7 +754,7 @@ public class SampleCompilerTest {
                 ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
                 engine.setMethodValueLookup(new MethodValueLookup() {
                     @Override
-                    public @NotNull Value accept(@NotNull MethodInsnNode instruction, Value.@Nullable ObjectValue context, @NotNull List<Value> parameters) {
+                    public @NotNull Value accept(@NotNull MethodReference method, Value.@Nullable ObjectValue context, @NotNull List<Value> parameters) {
                         visited[0] = true;
                         return Values.LONG_VALUE;
                     }
@@ -792,7 +787,7 @@ public class SampleCompilerTest {
                 Frame endFrame = results.terminalFrames().lastEntry().getValue();
                 if (endFrame instanceof ValuedFrame valuedEndFrame) {
                     Value returnValue = valuedEndFrame.peek();
-                    assertEquals(Type.getType(List.class), returnValue.type());
+                    assertEquals(new ClassDescriptor("java/util/List"), returnValue.type());
                 } else {
                     fail("Wrong return value");
                 }

@@ -1,10 +1,12 @@
 package me.darknet.assembler.backend.jvm.compile.analysis;
 
+import me.darknet.assembler.analysis.Value;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.Frame;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.TypedFrame;
+import me.darknet.assembler.backend.jvm.compile.analysis.frame.WideValue;
 import me.darknet.assembler.backend.jvm.compile.analysis.frame.ValuedFrame;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
@@ -259,10 +261,10 @@ public final class LocalVariableStateAnalyzer {
 
 		// Same as above.
 		Value value = iterator.next();
-		if (isWideStoreOpcode(opcode) && value == Values.VOID_VALUE)
-			return iterator.hasNext() ? iterator.next().type() : null;
+		if (isWideStoreOpcode(opcode) && value == WideValue.INSTANCE)
+			return iterator.hasNext() ? ValuedLocal.typeOf(iterator.next()) : null;
 
-		return value.type();
+		return ValuedLocal.typeOf(value);
 	}
 
 	/**

@@ -250,21 +250,38 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	}
 
 	/**
-	 * @param owner
-	 * 		Type of the owner of the uninitialized type.
-	 *
-	 * @return New uninitialized type for the given owner.
+	 * @return Next allocation identity to use for uninitialized types.
 	 */
-	protected @NotNull Type newUninitializedType(@NotNull Type owner) {
-		return JvmTypeUtils.uninitializedType(owner, nextAllocationIdentity++);
+	protected int newAllocationIdentity() {
+		return nextAllocationIdentity++;
 	}
 
 	/**
-	 * Creates an uninitialized type whose allocation identity is stable across re-executions of the same
-	 * {@code new} instruction. Re-running the same allocation site must yield the same verifier marker,
-	 * otherwise re-visits during worklist analysis merge two distinct markers for one allocation and degrade
-	 * the value to {@code TOP}.
+	 * @param site
+	 * 		The {@code new} instruction that allocates this value.
 	 *
+	 * @return Allocation identity for the given allocation site.
+	 */
+	protected int allocationIdentity(@NotNull AbstractInsnNode site) {
+		Integer identity = allocationIdentities.get(site);
+		if (identity == null) {
+			identity = newAllocationIdentity();
+			allocationIdentities.put(site, identity);
+		}
+		return identity;
+	}
+
+	/**
+	 * @param owner
+	 * 		Type of the owner of the uninitialized type.
+	 *
+	 * @return Uninitialized type for the given allocation site.
+	 */
+	protected @NotNull Type newUninitializedType(@NotNull Type owner) {
+		return JvmTypeUtils.uninitializedType(owner, newAllocationIdentity());
+	}
+
+	/**
 	 * @param owner
 	 * 		Type of the owner of the uninitialized type.
 	 * @param site
@@ -273,12 +290,7 @@ public abstract class JvmAnalysisEngine<F extends Frame> implements Opcodes {
 	 * @return Uninitialized type for the given allocation site.
 	 */
 	protected @NotNull Type newUninitializedType(@NotNull Type owner, @NotNull AbstractInsnNode site) {
-		Integer identity = allocationIdentities.get(site);
-		if (identity == null) {
-			identity = nextAllocationIdentity++;
-			allocationIdentities.put(site, identity);
-		}
-		return JvmTypeUtils.uninitializedType(owner, identity);
+		return JvmTypeUtils.uninitializedType(owner, allocationIdentity(site));
 	}
 
 	/**
