@@ -33,6 +33,36 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class JvmRoundTripTest {
 	@Test
+	void preservesOverlayVersionWhenDisassemblyOmitsVersionDirective() {
+		String originalSource = ".version 17 .super java/lang/Object .class public version/RemovedDirective {}";
+		JvmCompilation original = JvmAssemblerFixture.compileJvm(originalSource, new TestJvmCompilerOptions());
+		String disassembled = JvmDisassemblyFixture.disassembleJvm(original.requireClassBytes());
+		String sourceWithoutVersion = withoutVersionDirective(disassembled);
+		assertFalse(sourceWithoutVersion.contains(".version "));
+
+		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		options.withOverlay(new JavaClassRepresentation(original.requireClassBytes()));
+		var roundTrip = JvmRoundTripFixture.roundTripJvm(sourceWithoutVersion, options);
+
+		assertEquals(Opcodes.V17, readClass(roundTrip.compilation().requireClassBytes()).version);
+	}
+
+	@Test
+	void explicitVersionInDisassemblyOverridesOverlayVersion() {
+		String originalSource = ".version 17 .super java/lang/Object .class public version/ChangedDirective {}";
+		JvmCompilation original = JvmAssemblerFixture.compileJvm(originalSource, new TestJvmCompilerOptions());
+		String disassembled = JvmDisassemblyFixture.disassembleJvm(original.requireClassBytes());
+		String changedVersion = disassembled.replace(".version 17", ".version 21");
+		assertNotEquals(disassembled, changedVersion);
+
+		TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		options.withOverlay(new JavaClassRepresentation(original.requireClassBytes()));
+		var roundTrip = JvmRoundTripFixture.roundTripJvm(changedVersion, options);
+
+		assertEquals(Opcodes.V21, readClass(roundTrip.compilation().requireClassBytes()).version);
+	}
+
+	@Test
 	void roundTripsNarrowAnnotationPrimitiveTypes() {
 		byte[] originalBytes = buildNarrowAnnotationValuesClass();
 		String disassembled = JvmDisassemblyFixture.disassembleJvm(originalBytes);

@@ -96,8 +96,13 @@ public class JvmCompiler implements Compiler<JvmCompilerOptions, JavaClassRepres
 			return Outcome.of(new JavaCompileResult(null, builder), sink.diagnostics());
 		}
 
-		// The requested output version takes precedence over any version carried by the overlay.
-		builder.setVersion(jvmOptions.getVersion());
+		// Keep an overlay's version unless the user requested one.
+		// New classes still default to Java 8 if the user didn't specify a version.
+		int outputVersion = jvmOptions.getVersion();
+		if (outputVersion != JvmCompilerOptions.PRESERVE_VERSION)
+			builder.setVersion(outputVersion);
+		else if (jvmOptions.getOverlay() == null)
+			builder.setVersion(JvmCompilerOptions.DEFAULT_VERSION);
 
 		try {
 			// Now we can visit the AST and build our class node.

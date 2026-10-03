@@ -23,7 +23,8 @@ import java.util.Objects;
  * JVM compiler options.
  */
 public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions, JavaClassRepresentation> {
-	private static final int DEFAULT_VERSION = 8;
+	public static final int DEFAULT_VERSION = 8;
+	public static final int PRESERVE_VERSION = -1;
 
 	// General class options
 	protected boolean reuseOverlayPool = true;
@@ -43,7 +44,7 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions, J
 
 	public JvmCompilerOptions() {
 		this.asmArgs = ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS;
-		this.version = DEFAULT_VERSION;
+		this.version = PRESERVE_VERSION;
 	}
 
 	/**
@@ -118,11 +119,11 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions, J
 
 	/**
 	 * @param version
-	 * 		Java version to target for compilation. For example, to target Java 8, use {@code 8}.
+	 * 		Java version override for compilation. For example, to target Java 8, use {@code 8}.
+	 * 		Does not affect classes with a {@code .version} AST directive.
 	 *
 	 * @return This options object.
 	 */
-	@Deprecated // TODO: Strictly use the source 'version' from the AST instead of this option.
 	public @NotNull JvmCompilerOptions withVersion(int version) {
 		this.version = version;
 		return this;
@@ -147,9 +148,16 @@ public class JvmCompilerOptions implements CompilerOptions<JvmCompilerOptions, J
 	}
 
 	/**
-	 * @return The Java version to target for compilation.
+	 * The override for class version when compiling.
+	 * <p>
+	 * If set to {@link #PRESERVE_VERSION}, the class version will be preserved from the overlay class or the input class.
+	 * <br>
+	 * If set to a specific version, the output class will be forced to that version.
+	 * <br>
+	 * If the input class has a {@code .version} AST directive, that directive will take precedence over this option.
+	 *
+	 * @return The Java version override for compilation.
 	 */
-	@Deprecated // TODO: Strictly use the source 'version' from the AST instead of this option.
 	public int getVersion() {
 		return this.version;
 	}

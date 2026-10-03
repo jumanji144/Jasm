@@ -89,6 +89,16 @@ public class TopLevelDeclarationTest {
 	}
 
 	@Test
+	void newClassWithoutVersionDirectiveDefaultsToJava8() {
+		JvmCompilation compilation = JvmAssemblerFixture.compileJvm(
+				".super java/lang/Object .class public version/DefaultVersion {}",
+				new TestJvmCompilerOptions()
+		);
+
+		assertEquals(Opcodes.V1_8, readClass(compilation.requireClassBytes()).version);
+	}
+
+	@Test
 	void disassemblyPrintsJavaVersionScale() {
 		String source = JvmDisassemblyFixture.disassembleJvm(
 				buildOverlayClass("version/Printed", Opcodes.V21)
