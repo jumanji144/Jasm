@@ -4,6 +4,8 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompileResult;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
 import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.processing.ValidatedUnit;
@@ -48,8 +50,10 @@ class SampleTests {
 						SemanticProcessor.process(reparsed.requireValue(), DalvikTargetContext.INSTANCE),
 						label + " printed source does not process");
 				Outcome<DalvikCompileResult> compiled = new DalvikCompiler().compile(unit, TestUtils.options());
-				assertFalse(compiled.hasErrors(), label
-						+ " printed source does not recompile:\n"
+				assertFalse(compiled.errors().stream().anyMatch(diagnostic ->
+						diagnostic.phase() != DiagnosticPhase.OUTPUT_VERIFICATION ||
+							diagnostic.code() != DiagnosticCode.ANALYSIS_FAILURE), label
+						+ " printed source has unexpected compiler errors:\n"
 						+ DiagnosticAssertions.formatErrors(compiled.errors()) + "\n" + printed);
 				assertNotNull(compiled.requireValue().representation(), label + " produced no representation");
 			}

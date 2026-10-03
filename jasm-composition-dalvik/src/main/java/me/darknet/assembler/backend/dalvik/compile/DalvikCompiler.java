@@ -1,6 +1,8 @@
 package me.darknet.assembler.backend.dalvik.compile;
 
 import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
+import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisFailure;
+import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisResults;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikMethodAnalysisLookup;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikRegisterUsageLookup;
 import me.darknet.assembler.ast.ASTElement;
@@ -97,9 +99,17 @@ public class DalvikCompiler implements Compiler<DalvikCompilerOptions, DalvikCla
 			return Outcome.of(new DalvikCompileResult(null, DalvikMethodAnalysisLookup.empty(), registerUsageLookup), sink.diagnostics());
 		}
 
-		// No errors, proper class definition visited, give the user their successful outcome.
+		// Report output-analysis failures without discarding the emitted class or its analysis lookup.
+		DalvikMethodAnalysisLookup analysisLookup = visitor.getAnalysisLookup();
+		for (DalvikAnalysisResults analysisResults : analysisLookup.getAllResults().values()) {
+			for (DalvikAnalysisFailure failure : analysisResults.getFailures()) {
+				sink.error(DiagnosticPhase.OUTPUT_VERIFICATION, DiagnosticCode.ANALYSIS_FAILURE,
+						failure.message(), failure.sourceLocation());
+			}
+		}
+
 		return Outcome.of(
-				new DalvikCompileResult(new DalvikClassRepresentation(definition), visitor.getAnalysisLookup(), registerUsageLookup),
+				new DalvikCompileResult(new DalvikClassRepresentation(definition), analysisLookup, registerUsageLookup),
 				sink.diagnostics()
 		);
 	}

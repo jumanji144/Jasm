@@ -9,6 +9,9 @@ import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompilerOptions;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikRegisterUsage;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikRegisterUsageLookup;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.processing.ValidatedUnit;
 import me.darknet.assembler.test.AssemblyParseFixture;
@@ -19,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -160,9 +164,13 @@ class DalvikRegisterUsageLookupTest {
         assertEquals(1, unit.methods().size());
         ASTMethod method = unit.methods().keySet().iterator().next();
         assertSame(method, unit.methods().get(method).source());
-        DalvikCompileResult result = DiagnosticAssertions.requireSuccess(
-                new DalvikCompiler().compile(unit, new DalvikCompilerOptions().withVersion(35)),
-                "Dalvik register usage source should compile");
+        Outcome<DalvikCompileResult> compilation =
+                new DalvikCompiler().compile(unit, new DalvikCompilerOptions().withVersion(35));
+        assertFalse(compilation.errors().stream().anyMatch(diagnostic ->
+                        diagnostic.phase() != DiagnosticPhase.OUTPUT_VERIFICATION ||
+                                diagnostic.code() != DiagnosticCode.ANALYSIS_FAILURE),
+                "Unexpected compiler errors: " + compilation.errors());
+        DalvikCompileResult result = compilation.requireValue();
         DalvikRegisterUsageLookup lookup = result.registerUsageLookup();
         return new Fixture(method, lookup, lookup.getUsages(method));
     }

@@ -9,6 +9,8 @@ import me.darknet.assembler.backend.dalvik.compile.DalvikCompiler;
 import me.darknet.assembler.backend.dalvik.compile.DalvikCompilerOptions;
 import me.darknet.assembler.compiler.EmptyInheritanceChecker;
 import me.darknet.assembler.error.Diagnostic;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
 import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.test.AssemblyParseFixture;
@@ -44,7 +46,9 @@ public class TestUtils {
                 "Failed to process Dalvik semantic unit"
         );
         Outcome<DalvikCompileResult> compilation = new DalvikCompiler().compile(unit, options);
-        if (compilation.hasErrors()) {
+        if (compilation.errors().stream().anyMatch(diagnostic ->
+                diagnostic.phase() != DiagnosticPhase.OUTPUT_VERIFICATION ||
+                        diagnostic.code() != DiagnosticCode.ANALYSIS_FAILURE)) {
             fail("Failed to compile Dalvik class\n" + DiagnosticAssertions.formatErrors(compilation.errors()));
         }
 

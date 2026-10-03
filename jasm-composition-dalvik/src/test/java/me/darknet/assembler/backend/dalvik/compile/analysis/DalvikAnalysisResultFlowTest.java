@@ -11,7 +11,11 @@ import me.darknet.assembler.backend.dalvik.compile.DalvikCompilerOptions;
 import me.darknet.assembler.descriptor.ArrayDescriptor;
 import me.darknet.assembler.descriptor.ClassDescriptor;
 import me.darknet.assembler.descriptor.PrimitiveType;
+import me.darknet.assembler.error.Diagnostic;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
 import me.darknet.assembler.error.Outcome;
+import me.darknet.assembler.error.Severity;
 import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.processing.ValidatedUnit;
 import me.darknet.assembler.test.AssemblyParseFixture;
@@ -185,6 +189,45 @@ class DalvikAnalysisResultFlowTest {
 		DalvikAnalysisResults results = compilation.results("orphan", "()V");
 		assertFailureAt(results, consumer);
 		assertUndefinedAfter(results, method.getCode(), consumer, 0);
+	}
+
+	@Test
+	void outputAnalysisFailuresAreDiagnosticsAndPreserveResults() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public InvalidResultFlow {
+				    .method public static orphan ()V {
+				        registers: 1,
+				        code: {
+				            move-result v0
+				            return-void
+				        }
+				    }
+				    .method public static orphanException ()V {
+				        registers: 1,
+				        code: {
+				            move-exception v0
+				            return-void
+				        }
+				    }
+				}
+				""");
+
+		assertTrue(compilation.outcome().isPartial(), compilation.outcome().diagnostics().toString());
+		assertNotNull(compilation.result().representation());
+		assertEquals(1, compilation.results("orphan", "()V").getFailures().size());
+		assertEquals(1, compilation.results("orphanException", "()V").getFailures().size());
+
+		List<DalvikAnalysisFailure> failures = compilation.result().analysisLookup().getAllResults().values().stream()
+				.flatMap(analysis -> analysis.getFailures().stream())
+				.toList();
+		assertEquals(2, failures.size());
+		assertEquals(failures.size(), compilation.outcome().errors().size());
+		for (DalvikAnalysisFailure failure : failures) {
+			Diagnostic expected = Diagnostic.error(DiagnosticPhase.OUTPUT_VERIFICATION,
+					DiagnosticCode.ANALYSIS_FAILURE, failure.message(), failure.sourceLocation());
+			assertTrue(compilation.outcome().errors().contains(expected), expected.toString());
+		}
 	}
 
 	@Test
@@ -530,14 +573,18 @@ class DalvikAnalysisResultFlowTest {
 		ValidatedUnit unit = DiagnosticAssertions.requireSuccess(
 				SemanticProcessor.process(parsed, DalvikTargetContext.INSTANCE), "Stage 5 Dalvik source should process");
 		Outcome<DalvikCompileResult> outcome = new DalvikCompiler().compile(unit, new DalvikCompilerOptions());
-		assertFalse(outcome.hasErrors(), "Unexpected compiler errors: " + outcome.errors());
+		assertTrue(outcome.errors().stream().allMatch(diagnostic ->
+					diagnostic.phase() == DiagnosticPhase.OUTPUT_VERIFICATION &&
+						diagnostic.code() == DiagnosticCode.ANALYSIS_FAILURE),
+				"Unexpected compiler errors: " + outcome.errors());
 		assertFalse(outcome.hasWarnings(), "Unexpected compiler warnings: " + outcome.warnings());
 		DalvikCompileResult result = outcome.requireValue();
 		DalvikClassRepresentation representation = assertInstanceOf(DalvikClassRepresentation.class, result.representation());
-		return new Compilation(representation.definition(), result);
+		return new Compilation(representation.definition(), result, outcome);
 	}
 
-	private record Compilation(ClassDefinition definition, DalvikCompileResult result) {
+	private record Compilation(ClassDefinition definition, DalvikCompileResult result,
+	                           Outcome<DalvikCompileResult> outcome) {
 		private MethodMember method(String name, String descriptor) {
 			MethodMember method = definition.getMethod(name, descriptor);
 			assertNotNull(method, name + descriptor);

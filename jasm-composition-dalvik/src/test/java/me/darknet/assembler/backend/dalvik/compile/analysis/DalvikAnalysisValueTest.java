@@ -14,6 +14,8 @@ import me.darknet.assembler.backend.dalvik.compile.DalvikCompilerOptions;
 import me.darknet.assembler.descriptor.ArrayDescriptor;
 import me.darknet.assembler.descriptor.ClassDescriptor;
 import me.darknet.assembler.descriptor.PrimitiveType;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
 import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.processing.SemanticProcessor;
 import me.darknet.assembler.processing.ValidatedUnit;
@@ -1067,7 +1069,10 @@ class DalvikAnalysisValueTest {
 				SemanticProcessor.process(parsed, DalvikTargetContext.INSTANCE),
 				"Stage 4 Dalvik source should process");
 		Outcome<DalvikCompileResult> outcome = new DalvikCompiler().compile(unit, new DalvikCompilerOptions());
-		assertFalse(outcome.hasErrors(), "Unexpected compiler errors: " + outcome.errors());
+		assertTrue(outcome.errors().stream().allMatch(diagnostic ->
+					diagnostic.phase() == DiagnosticPhase.OUTPUT_VERIFICATION &&
+						diagnostic.code() == DiagnosticCode.ANALYSIS_FAILURE),
+				"Unexpected compiler errors: " + outcome.errors());
 		assertFalse(outcome.hasWarnings(), "Unexpected compiler warnings: " + outcome.warnings());
 		DalvikCompileResult result = outcome.requireValue();
 		DalvikClassRepresentation representation = assertInstanceOf(DalvikClassRepresentation.class, result.representation());
