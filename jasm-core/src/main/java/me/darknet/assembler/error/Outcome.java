@@ -5,6 +5,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Result of an operation that may produce diagnostics.
@@ -94,6 +96,91 @@ public sealed interface Outcome<T> {
 	 */
 	default boolean isFailure() {
 		return this instanceof Failure<?>;
+	}
+
+	/**
+	 * @param consumer
+	 * 		Consumer to invoke with the value when this outcome is a {@link Success}.
+	 *
+	 * @return Self.
+	 */
+	default Outcome<T> onSuccess(@NotNull Consumer<T> consumer) {
+		if (this instanceof Success<T> success)
+			consumer.accept(success.value());
+		return this;
+	}
+
+	/**
+	 * @param consumer
+	 * 		Consumer to invoke with the value and diagnostics when this outcome is a {@link Partial}.
+	 *
+	 * @return Self.
+	 */
+	default Outcome<T> onPartial(@NotNull Consumer<Partial<T>> consumer) {
+		if (this instanceof Partial<T> partial)
+			consumer.accept(partial);
+		return this;
+	}
+
+	/**
+	 * @param consumer
+	 * 		Consumer to invoke with the diagnostics when this outcome is a {@link Failure}.
+	 *
+	 * @return Self.
+	 */
+	default Outcome<T> onFailure(@NotNull Consumer<Failure<T>> consumer) {
+		if (this instanceof Failure<T> failure)
+			consumer.accept(failure);
+		return this;
+	}
+
+	/**
+	 * @param exceptionFactory
+	 * 		Function to invoke with the diagnostics when this outcome is a {@link Failure}, which produces an exception to throw.
+	 *
+	 * @return Self.
+	 *
+	 * @throws Throwable
+	 * 		The exception produced by {@code exceptionFactory} when this outcome is a {@link Failure}.
+	 */
+	default Outcome<T> onFailureThrow(@NotNull Function<Failure<T>, ? extends Throwable> exceptionFactory) throws Throwable {
+		if (this instanceof Failure<T> failure)
+			throw exceptionFactory.apply(failure);
+		return this;
+	}
+
+	/**
+	 * @param mapper
+	 * 		Function to invoke with the value when this outcome is a {@link Success} or {@link Partial}.
+	 *
+	 * @return The outcome returned by {@code mapper}, or self when this outcome is a {@link Failure}.
+	 */
+	default Outcome<T> mapValue(@NotNull Function<T, Outcome<T>> mapper) {
+		if (this instanceof Success<T> success) {
+			return mapper.apply(success.value());
+		} else if (this instanceof Partial<T> partial) {
+			return mapper.apply(partial.value());
+		}
+		return this;
+	}
+
+	/**
+	 * @param mapper
+	 * 		Function to invoke with the value when this outcome is a {@link Success} or {@link Partial}.
+	 * @param failureMapper
+	 * 		Function to invoke with the diagnostics when this outcome is a {@link Failure}.
+	 * @param <V>
+	 * 		Type of the value the returned outcome carries, when it carries one.
+	 *
+	 * @return The outcome returned by {@code mapper} or {@code failureMapper}, depending on the variant.
+	 */
+	default <V> Outcome<V> mapValueElse(@NotNull Function<T, Outcome<V>> mapper,
+	                                    @NotNull Function<Failure<T>, Outcome<V>> failureMapper) {
+		return switch (this) {
+			case Success<T> success -> mapper.apply(success.value());
+			case Partial<T> partial -> mapper.apply(partial.value());
+			case Failure<T> failure -> failureMapper.apply(failure);
+		};
 	}
 
 	/**
