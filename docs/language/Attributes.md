@@ -7,6 +7,7 @@ Certain top level declarations can have attributes declared immediately before t
 ### Annotation
 
 Annotation with `RetentionPolicy.RUNTIME`
+
 ```
 .visible-annotation name {
     key: element
@@ -14,6 +15,7 @@ Annotation with `RetentionPolicy.RUNTIME`
 ```
 
 Annotation with `RetentionPolicy.CLASS`
+
 ```
 .invisible-annotation name {
     key: element
@@ -22,10 +24,13 @@ Annotation with `RetentionPolicy.CLASS`
 
 Annotations that are embedded in others do not have a concept of being visible or not.
 For instance:
+
 ```java
 @Foo(bar = @Bar(fizz = "buzz"))
 ```
+
 Could be represented as either:
+
 ```
 .visible-annotation Foo {
     bar: .annotation Bar {
@@ -33,7 +38,9 @@ Could be represented as either:
     }
 }
 ```
+
 or
+
 ```
 .invisible-annotation Foo {
     bar: .annotation Bar {
@@ -41,11 +48,14 @@ or
     }
 }
 ```
-It would depend on how `@Foo` uses `@RetentionPolicy`, but the important note is that the internal `@Bar` usage is just a `.annotation`.
+
+It would depend on how `@Foo` uses `@RetentionPolicy`, but the important note is that the internal `@Bar` usage is just
+a `.annotation`.
 
 #### Element
 
 An element can be one of the following, with following interpretation:
+
 - identifer: a type (`Ljava/lang/String;` / `I`)
 - number: a numeric type (`10.3f`)
     - primitive types / formats can be denoted with suffix and prefix patterns
@@ -66,38 +76,49 @@ An element can be one of the following, with following interpretation:
     - enum: a enum value (`.enum class name`)
 
 ### Signature
+
 ```
 .signature "generic signature"
 ```
 
 ### Deprecated
+
 ```
 .deprecated
 ```
+
 Marks the immediately following class, field, or method as deprecated.
 
 ## Class
 
 ### Version
+
 ```
 .version version
 ```
-Selects the Java class-file version scale. For example, `.version 8` emits class-file major version 52. The version must be an integer from 1 through 211.
+
+Selects the Java class-file version scale. For example, `.version 8` emits class-file major version 52. The version must
+be an integer from 1 through 211.
 
 ### Super
+
 ```
 .super supertype
 ```
+
 Specifies the supertype of the class, the `supertype` must be given in internal name format (`java/lang/Object`).
 
 ### Implements
+
 ```
 .implements interfacetype
 ```
-Appends an interface to the implemented interfaces, the `interfacetype` must be given in 
-internal name format (`java/util/function/Consumer`). 
+
+Appends an interface to the implemented interfaces, the `interfacetype` must be given in
+internal name format (`java/util/function/Consumer`).
 
 ### Inner class
+
 ```
 .inner modifiers {
   name: innerName, // optional
@@ -105,68 +126,86 @@ internal name format (`java/util/function/Consumer`).
   outer: outerClass // optional
 }
 ```
+
 Appends an inner class to the inner classes, `innerClass` and `outerClass` must be given in internal name format
 and name must be an identifier. When `outer` isn't given `name` must also be not given.
 
 ### Source File
+
 ```
 .sourcefile "SourceFile"
 ```
+
 Specifies the source file of the class.
 
 ### Source Debug Extension
+
 ```
 .source-debug-extension "SMAP or other debug payload"
 ```
+
 Specifies the class `SourceDebugExtension` attribute payload.
 
 ### Outer class + method
+
 ```
 .outer-class typename
 .outer-method methodName methodDescriptor
 ```
+
 Specifies the outer class and outer method declaration this inner class is defined within.
 
 ### Permitted subclasses
+
 ```
 .permitted-subclass typename
 ```
+
 Appends an internal type to the list of allowed subclasses for `sealed` types.
 
 ### Nest host + members
+
 ```
 .nest-host typename
 ```
+
 Specifies the host of the nest this class belongs to. Typically seen in inner classes where the outer class is the host.
 
 ```
 .nest-member typename
 ```
+
 Appends an internal type to the list of members this class is a nest host for.
 
 ### Record Components
+
 ```
 .annotation name { ... }       # Optional attribute to apply to the record component
 .signature "generic signature" # Optional attribute to apply to the record component
 .record-component name descriptor
 ```
+
 Appends an entry the list of the record class's components.
 
 ## Method
 
 ### Declared Exceptions
+
 ```
 .method public work ()V {
     throws: { java/lang/Exception, java/io/IOException }
 }
 ```
-Adds entries to the method `Exceptions` attribute. This is distinct from the existing `exceptions` key, which represents `Code` try/catch blocks.
+
+Adds entries to the method `Exceptions` attribute. This is distinct from the existing `exceptions` key, which represents
+`Code` try/catch blocks.
 
 ### AnnotationDefault
 
 In a method declaration inside an annotation class, default values are provided via the `AnnotationDefault` attribute.
 
 Example with an `int`
+
 ```
 .method public abstract number ()I {
     parameters: { this },
@@ -175,6 +214,7 @@ Example with an `int`
 ```
 
 Example with an `int[]`
+
 ```
 .method public abstract array ()[I {
     parameters: { this },
@@ -183,6 +223,7 @@ Example with an `int[]`
 ```
 
 Example with an `ElementType.FIELD` enum value reference
+
 ```
 .method public abstract enumeration ()Ljava/lang/annotation/ElementType; {
     parameters: { this },
@@ -191,6 +232,7 @@ Example with an `ElementType.FIELD` enum value reference
 ```
 
 Example with a `@Retention(value = RetentionPolicy.CLASS)` annotation value declaration
+
 ```
 .method public abstract subanno ()Ljava/lang/annotation/Retention; {
     parameters: { this },
