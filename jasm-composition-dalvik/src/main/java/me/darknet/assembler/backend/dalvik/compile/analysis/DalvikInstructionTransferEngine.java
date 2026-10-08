@@ -10,7 +10,6 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTNumber;
-import me.darknet.assembler.backend.dalvik.util.DalvikTypeUtils;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.descriptor.ArrayDescriptor;
 import me.darknet.assembler.descriptor.ClassDescriptor;
@@ -508,7 +507,7 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 			failDestination(instruction.dest(), opcodeIsWide(opcode), "unrecognized unary opcode 0x" + Integer.toHexString(opcode));
 			return;
 		}
-		Value source = readTyped(instruction.source(), spec.inputType(), instruction.dest(), DalvikTypeUtils.isWideType(spec.outputType()));
+		Value source = readTyped(instruction.source(), spec.inputType(), instruction.dest(), Descriptors.isWideType(spec.outputType()));
 		if (source == null)
 			return;
 		Value.PrimitiveValue primitive = (Value.PrimitiveValue) source;
@@ -751,7 +750,7 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 			return;
 		}
 
-		boolean wideDestination = DalvikTypeUtils.isWideType(spec.type());
+		boolean wideDestination = Descriptors.isWideType(spec.type());
 		PrimitiveType leftType = spec.type();
 		PrimitiveType rightType = spec.longShift() ? INT : spec.type();
 		Value left;
@@ -942,7 +941,7 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 	 */
 	private @Nullable Value readTyped(int register, @NotNull PrimitiveType expected, int destination, boolean destinationWide) {
 		// Read the value from the register, using the appropriate method for wide or single-word types.
-		Value value = DalvikTypeUtils.isWideType(expected)
+		Value value = Descriptors.isWideType(expected)
 				? readWide(register, destination, destinationWide)
 				: readSingle(register, destination, destinationWide);
 		if (value == null)

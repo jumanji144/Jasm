@@ -30,7 +30,6 @@ import me.darknet.dex.tree.type.MethodType;
 import me.darknet.dex.tree.type.Type;
 
 import java.util.List;
-import java.util.Locale;
 
 import static me.darknet.assembler.backend.dalvik.printer.DalvikAnnotationPrinter.VISIBILITY_INTERNAL;
 
@@ -160,6 +159,30 @@ public class DalvikConstantPrinter {
 					ctx.print("D");
 			}
 		}
+	}
+
+	/**
+	 * Prints a fixed-width hexadecimal representation of raw 32-bit constant data.
+	 *
+	 * @param ctx
+	 * 		The print context to use for output.
+	 * @param bits
+	 * 		Raw 32-bit constant bits.
+	 */
+	public static void printRawIntBits(PrintContext<?> ctx, int bits) {
+		ctx.print(rawBits(Integer.toUnsignedLong(bits), 8, 16));
+	}
+
+	/**
+	 * Prints a fixed-width hexadecimal representation of raw 64-bit constant data.
+	 *
+	 * @param ctx
+	 * 		The print context to use for output.
+	 * @param bits
+	 * 		Raw 64-bit constant bits.
+	 */
+	public static void printRawLongBits(PrintContext<?> ctx, long bits) {
+		ctx.print(rawBits(bits, 16, 16));
 	}
 
 	/**

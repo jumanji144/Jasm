@@ -23,18 +23,18 @@ class DalvikFloatPrintingTest {
 
     private static final String SOURCE = """
             .class public Example {
-                .method public static floatValue ()V {
+                .method public static floatValue ()F {
                     registers: 1,
                     code: {
                         const v0 #0x7FC00001
-                        return-void
+                        return v0
                     }
                 }
-                .method public static doubleValue ()V {
+                .method public static doubleValue ()D {
                     registers: 2,
                     code: {
                         const-wide v0 #0x7FF8000000000001
-                        return-void
+                        return-wide v0
                     }
                 }
             }
@@ -88,7 +88,7 @@ class DalvikFloatPrintingTest {
     }
 
     private static int floatBits(ClassDefinition definition) {
-        ConstInstruction instruction = (ConstInstruction) definition.getMethod("floatValue", "()V")
+        ConstInstruction instruction = (ConstInstruction) definition.getMethod("floatValue", "()F")
                 .getCode().getInstructions().stream()
                 .filter(ConstInstruction.class::isInstance)
                 .findFirst().orElseThrow();
@@ -96,7 +96,7 @@ class DalvikFloatPrintingTest {
     }
 
     private static long doubleBits(ClassDefinition definition) {
-        ConstWideInstruction instruction = (ConstWideInstruction) definition.getMethod("doubleValue", "()V")
+        ConstWideInstruction instruction = (ConstWideInstruction) definition.getMethod("doubleValue", "()D")
                 .getCode().getInstructions().stream()
                 .filter(ConstWideInstruction.class::isInstance)
                 .findFirst().orElseThrow();

@@ -6,6 +6,9 @@ import me.darknet.dex.tree.definitions.FieldMember;
 import me.darknet.dex.tree.definitions.constant.Constant;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Utility class for printing field definitions in Dalvik assembly format.
+ */
 public class DalvikFieldPrinter implements FieldPrinter {
 
     private final FieldMember definition;

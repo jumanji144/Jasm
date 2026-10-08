@@ -1,5 +1,6 @@
 package me.darknet.assembler.backend.dalvik.printer;
 
+import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikConstantTypeResolver.ResolvedType;
 import me.darknet.assembler.printer.*;
 
 import me.darknet.dex.file.instructions.Opcodes;
@@ -12,91 +13,37 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
 
+/**
+ * Utility class for printing instructions in the Dalvik assembly format.
+ */
 public class DalvikCodePrinter implements ExecutionEngine {
-
     private final PrintContext.CodePrint ctx;
     private final Map<Integer, String> registers;
     private final Map<Label, String> labels;
-    public DalvikCodePrinter(PrintContext.CodePrint ctx,
-                             Map<Integer, String> registers,
-                             Map<Label, String> labels) {
+    private final Map<Instruction, ResolvedType> constantTypes;
+
+	/**
+	 * @param ctx
+	 * 		Print context for the method body.
+	 * @param registers
+	 * 		Map of Dalvik register numbers to source-spelled names.
+	 * @param labels
+	 * 		Map of Dalvik label objects to source-spelled names.
+	 * @param constantTypes
+	 * 		Map of Dalvik constant instructions to their resolved types.
+	 */
+	public DalvikCodePrinter(@NotNull PrintContext.CodePrint ctx,
+                             @NotNull Map<Integer, String> registers,
+                             @NotNull Map<Label, String> labels,
+                             @NotNull Map<Instruction, ResolvedType> constantTypes) {
         this.ctx = ctx;
         this.registers = registers;
         this.labels = labels;
-    }
-
-    private static String opcode(Instruction instruction) {
-        if (instruction instanceof InvokeCustomInstruction invokeCustomInstruction) {
-            return invokeCustomInstruction.isRange() ? "invoke-custom/range" : "invoke-custom";
-        }
-        if (instruction instanceof InvokeInstruction invokeInstruction) {
-            String name = OpcodeNames.name(invokeInstruction.opcode());
-            return invokeInstruction.isRange() ? name + "/range" : name;
-        }
-        if (instruction instanceof MoveInstruction) {
-            return "move";
-        }
-        if (instruction instanceof MoveWideInstruction) {
-            return "move-wide";
-        }
-        if (instruction instanceof MoveObjectInstruction) {
-            return "move-object";
-        }
-        if (instruction instanceof ConstInstruction) {
-            return "const";
-        }
-        if (instruction instanceof ConstWideInstruction) {
-            return "const-wide";
-        }
-        if (instruction instanceof ConstStringInstruction) {
-            return "const-string";
-        }
-        if (instruction instanceof GotoInstruction) {
-            return "goto";
-        }
-
-        String name = OpcodeNames.name(instruction.opcode());
-        if (name == null) {
-            throw new IllegalStateException("Unsupported Dalvik opcode: 0x" + Integer.toHexString(instruction.opcode()));
-        }
-        return normalizeEncodedOpcode(name);
-    }
-
-    private static String normalizeEncodedOpcode(String name) {
-        return switch (name) {
-            case "move-from16", "move-16" -> "move";
-            case "move-wide-from16", "move-wide-16" -> "move-wide";
-            case "move-object-from16", "move-object-16" -> "move-object";
-            case "const-4", "const-16", "const-high16" -> "const";
-            case "const-wide-16", "const-wide-32", "const-wide-high16" -> "const-wide";
-            case "goto-16", "goto-32" -> "goto";
-            default -> {
-                if (name.endsWith("-2addr")) {
-                    yield name.substring(0, name.length() - 6) + "/2addr";
-                }
-                if (name.endsWith("-lit8")) {
-                    yield name.substring(0, name.length() - 5) + "/lit8";
-                }
-                if (name.endsWith("-lit16")) {
-                    yield name.substring(0, name.length() - 6) + "/lit16";
-                }
-                yield name.endsWith("-range")
-                        ? name.substring(0, name.length() - "-range".length()) + "/range"
-                        : name;
-            }
-        };
-    }
-
-    private String register(int register) {
-        String name = registers.get(register);
-        if (name == null) {
-            throw new IllegalStateException("No name assigned to Dalvik register v" + register);
-        }
-        return name;
+        this.constantTypes = constantTypes;
     }
 
     @Override
-    public void label(Label label) {
+    public void label(@NotNull Label label) {
         ctx.label(labels.get(label)).next();
         if (label.lineNumber() != -1)
             ctx.instruction("line")
@@ -105,99 +52,109 @@ public class DalvikCodePrinter implements ExecutionEngine {
     }
 
     @Override
-    public void execute(ArrayInstruction arrayInstruction) {
-        ctx.instruction(opcode(arrayInstruction))
-                .print(register(arrayInstruction.value())).arg()
-                .print(register(arrayInstruction.array())).arg()
-                .print(register(arrayInstruction.index()));
+    public void execute(@NotNull ArrayInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.value())).arg()
+                .print(register(instruction.array())).arg()
+                .print(register(instruction.index()));
     }
 
     @Override
-    public void execute(ArrayLengthInstruction arrayLengthInstruction) {
-        ctx.instruction(opcode(arrayLengthInstruction))
-                .print(register(arrayLengthInstruction.dest())).arg()
-                .print(register(arrayLengthInstruction.array()));
+    public void execute(@NotNull ArrayLengthInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.dest())).arg()
+                .print(register(instruction.array()));
     }
 
     @Override
-    public void execute(Binary2AddrInstruction binary2AddrInstruction) {
-        ctx.instruction(opcode(binary2AddrInstruction))
-                .print(register(binary2AddrInstruction.a())).arg()
-                .print(register(binary2AddrInstruction.b()));
+    public void execute(@NotNull Binary2AddrInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.a())).arg()
+                .print(register(instruction.b()));
     }
 
     @Override
-    public void execute(BinaryInstruction binaryInstruction) {
-        ctx.instruction(opcode(binaryInstruction))
-                .print(register(binaryInstruction.dest())).arg()
-                .print(register(binaryInstruction.a())).arg()
-                .print(register(binaryInstruction.b()));
+    public void execute(@NotNull BinaryInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.dest())).arg()
+                .print(register(instruction.a())).arg()
+                .print(register(instruction.b()));
     }
 
     @Override
-    public void execute(BinaryLiteralInstruction binaryLiteralInstruction) {
-        ctx.instruction(opcode(binaryLiteralInstruction))
-                .print(register(binaryLiteralInstruction.dest())).arg()
-                .print(register(binaryLiteralInstruction.src())).arg()
-                .print(String.valueOf(binaryLiteralInstruction.constant()));
+    public void execute(@NotNull BinaryLiteralInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.dest())).arg()
+                .print(register(instruction.src())).arg()
+                .print(String.valueOf(instruction.constant()));
     }
 
     @Override
-    public void execute(BranchInstruction branchInstruction) {
-        ctx.instruction(opcode(branchInstruction))
-                .print(register(branchInstruction.a())).arg()
-                .print(register(branchInstruction.b())).arg()
-                .print(labels.get(branchInstruction.label()));
+    public void execute(@NotNull BranchInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.a())).arg()
+                .print(register(instruction.b())).arg()
+                .print(labels.get(instruction.label()));
     }
 
     @Override
-    public void execute(BranchZeroInstruction branchZeroInstruction) {
-        ctx.instruction(opcode(branchZeroInstruction))
-                .print(register(branchZeroInstruction.a())).arg()
-                .print(labels.get(branchZeroInstruction.label()));
+    public void execute(@NotNull BranchZeroInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.a())).arg()
+                .print(labels.get(instruction.label()));
     }
 
     @Override
-    public void execute(CheckCastInstruction checkCastInstruction) {
-        ctx.instruction(opcode(checkCastInstruction))
-                .print(register(checkCastInstruction.register())).arg()
-                .literal(checkCastInstruction.type().descriptor());
+    public void execute(@NotNull CheckCastInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.register())).arg()
+                .literal(instruction.type().descriptor());
     }
 
     @Override
-    public void execute(CompareInstruction compareInstruction) {
-        ctx.instruction(opcode(compareInstruction))
-                .print(register(compareInstruction.dest())).arg()
-                .print(register(compareInstruction.a())).arg()
-                .print(register(compareInstruction.b()));
+    public void execute(@NotNull CompareInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.dest())).arg()
+                .print(register(instruction.a())).arg()
+                .print(register(instruction.b()));
     }
 
     @Override
-    public void execute(ConstInstruction constInstruction) {
+    public void execute(@NotNull ConstInstruction instruction) {
         ctx.instruction("const")
-                .print(register(constInstruction.register())).arg();
-        DalvikConstantPrinter.printFloat(ctx, Float.intBitsToFloat(constInstruction.value()));
+                .print(register(instruction.register())).arg();
+        switch (constantType(instruction)) {
+            case FLOAT -> DalvikConstantPrinter.printFloat(ctx, Float.intBitsToFloat(instruction.value()));
+            case INT -> ctx.print(Integer.toString(instruction.value()));
+            case UNKNOWN -> DalvikConstantPrinter.printRawIntBits(ctx, instruction.value());
+            case LONG, DOUBLE -> throw new IllegalStateException("Invalid resolved type for Dalvik const " + instruction);
+        }
     }
 
     @Override
-    public void execute(ConstTypeInstruction constTypeInstruction) {
+    public void execute(@NotNull ConstTypeInstruction instruction) {
         ctx.instruction("const-class")
-                .print(register(constTypeInstruction.register())).arg()
-                .literal(constTypeInstruction.type().descriptor());
+                .print(register(instruction.register())).arg()
+                .literal(instruction.type().descriptor());
     }
 
     @Override
-    public void execute(ConstWideInstruction constWideInstruction) {
+    public void execute(@NotNull ConstWideInstruction instruction) {
         ctx.instruction("const-wide")
-                .print(register(constWideInstruction.register())).arg();
-        DalvikConstantPrinter.printDouble(ctx, Double.longBitsToDouble(constWideInstruction.value()));
+                .print(register(instruction.register())).arg();
+        switch (constantType(instruction)) {
+            case DOUBLE -> DalvikConstantPrinter.printDouble(ctx, Double.longBitsToDouble(instruction.value()));
+            case LONG -> ctx.print(instruction.value() + "L");
+            case UNKNOWN -> DalvikConstantPrinter.printRawLongBits(ctx, instruction.value());
+            case INT, FLOAT -> throw new IllegalStateException("Invalid resolved type for Dalvik const-wide " + instruction);
+        }
     }
 
     @Override
-    public void execute(ConstStringInstruction constStringInstruction) {
+    public void execute(@NotNull ConstStringInstruction instruction) {
         ctx.instruction("const-string")
-                .print(register(constStringInstruction.register())).arg()
-                .string(constStringInstruction.string());
+                .print(register(instruction.register())).arg()
+                .string(instruction.string());
     }
 
     @Override
@@ -216,16 +173,16 @@ public class DalvikCodePrinter implements ExecutionEngine {
     }
 
     @Override
-    public void execute(FillArrayDataInstruction fillArrayDataInstruction) {
-        PrintContext.ObjectPrint object = this.ctx.instruction(opcode(fillArrayDataInstruction))
-                .print(register(fillArrayDataInstruction.array())).arg()
+    public void execute(@NotNull FillArrayDataInstruction instruction) {
+        PrintContext.ObjectPrint object = this.ctx.instruction(opcode(instruction))
+                .print(register(instruction.array())).arg()
                 .object();
-        int elementSize = fillArrayDataInstruction.elementSize();
+        int elementSize = instruction.elementSize();
         object.value("width").print(String.valueOf(elementSize)).next();
         PrintContext.ArrayPrint values = object.value("values").array();
 
         // Print raw little-endian bits so payload width and floating-point values survive a round trip.
-        ByteBuffer buffer = ByteBuffer.wrap(fillArrayDataInstruction.data()).order(ByteOrder.LITTLE_ENDIAN);
+        ByteBuffer buffer = ByteBuffer.wrap(instruction.data()).order(ByteOrder.LITTLE_ENDIAN);
         boolean first = true;
         while (buffer.hasRemaining()) {
             if (!first) {
@@ -238,34 +195,15 @@ public class DalvikCodePrinter implements ExecutionEngine {
         object.end();
     }
 
-    private static String rawArrayValue(ByteBuffer buffer, int elementSize) {
-        return switch (elementSize) {
-            case 1 -> String.format(Locale.ROOT, "0x%02X", buffer.get() & 0xff);
-            case 2 -> String.format(Locale.ROOT, "0x%04X", Short.toUnsignedInt(buffer.getShort()));
-            case 4 -> String.format(Locale.ROOT, "0x%08X", buffer.getInt());
-            case 8 -> String.format(Locale.ROOT, "0x%016X", buffer.getLong());
-            default -> throw new IllegalStateException("Unexpected value: " + elementSize);
-        };
-    }
-
-    private void printRegisterArray(PrintContext.ArrayPrint arrayPrint, int[] registers) {
-        if (registers.length > 0) {
-            arrayPrint.print(this.register(registers[0]));
-            for (int i = 1; i < registers.length; i++) {
-                arrayPrint.arg().print(this.register(registers[i]));
-            }
-        }
-    }
-
     @Override
-    public void execute(FilledNewArrayInstruction filledNewArrayInstruction) {
-        var printer = ctx.instruction(opcode(filledNewArrayInstruction)).array();
+    public void execute(@NotNull FilledNewArrayInstruction instruction) {
+        var printer = ctx.instruction(opcode(instruction)).array();
 
-        if (filledNewArrayInstruction.isRange()) {
-            printer.print(register(filledNewArrayInstruction.first())).arg()
-                    .print(register(filledNewArrayInstruction.last()));
+        if (instruction.isRange()) {
+            printer.print(register(instruction.first())).arg()
+                    .print(register(instruction.last()));
         } else {
-            int[] registers = filledNewArrayInstruction.registers();
+            int[] registers = instruction.registers();
             if (registers == null) {
                 throw new IllegalStateException("Filled new-array instruction is not range-based but has no registers");
             }
@@ -273,173 +211,165 @@ public class DalvikCodePrinter implements ExecutionEngine {
         }
 
         printer.end();
-        ctx.arg().literal(filledNewArrayInstruction.componentType().descriptor());
+        ctx.arg().literal(instruction.componentType().descriptor());
     }
 
     @Override
-    public void execute(GotoInstruction gotoInstruction) {
+    public void execute(@NotNull GotoInstruction instruction) {
         ctx.instruction("goto")
-                .print(labels.get(gotoInstruction.jump()));
+                .print(labels.get(instruction.jump()));
     }
 
     @Override
-    public void execute(InstanceFieldInstruction instanceFieldInstruction) {
-        ctx.instruction(opcode(instanceFieldInstruction))
-                .print(register(instanceFieldInstruction.value())).arg()
-                .print(register(instanceFieldInstruction.instance())).arg()
-                .literal(instanceFieldInstruction.owner().internalName())
+    public void execute(@NotNull InstanceFieldInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.value())).arg()
+                .print(register(instruction.instance())).arg()
+                .literal(instruction.owner().internalName())
                 .print(".")
-                .literal(instanceFieldInstruction.name()).arg()
-                .literal(instanceFieldInstruction.type().descriptor());
+                .literal(instruction.name()).arg()
+                .literal(instruction.type().descriptor());
     }
 
     @Override
-    public void execute(InstanceOfInstruction instanceOfInstruction) {
-        ctx.instruction(opcode(instanceOfInstruction))
-                .print(register(instanceOfInstruction.destination())).arg()
-                .print(register(instanceOfInstruction.register())).arg()
-                .literal(instanceOfInstruction.type().descriptor());
+    public void execute(@NotNull InstanceOfInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.destination())).arg()
+                .print(register(instruction.register())).arg()
+                .literal(instruction.type().descriptor());
     }
 
     @Override
-    public void execute(InvokeCustomInstruction invokeCustomInstruction) {
-        var arguments = ctx.instruction(opcode(invokeCustomInstruction)).array();
+    public void execute(@NotNull InvokeCustomInstruction instruction) {
+        var arguments = ctx.instruction(opcode(instruction)).array();
 
-        if (invokeCustomInstruction.isRange()) {
-            arguments.print(register(invokeCustomInstruction.first())).arg()
-                    .print(register(invokeCustomInstruction.last()));
+        if (instruction.isRange()) {
+            arguments.print(register(instruction.first())).arg()
+                    .print(register(instruction.last()));
         } else {
-            printRegisterArray(arguments, invokeCustomInstruction.argumentRegisters());
+            printRegisterArray(arguments, instruction.argumentRegisters());
         }
 
         arguments.end();
 
-        ctx.arg().literal(invokeCustomInstruction.name()).arg()
-                .literal(invokeCustomInstruction.type().descriptor()).arg();
+        ctx.arg().literal(instruction.name()).arg()
+                .literal(instruction.type().descriptor()).arg();
 
-        DalvikConstantPrinter.printHandle(invokeCustomInstruction.handle(), ctx.arg());
+        DalvikConstantPrinter.printHandle(instruction.handle(), ctx.arg());
 
         ctx.arg();
 
         var constantArguments = ctx.array();
-        constantArguments.print(invokeCustomInstruction.arguments(), DalvikConstantPrinter::printConstant);
+        constantArguments.print(instruction.arguments(), DalvikConstantPrinter::printConstant);
 
         constantArguments.end();
     }
 
     @Override
-    public void execute(InvokeInstruction invokeInstruction) {
-        var arguments = ctx.instruction(opcode(invokeInstruction))
+    public void execute(@NotNull InvokeInstruction instruction) {
+        var arguments = ctx.instruction(opcode(instruction))
                 .array();
 
-        if (invokeInstruction.isRange()) {
-            arguments.print(register(invokeInstruction.first())).arg()
-                    .print(register(invokeInstruction.last()));
+        if (instruction.isRange()) {
+            arguments.print(register(instruction.first())).arg()
+                    .print(register(instruction.last()));
         } else {
-            printRegisterArray(arguments, invokeInstruction.arguments());
+            printRegisterArray(arguments, instruction.arguments());
         }
 
         arguments.end();
 
-        ctx.arg().literal(invokeInstruction.owner().internalName())
+        ctx.arg().literal(instruction.owner().internalName())
                 .print(".")
-                .literal(invokeInstruction.name()).arg()
-                .literal(invokeInstruction.methodType().descriptor());
+                .literal(instruction.name()).arg()
+                .literal(instruction.methodType().descriptor());
 
-        if (invokeInstruction.opcode() == Opcodes.INVOKE_POLYMORPHIC)
-            ctx.arg().literal(invokeInstruction.type().descriptor());
+        if (instruction.opcode() == Opcodes.INVOKE_POLYMORPHIC)
+            ctx.arg().literal(instruction.type().descriptor());
     }
 
     @Override
-    public void execute(MonitorInstruction monitorInstruction) {
-        ctx.instruction(opcode(monitorInstruction))
-                .print(register(monitorInstruction.register()));
+    public void execute(@NotNull MonitorInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.register()));
     }
 
     @Override
-    public void execute(MoveExceptionInstruction moveExceptionInstruction) {
-        ctx.instruction(opcode(moveExceptionInstruction))
-                .print(register(moveExceptionInstruction.register()));
+    public void execute(@NotNull MoveExceptionInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.register()));
     }
 
     @Override
-    public void execute(MoveInstruction moveInstruction) {
-        ctx.instruction(opcode(moveInstruction))
-                .print(register(moveInstruction.to())).arg()
-                .print(register(moveInstruction.from()));
+    public void execute(@NotNull MoveInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.to())).arg()
+                .print(register(instruction.from()));
     }
 
     @Override
-    public void execute(MoveObjectInstruction moveObjectInstruction) {
-        ctx.instruction(opcode(moveObjectInstruction))
-                .print(register(moveObjectInstruction.to())).arg()
-                .print(register(moveObjectInstruction.from()));
+    public void execute(@NotNull MoveObjectInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.to())).arg()
+                .print(register(instruction.from()));
     }
 
     @Override
-    public void execute(MoveResultInstruction moveResultInstruction) {
-        ctx.instruction(opcode(moveResultInstruction))
-                .print(register(moveResultInstruction.to()));
+    public void execute(@NotNull MoveResultInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.to()));
     }
 
     @Override
-    public void execute(MoveWideInstruction moveWideInstruction) {
-        ctx.instruction(opcode(moveWideInstruction))
-                .print(register(moveWideInstruction.to())).arg()
-                .print(register(moveWideInstruction.from()));
+    public void execute(@NotNull MoveWideInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.to())).arg()
+                .print(register(instruction.from()));
     }
 
     @Override
-    public void execute(NewArrayInstruction newArrayInstruction) {
-        ctx.instruction(opcode(newArrayInstruction))
-                .print(register(newArrayInstruction.dest())).arg()
-                .print(register(newArrayInstruction.sizeRegister())).arg()
-                .literal(newArrayInstruction.componentType().descriptor());
+    public void execute(@NotNull NewArrayInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.dest())).arg()
+                .print(register(instruction.sizeRegister())).arg()
+                .literal(instruction.componentType().descriptor());
     }
 
     @Override
-    public void execute(NewInstanceInstruction newInstanceInstruction) {
-        ctx.instruction(opcode(newInstanceInstruction))
-                .print(register(newInstanceInstruction.dest())).arg()
-                .literal(newInstanceInstruction.type().descriptor());
+    public void execute(@NotNull NewInstanceInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.dest())).arg()
+                .literal(instruction.type().descriptor());
     }
 
     @Override
-    public void execute(NopInstruction nopInstruction) {
-        ctx.instruction(opcode(nopInstruction));
+    public void execute(@NotNull NopInstruction instruction) {
+        ctx.instruction(opcode(instruction));
     }
 
     @Override
-    public void execute(PackedSwitchInstruction packedSwitchInstruction) {
+    public void execute(@NotNull PackedSwitchInstruction instruction) {
         var object = ctx.instruction("packed-switch")
-                .print(register(packedSwitchInstruction.register())).arg()
+                .print(register(instruction.register())).arg()
                 .object();
-        object.value("first").print(String.valueOf(packedSwitchInstruction.firstKey())).next();
+        object.value("first").print(String.valueOf(instruction.firstKey())).next();
         var targets = object.value("targets").array();
-        for (int i = 0; i < packedSwitchInstruction.targets().size(); i++) {
+        for (int i = 0; i < instruction.targets().size(); i++) {
             if (i > 0) {
                 targets.arg();
             }
-            targets.print(labels.get(packedSwitchInstruction.targets().get(i)));
+            targets.print(labels.get(instruction.targets().get(i)));
         }
         targets.end();
         object.end();
     }
 
     @Override
-    public void execute(ReturnInstruction returnInstruction) {
-        ctx.instruction(opcode(returnInstruction));
-        if (returnInstruction.opcode() != Opcodes.RETURN_VOID) {
-            ctx.print(register(returnInstruction.register()));
-        }
-    }
-
-    @Override
-    public void execute(SparseSwitchInstruction sparseSwitchInstruction) {
+    public void execute(@NotNull SparseSwitchInstruction instruction) {
         var object = ctx.instruction("sparse-switch")
-                .print(register(sparseSwitchInstruction.register())).arg()
+                .print(register(instruction.register())).arg()
                 .object();
-        var sortedTargets = new TreeMap<>(sparseSwitchInstruction.targets());
+        var sortedTargets = new TreeMap<>(instruction.targets());
         boolean first = true;
         for (var entry : sortedTargets.entrySet()) {
             if (!first) {
@@ -452,30 +382,116 @@ public class DalvikCodePrinter implements ExecutionEngine {
     }
 
     @Override
-    public void execute(StaticFieldInstruction staticFieldInstruction) {
-        ctx.instruction(opcode(staticFieldInstruction))
-                .print(register(staticFieldInstruction.value())).arg()
-                .literal(staticFieldInstruction.owner().internalName())
+    public void execute(@NotNull ReturnInstruction instruction) {
+        ctx.instruction(opcode(instruction));
+        if (instruction.opcode() != Opcodes.RETURN_VOID) {
+            ctx.print(register(instruction.register()));
+        }
+    }
+
+    @Override
+    public void execute(@NotNull StaticFieldInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.value())).arg()
+                .literal(instruction.owner().internalName())
                 .print(".")
-                .literal(staticFieldInstruction.name()).arg()
-                .literal(staticFieldInstruction.type().descriptor());
+                .literal(instruction.name()).arg()
+                .literal(instruction.type().descriptor());
     }
 
     @Override
-    public void execute(ThrowInstruction throwInstruction) {
-        ctx.instruction(opcode(throwInstruction))
-                .print(register(throwInstruction.value()));
+    public void execute(@NotNull ThrowInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.value()));
     }
 
     @Override
-    public void execute(UnaryInstruction unaryInstruction) {
-        ctx.instruction(opcode(unaryInstruction))
-                .print(register(unaryInstruction.dest())).arg()
-                .print(register(unaryInstruction.source()));
+    public void execute(@NotNull UnaryInstruction instruction) {
+        ctx.instruction(opcode(instruction))
+                .print(register(instruction.dest())).arg()
+                .print(register(instruction.source()));
     }
 
     @Override
-    public void execute(Instruction instruction) {
+    public void execute(@NotNull Instruction instruction) {
         ctx.next();
+    }
+
+    private void printRegisterArray(@NotNull PrintContext.ArrayPrint arrayPrint, int @NotNull [] registers) {
+        if (registers.length > 0) {
+            arrayPrint.print(register(registers[0]));
+            for (int i = 1; i < registers.length; i++) {
+                arrayPrint.arg().print(register(registers[i]));
+            }
+        }
+    }
+
+    private @NotNull String register(int register) {
+        String name = registers.get(register);
+        if (name == null)
+            throw new IllegalStateException("No name assigned to Dalvik register v" + register);
+        return name;
+    }
+
+    private @NotNull ResolvedType constantType(Instruction instruction) {
+        ResolvedType type = constantTypes.get(instruction);
+        if (type == null)
+            throw new IllegalStateException("No resolved type for Dalvik constant " + instruction);
+        return type;
+    }
+
+    private static @NotNull String opcode(@NotNull Instruction instruction) {
+        return switch (instruction) {
+            case InvokeCustomInstruction invoke -> invoke.isRange() ? "invoke-custom/range" : "invoke-custom";
+            case InvokeInstruction invoke -> {
+                String name = OpcodeNames.name(invoke.opcode());
+                yield invoke.isRange() ? name + "/range" : name;
+            }
+            case MoveInstruction ignored -> "move";
+            case MoveWideInstruction ignored -> "move-wide";
+            case MoveObjectInstruction ignored -> "move-object";
+            case ConstInstruction ignored -> "const";
+            case ConstWideInstruction ignored -> "const-wide";
+            case ConstStringInstruction ignored -> "const-string";
+            case GotoInstruction ignored -> "goto";
+            default -> {
+                String name = OpcodeNames.name(instruction.opcode());
+                if (name == null)
+                    throw new IllegalStateException("Unsupported Dalvik opcode: 0x" + Integer.toHexString(instruction.opcode()));
+                yield normalizeEncodedOpcode(name);
+            }
+        };
+    }
+
+    private static @NotNull String normalizeEncodedOpcode(@NotNull String name) {
+        return switch (name) {
+            case "move-from16", "move-16" -> "move";
+            case "move-wide-from16", "move-wide-16" -> "move-wide";
+            case "move-object-from16", "move-object-16" -> "move-object";
+            case "const-4", "const-16", "const-high16" -> "const";
+            case "const-wide-16", "const-wide-32", "const-wide-high16" -> "const-wide";
+            case "goto-16", "goto-32" -> "goto";
+            default -> {
+                if (name.endsWith("-2addr"))
+                    yield name.substring(0, name.length() - "-2addr".length()) + "/2addr";
+                if (name.endsWith("-lit8"))
+                    yield name.substring(0, name.length() - "-lit8".length()) + "/lit8";
+                if (name.endsWith("-lit16"))
+                    yield name.substring(0, name.length() - "-lit16".length()) + "/lit16";
+                yield name.endsWith("-range")
+                        ? name.substring(0, name.length() - "-range".length()) + "/range"
+                        : name;
+            }
+        };
+    }
+
+    private static @NotNull String rawArrayValue(@NotNull ByteBuffer buffer, int elementSize) {
+        return switch (elementSize) {
+            case 1 -> String.format(Locale.ROOT, "0x%02X", buffer.get() & 0xff);
+            case 2 -> String.format(Locale.ROOT, "0x%04X", Short.toUnsignedInt(buffer.getShort()));
+            case 4 -> String.format(Locale.ROOT, "0x%08X", buffer.getInt());
+            case 8 -> String.format(Locale.ROOT, "0x%016X", buffer.getLong());
+            default -> throw new IllegalStateException("Unexpected value: " + elementSize);
+        };
     }
 }

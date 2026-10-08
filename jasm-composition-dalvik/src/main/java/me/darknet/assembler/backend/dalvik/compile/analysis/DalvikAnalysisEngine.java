@@ -8,9 +8,9 @@ import me.darknet.assembler.analysis.registry.FieldValueLookup;
 import me.darknet.assembler.analysis.registry.MethodValueLookup;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.backend.dalvik.DalvikModifiers;
-import me.darknet.assembler.backend.dalvik.util.DalvikTypeUtils;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.descriptor.ClassDescriptor;
+import me.darknet.assembler.descriptor.Descriptors;
 import me.darknet.assembler.descriptor.DescriptorParser;
 import me.darknet.assembler.descriptor.DescriptorType;
 import me.darknet.dex.tree.definitions.MethodMember;
@@ -174,7 +174,7 @@ public final class DalvikAnalysisEngine {
 		for (ClassType parameter : member.getType().parameterTypes()) {
 			DescriptorType type = DescriptorParser.parseFieldDescriptor(parameter.descriptor());
 			parameterTypes.add(type);
-			incomingWordCount += DalvikTypeUtils.isWideType(type) ? 2 : 1;
+			incomingWordCount += Descriptors.isWideType(type) ? 2 : 1;
 		}
 
 		if (registerCount < incomingWordCount || incomingWordCount != code.getIn()) {
@@ -201,9 +201,9 @@ public final class DalvikAnalysisEngine {
 		for (DescriptorType parameterType : parameterTypes) {
 			Value value = Values.valueOf(parameterType);
 			slots.set(register, new DalvikRegisterState.ValueHead(value));
-			if (DalvikTypeUtils.isWideType(parameterType))
+			if (Descriptors.isWideType(parameterType))
 				slots.set(register + 1, new DalvikRegisterState.WideTail(register));
-			register += DalvikTypeUtils.isWideType(parameterType) ? 2 : 1;
+			register += Descriptors.isWideType(parameterType) ? 2 : 1;
 		}
 		return new DalvikRegisterState(slots, null);
 	}

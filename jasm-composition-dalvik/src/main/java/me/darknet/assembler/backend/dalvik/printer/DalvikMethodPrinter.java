@@ -1,6 +1,7 @@
 package me.darknet.assembler.backend.dalvik.printer;
 
 import me.darknet.assembler.backend.dalvik.DalvikModifiers;
+import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikConstantTypeResolver;
 import me.darknet.assembler.printer.AnnotationPrinter;
 import me.darknet.assembler.printer.MethodPrinter;
 import me.darknet.assembler.printer.PrintContext;
@@ -210,7 +211,8 @@ public class DalvikMethodPrinter implements MethodPrinter {
 			if (hasPrior) obj.next();
 			var codeObj = obj.value("code").code();
 			Map<Integer, String> registers = getRegisterNames(code, allParametersNamed ? parameterNames : List.of());
-			DalvikCodePrinter printer = new DalvikCodePrinter(codeObj, registers, labelNames);
+			DalvikCodePrinter printer = new DalvikCodePrinter(codeObj, registers, labelNames,
+					DalvikConstantTypeResolver.resolve(definition, code));
 			StraightForwardSimulation simulation = new StraightForwardSimulation();
 			simulation.execute(printer, code);
 			codeObj.end();
