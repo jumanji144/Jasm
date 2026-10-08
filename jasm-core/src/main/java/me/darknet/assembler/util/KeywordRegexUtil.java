@@ -29,7 +29,7 @@ public final class KeywordRegexUtil {
 	/**
 	 * @return Set of keywords shared by all supported formats.
 	 */
-	private static @NotNull Set<String> getCommonKeywords() {
+	public static @NotNull Set<String> getCommonKeywords() {
 		Set<String> keywords = new HashSet<>(DeclarationRegistry.createDefault().getKeywords());
 		keywords.addAll(Modifiers.getValidModifiers());
 		keywords.addAll(ProcessorKeywords.getCommonMethodBodyKeywords());
