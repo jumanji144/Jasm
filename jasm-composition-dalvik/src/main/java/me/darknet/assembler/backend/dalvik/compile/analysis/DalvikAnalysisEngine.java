@@ -10,9 +10,9 @@ import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.backend.dalvik.DalvikModifiers;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.descriptor.ClassDescriptor;
-import me.darknet.assembler.descriptor.Descriptors;
 import me.darknet.assembler.descriptor.DescriptorParser;
 import me.darknet.assembler.descriptor.DescriptorType;
+import me.darknet.assembler.descriptor.Descriptors;
 import me.darknet.dex.tree.definitions.MethodMember;
 import me.darknet.dex.tree.definitions.code.Code;
 import me.darknet.dex.tree.definitions.instructions.Instruction;
@@ -28,6 +28,9 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+/**
+ * Engine for analyzing Dalvik method code and populating register states.
+ */
 public final class DalvikAnalysisEngine {
 	private static final String REGISTER_LAYOUT_FAILURE = "Method register layout does not match descriptor";
 
@@ -44,6 +47,12 @@ public final class DalvikAnalysisEngine {
 	 * 		Completed emitted code.
 	 * @param instructionToSource
 	 * 		Identity mapping from emitted instructions to source instructions.
+	 * @param inheritanceChecker
+	 * 		Checker used to merge types along converging control flow paths.
+	 * @param methodValueLookup
+	 * 		Lookup for the values produced by invoked methods.
+	 * @param fieldValueLookup
+	 * 		Lookup for the values read from fields.
 	 *
 	 * @return Analysis results for the given method.
 	 */
@@ -54,48 +63,51 @@ public final class DalvikAnalysisEngine {
 	                                                     @NotNull InheritanceChecker inheritanceChecker,
 	                                                     @NotNull MethodValueLookup methodValueLookup,
 	                                                     @NotNull FieldValueLookup fieldValueLookup) {
+		List<Instruction> instructions = code.getInstructions();
 		DalvikControlFlowGraph graph = DalvikControlFlowGraphBuilder.build(code, instructionToSource);
-		List<DalvikAnalysisFailure> failures = new ArrayList<>(graph.failures());
-		Map<Integer, DalvikRegisterState> instructionStates = new TreeMap<>();
+		FailureCollector failureCollector = new FailureCollector(instructions, instructionToSource, graph.failures());
 		Map<Integer, DalvikAnalysisFrame> inputFrames = new TreeMap<>();
 		Map<Integer, DalvikAnalysisResults.TerminalState> terminalStates = new TreeMap<>();
 
-		if (graph.entryIndex() != null && failures.isEmpty()) {
-			DalvikRegisterState entryState = seedEntryState(method, member, code, graph.entryIndex(), instructionToSource, failures);
+		// Any graph without an entry instruction is unreachable, so no analysis is performed.
+		Integer entryIndex = graph.entryIndex();
+		if (entryIndex != null && graph.failures().isEmpty()) {
+			DalvikRegisterState entryState = seedEntryState(method, member, code, entryIndex, failureCollector);
 			if (entryState != null) {
-				inputFrames.put(graph.entryIndex(), new DalvikAnalysisFrame(entryState));
+				// Seed the entry frame.
+				inputFrames.put(entryIndex, new DalvikAnalysisFrame(entryState));
 				AnalysisWorklist worklist = new AnalysisWorklist();
 				Set<Integer> queuedIndices = new HashSet<>();
-				worklist.add(graph.entryIndex());
-				queuedIndices.add(graph.entryIndex());
+				worklist.add(entryIndex);
+				queuedIndices.add(entryIndex);
 
-				Set<FailureKey> failureKeys = new HashSet<>();
-				for (DalvikAnalysisFailure failure : failures)
-					failureKeys.add(new FailureKey(failure.instructionIndex(), failure.kind(), failure.message()));
+				// Set up the engine that transfers input frames through instructions to produce output frames.
+				DalvikInstructionTransferEngine transferEngine = new DalvikInstructionTransferEngine(inheritanceChecker, methodValueLookup, fieldValueLookup, instructionToSource, failureCollector::record);
 
-				DalvikInstructionTransferEngine transferEngine = new DalvikInstructionTransferEngine(
-						inheritanceChecker, methodValueLookup, fieldValueLookup, instructionToSource,
-						(index, kind, message) -> recordFailure(index, kind, message, code, instructionToSource, failures, failureKeys)
-				);
-
+				// Process the worklist until no more instructions are queued.
 				AnalysisWorklist.Entry work;
 				while ((work = worklist.next()) != null) {
 					int index = work.index();
 					queuedIndices.remove(index);
+
+					// Skip unreachable instructions.
 					DalvikAnalysisFrame input = inputFrames.get(index);
-					if (input == null || index < 0 || index >= code.getInstructions().size())
+					if (input == null || index < 0 || index >= instructions.size())
 						continue;
 
-					Instruction instruction = code.getInstructions().get(index);
+					// Transfer the input frame through the instruction to produce an output frame and a terminal state.
+					Instruction instruction = instructions.get(index);
 					DalvikInstructionTransferEngine.TransferResult transfer = transferEngine.transfer(index, instruction, input);
 					if (transfer.terminalState() == null)
 						terminalStates.remove(index);
 					else
 						terminalStates.put(index, transfer.terminalState());
 
+					// Propagate the frame the instruction produced along every normal edge leaving it.
 					for (int successor : graph.normalSuccessors().getOrDefault(index, List.of()))
-						propagate(successor, transfer.output(), inputFrames, inheritanceChecker, worklist, queuedIndices,
-								code, instructionToSource, failures, failureKeys);
+						propagate(successor, transfer.output(), inputFrames, inheritanceChecker, worklist, queuedIndices, failureCollector);
+
+					// Propagate to every exception handler that can catch an exception thrown by the instruction.
 					for (DalvikControlFlowGraph.ExceptionEdge edge : graph.exceptionalSuccessors().getOrDefault(index, List.of())) {
 						DalvikAnalysisFrame exceptionalInput = input.copy();
 						exceptionalInput.clearPendingResult();
@@ -103,27 +115,42 @@ public final class DalvikAnalysisEngine {
 								? new ClassDescriptor("java/lang/Throwable")
 								: edge.exceptionType();
 						exceptionalInput.setPendingException(Values.valueOfInstance(exceptionType));
-						propagate(edge.targetIndex(), exceptionalInput, inputFrames, inheritanceChecker, worklist, queuedIndices,
-								code, instructionToSource, failures, failureKeys);
+						propagate(edge.targetIndex(), exceptionalInput, inputFrames, inheritanceChecker, worklist, queuedIndices, failureCollector);
 					}
 				}
 			}
 		}
 
+		Map<Integer, DalvikRegisterState> instructionStates = new TreeMap<>();
 		inputFrames.forEach((index, frame) -> instructionStates.put(index, frame.snapshot()));
-		return new DalvikAnalysisResults(method, code.getInstructions(), instructionStates, terminalStates, instructionToSource, failures);
+		return new DalvikAnalysisResults(method, instructions, instructionStates, terminalStates, instructionToSource, failureCollector.failures());
 	}
 
+	/**
+	 * Propagates {@code incoming} to the input frame of {@code targetIndex}.
+	 *
+	 * @param targetIndex
+	 * 		Instruction index to propagate to.
+	 * @param incoming
+	 * 		Frame to propagate.
+	 * @param inputFrames
+	 * 		Input frames by instruction index.
+	 * @param inheritanceChecker
+	 * 		Checker used to merge reference types.
+	 * @param worklist
+	 * 		Worklist of instructions to process.
+	 * @param queuedIndices
+	 * 		Indices currently in the worklist.
+	 * @param failureCollector
+	 * 		Collector for reported failures.
+	 */
 	private static void propagate(int targetIndex,
 	                              @NotNull DalvikAnalysisFrame incoming,
 	                              @NotNull Map<Integer, DalvikAnalysisFrame> inputFrames,
 	                              @NotNull InheritanceChecker inheritanceChecker,
 	                              @NotNull AnalysisWorklist worklist,
 	                              @NotNull Set<Integer> queuedIndices,
-	                              @NotNull Code code,
-	                              Map<Instruction, ASTInstruction> instructionToSource,
-	                              List<DalvikAnalysisFailure> failures,
-	                              Set<FailureKey> failureKeys) {
+	                              @NotNull FailureCollector failureCollector) {
 		DalvikAnalysisFrame target = inputFrames.get(targetIndex);
 		boolean changed;
 		if (target == null) {
@@ -133,40 +160,38 @@ public final class DalvikAnalysisEngine {
 			DalvikRegisterStateMerger.MergeResult result = DalvikRegisterStateMerger.merge(inheritanceChecker, target, incoming);
 			changed = result.changed();
 			if (!result.incompatibleRegisters().isEmpty()) {
+				// Sort the registers so the message does not depend on the order the merge visited them in.
 				Set<Integer> orderedRegisters = new TreeSet<>(result.incompatibleRegisters());
-				recordFailure(targetIndex, DalvikAnalysisFailure.FailureKind.INCOMPATIBLE_MERGE,
-						"Incompatible register merge at " + orderedRegisters, code, instructionToSource, failures, failureKeys);
+				failureCollector.record(targetIndex, DalvikAnalysisFailure.FailureKind.INCOMPATIBLE_MERGE,
+						"Incompatible register merge at " + orderedRegisters);
 			}
 		}
 		if (changed && queuedIndices.add(targetIndex))
 			worklist.add(targetIndex);
 	}
 
-	private static void recordFailure(int instructionIndex,
-	                                  DalvikAnalysisFailure.FailureKind kind,
-	                                  String message,
-	                                  Code code,
-	                                  Map<Instruction, ASTInstruction> instructionToSource,
-	                                  List<DalvikAnalysisFailure> failures,
-	                                  Set<FailureKey> failureKeys) {
-		FailureKey key = new FailureKey(instructionIndex, kind, message);
-		if (!failureKeys.add(key))
-			return;
-
-		ASTInstruction source = instructionIndex >= 0
-				&& instructionIndex < code.getInstructions().size()
-				? instructionToSource.get(code.getInstructions().get(instructionIndex)) : null;
-		failures.add(new DalvikAnalysisFailure(kind, instructionIndex, message, source == null ? null : source.location()));
-	}
-
-	private record FailureKey(Integer instructionIndex, DalvikAnalysisFailure.FailureKind kind, String message) {}
-
+	/**
+	 * Builds the register state a method starts with.
+	 *
+	 * @param method
+	 * 		Full method reference.
+	 * @param member
+	 * 		Emitted method metadata and descriptor.
+	 * @param code
+	 * 		Completed emitted code.
+	 * @param entryIndex
+	 * 		Index of the entry instruction, used to locate the failure in the source.
+	 * @param failureCollector
+	 * 		Collector for reported failures.
+	 *
+	 * @return The entry register state, or {@code null} when the register layout does not match the descriptor,
+	 * in which case a failure has been reported.
+	 */
 	private static @Nullable DalvikRegisterState seedEntryState(@NotNull MethodReference method,
 	                                                            @NotNull MethodMember member,
 	                                                            @NotNull Code code,
 	                                                            int entryIndex,
-	                                                            @NotNull Map<Instruction, ASTInstruction> instructionToSource,
-	                                                            @NotNull List<DalvikAnalysisFailure> failures) {
+	                                                            @NotNull FailureCollector failureCollector) {
 		boolean isStatic = (member.getAccess() & DalvikModifiers.ACC_STATIC) != 0;
 		int registerCount = code.getRegisters();
 		int incomingWordCount = isStatic ? 0 : 1;
@@ -177,18 +202,20 @@ public final class DalvikAnalysisEngine {
 			incomingWordCount += Descriptors.isWideType(type) ? 2 : 1;
 		}
 
+		// The incoming words must fill exactly the registers the code declares as incoming, otherwise the descriptor
+		// and the code cannot be analyzed together.
 		if (registerCount < incomingWordCount || incomingWordCount != code.getIn()) {
-			ASTInstruction source = instructionToSource.get(code.getInstructions().get(entryIndex));
-			failures.add(new DalvikAnalysisFailure(DalvikAnalysisFailure.FailureKind.INTERNAL_FAILURE,
-					entryIndex, REGISTER_LAYOUT_FAILURE, source == null ? null : source.location()));
+			failureCollector.record(entryIndex, DalvikAnalysisFailure.FailureKind.INTERNAL_FAILURE, REGISTER_LAYOUT_FAILURE);
 			return null;
 		}
 
+		// Registers before the parameters start out undefined, since nothing has written them yet.
 		int parameterBase = registerCount - incomingWordCount;
 		List<DalvikRegisterState.Slot> slots = new ArrayList<>(registerCount);
 		for (int register = 0; register < registerCount; register++)
 			slots.add(DalvikRegisterState.Undefined.INSTANCE);
 
+		// Seed the parameters into the incoming registers, starting with the receiver for non-static methods.
 		int register = parameterBase;
 		if (!isStatic) {
 			ClassDescriptor owner = new ClassDescriptor(method.owner());
@@ -197,7 +224,6 @@ public final class DalvikAnalysisEngine {
 					: Values.valueOfInstance(owner);
 			slots.set(register++, new DalvikRegisterState.ValueHead(receiver));
 		}
-
 		for (DescriptorType parameterType : parameterTypes) {
 			Value value = Values.valueOf(parameterType);
 			slots.set(register, new DalvikRegisterState.ValueHead(value));
@@ -207,4 +233,84 @@ public final class DalvikAnalysisEngine {
 		}
 		return new DalvikRegisterState(slots, null);
 	}
+
+	/**
+	 * Collector for analysis failures that resolves source locations and drops duplicates.
+	 */
+	private static final class FailureCollector {
+		private final List<Instruction> instructions;
+		private final Map<Instruction, ASTInstruction> instructionToSource;
+		private final List<DalvikAnalysisFailure> failures;
+		private final Set<FailureKey> reportedKeys;
+
+		/**
+		 * @param instructions
+		 * 		Instructions of the analyzed code.
+		 * @param instructionToSource
+		 * 		Identity mapping from emitted instructions to source instructions.
+		 * @param initial
+		 * 		Failures to start from.
+		 */
+		private FailureCollector(@NotNull List<Instruction> instructions,
+		                         @NotNull Map<Instruction, ASTInstruction> instructionToSource,
+		                         @NotNull List<DalvikAnalysisFailure> initial) {
+			this.instructions = instructions;
+			this.instructionToSource = instructionToSource;
+			this.failures = new ArrayList<>(initial);
+			this.reportedKeys = new HashSet<>();
+			for (DalvikAnalysisFailure failure : initial)
+				reportedKeys.add(new FailureKey(failure.instructionIndex(), failure.kind(), failure.message()));
+		}
+
+		/**
+		 * @return Collected failures, in the order they were reported.
+		 */
+		private @NotNull List<DalvikAnalysisFailure> failures() {
+			return failures;
+		}
+
+		/**
+		 * Records a failure unless an identical one was already reported.
+		 *
+		 * @param instructionIndex
+		 * 		Code index associated with the failure.
+		 * @param kind
+		 * 		Failure category.
+		 * @param message
+		 * 		Detail message describing the failure.
+		 */
+		private void record(int instructionIndex, @NotNull DalvikAnalysisFailure.FailureKind kind, @NotNull String message) {
+			if (!reportedKeys.add(new FailureKey(instructionIndex, kind, message)))
+				return;
+
+			ASTInstruction source = source(instructionIndex);
+			failures.add(new DalvikAnalysisFailure(kind, instructionIndex, message, source == null ? null : source.location()));
+		}
+
+		/**
+		 * @param instructionIndex
+		 * 		Code index to resolve.
+		 *
+		 * @return Source instruction at that index, or {@code null} when the index is not part of the code.
+		 */
+		private @Nullable ASTInstruction source(int instructionIndex) {
+			return instructionIndex >= 0 && instructionIndex < instructions.size()
+					? instructionToSource.get(instructions.get(instructionIndex))
+					: null;
+		}
+	}
+
+	/**
+	 * Identity of a reported failure, used to drop duplicates.
+	 *
+	 * @param instructionIndex
+	 * 		Code index associated with the failure.
+	 * 		Can be {@code null} when the failure is not associated with a specific instruction.
+	 * @param kind
+	 * 		Failure category.
+	 * @param message
+	 * 		Detail message describing the failure.
+	 */
+	private record FailureKey(@Nullable Integer instructionIndex, @NotNull DalvikAnalysisFailure.FailureKind kind,
+	                          @NotNull String message) {}
 }
