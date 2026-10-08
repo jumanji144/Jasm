@@ -65,6 +65,7 @@ public final class DalvikAnalysisEngine {
 	                                                     @NotNull FieldValueLookup fieldValueLookup) {
 		List<Instruction> instructions = code.getInstructions();
 		DalvikControlFlowGraph graph = DalvikControlFlowGraphBuilder.build(code, instructionToSource);
+		DalvikRegisterLiveness.Lookup liveRegisters = DalvikRegisterLiveness.lookup(code, graph);
 		FailureCollector failureCollector = new FailureCollector(instructions, instructionToSource, graph.failures());
 		Map<Integer, DalvikAnalysisFrame> inputFrames = new TreeMap<>();
 		Map<Integer, DalvikAnalysisResults.TerminalState> terminalStates = new TreeMap<>();
@@ -105,7 +106,7 @@ public final class DalvikAnalysisEngine {
 
 					// Propagate the frame the instruction produced along every normal edge leaving it.
 					for (int successor : graph.normalSuccessors().getOrDefault(index, List.of()))
-						propagate(successor, transfer.output(), inputFrames, inheritanceChecker, worklist, queuedIndices, failureCollector);
+						propagate(successor, transfer.output(), inputFrames, liveRegisters, inheritanceChecker, worklist, queuedIndices, failureCollector);
 
 					// Propagate to every exception handler that can catch an exception thrown by the instruction.
 					for (DalvikControlFlowGraph.ExceptionEdge edge : graph.exceptionalSuccessors().getOrDefault(index, List.of())) {
@@ -115,7 +116,7 @@ public final class DalvikAnalysisEngine {
 								? new ClassDescriptor("java/lang/Throwable")
 								: edge.exceptionType();
 						exceptionalInput.setPendingException(Values.valueOfInstance(exceptionType));
-						propagate(edge.targetIndex(), exceptionalInput, inputFrames, inheritanceChecker, worklist, queuedIndices, failureCollector);
+						propagate(edge.targetIndex(), exceptionalInput, inputFrames, liveRegisters, inheritanceChecker, worklist, queuedIndices, failureCollector);
 					}
 				}
 			}
@@ -135,6 +136,8 @@ public final class DalvikAnalysisEngine {
 	 * 		Frame to propagate.
 	 * @param inputFrames
 	 * 		Input frames by instruction index.
+	 * @param liveRegisters
+	 * 		Lookup for registers live at each merge target.
 	 * @param inheritanceChecker
 	 * 		Checker used to merge reference types.
 	 * @param worklist
@@ -147,6 +150,7 @@ public final class DalvikAnalysisEngine {
 	private static void propagate(int targetIndex,
 	                              @NotNull DalvikAnalysisFrame incoming,
 	                              @NotNull Map<Integer, DalvikAnalysisFrame> inputFrames,
+	                              @NotNull DalvikRegisterLiveness.Lookup liveRegisters,
 	                              @NotNull InheritanceChecker inheritanceChecker,
 	                              @NotNull AnalysisWorklist worklist,
 	                              @NotNull Set<Integer> queuedIndices,
@@ -160,10 +164,14 @@ public final class DalvikAnalysisEngine {
 			DalvikRegisterStateMerger.MergeResult result = DalvikRegisterStateMerger.merge(inheritanceChecker, target, incoming);
 			changed = result.changed();
 			if (!result.incompatibleRegisters().isEmpty()) {
-				// Sort the registers so the message does not depend on the order the merge visited them in.
-				Set<Integer> orderedRegisters = new TreeSet<>(result.incompatibleRegisters());
-				failureCollector.record(targetIndex, DalvikAnalysisFailure.FailureKind.INCOMPATIBLE_MERGE,
-						"Incompatible register merge at " + orderedRegisters);
+				// A conflicting value is only observable when some successor can read the register before replacing it.
+				Set<Integer> orderedRegisters = new TreeSet<>();
+				for (int register : result.incompatibleRegisters())
+					if (liveRegisters.contains(targetIndex, register))
+						orderedRegisters.add(register);
+				if (!orderedRegisters.isEmpty())
+					failureCollector.record(targetIndex, DalvikAnalysisFailure.FailureKind.INCOMPATIBLE_MERGE,
+							"Incompatible register merge at " + orderedRegisters);
 			}
 		}
 		if (changed && queuedIndices.add(targetIndex))

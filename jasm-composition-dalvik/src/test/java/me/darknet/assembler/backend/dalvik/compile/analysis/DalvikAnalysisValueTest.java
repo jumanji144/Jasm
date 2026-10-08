@@ -635,10 +635,11 @@ class DalvikAnalysisValueTest {
 				            if-eqz v0 Reference
 				            const v1 2
 				            goto Join
-				        Reference:
-				            const-string v1 "ref"
-				        Join:
-				            return-void
+			        Reference:
+			            const-string v1 "ref"
+			        Join:
+			            invoke-static { v1 } Stage4IncompatibleCategory.consume (I)V
+			            return-void
 				        }
 				    }
 				}
@@ -660,9 +661,10 @@ class DalvikAnalysisValueTest {
 				            const-wide v2 1L
 				            goto Join
 				        DoublePath:
-				            const-wide v2 1.0
-				        Join:
-				            return-void
+			            const-wide v2 1.0
+			        Join:
+			            invoke-static { v2, v3 } Stage4IncompatibleWideCategory.consume (J)V
+			            return-void
 				        }
 				    }
 				}
@@ -684,9 +686,11 @@ class DalvikAnalysisValueTest {
 				            new-instance v0 Ljava/lang/Object;
 				            goto Join
 				        Second:
-				            new-instance v0 Ljava/lang/Object;
-				        Join:
-				            return-void
+			            new-instance v0 Ljava/lang/Object;
+			        Join:
+			            invoke-virtual { v0 } java/lang/Object.toString ()Ljava/lang/String;
+			            move-result-object v1
+			            return-void
 				        }
 				    }
 				}
@@ -694,6 +698,49 @@ class DalvikAnalysisValueTest {
 
 		// Separate allocation sites remain incompatible even when they have the same class type.
 		assertIncompatibleMerge(compilation, "allocationJoin", "()V", 0);
+	}
+
+	@Test
+	void ignoresIncompatibleScratchRegisterMergeAtLoopBackedge() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public Stage4LoopScratchMerge {
+				    .method public static ownedUpgrades (Ljava/lang/Object;Lcom/example/cookiehaiku/game/Upgrade$Target;I)I {
+				        registers: 7,
+				        parameters: { s, target, buildingIndex },
+				        code: {
+				            const v0 0
+				            sget-object v1 com/example/cookiehaiku/game/Catalog.UPGRADES Ljava/util/List;
+				            invoke-interface { v1 } java/util/List.iterator ()Ljava/util/Iterator;
+				            move-result-object v1
+				        Loop:
+				            invoke-interface { v1 } java/util/Iterator.hasNext ()Z
+				            move-result v2
+				            if-eqz v2 End
+				            invoke-interface { v1 } java/util/Iterator.next ()Ljava/lang/Object;
+				            move-result-object v2
+				            check-cast v2 Lcom/example/cookiehaiku/game/Upgrade;
+				            iget-object v3 v2 com/example/cookiehaiku/game/Upgrade.target Lcom/example/cookiehaiku/game/Upgrade$Target;
+				            if-ne v3 v5 Skip
+				            iget v3 v2 com/example/cookiehaiku/game/Upgrade.buildingIndex I
+				            if-ne v3 v6 Skip
+				            iget-object v3 v2 com/example/cookiehaiku/game/Upgrade.id Ljava/lang/String;
+				            invoke-virtual { v4, v3 } com/example/cookiehaiku/game/GameState.hasUpgrade (Ljava/lang/String;)Z
+				            move-result v3
+				            if-eqz v3 Skip
+				            add-int/lit8 v0 v0 1
+				        Skip:
+				            goto Loop
+				        End:
+				            return v0
+				        }
+				    }
+				}
+				""");
+
+		DalvikAnalysisResults results = compilation.results("ownedUpgrades",
+				"(Ljava/lang/Object;Lcom/example/cookiehaiku/game/Upgrade$Target;I)I");
+		assertTrue(results.getFailures().isEmpty(), results.getFailures().toString());
 	}
 
 	@Test

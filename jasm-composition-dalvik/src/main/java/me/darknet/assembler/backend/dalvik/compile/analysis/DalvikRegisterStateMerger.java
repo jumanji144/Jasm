@@ -6,7 +6,6 @@ import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.descriptor.ArrayDescriptor;
 import me.darknet.assembler.descriptor.ClassDescriptor;
 import me.darknet.assembler.descriptor.DescriptorType;
-import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,13 +13,15 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * Utility for merging two {@link DalvikAnalysisFrame} instances into a single frame.
+ * Joins Dalvik register states at control-flow merges.
  */
 public final class DalvikRegisterStateMerger {
 	private DalvikRegisterStateMerger() {}
 
 	/**
 	 * Merges two register frames into a single frame.
+	 * <p>
+	 * Undefined slots remain undefined when either incoming path has not written them.
 	 *
 	 * @param inheritanceChecker
 	 * 		Checker for determining common superclasses.
@@ -49,6 +50,8 @@ public final class DalvikRegisterStateMerger {
 
 			int targetPair = widePairStart(target, register);
 			int incomingPair = widePairStart(incoming, register);
+
+			// Treat a wide value atomically so a merge cannot leave its head and tail out of sync.
 			if (targetPair == register || incomingPair == register) {
 				if (targetPair == register && incomingPair == register) {
 					Value left = target.readWide(register);
@@ -73,10 +76,14 @@ public final class DalvikRegisterStateMerger {
 					continue;
 				}
 
+				// One frame has a wide pair while the other has a different layout in the overlapping words.
 				int pairStart = targetPair == register ? register : incomingPair;
 				int unionStart = pairStart;
 				int unionEnd = pairStart + 1;
 				DalvikAnalysisFrame other = targetPair == register ? incoming : target;
+
+				// If the other frame has no value in either word of the pair, we can clear the pair and continue.
+				// Otherwise, we must clear the entire union of the pair and any overlapping words in the other frame.
 				if (other.slot(pairStart) == DalvikRegisterState.Undefined.INSTANCE
 						&& other.slot(pairStart + 1) == DalvikRegisterState.Undefined.INSTANCE) {
 					changed |= clearRange(target, pairStart, pairStart + 1);
@@ -92,23 +99,30 @@ public final class DalvikRegisterStateMerger {
 					for (int word = unionStart; word <= unionEnd; word++)
 						incompatible.add(word);
 				}
+
 				mark(handled, unionStart, unionEnd);
 				continue;
 			}
 
 			DalvikRegisterState.Slot leftSlot = target.slot(register);
 			DalvikRegisterState.Slot rightSlot = incoming.slot(register);
+
+			// A tail not handled with a valid pair is an incompatible standalone register word.
 			if (leftSlot instanceof DalvikRegisterState.WideTail || rightSlot instanceof DalvikRegisterState.WideTail) {
 				changed |= clearRange(target, register, register);
 				incompatible.add(register);
 				continue;
 			}
+
+			// If either slot is undefined, the merged slot is undefined.
 			if (leftSlot == DalvikRegisterState.Undefined.INSTANCE
 					|| rightSlot == DalvikRegisterState.Undefined.INSTANCE) {
 				changed |= target.slot(register) != DalvikRegisterState.Undefined.INSTANCE;
 				changed |= clearRange(target, register, register);
 				continue;
 			}
+
+			// If either slot is not a narrow value, the merged slot is undefined.
 			if (!(leftSlot instanceof DalvikRegisterState.ValueHead(Value leftValue))
 					|| !(rightSlot instanceof DalvikRegisterState.ValueHead(Value rightValue))) {
 				changed |= clearRange(target, register, register);
@@ -116,6 +130,7 @@ public final class DalvikRegisterStateMerger {
 				continue;
 			}
 
+			// Both slots are narrow values, so we can attempt to join them.
 			Value joined = joinValues(inheritanceChecker, leftValue, rightValue);
 			if (joined == null) {
 				changed |= clearRange(target, register, register);
@@ -126,6 +141,7 @@ public final class DalvikRegisterStateMerger {
 			}
 		}
 
+		// Implicit invoke/exception values travel alongside registers and are joined independently.
 		Value pendingResult = joinTransient(inheritanceChecker, target.pendingResult(), incoming.pendingResult());
 		if (!sameNullableValue(target.pendingResult(), pendingResult)) {
 			target.setPendingResult(pendingResult);
@@ -234,23 +250,26 @@ public final class DalvikRegisterStateMerger {
 	 * @param end
 	 * 		End register (inclusive).
 	 */
-	private static void mark(boolean[] handled, int start, int end) {
+	private static void mark(boolean @NotNull [] handled, int start, int end) {
 		for (int register = start; register <= end && register < handled.length; register++)
 			if (register >= 0)
 				handled[register] = true;
 	}
 
 	/**
+	 * Computes a safe join for two register values.
+	 *
 	 * @param inheritanceChecker
 	 * 		Checker for determining common superclasses.
 	 * @param left
-	 * 		Left value.
+	 * 		Value from the target frame.
 	 * @param right
-	 * 		Right value.
+	 * 		Value from the incoming frame.
 	 *
-	 * @return Joined value, or {@code null} if the values are incompatible.
+	 * @return Joined value, or {@code null} when the values cannot be represented by a safe common value.
 	 */
-	private static Value joinValues(@NotNull InheritanceChecker inheritanceChecker, @NotNull Value left, @NotNull Value right) {
+	private static @Nullable Value joinValues(@NotNull InheritanceChecker inheritanceChecker,
+	                                          @NotNull Value left, @NotNull Value right) {
 		// Uninitialized reference values are only equal to themselves, so we can return one of them if they are equal.
 		if (left instanceof Value.UninitializedReferenceValue || right instanceof Value.UninitializedReferenceValue)
 			return left.equals(right) ? left : null;
@@ -326,7 +345,7 @@ public final class DalvikRegisterStateMerger {
 	 *
 	 * @return {@code true} if the values are the same, {@code false} otherwise.
 	 */
-	private static boolean sameValue(@NonNls Value left, @NotNull Value right) {
+	private static boolean sameValue(@NotNull Value left, @NotNull Value right) {
 		if (left instanceof Value.KnownFloatValue(float leftF) && right instanceof Value.KnownFloatValue(float rightF))
 			return Float.floatToRawIntBits(leftF) == Float.floatToRawIntBits(rightF);
 		if (left instanceof Value.KnownDoubleValue(double leftD) && right instanceof Value.KnownDoubleValue(
@@ -363,7 +382,7 @@ public final class DalvikRegisterStateMerger {
 	 * @param type
 	 * 		Type of the reference, or {@code null} for an untyped reference.
 	 *
-	 * @return Unknown reference value of the given type.
+	 * @return Unknown reference value of the given type, or {@link Values#OBJECT_VALUE} as a fallback.
 	 */
 	private static @NotNull Value unknownReference(@Nullable DescriptorType type) {
 		if (type instanceof ArrayDescriptor arrayType)
