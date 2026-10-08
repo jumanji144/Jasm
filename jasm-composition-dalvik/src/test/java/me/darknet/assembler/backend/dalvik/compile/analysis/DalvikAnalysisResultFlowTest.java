@@ -569,9 +569,9 @@ class DalvikAnalysisResultFlowTest {
 	private static Compilation compile(String source) {
 		List<ASTElement> parsed = DiagnosticAssertions.requireSuccess(
 				AssemblyParseFixture.processDeclarations("<dalvik-result-flow-test>", source, DalvikTargetContext.INSTANCE),
-				"Stage 5 Dalvik source should parse");
+				"Dalvik analysis-flow source should parse");
 		ValidatedUnit unit = DiagnosticAssertions.requireSuccess(
-				SemanticProcessor.process(parsed, DalvikTargetContext.INSTANCE), "Stage 5 Dalvik source should process");
+				SemanticProcessor.process(parsed, DalvikTargetContext.INSTANCE), "Dalvik analysis-flow source should process");
 		Outcome<DalvikCompileResult> outcome = new DalvikCompiler().compile(unit, new DalvikCompilerOptions());
 		assertTrue(outcome.errors().stream().allMatch(diagnostic ->
 					diagnostic.phase() == DiagnosticPhase.OUTPUT_VERIFICATION &&

@@ -88,7 +88,7 @@ class DalvikControlFlowTest {
     void seedsStaticAndInstanceParametersInPhysicalRegisterWords() {
         Compilation compilation = compile("""
                 .super java/lang/Object
-                .class public Stage3Seeds {
+                .class public ParameterSeedFixture {
                     .method public static seed (IJDLjava/lang/String;)V {
                         registers: 8,
                         code: {
@@ -120,7 +120,7 @@ class DalvikControlFlowTest {
         DalvikRegisterState instanceState = entryState(instanceResults);
         assertEquals(4, instanceState.registerCount());
         assertSame(DalvikRegisterState.Undefined.INSTANCE, instanceState.slot(0));
-        assertEquals(Values.valueOfInstance(new ClassDescriptor("Stage3Seeds")), head(instanceState, 1).value());
+        assertEquals(Values.valueOfInstance(new ClassDescriptor("ParameterSeedFixture")), head(instanceState, 1).value());
         assertEquals(Values.valueOf(PrimitiveType.LONG), head(instanceState, 2).value());
         assertEquals(new DalvikRegisterState.WideTail(2), instanceState.slot(3));
     }
@@ -386,10 +386,10 @@ class DalvikControlFlowTest {
         List<ASTElement> parsed = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.processDeclarations("<dalvik-control-flow-test>", source,
                         DalvikTargetContext.INSTANCE),
-                "Stage 3 Dalvik source should parse");
+                "Dalvik control-flow source should parse");
         ValidatedUnit unit = DiagnosticAssertions.requireSuccess(
                 SemanticProcessor.process(parsed, DalvikTargetContext.INSTANCE),
-                "Stage 3 Dalvik source should process");
+                "Dalvik control-flow source should process");
         Outcome<DalvikCompileResult> outcome = new DalvikCompiler().compile(unit, new DalvikCompilerOptions());
         assertFalse(outcome.hasErrors(), "Unexpected compiler errors: " + outcome.errors());
         assertFalse(outcome.hasWarnings(), "Unexpected compiler warnings: " + outcome.warnings());

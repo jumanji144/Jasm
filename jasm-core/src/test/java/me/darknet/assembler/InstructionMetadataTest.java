@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests target-neutral instruction metadata independently from the Stage 07 target contracts.
+ * Tests target-neutral instruction metadata independently from backend-specific contracts.
  */
 class InstructionMetadataTest {
     @Test

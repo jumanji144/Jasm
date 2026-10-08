@@ -46,7 +46,7 @@ class DalvikAnalysisValueTest {
 	void analyzesIntegerArithmetic() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4IntegerArithmetic {
+				.class public ValueAnalysisIntegerArithmetic {
 				    .method public static sum ()I {
 				        registers: 3,
 				        code: {
@@ -71,7 +71,7 @@ class DalvikAnalysisValueTest {
 	void analyzesWideAndFloatingArithmetic() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4WideFloatingArithmetic {
+				.class public ValueAnalysisWideFloatingArithmetic {
 				    .method public static longValue ()J {
 				        registers: 4,
 				        code: {
@@ -114,7 +114,7 @@ class DalvikAnalysisValueTest {
 	void preservesDoubleConstant() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4DoubleConstant {
+				.class public ValueAnalysisDoubleConstant {
 				    .method public static doubleValue ()D {
 				        registers: 2,
 				        code: {
@@ -133,7 +133,7 @@ class DalvikAnalysisValueTest {
 	void preservesNarrowAndObjectMoves() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4Moves {
+				.class public ValueAnalysisMoves {
 				    .method public static narrowMoves ()I {
 				        registers: 3,
 				        code: {
@@ -167,7 +167,7 @@ class DalvikAnalysisValueTest {
 	void preservesZeroSentinelTypingAtConsumers() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4ZeroSentinels {
+				.class public ValueAnalysisZeroSentinels {
 				    .method public static intZero ()I {
 				        registers: 1,
 				        code: {
@@ -207,7 +207,7 @@ class DalvikAnalysisValueTest {
 	void preservesTypedStringAndClassConstants() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4TypedConstants {
+				.class public ValueAnalysisTypedConstants {
 				    .method public static stringValue ()Ljava/lang/String; {
 				        registers: 1,
 				        code: {
@@ -236,7 +236,7 @@ class DalvikAnalysisValueTest {
 	void preservesRawFloatingConstantPayloads() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4FloatingPayloads {
+				.class public ValueAnalysisFloatingPayloads {
 				    .method public static floatPayload ()F {
 				        registers: 1,
 				        code: {
@@ -266,7 +266,7 @@ class DalvikAnalysisValueTest {
 	void evaluatesLiteralArithmetic() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4LiteralArithmetic {
+				.class public ValueAnalysisLiteralArithmetic {
 				    .method public static literals ()I {
 				        registers: 4,
 				        code: {
@@ -289,7 +289,7 @@ class DalvikAnalysisValueTest {
 	void convertsPrimitiveValues() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4Conversion {
+				.class public ValueAnalysisConversion {
 				    .method public static conversion ()I {
 				        registers: 4,
 				        code: {
@@ -318,7 +318,7 @@ class DalvikAnalysisValueTest {
 	void comparesNaNWithBothFloatingComparisonModes() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4NaNComparison {
+				.class public ValueAnalysisNaNComparison {
 				    .method public static nanCompare ()I {
 				        registers: 4,
 				        code: {
@@ -344,7 +344,7 @@ class DalvikAnalysisValueTest {
 	void wrapsIntegerOverflow() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4IntegerOverflow {
+				.class public ValueAnalysisIntegerOverflow {
 				    .method public static overflow ()I {
 				        registers: 3,
 				        code: {
@@ -365,7 +365,7 @@ class DalvikAnalysisValueTest {
 	void masksIntegerShiftDistance() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4IntegerShift {
+				.class public ValueAnalysisIntegerShift {
 				    .method public static shift ()I {
 				        registers: 3,
 				        code: {
@@ -386,7 +386,7 @@ class DalvikAnalysisValueTest {
 	void masksLongShiftDistance() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4LongShift {
+				.class public ValueAnalysisLongShift {
 				    .method public static shift ()J {
 				        registers: 5,
 				        code: {
@@ -407,7 +407,7 @@ class DalvikAnalysisValueTest {
 	void preservesSignedZeroAcrossArithmeticAndUnaryOperations() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4SignedZero {
+				.class public ValueAnalysisSignedZero {
 				    .method public static negativeZeroArithmetic ()F {
 				        registers: 3,
 				        code: {
@@ -454,7 +454,7 @@ class DalvikAnalysisValueTest {
 	void keepsDivisionByZeroAsTypedUnknown() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4DivisionByZero {
+				.class public ValueAnalysisDivisionByZero {
 				    .method public static divisionByZero ()I {
 				        registers: 3,
 				        code: {
@@ -475,7 +475,7 @@ class DalvikAnalysisValueTest {
 	void comparesKnownLongs() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4LongComparison {
+				.class public ValueAnalysisLongComparison {
 				    .method public static compareLong ()I {
 				        registers: 5,
 				        code: {
@@ -496,7 +496,7 @@ class DalvikAnalysisValueTest {
 	void keepsUnknownParameterArithmeticUnknown() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4UnknownOperand {
+				.class public ValueAnalysisUnknownOperand {
 				    .method public static unknownOperand (I)I {
 				        registers: 2,
 				        parameters: { input },
@@ -517,7 +517,7 @@ class DalvikAnalysisValueTest {
 	void handlesOverlappingWideMoves() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4OverlappingWideMove {
+				.class public ValueAnalysisOverlappingWideMove {
 				    .method public static overlappingWideMove ()J {
 				        registers: 3,
 				        code: {
@@ -541,7 +541,7 @@ class DalvikAnalysisValueTest {
 	void clearsOverwrittenWideWords() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4OverwrittenWideWords {
+				.class public ValueAnalysisOverwrittenWideWords {
 				    .method public static overwriteWideWords ()V {
 				        registers: 4,
 				        code: {
@@ -568,7 +568,7 @@ class DalvikAnalysisValueTest {
 	void joinsEqualConstantsAndKeepsConditionalSuccessorsReachable() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4SameJoin {
+				.class public ValueAnalysisSameJoin {
 				    .method public static sameJoin ()I {
 				        registers: 2,
 				        code: {
@@ -602,7 +602,7 @@ class DalvikAnalysisValueTest {
 	void joinsConflictingConstantsAsUnknown() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4ConflictingJoin {
+				.class public ValueAnalysisConflictingJoin {
 				    .method public static differentJoin ()I {
 				        registers: 2,
 				        code: {
@@ -627,7 +627,7 @@ class DalvikAnalysisValueTest {
 	void rejectsPrimitiveReferenceCategoryMerge() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4IncompatibleCategory {
+				.class public ValueAnalysisIncompatibleCategory {
 				    .method public static categoryJoin ()V {
 				        registers: 2,
 				        code: {
@@ -638,7 +638,7 @@ class DalvikAnalysisValueTest {
 			        Reference:
 			            const-string v1 "ref"
 			        Join:
-			            invoke-static { v1 } Stage4IncompatibleCategory.consume (I)V
+			            invoke-static { v1 } ValueAnalysisIncompatibleCategory.consume (I)V
 			            return-void
 				        }
 				    }
@@ -652,7 +652,7 @@ class DalvikAnalysisValueTest {
 	void rejectsIncompatibleWideCategoryMerge() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4IncompatibleWideCategory {
+				.class public ValueAnalysisIncompatibleWideCategory {
 				    .method public static wideCategoryJoin ()V {
 				        registers: 4,
 				        code: {
@@ -663,7 +663,7 @@ class DalvikAnalysisValueTest {
 				        DoublePath:
 			            const-wide v2 1.0
 			        Join:
-			            invoke-static { v2, v3 } Stage4IncompatibleWideCategory.consume (J)V
+			            invoke-static { v2, v3 } ValueAnalysisIncompatibleWideCategory.consume (J)V
 			            return-void
 				        }
 				    }
@@ -677,7 +677,7 @@ class DalvikAnalysisValueTest {
 	void rejectsDistinctUninitializedAllocationMerge() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4AllocationJoin {
+				.class public ValueAnalysisAllocationJoin {
 				    .method public static allocationJoin ()V {
 				        registers: 2,
 				        code: {
@@ -701,16 +701,16 @@ class DalvikAnalysisValueTest {
 	}
 
 	@Test
-	void ignoresIncompatibleScratchRegisterMergeAtLoopBackedge() {
+	void doesNotReportIncompatibleMergeForDeadScratchRegister() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4LoopScratchMerge {
-				    .method public static ownedUpgrades (Ljava/lang/Object;Lcom/example/cookiehaiku/game/Upgrade$Target;I)I {
+				.class public DeadScratchRegisterMerge {
+				    .method public static countMatchingItems (Ljava/lang/Object;Ljava/lang/Object;I)I {
 				        registers: 7,
-				        parameters: { s, target, buildingIndex },
+				        parameters: { state, category, index },
 				        code: {
 				            const v0 0
-				            sget-object v1 com/example/cookiehaiku/game/Catalog.UPGRADES Ljava/util/List;
+				            sget-object v1 sample/Model.ITEMS Ljava/util/List;
 				            invoke-interface { v1 } java/util/List.iterator ()Ljava/util/Iterator;
 				            move-result-object v1
 				        Loop:
@@ -719,13 +719,13 @@ class DalvikAnalysisValueTest {
 				            if-eqz v2 End
 				            invoke-interface { v1 } java/util/Iterator.next ()Ljava/lang/Object;
 				            move-result-object v2
-				            check-cast v2 Lcom/example/cookiehaiku/game/Upgrade;
-				            iget-object v3 v2 com/example/cookiehaiku/game/Upgrade.target Lcom/example/cookiehaiku/game/Upgrade$Target;
+				            check-cast v2 Lsample/Item;
+				            iget-object v3 v2 sample/Item.category Ljava/lang/Object;
 				            if-ne v3 v5 Skip
-				            iget v3 v2 com/example/cookiehaiku/game/Upgrade.buildingIndex I
+				            iget v3 v2 sample/Item.index I
 				            if-ne v3 v6 Skip
-				            iget-object v3 v2 com/example/cookiehaiku/game/Upgrade.id Ljava/lang/String;
-				            invoke-virtual { v4, v3 } com/example/cookiehaiku/game/GameState.hasUpgrade (Ljava/lang/String;)Z
+				            iget-object v3 v2 sample/Item.name Ljava/lang/String;
+				            invoke-virtual { v4, v3 } sample/State.hasItem (Ljava/lang/String;)Z
 				            move-result v3
 				            if-eqz v3 Skip
 				            add-int/lit8 v0 v0 1
@@ -738,8 +738,7 @@ class DalvikAnalysisValueTest {
 				}
 				""");
 
-		DalvikAnalysisResults results = compilation.results("ownedUpgrades",
-				"(Ljava/lang/Object;Lcom/example/cookiehaiku/game/Upgrade$Target;I)I");
+		DalvikAnalysisResults results = compilation.results("countMatchingItems", "(Ljava/lang/Object;Ljava/lang/Object;I)I");
 		assertTrue(results.getFailures().isEmpty(), results.getFailures().toString());
 	}
 
@@ -747,7 +746,7 @@ class DalvikAnalysisValueTest {
 	void joinsDifferentNaNPayloadsAsUnknownFloat() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4DifferingNaN {
+				.class public ValueAnalysisDifferingNaN {
 				    .method public static differingNaNPayloads ()F {
 				        registers: 2,
 				        code: {
@@ -772,7 +771,7 @@ class DalvikAnalysisValueTest {
 	void reachesFixedPointForSingleLoopCarriedValue() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4LoopJoin {
+				.class public ValueAnalysisLoopJoin {
 				    .method public static loop ()I {
 				        registers: 1,
 				        code: {
@@ -794,7 +793,7 @@ class DalvikAnalysisValueTest {
 	void analyzesReferenceCastsAndAllocations() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4References {
+				.class public ValueAnalysisReferences {
 				    .method public static references ()Ljava/lang/Object; {
 				        registers: 4,
 				        code: {
@@ -834,7 +833,7 @@ class DalvikAnalysisValueTest {
 	void analyzesKnownArrayLoadsAndSizes() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4Arrays {
+				.class public ValueAnalysisArrays {
 				    .method public static arrays ()V {
 				        registers: 9,
 				        code: {
@@ -870,7 +869,7 @@ class DalvikAnalysisValueTest {
 	void analyzesArraysWithUnknownSizeConservatively() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4UnknownArraySize {
+				.class public ValueAnalysisUnknownArraySize {
 				    .method public static unknownSize (I)V {
 				        registers: 3,
 				        parameters: { size },
@@ -895,7 +894,7 @@ class DalvikAnalysisValueTest {
 	void analyzesFieldReadsAndWrites() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4Fields {
+				.class public ValueAnalysisFields {
 				    .method public static fields ()V {
 				        registers: 5,
 				        code: {
@@ -923,7 +922,7 @@ class DalvikAnalysisValueTest {
 	void recordsObjectReturnTerminal() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4ObjectReturn {
+				.class public ValueAnalysisObjectReturn {
 				    .method public static objectReturn ()Ljava/lang/Object; {
 				        registers: 1,
 				        code: {
@@ -942,7 +941,7 @@ class DalvikAnalysisValueTest {
 	void recordsThrownParameterTerminal() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4ThrowParameter {
+				.class public ValueAnalysisThrowParameter {
 				    .method public static throwParameter (Ljava/lang/Throwable;)V {
 				        registers: 1,
 				        parameters: { thrown },
@@ -963,7 +962,7 @@ class DalvikAnalysisValueTest {
 	void preservesExceptionHandlerPreState() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4ExceptionalPreState {
+				.class public ValueAnalysisExceptionalPreState {
 				    .method public static exceptional ([I)V {
 				        registers: 2,
 				        parameters: { values },
@@ -999,10 +998,10 @@ class DalvikAnalysisValueTest {
 	}
 
 	@Test
-	void recordsUnsupportedStageBoundaryTransfersAndSourceLocations() {
+	void recordsUnsupportedTransfersAndSourceLocations() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public Stage4Boundary {
+				.class public ValueAnalysisBoundary {
 				    .method public static invokeResult ()I {
 				        registers: 2,
 				        code: {
@@ -1111,10 +1110,10 @@ class DalvikAnalysisValueTest {
 	private static Compilation compile(String source) {
 		List<ASTElement> parsed = DiagnosticAssertions.requireSuccess(
 				AssemblyParseFixture.processDeclarations("<dalvik-analysis-value-test>", source, DalvikTargetContext.INSTANCE),
-				"Stage 4 Dalvik source should parse");
+				"Dalvik value-analysis source should parse");
 		ValidatedUnit unit = DiagnosticAssertions.requireSuccess(
 				SemanticProcessor.process(parsed, DalvikTargetContext.INSTANCE),
-				"Stage 4 Dalvik source should process");
+				"Dalvik value-analysis source should process");
 		Outcome<DalvikCompileResult> outcome = new DalvikCompiler().compile(unit, new DalvikCompilerOptions());
 		assertTrue(outcome.errors().stream().allMatch(diagnostic ->
 					diagnostic.phase() == DiagnosticPhase.OUTPUT_VERIFICATION &&
