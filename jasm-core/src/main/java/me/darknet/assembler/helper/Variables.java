@@ -22,11 +22,8 @@ import java.util.NavigableMap;
  *                   this order:
  *                   <ol>
  *                   <li>MethodParameters</li>
- *                   <li>LocalVariableTable</li>
- *                   <ol>
- *                   <li>Use the first name that has the same type and
- *                   index</li>
- *                   </ol>
+ *                   <li>LocalVariableTable
+ *                     <ul><li>Use the first name that has the same type and index</li></ul></li>
  *                   <li>Use a placeholder name p[n]</li>
  *                   </ol>
  * @param locals

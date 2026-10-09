@@ -1,19 +1,24 @@
 package me.darknet.assembler.query;
 
 import me.darknet.assembler.ast.ASTElement;
+import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTLabel;
 import me.darknet.assembler.ast.primitive.ASTNumber;
+import me.darknet.assembler.ast.primitive.ASTObject;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.instructions.Instruction;
 import me.darknet.assembler.instructions.InstructionTrait;
+import me.darknet.assembler.instructions.SwitchShape;
 import me.darknet.assembler.target.TargetContext;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Range;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -434,6 +439,165 @@ public final class AssemblyUtils {
 
 		ASTElement argument = instruction.arguments().get(typeArgumentIndex);
 		return argument instanceof ASTIdentifier identifier && contains(identifier.range(), offset) ? identifier : null;
+	}
+
+	/**
+	 * Resolves the member referenced by an instruction, such as the owner, name, and descriptor of a field or method access.
+	 *
+	 * @param target
+	 * 		Target whose instruction metadata should be queried.
+	 * @param instruction
+	 * 		Instruction to resolve the member of.
+	 *
+	 * @return Member reference, or {@code null} if the instruction does not reference a field or method, or its
+	 * member path or descriptor is missing or malformed.
+	 */
+	public static @Nullable MemberReference resolveMemberReference(@NotNull TargetContext target,
+	                                                               @NotNull ASTInstruction instruction) {
+		ASTIdentifier identifier = instruction.identifier();
+		if (identifier == null)
+			return null;
+
+		Instruction<?> definition = target.instructions().get(identifier.content());
+		if (definition == null)
+			return null;
+
+		boolean isMethod = definition.hasTrait(InstructionTrait.METHOD_REFERENCE);
+		if (!isMethod && !definition.hasTrait(InstructionTrait.FIELD_REFERENCE))
+			return null;
+
+		int memberIndex = definition.memberReferenceOperandIndex();
+		List<? extends ASTElement> arguments = instruction.arguments();
+		int descriptorIndex = memberIndex + 1;
+		if (memberIndex < 0 || descriptorIndex >= arguments.size())
+			return null;
+
+		ASTElement memberElement = arguments.get(memberIndex);
+		ASTElement descriptorElement = arguments.get(descriptorIndex);
+		if (memberElement == null || descriptorElement == null)
+			return null;
+
+		String memberPath = memberElement.content();
+		String descriptor = descriptorElement.content();
+		if (memberPath == null || descriptor == null)
+			return null;
+
+		int split = memberPath.lastIndexOf('.');
+		if (split <= 0 || split >= memberPath.length() - 1)
+			return null;
+
+		return new MemberReference(memberPath.substring(0, split), memberPath.substring(split + 1), descriptor, isMethod);
+	}
+
+	/**
+	 * Resolves the labels a switch instruction can branch to, one entry per case and one for the default when the shape has one.
+	 * <ul>
+	 *     <li>{@link SwitchShape#TABLE}: A {@code min} base, a {@code cases} label list, and a {@code default} label.</li>
+	 *     <li>{@link SwitchShape#LOOKUP}: Explicit integer keys mapped to labels, including {@code default}.</li>
+	 *     <li>{@link SwitchShape#PACKED}: A {@code first} base and a {@code targets} label list, with no default.</li>
+	 *     <li>{@link SwitchShape#SPARSE}: Explicit integer keys mapped to labels, with no default.</li>
+	 * </ul>
+	 * Instructions without a switch payload produce an empty list.
+	 *
+	 * @param target
+	 * 		Target whose instruction metadata should be queried.
+	 * @param instruction
+	 * 		Instruction to resolve the switch targets of.
+	 *
+	 * @return Switch targets in payload order, with the default first for table switches.
+	 */
+	public static @NotNull List<SwitchTarget> resolveSwitchTargets(@NotNull TargetContext target,
+	                                                               @NotNull ASTInstruction instruction) {
+		ASTIdentifier identifier = instruction.identifier();
+		if (identifier == null || instruction.arguments().isEmpty())
+			return List.of();
+
+		Instruction<?> definition = target.instructions().get(identifier.content());
+		if (definition == null || definition.switchShape() == null)
+			return List.of();
+
+		ASTObject payload = instruction.argumentObject(instruction.arguments().size() - 1);
+		if (payload == null)
+			return List.of();
+
+		return switch (definition.switchShape()) {
+			case LOOKUP, SPARSE -> resolveLookupSwitchTargets(payload);
+			case TABLE -> resolveTableSwitchTargets(payload, "min", "cases", "default");
+			case PACKED -> resolveTableSwitchTargets(payload, "first", "targets", null);
+			case null -> Collections.emptyList();
+		};
+	}
+
+	/**
+	 * Resolves the targets of a lookup switch instruction, which are explicit integer keys mapped to labels.
+	 *
+	 * @param payload
+	 * 		Payload object of the lookup switch instruction.
+	 *
+	 * @return Switch targets in payload order, with the default first if present.
+	 */
+	private static @NotNull List<SwitchTarget> resolveLookupSwitchTargets(@NotNull ASTObject payload) {
+		List<SwitchTarget> targets = new ArrayList<>();
+		for (int i = 0; i < payload.values().size(); i++) {
+			ASTIdentifier key = payload.values().key(i);
+			ASTElement value = payload.values().get(i);
+
+			// Skip malformed entries that are missing a key or value.
+			String context = key == null ? null : key.literal();
+			String labelName = value == null ? null : value.content();
+			if (context == null || labelName == null)
+				continue;
+
+			targets.add(new SwitchTarget(context, labelName, key, value));
+		}
+		return targets;
+	}
+
+	/**
+	 * Resolves the targets of a table or packed switch instruction, which are a base value and a list of labels.
+	 *
+	 * @param payload
+	 * 		Payload object of the table or packed switch instruction.
+	 * @param baseKey
+	 * 		Key for the base value in the payload.
+	 * @param casesKey
+	 * 		Key for the label list in the payload.
+	 * @param defaultKey
+	 * 		Key for the default label in the payload, or {@code null} if there is no default.
+	 *
+	 * @return Switch targets in payload order, with the default first if present.
+	 */
+	private static @NotNull List<SwitchTarget> resolveTableSwitchTargets(@NotNull ASTObject payload, @NotNull String baseKey,
+	                                                                     @NotNull String casesKey, @Nullable String defaultKey) {
+		List<SwitchTarget> targets = new ArrayList<>();
+		if (defaultKey != null) {
+			ASTElement defaultValue = payload.value(defaultKey);
+			String defaultLabel = defaultValue == null ? null : defaultValue.content();
+			if (defaultLabel != null)
+				targets.add(new SwitchTarget("default", defaultLabel, payload.values().key(defaultKey), defaultValue));
+		}
+
+		// Get lower bound for table switch, or first key for packed switch.
+		// If the base is missing or malformed, default to 0.
+		long base = 0;
+		if (payload.value(baseKey) instanceof ASTNumber number)
+			base = number.asLong();
+
+		// If there are no cases then only the default target (if we found one) is returned.
+		ASTArray cases = payload.value(casesKey);
+		if (cases == null)
+			return targets;
+
+		// Collect case targets in order.
+		long currentValue = base;
+		for (ASTElement caseTarget : cases.values()) {
+			String labelName = caseTarget.content();
+			if (labelName == null || labelName.isBlank())
+				continue;
+			String caseContext = Long.toString(currentValue++);
+			targets.add(new SwitchTarget(caseContext, labelName, caseTarget, caseTarget));
+		}
+		return targets;
 	}
 
 	/**

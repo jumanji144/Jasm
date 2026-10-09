@@ -67,8 +67,6 @@ public final class Descriptors {
 	}
 
 	/**
-	 * Returns the descriptor unchanged when it has the array descriptor prefix.
-	 *
 	 * @param descriptor
 	 * 		Field descriptor to check.
 	 *
@@ -76,5 +74,27 @@ public final class Descriptors {
 	 */
 	public static @Nullable String arrayDescriptor(@NotNull String descriptor) {
 		return descriptor.startsWith("[") ? descriptor : null;
+	}
+
+	/**
+	 * @param typeReference
+	 * 		Internal name, object descriptor, or array descriptor of a type.
+	 *
+	 * @return Internal name of the class, or {@code null} if the reference is blank or names a primitive type.
+	 */
+	public static @Nullable String internalName(@NotNull String typeReference) {
+		if (typeReference.isBlank())
+			return null;
+
+		DescriptorType type;
+		try {
+			type = DescriptorParser.parseTypeReference(typeReference);
+		} catch (DescriptorSyntaxException ex) {
+			return typeReference;
+		}
+
+		while (type instanceof ArrayDescriptor(DescriptorType component))
+			type = component;
+		return type instanceof ClassDescriptor(String internalName) ? internalName : null;
 	}
 }

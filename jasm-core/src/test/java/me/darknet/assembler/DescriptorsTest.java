@@ -12,6 +12,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DescriptorsTest {
 	@Test
+	void resolvesInternalNameFromInternalNamesObjectDescriptorsAndArrays() {
+		assertEquals("java/lang/String", Descriptors.internalName("java/lang/String"));
+		assertEquals("java/lang/String", Descriptors.internalName("Ljava/lang/String;"));
+		assertEquals("java/lang/String", Descriptors.internalName("[[Ljava/lang/String;"));
+	}
+
+	@Test
+	void resolvesToNullForPrimitiveArraysAndBlankReferences() {
+		assertNull(Descriptors.internalName("[I"));
+		assertNull(Descriptors.internalName(" "));
+	}
+
+	@Test
+	void returnsUnparseableReferencesUnchanged() {
+		assertEquals("Lcom/example/Broken", Descriptors.internalName("Lcom/example/Broken"));
+	}
+
+	@Test
 	void returnsComputationalPrimitiveCategories() {
 		assertEquals(PrimitiveType.INT, Descriptors.primitiveCategory("Z"));
 		assertEquals(PrimitiveType.INT, Descriptors.primitiveCategory("B"));
