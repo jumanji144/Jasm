@@ -204,6 +204,227 @@ class DalvikAnalysisValueTest {
 	}
 
 	@Test
+	void rawZeroBitPatternsAreZeroSentinelsForEveryConsumer() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisRawZero {
+				    .method public static nullReference ()Ljava/lang/Object; {
+				        registers: 1,
+				        code: {
+				            const v0 #0x00000000
+				            return-object v0
+				        }
+				    }
+				    .method public static intArithmetic ()I {
+				        registers: 2,
+				        code: {
+				            const v0 #0x00000000
+				            add-int v1 v0 v0
+				            return v1
+				        }
+				    }
+				    .method public static floatCompare ()I {
+				        registers: 3,
+				        code: {
+				            const v0 #0x00000000
+				            const v1 #0x00000000
+				            cmpl-float v2 v0 v1
+				            return v2
+				        }
+				    }
+				    .method public static joinedWithObject (I)Ljava/lang/Object; {
+				        registers: 2,
+				        parameters: { flag },
+				        code: {
+				            const v0 #0x00000000
+				            if-eqz flag Join
+				            const-string v0 "value"
+				        Join:
+				            return-object v0
+				        }
+				    }
+				}
+				""");
+
+		DalvikAnalysisResults nullResults = compilation.results("nullReference", "()Ljava/lang/Object;");
+		assertTrue(nullResults.getFailures().isEmpty(), nullResults.getFailures().toString());
+		assertEquals(Values.NULL_VALUE, terminal(nullResults, compilation.method("nullReference", "()Ljava/lang/Object;")).value());
+
+		DalvikAnalysisResults intResults = compilation.results("intArithmetic", "()I");
+		assertTrue(intResults.getFailures().isEmpty(), intResults.getFailures().toString());
+		assertEquals(Values.INT_0, terminal(intResults, compilation.method("intArithmetic", "()I")).value());
+
+		DalvikAnalysisResults floatResults = compilation.results("floatCompare", "()I");
+		assertTrue(floatResults.getFailures().isEmpty(), floatResults.getFailures().toString());
+		assertEquals(Values.INT_0, terminal(floatResults, compilation.method("floatCompare", "()I")).value());
+
+		DalvikAnalysisResults joinResults = compilation.results("joinedWithObject", "(I)Ljava/lang/Object;");
+		assertTrue(joinResults.getFailures().isEmpty(), joinResults.getFailures().toString());
+	}
+
+	@Test
+	void rawZeroJoinsWithFloatConstantAsFloat() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisRawZeroFloatJoin {
+				    .method public static joined (I)F {
+				        registers: 2,
+				        parameters: { flag },
+				        code: {
+				            const v0 #0x00000000
+				            if-eqz flag Join
+				            const v0 1.5F
+				        Join:
+				            return v0
+				        }
+				    }
+				}
+				""");
+
+		DalvikAnalysisResults results = compilation.results("joined", "(I)F");
+		assertTrue(results.getFailures().isEmpty(), results.getFailures().toString());
+		assertEquals(Values.valueOfPrimitive(PrimitiveType.FLOAT),
+				terminal(results, compilation.method("joined", "(I)F")).value());
+	}
+
+	@Test
+	void rawWideZeroBitPatternsAreUntypedForLongAndDoubleConsumers() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisRawWideZero {
+				    .method public static longSum ()J {
+				        registers: 4,
+				        code: {
+				            const-wide v0 #0x0000000000000000
+				            const-wide v2 1L
+				            add-long v0 v0 v2
+				            return-wide v0
+				        }
+				    }
+				    .method public static doubleSum ()D {
+				        registers: 4,
+				        code: {
+				            const-wide v0 #0x0000000000000000
+				            const-wide v2 1.0
+				            add-double v0 v0 v2
+				            return-wide v0
+				        }
+				    }
+				    .method public static joinedLong (I)J {
+				        registers: 3,
+				        parameters: { flag },
+				        code: {
+				            const-wide v0 #0x0000000000000000
+				            if-eqz flag Join
+				            const-wide v0 5L
+				        Join:
+				            return-wide v0
+				        }
+				    }
+				    .method public static explicitDoubleZeroIsNotLong ()J {
+				        registers: 4,
+				        code: {
+				            const-wide v0 0.0
+				            const-wide v2 1L
+				            add-long v0 v0 v2
+				            return-wide v0
+				        }
+				    }
+				}
+				""");
+
+		DalvikAnalysisResults longResults = compilation.results("longSum", "()J");
+		assertTrue(longResults.getFailures().isEmpty(), longResults.getFailures().toString());
+		assertEquals(Values.valueOf(1L), terminal(longResults, compilation.method("longSum", "()J")).value());
+
+		DalvikAnalysisResults doubleResults = compilation.results("doubleSum", "()D");
+		assertTrue(doubleResults.getFailures().isEmpty(), doubleResults.getFailures().toString());
+		assertEquals(new Value.KnownDoubleValue(1.0), terminal(doubleResults, compilation.method("doubleSum", "()D")).value());
+
+		DalvikAnalysisResults joinResults = compilation.results("joinedLong", "(I)J");
+		assertTrue(joinResults.getFailures().isEmpty(), joinResults.getFailures().toString());
+		assertEquals(Values.valueOfPrimitive(PrimitiveType.LONG),
+				terminal(joinResults, compilation.method("joinedLong", "(I)J")).value());
+
+		// An explicitly typed double zero keeps its category: it is not silently readable as a long.
+		DalvikAnalysisResults explicitResults = compilation.results("explicitDoubleZeroIsNotLong", "()J");
+		assertFalse(explicitResults.getFailures().isEmpty());
+		assertTrue(explicitResults.getFailures().toString().contains("wrong primitive category for LONG"),
+				explicitResults.getFailures().toString());
+	}
+
+	@Test
+	void rawWideZeroSurvivesMovesAndComparisons() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisRawWideZeroMove {
+				    .method public static movedCompare ()I {
+				        registers: 6,
+				        code: {
+				            const-wide v0 #0x0000000000000000
+				            move-wide v2 v0
+				            cmp-long v4 v0 v2
+				            return v4
+				        }
+				    }
+				}
+				""");
+
+		DalvikAnalysisResults results = compilation.results("movedCompare", "()I");
+		assertTrue(results.getFailures().isEmpty(), results.getFailures().toString());
+		assertEquals(Values.INT_0, terminal(results, compilation.method("movedCompare", "()I")).value());
+	}
+
+	@Test
+	void arrayElementLoadsUseTheArrayComponentType() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisArrayElements {
+				    .method public static floatElement ()I {
+				        registers: 5,
+				        code: {
+				            const v0 1
+				            new-array v1 v0 [F
+				            const v2 0
+				            aget v3 v1 v2
+				            cmpl-float v4 v3 v3
+				            return v4
+				        }
+				    }
+				    .method public static floatParameter ([F)I {
+				        registers: 4,
+				        parameters: { values },
+				        code: {
+				            const v0 0
+				            aget v1 values v0
+				            cmpl-float v2 v1 v1
+				            return v2
+				        }
+				    }
+				    .method public static intElement ()I {
+				        registers: 4,
+				        code: {
+				            const v0 1
+				            new-array v1 v0 [I
+				            const v2 0
+				            aget v3 v1 v2
+				            add-int v0 v3 v3
+				            return v0
+				        }
+				    }
+				}
+				""");
+
+		DalvikAnalysisResults floatResults = compilation.results("floatElement", "()I");
+		assertTrue(floatResults.getFailures().isEmpty(), floatResults.getFailures().toString());
+		DalvikAnalysisResults parameterResults = compilation.results("floatParameter", "([F)I");
+		assertTrue(parameterResults.getFailures().isEmpty(), parameterResults.getFailures().toString());
+		DalvikAnalysisResults intResults = compilation.results("intElement", "()I");
+		assertTrue(intResults.getFailures().isEmpty(), intResults.getFailures().toString());
+		assertEquals(Values.INT_VALUE, terminal(intResults, compilation.method("intElement", "()I")).value());
+	}
+
+	@Test
 	void preservesTypedStringAndClassConstants() {
 		Compilation compilation = compile("""
 				.super java/lang/Object

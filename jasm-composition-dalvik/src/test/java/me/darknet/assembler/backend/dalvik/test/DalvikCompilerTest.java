@@ -19,13 +19,16 @@ import me.darknet.dex.tree.definitions.instructions.ConstMethodHandleInstruction
 import me.darknet.dex.tree.definitions.instructions.ConstMethodTypeInstruction;
 import me.darknet.dex.tree.definitions.constant.NullConstant;
 import me.darknet.dex.tree.definitions.instructions.FillArrayDataInstruction;
+import me.darknet.dex.tree.definitions.MemberIdentifier;
 import me.darknet.dex.tree.type.InstanceType;
+import me.darknet.dex.tree.type.Types;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -346,6 +349,73 @@ class DalvikCompilerTest {
             var method = result.representation().definition().getMethod("value", "()I");
             assertNotNull(method, "Expected the annotation element method");
             assertEquals(new me.darknet.dex.tree.definitions.constant.IntConstant(42), method.getDefaultValue());
+        });
+    }
+
+    @Test
+    void compilesEnumAnnotationDefaultOntoElementMethod() {
+        TestUtils.processDalvik("""
+                .super java/lang/Object
+                .class public abstract interface Example {
+                    .method public abstract unit ()Ljava/util/concurrent/TimeUnit; {
+                        default-value: .enum java/util/concurrent/TimeUnit SECONDS Ljava/util/concurrent/TimeUnit;
+                    }
+                }
+                """, TestUtils.options(), result -> {
+            var method = result.representation().definition().getMethod("unit", "()Ljava/util/concurrent/TimeUnit;");
+            assertNotNull(method, "Expected the annotation element method");
+            InstanceType owner = Types.instanceTypeFromInternalName("java/util/concurrent/TimeUnit");
+            assertEquals(new me.darknet.dex.tree.definitions.constant.EnumConstant(owner,
+                    new MemberIdentifier("SECONDS", owner)), method.getDefaultValue());
+        });
+    }
+
+    @Test
+    void compilesEmptyArrayAnnotationDefaultOntoElementMethod() {
+        TestUtils.processDalvik("""
+                .super java/lang/Object
+                .class public abstract interface Example {
+                    .method public abstract names ()[Ljava/lang/String; {
+                        default-value: {  }
+                    }
+                }
+                """, TestUtils.options(), result -> {
+            var method = result.representation().definition().getMethod("names", "()[Ljava/lang/String;");
+            assertNotNull(method, "Expected the annotation element method");
+            assertEquals(new me.darknet.dex.tree.definitions.constant.ArrayConstant(List.of()), method.getDefaultValue());
+        });
+    }
+
+    @Test
+    void compilesNestedAnnotationDefaultOntoElementMethod() {
+        TestUtils.processDalvik("""
+                .super java/lang/Object
+                .class public abstract interface Example {
+                    .method public abstract value ()Ljava/lang/Deprecated; {
+                        default-value: .annotation java/lang/Deprecated {}
+                    }
+                }
+                """, TestUtils.options(), result -> {
+            var method = result.representation().definition().getMethod("value", "()Ljava/lang/Deprecated;");
+            assertNotNull(method, "Expected the annotation element method");
+            var nested = assertInstanceOf(me.darknet.dex.tree.definitions.constant.AnnotationConstant.class, method.getDefaultValue());
+            assertTrue(nested.annotation().elements().isEmpty(), "The nested annotation has no elements");
+        });
+    }
+
+    @Test
+    void compilesBooleanAnnotationDefaultOntoElementMethod() {
+        TestUtils.processDalvik("""
+                .super java/lang/Object
+                .class public abstract interface Example {
+                    .method public abstract enabled ()Z {
+                        default-value: true
+                    }
+                }
+                """, TestUtils.options(), result -> {
+            var method = result.representation().definition().getMethod("enabled", "()Z");
+            assertNotNull(method, "Expected the annotation element method");
+            assertEquals(new me.darknet.dex.tree.definitions.constant.BoolConstant(true), method.getDefaultValue());
         });
     }
 

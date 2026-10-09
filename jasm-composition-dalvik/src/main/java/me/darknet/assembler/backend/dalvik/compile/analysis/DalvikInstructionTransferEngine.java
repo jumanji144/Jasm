@@ -131,7 +131,16 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 			write(instruction.value(), Values.OBJECT_VALUE);
 			return;
 		}
-		if (opcode == Opcodes.AGET || opcode == Opcodes.AGET_BOOLEAN || opcode == Opcodes.AGET_BYTE
+		if (opcode == Opcodes.AGET) {
+			Value array = arrayValue(instruction.array());
+			if (array instanceof Value.ArrayValue arrayValue && arrayValue.arrayType().component() == FLOAT) {
+				write(instruction.value(), Values.valueOfPrimitive(FLOAT));
+				return;
+			}
+			write(instruction.value(), Values.INT_VALUE);
+			return;
+		}
+		if (opcode == Opcodes.AGET_BOOLEAN || opcode == Opcodes.AGET_BYTE
 				|| opcode == Opcodes.AGET_CHAR || opcode == Opcodes.AGET_SHORT) {
 			write(instruction.value(), Values.INT_VALUE);
 			return;
@@ -235,7 +244,10 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 		ASTElement literal = sourceLiteral();
 		if (literal instanceof ASTNumber number) {
 			try {
-				if (number.isFloatingPoint())
+				// Zero bits are the same for int, float and null, so they stay untyped until a consumer reads them.
+				if (number.isBitPattern() && instruction.value() == 0)
+					write(instruction.register(), DalvikZeroValue.INSTANCE);
+				else if (number.isFloatingPoint())
 					write(instruction.register(), new Value.KnownFloatValue(Float.intBitsToFloat(instruction.value())));
 				else if (instruction.value() == 0)
 					write(instruction.register(), DalvikZeroValue.INSTANCE);
@@ -263,7 +275,10 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 		ASTElement literal = sourceLiteral();
 		if (literal instanceof ASTNumber number) {
 			try {
-				if (number.isFloatingPoint())
+				// Zero bits are the same for long, double and +0.0, so they stay untyped until a consumer reads them.
+				if (number.isBitPattern() && instruction.value() == 0)
+					write(instruction.register(), DalvikWideZeroValue.INSTANCE);
+				else if (number.isFloatingPoint())
 					write(instruction.register(), new Value.KnownDoubleValue(Double.longBitsToDouble(instruction.value())));
 				else
 					write(instruction.register(), Values.valueOf(instruction.value()));
@@ -357,6 +372,7 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 	@Override
 	public void execute(@NotNull InvokeInstruction instruction) {
 		produceInvokeResult(instruction);
+		initializeConstructedReceiver(instruction);
 	}
 
 	@Override
@@ -553,6 +569,37 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 	}
 
 	/**
+	 * Completes an allocation once its constructor has been invoked on it. Every register that still holds the
+	 * uninitialized receiver becomes an initialized reference to the allocated class.
+	 *
+	 * @param instruction
+	 * 		The invoke instruction.
+	 */
+	private void initializeConstructedReceiver(@NotNull InvokeInstruction instruction) {
+		if (instruction.opcode() != Opcodes.INVOKE_DIRECT && instruction.opcode() != Opcodes.INVOKE_DIRECT_RANGE)
+			return;
+		if (!"<init>".equals(instruction.name()))
+			return;
+		int[] registers = instruction.isRange() ? null : instruction.arguments();
+		if (registers != null && registers.length == 0)
+			return;
+		Value receiver;
+		try {
+			receiver = input.readSingle(argumentRegister(instruction, registers, 0));
+		} catch (RuntimeException ignored) {
+			// Invalid receiver registers are reported by the invoke's own argument handling.
+			return;
+		}
+		if (!(receiver instanceof Value.UninitializedReferenceValue uninitialized))
+			return;
+		Value initialized = Values.valueOfInstance(uninitialized.owner());
+		for (int register = 0; register < output.registerCount(); register++) {
+			if (output.slot(register) instanceof DalvikRegisterState.ValueHead(Value value) && value.equals(uninitialized))
+				output.write(register, initialized);
+		}
+	}
+
+	/**
 	 * Resolves a direct invoke when every register word can be grouped into known logical arguments.
 	 *
 	 * @param instruction
@@ -642,6 +689,8 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 
 				// And check the value of the wide type is known and of the correct type.
 				Value value = readLookupWide(register);
+				if (value == DalvikWideZeroValue.INSTANCE)
+					value = parameter == LONG ? Values.valueOf(0L) : new Value.KnownDoubleValue(0.0);
 				if (!(value instanceof Value.PrimitiveValue primitive) || primitive.type() != parameter || !value.isKnown())
 					return null;
 
@@ -950,6 +999,14 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 		// If the value is the Dalvik zero value and the expected type is INT, treat it as a known int zero.
 		if (value == DalvikZeroValue.INSTANCE && expected == INT)
 			return Values.INT_0;
+
+		// Zero bits read as a float are +0.0f.
+		if (value == DalvikZeroValue.INSTANCE && expected == FLOAT)
+			return new Value.KnownFloatValue(0.0f);
+
+		// Wide zero bits read as a long are 0L, and as a double are +0.0.
+		if (value == DalvikWideZeroValue.INSTANCE)
+			return expected == LONG ? Values.valueOf(0L) : new Value.KnownDoubleValue(0.0);
 
 		// If the value is not a primitive value or its type does not match the expected type, fail.
 		if (!(value instanceof Value.PrimitiveValue primitive) || primitive.type() != expected) {

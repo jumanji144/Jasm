@@ -133,7 +133,7 @@ public interface ASTAnnotationVisitor {
                                 }
                             }
                         } catch (Exception ex) {
-                            sink.error(DiagnosticCode.UNSUPPORTED_FORM, "Unprocessable declaration (enum?) in annotation", key.location());
+                            sink.error(DiagnosticCode.UNSUPPORTED_FORM, "Unprocessable declaration (enum?) in annotation: " + ex, value.location());
                             continue;
                         }
                     } else if (value == null) {

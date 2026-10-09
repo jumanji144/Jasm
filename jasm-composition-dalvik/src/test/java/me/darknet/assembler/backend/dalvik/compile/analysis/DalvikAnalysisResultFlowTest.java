@@ -29,6 +29,7 @@ import me.darknet.dex.tree.definitions.instructions.InvokeInstruction;
 import me.darknet.dex.tree.definitions.instructions.MoveExceptionInstruction;
 import me.darknet.dex.tree.definitions.instructions.MoveResultInstruction;
 import me.darknet.dex.tree.definitions.instructions.ReturnInstruction;
+import me.darknet.dex.tree.definitions.instructions.ThrowInstruction;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -108,6 +109,67 @@ class DalvikAnalysisResultFlowTest {
 		assertEquals(Values.INT_VALUE, compilation.results("polymorphic", "(Ljava/lang/Object;)I")
 				.getStateBefore(instruction(compilation.method("polymorphic", "(Ljava/lang/Object;)I").getCode(),
 						MoveResultInstruction.class)).pendingResult());
+	}
+
+	@Test
+	void constructorInvocationInitializesTheAllocatedReceiver() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public InitFlow {
+				    .method public static fail ()V {
+				        registers: 3,
+				        code: {
+				            new-instance v0 Ljava/lang/IllegalStateException;
+				            const-string v1 "x"
+				            invoke-direct { v0, v1 } java/lang/IllegalStateException.<init> (Ljava/lang/String;)V
+				            throw v0
+				        }
+				    }
+				    .method public static create ()Ljava/lang/Object; {
+				        registers: 1,
+				        code: {
+				            new-instance v0 Ljava/lang/Object;
+				            invoke-direct { v0 } java/lang/Object.<init> ()V
+				            return-object v0
+				        }
+				    }
+				}
+				""");
+
+		MethodMember fail = compilation.method("fail", "()V");
+		DalvikAnalysisResults failResults = compilation.results("fail", "()V");
+		assertTrue(failResults.getFailures().isEmpty(), failResults.getFailures().toString());
+		ThrowInstruction throwing = instruction(fail.getCode(), ThrowInstruction.class);
+		assertEquals(Values.valueOfInstance(new ClassDescriptor("java/lang/IllegalStateException")),
+				failResults.getTerminalStates().get(failResults.getInstructionIndex(throwing)).value());
+
+		DalvikAnalysisResults createResults = compilation.results("create", "()Ljava/lang/Object;");
+		assertTrue(createResults.getFailures().isEmpty(), createResults.getFailures().toString());
+	}
+
+	@Test
+	void constructorInvocationInitializesEveryAliasOfTheAllocation() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public InitAliasFlow {
+				    .method public static aliased ()V {
+				        registers: 2,
+				        code: {
+				            new-instance v0 Ljava/lang/IllegalStateException;
+				            move-object v1 v0
+				            invoke-direct { v1 } java/lang/IllegalStateException.<init> ()V
+				            throw v0
+				        }
+				    }
+				}
+				""");
+
+		MethodMember aliased = compilation.method("aliased", "()V");
+		DalvikAnalysisResults results = compilation.results("aliased", "()V");
+		assertTrue(results.getFailures().isEmpty(), results.getFailures().toString());
+		ThrowInstruction throwing = instruction(aliased.getCode(), ThrowInstruction.class);
+		assertEquals(Values.valueOfInstance(new ClassDescriptor("java/lang/IllegalStateException")),
+				results.getTerminalStates().get(results.getInstructionIndex(throwing)).value());
 	}
 
 	@Test

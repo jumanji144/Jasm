@@ -4,7 +4,6 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTCode;
-import me.darknet.assembler.ast.primitive.ASTDeclaration;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTNumber;
@@ -241,25 +240,6 @@ public class ASTProcessorTest {
                     assertEquals("0", value.values().get(0).content());
                     assertEquals("1", value.values().get(1).content());
                     assertEquals("2", value.values().get(2).content());
-                }
-        );
-    }
-
-    @Test
-    void parsesNestedAnnotationDefaultValues() {
-        ASTProcessorTest.assertOne(
-                ".method public abstract subanno ()Ljava/lang/annotation/Retention; {" +
-                        " parameters: { this }," +
-                        " default-value: .annotation java/lang/annotation/Retention {" +
-                        "  value: .enum java/lang/annotation/RetentionPolicy CLASS" +
-                        " }" +
-                        "}",
-                ASTMethod.class,
-                method -> {
-                    ASTDeclaration value = assertInstanceOf(ASTDeclaration.class, method.getAnnotationDefaultValue());
-                    assertEquals(".annotation", value.keyword().content());
-                    assertEquals("java/lang/annotation/Retention", value.element(0).content());
-                    assertNotNull(value.element(1));
                 }
         );
     }

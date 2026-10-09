@@ -78,7 +78,7 @@ final class MethodDeclarationParser {
 		ASTElement defaultValueElement = body.values().get(ProcessorKeywords.DEFAULT_VALUE);
 		if (defaultValueElement != null && context.supports(AnnotationCapability.ANNOTATION_DEFAULT_VALUES, defaultValueElement)) {
 			context.enterState(ProcessorFlag.IN_ANNOTATION);
-			AnnotationDeclarationParser.validateElementValue(context, defaultValueElement);
+			defaultValueElement = AnnotationDeclarationParser.validateElementValue(context, defaultValueElement);
 			context.leaveState(ProcessorFlag.IN_ANNOTATION);
 		}
 

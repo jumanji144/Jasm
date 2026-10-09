@@ -6,6 +6,7 @@ import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.descriptor.ArrayDescriptor;
 import me.darknet.assembler.descriptor.ClassDescriptor;
 import me.darknet.assembler.descriptor.DescriptorType;
+import me.darknet.assembler.descriptor.PrimitiveType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -56,22 +57,15 @@ public final class DalvikRegisterStateMerger {
 				if (targetPair == register && incomingPair == register) {
 					Value left = target.readWide(register);
 					Value right = incoming.readWide(register);
-					if (left.type() == right.type()) {
-						Value joined = joinValues(inheritanceChecker, left, right);
-						if (joined == null) {
-							changed |= clearRange(target, register, register + 1);
-							incompatible.add(register);
-							incompatible.add(register + 1);
-						} else if (!left.equals(joined)) {
-							target.writeWide(register, joined);
-							changed = true;
-						}
-						mark(handled, register, register + 1);
-						continue;
+					Value joined = joinValues(inheritanceChecker, left, right);
+					if (joined == null) {
+						changed |= clearRange(target, register, register + 1);
+						incompatible.add(register);
+						incompatible.add(register + 1);
+					} else if (!left.equals(joined)) {
+						target.writeWide(register, joined);
+						changed = true;
 					}
-					changed |= clearRange(target, register, register + 1);
-					incompatible.add(register);
-					incompatible.add(register + 1);
 					mark(handled, register, register + 1);
 					continue;
 				}
@@ -278,6 +272,10 @@ public final class DalvikRegisterStateMerger {
 		if (left == DalvikZeroValue.INSTANCE || right == DalvikZeroValue.INSTANCE)
 			return joinZero(left, right);
 
+		// The wide zero is compatible with either wide type, so it joins with the other path's wide type.
+		if (left == DalvikWideZeroValue.INSTANCE || right == DalvikWideZeroValue.INSTANCE)
+			return joinWideZero(left, right);
+
 		// Top values and backend markers are compatible with any value, so we can return null to indicate that the result is unknown.
 		if (left instanceof Value.TopValue
 				|| right instanceof Value.TopValue
@@ -371,10 +369,31 @@ public final class DalvikRegisterStateMerger {
 			return DalvikZeroValue.INSTANCE;
 		else if (other instanceof Value.IntValue)
 			return Values.INT_VALUE;
+		else if (other instanceof Value.FloatValue)
+			return Values.valueOfPrimitive(PrimitiveType.FLOAT);
 		else if (other instanceof Value.NullValue)
 			return DalvikZeroValue.INSTANCE;
 		else if (other instanceof Value.ObjectValue objectValue)
 			return unknownReference(objectValue.type());
+		return null;
+	}
+
+	/**
+	 * Joins a wide {@link DalvikWideZeroValue "zero"} value with another value.
+	 *
+	 * @param left
+	 * 		Left value.
+	 * @param right
+	 * 		Right value.
+	 *
+	 * @return Joined value, or {@code null} if the other value is not a wide primitive.
+	 */
+	private static @Nullable Value joinWideZero(@NotNull Value left, @NotNull Value right) {
+		Value other = left == DalvikWideZeroValue.INSTANCE ? right : left;
+		if (other == DalvikWideZeroValue.INSTANCE)
+			return DalvikWideZeroValue.INSTANCE;
+		if (other instanceof Value.PrimitiveValue primitive && primitive.isWide())
+			return Values.valueOfPrimitive(primitive.type());
 		return null;
 	}
 
