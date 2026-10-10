@@ -13,7 +13,6 @@ public enum ElementType {
     BOOL,
     CODE,
     CODE_INSTRUCTION,
-    COMMENT,
     EMPTY,
     // Specific
     CLASS,
@@ -22,11 +21,8 @@ public enum ElementType {
     ANNOTATION,
     ENUM,
     INNER_CLASS,
-    SIGNATURE,
     RECORD_COMPONENT,
     OUTER_METHOD,
-    CLASS_TYPE,
-    METHOD_TYPE,
     EXCEPTION
 
 }

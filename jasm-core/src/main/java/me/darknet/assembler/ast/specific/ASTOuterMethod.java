@@ -5,6 +5,9 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Enclosing-method metadata node containing a method name and descriptor.
+ */
 public class ASTOuterMethod extends ASTElement {
     private final ASTIdentifier methodName;
     private final ASTIdentifier methodDesc;

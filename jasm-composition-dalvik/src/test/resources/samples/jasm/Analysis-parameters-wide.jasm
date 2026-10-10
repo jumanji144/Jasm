@@ -1,0 +1,10 @@
+.super java/lang/Object
+.class public AnalysisParametersWide {
+    .method public static wide (JLjava/lang/String;D)J {
+        registers: 7,
+        parameters: { wideValue, text, fraction },
+        code: {
+            return-wide wideValue
+        }
+    }
+}

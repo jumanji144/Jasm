@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+/**
+ * Instruction node containing a mnemonic identifier and its source operands.
+ */
 public class ASTInstruction extends ASTElement {
 
     private final ASTIdentifier identifier;
@@ -19,7 +22,7 @@ public class ASTInstruction extends ASTElement {
     public ASTInstruction(ASTIdentifier identifier, List<@Nullable ASTElement> arguments) {
         super(ElementType.CODE_INSTRUCTION, CollectionUtil.mergeNonNull(arguments, identifier));
         this.identifier = identifier;
-        this.arguments = arguments;
+        this.arguments = CollectionUtil.immutableCopy(arguments);
     }
 
     @Override
@@ -39,19 +42,34 @@ public class ASTInstruction extends ASTElement {
         return arguments;
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Returns an operand as the requested AST type, preserving the existing empty-value and numeric-token
+     * adaptations. A {@code null} operand is returned unchanged.
+     *
+     * @param index
+     *        The operand index.
+     * @param type
+     *        The expected AST element type.
+     * @param <T>
+     *        The expected AST element type.
+     * @return The operand, adapted when supported, or {@code null} when the operand is {@code null}.
+     * @throws IllegalStateException if a non-null operand is incompatible with the requested type.
+     */
     public <T extends ASTElement> T argument(int index, Class<T> type) {
         ASTElement element = arguments.get(index);
         if (element instanceof ASTEmpty) {
             if (type == ASTArray.class)
-                return (T) ASTEmpty.EMPTY_ARRAY;
-            if (type == ASTObject.class)
-                return (T) ASTEmpty.EMPTY_OBJECT;
+                element = ASTEmpty.EMPTY_ARRAY;
+            else if (type == ASTObject.class)
+                element = ASTEmpty.EMPTY_OBJECT;
         }
-        if (element instanceof ASTNumber number && type == ASTIdentifier.class) {
-            return (T) new ASTIdentifier(number.value());
+        if (element instanceof ASTNumber number && type == ASTIdentifier.class)
+            element = new ASTIdentifier(number.value());
+        if (element != null && !type.isInstance(element)) {
+            throw new IllegalStateException("Operand " + index + " is " + element.getClass().getSimpleName()
+                    + " but the translator expects " + type.getSimpleName());
         }
-        return (T) arguments.get(index);
+        return type.cast(element);
     }
 
     public ASTIdentifier argument(int index) {

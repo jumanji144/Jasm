@@ -2,15 +2,14 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
-import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.Result;
+import me.darknet.assembler.ast.specific.ASTMethod;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.test.AssemblyParseFixture;
+import me.darknet.assembler.test.DiagnosticAssertions;
+import me.darknet.assembler.test.FixtureTarget;
 import me.darknet.assembler.parser.DeclarationParser;
-import me.darknet.assembler.parser.Token;
-import me.darknet.assembler.parser.Tokenizer;
-import me.darknet.assembler.util.Location;
 
-import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,11 +19,9 @@ import java.util.function.Consumer;
 
 public class DeclarationParserTest {
 
-    @SuppressWarnings("unchecked")
-    public static <T> @NotNull T assertIs(Class<T> shouldBe, Object is) {
+    public static <T> T assertIs(Class<T> shouldBe, Object is) {
         assertNotNull(is);
-        assertInstanceOf(shouldBe, is);
-        return (T) is;
+        return assertInstanceOf(shouldBe, is);
     }
 
     @SuppressWarnings("unchecked")
@@ -39,25 +36,10 @@ public class DeclarationParserTest {
     }
 
     public static void parseString(String input, Consumer<List<ASTElement>> consumer) {
-        DeclarationParser parser = new DeclarationParser();
-        Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", input).get();
-        Assertions.assertNotNull(tokens);
-        Assertions.assertFalse(tokens.isEmpty());
-        Result<List<ASTElement>> result = parser.parseAny(tokens);
-        if (result.hasErr()) {
-            for (Error error : result.errors()) {
-                Location location = error.getLocation();
-                System.err.printf(
-                        "%s:%d:%d: %s%n", location.source(), location.line(), location.column(), error.getMessage()
-                );
-                Throwable trace = new Throwable();
-                trace.setStackTrace(error.getInCodeSource());
-                trace.printStackTrace();
-            }
-            Assertions.fail();
-        }
-        consumer.accept(result.get());
+        consumer.accept(DiagnosticAssertions.requireSuccess(
+                AssemblyParseFixture.parse(input),
+                "Failed to parse declaration input"
+        ));
     }
 
     @Test
@@ -184,6 +166,14 @@ public class DeclarationParserTest {
                     assertEquals("A", innerName.content());
                 }
         );
+        assertOne(".deprecated", ASTDeclaration.class, (result) -> {
+            assertEquals(".deprecated", result.keyword().content());
+            assertTrue(result.elements().isEmpty());
+        });
+        assertOne(".source-debug-extension \"SMAP\"", ASTDeclaration.class, (result) -> {
+            assertEquals(".source-debug-extension", result.keyword().content());
+            assertEquals("SMAP", result.element(0).content());
+        });
     }
 
     @Test
@@ -236,13 +226,139 @@ public class DeclarationParserTest {
     }
 
     @Test
+    public void testMethodBodyThrowsKey() {
+        assertOne(
+                ".method public test ()V { throws: { java/lang/Exception, java/io/IOException } }",
+                ASTDeclaration.class,
+                result -> {
+                    ASTObject body = assertIs(ASTObject.class, result.element(3));
+                    ASTArray declaredThrows = assertIs(ASTArray.class, body.value("throws"));
+                    assertEquals(2, declaredThrows.values().size());
+                    assertEquals("java/lang/Exception", declaredThrows.value(0).content());
+                    assertEquals("java/io/IOException", declaredThrows.value(1).content());
+                }
+        );
+    }
+
+    @Test
+    public void testParameterAnnotationCodeKeyIsNotParsedAsMethodCode() {
+        List<ASTElement> processed = DiagnosticAssertions.requireSuccess(
+                AssemblyParseFixture.processAst(
+                        ".method public test (Ljava/lang/String;)V { " +
+                                "parameters: { code }, " +
+                                "parameter-annotations: { code: { .invisible-annotation gov/tak/api/annotation/NonNull {} } }, " +
+                                "code: {} }"
+                ),
+                "Parameter annotation key named code should process successfully"
+        );
+        ASTMethod method = assertIs(ASTMethod.class, processed.getFirst());
+
+        assertEquals(1, method.getParameterAnnotations().size());
+        assertEquals(1, method.getParameterAnnotations().values().iterator().next().size());
+    }
+
+    @Test
+    public void testCodeKeyInAnnotationValuesRemainsAnObject() {
+        assertOne(
+                ".annotation Example { code: { value: 1 } }",
+                ASTDeclaration.class,
+                declaration -> {
+                    ASTObject values = assertIs(ASTObject.class, declaration.element(1));
+                    ASTObject code = assertIs(ASTObject.class, values.value("code"));
+                    assertEquals("1", code.value("value").content());
+                }
+        );
+    }
+
+    @Test
+    public void testMethodCodeKeyStillProducesAstCode() {
+        List<ASTElement> processed = DiagnosticAssertions.requireSuccess(
+                AssemblyParseFixture.processAst(".method public test ()V {\n    code: {\n        return-void\n    }\n}"),
+                "Method code block should process"
+        );
+        ASTMethod method = assertIs(ASTMethod.class, processed.getFirst());
+
+        assertInstanceOf(ASTCode.class, method.getCode());
+        assertEquals(1, method.getCode().getInstructions().size());
+    }
+
+    @Test
     public void testInvalidInput() {
-        DeclarationParser parser = new DeclarationParser();
-        Tokenizer tokenizer = new Tokenizer();
-        List<Token> tokens = tokenizer.tokenize("<stdin>", "{ test, 4.... { {").get();
-        Result<List<ASTElement>> result = parser.parseAny(tokens);
-        assertTrue(result.hasErr());
+        var result = AssemblyParseFixture.parse("{ test, 4.... { {");
+        DiagnosticAssertions.assertHasError(result, DiagnosticCode.UNEXPECTED_TOKEN,
+                "Malformed declaration input should report a syntax diagnostic");
+        DiagnosticAssertions.assertPhase(result.diagnostics(), DiagnosticPhase.SYNTAX,
+                "Malformed declaration input should be reported in the syntax phase");
         assertEquals(2, result.errors().size());
+    }
+
+    @Test
+    public void testMissingClosingDelimitersReportStructuredErrors() {
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{test"),
+                "Missing array terminator should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{test: 10"),
+                "Missing object terminator should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{.sourcefile \"Source.java\""),
+                "Missing nested declaration terminator should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse(".method public main ()V { code: { aload_0"),
+                "Missing code terminator should produce an error"
+        );
+    }
+
+    @Test
+    public void testMissingObjectColonReportsStructuredError() {
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{test 10}"),
+                "Missing object colon should produce an error"
+        );
+    }
+
+    @Test
+    public void testMalformedMixedBoundariesReportStructuredErrors() {
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{ .decl foo"),
+                "Malformed nested declaration boundary should produce an error"
+        );
+        DiagnosticAssertions.assertHasErrors(
+                AssemblyParseFixture.parse("{ key:"),
+                "Missing object value should produce an error"
+        );
+    }
+
+    @Test
+    public void testCommentOnlyInputProducesEmptyResults() {
+        String source = "// first\n// second";
+        var tokens = DiagnosticAssertions.requireSuccess(
+                AssemblyParseFixture.tokenize(source),
+                "Failed to tokenize comment-only input"
+        );
+
+        var any = new DeclarationParser().parseAny(tokens);
+        assertTrue(any.isSuccess(), "Comment-only input should parse successfully");
+        assertTrue(DiagnosticAssertions.requireSuccess(any, "Comment-only input should have no syntax diagnostics").isEmpty());
+
+        var declarations = new DeclarationParser().parseDeclarations(tokens);
+        assertTrue(declarations.isSuccess(), "Comment-only declarations should parse successfully");
+        assertTrue(DiagnosticAssertions.requireSuccess(
+                declarations,
+                "Comment-only declarations should have no syntax diagnostics"
+        ).isEmpty());
+
+        var processed = AssemblyParseFixture.processDeclarations(
+                "<stdin>", source, FixtureTarget.JVM.context()
+        );
+        assertTrue(processed.isSuccess(), "Comment-only input should process successfully");
+        assertTrue(DiagnosticAssertions.requireSuccess(
+                processed,
+                "Comment-only input should have no target diagnostics"
+        ).isEmpty());
     }
 
 }

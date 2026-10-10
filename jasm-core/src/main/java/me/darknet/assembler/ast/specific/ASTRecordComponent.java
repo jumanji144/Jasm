@@ -11,6 +11,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Record-component node containing its name, descriptor, optional signature, and annotations.
+ */
 public class ASTRecordComponent extends ASTElement implements ASTAnnotated, ASTSigned {
     private List<ASTAnnotation> visibleAnnotations = Collections.emptyList();
     private List<ASTAnnotation> invisibleAnnotations = Collections.emptyList();
@@ -69,14 +72,16 @@ public class ASTRecordComponent extends ASTElement implements ASTAnnotated, ASTS
 
     @Override
     public void setVisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
-        replaceChildren(this.visibleAnnotations, annotations);
-        this.visibleAnnotations = annotations;
+        List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+        replaceChildren(this.visibleAnnotations, ownedAnnotations);
+        this.visibleAnnotations = ownedAnnotations;
     }
 
     @Override
     public void setInvisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
-        replaceChildren(this.invisibleAnnotations, annotations);
-        this.invisibleAnnotations = annotations;
+        List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+        replaceChildren(this.invisibleAnnotations, ownedAnnotations);
+        this.invisibleAnnotations = ownedAnnotations;
     }
 
     @Override
@@ -91,23 +96,25 @@ public class ASTRecordComponent extends ASTElement implements ASTAnnotated, ASTS
 
     @Override
     public void setVisibleTypeAnnotations(@NotNull List<ASTAnnotation> annotations) {
-        replaceChildren(this.visibleTypeAnnotations, annotations);
-        this.visibleTypeAnnotations = annotations;
+        List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+        replaceChildren(this.visibleTypeAnnotations, ownedAnnotations);
+        this.visibleTypeAnnotations = ownedAnnotations;
     }
 
     @Override
     public void setInvisibleTypeAnnotations(@NotNull List<ASTAnnotation> annotations) {
-        replaceChildren(this.invisibleTypeAnnotations, annotations);
-        this.invisibleTypeAnnotations = annotations;
+        List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+        replaceChildren(this.invisibleTypeAnnotations, ownedAnnotations);
+        this.invisibleTypeAnnotations = ownedAnnotations;
     }
 
     @Override
     public void addVisibleTypeAnnotation(@NotNull ASTAnnotation annotation) {
-        setVisibleAnnotations(CollectionUtil.merge(visibleTypeAnnotations, annotation));
+        setVisibleTypeAnnotations(CollectionUtil.merge(visibleTypeAnnotations, annotation));
     }
 
     @Override
     public void addInvisibleTypeAnnotation(@NotNull ASTAnnotation annotation) {
-        setInvisibleAnnotations(CollectionUtil.merge(invisibleTypeAnnotations, annotation));
+        setInvisibleTypeAnnotations(CollectionUtil.merge(invisibleTypeAnnotations, annotation));
     }
 }

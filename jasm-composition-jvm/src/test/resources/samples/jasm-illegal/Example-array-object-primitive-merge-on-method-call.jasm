@@ -1,0 +1,13 @@
+.super java/lang/Object
+.class public super Example {
+    .method public static exampleMethod ([Ljava/lang/String;)V {
+        parameters: { p0 },
+        code: {
+        A:
+           aload p0
+           invokestatic Dummy.dummy ([I)V
+           return
+        B:
+        }
+    }
+}

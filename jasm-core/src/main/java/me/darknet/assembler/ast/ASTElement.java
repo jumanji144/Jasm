@@ -14,6 +14,9 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+/**
+ * Base AST model.
+ */
 public class ASTElement {
     private static final Comparator<ASTElement> SORT_POS = (o1, o2) -> {
         Location l1 = o1.location();
@@ -21,6 +24,7 @@ public class ASTElement {
         return (l1 != null && l2 != null) ? l1.compareTo(l2) : 0;
     };
     protected final List<ASTElement> children;
+    private final List<ASTElement> childrenView;
     protected ElementType type;
     protected ASTElement parent;
     protected Token value;
@@ -40,6 +44,7 @@ public class ASTElement {
         for (ASTElement child : this.children) {
             child.parent = this;
         }
+        this.childrenView = Collections.unmodifiableList(this.children);
         this.type = type;
     }
 
@@ -47,6 +52,7 @@ public class ASTElement {
         element.parent = this;
         children.add(element);
         children.sort(SORT_POS);
+        invalidateRange();
     }
 
     protected void addChildren(@NotNull Collection<? extends ASTElement> elements) {
@@ -54,14 +60,29 @@ public class ASTElement {
         filtered.forEach(element -> element.parent = this);
         children.addAll(filtered);
         children.sort(SORT_POS);
+        invalidateRange();
     }
 
     protected void removeChild(@NotNull ASTElement element) {
-        children.remove(element);
+        if (children.remove(element) && element.parent == this) {
+            element.parent = null;
+        }
+        invalidateRange();
     }
 
     protected void removeChildren(@NotNull Collection<? extends ASTElement> elements) {
-        children.removeAll(elements);
+        boolean changed = false;
+        for (ASTElement element : elements) {
+            if (element != null && children.remove(element)) {
+                if (element.parent == this) {
+                    element.parent = null;
+                }
+                changed = true;
+            }
+        }
+        if (changed) {
+            invalidateRange();
+        }
     }
 
     protected void replaceChild(@Nullable ASTElement element, @Nullable ASTElement replacement) {
@@ -73,6 +94,13 @@ public class ASTElement {
                                    @Nullable List<? extends ASTElement> replacements) {
         if (elements != null) removeChildren(elements);
         if (replacements != null) addChildren(replacements);
+    }
+
+    protected void invalidateRange() {
+        cachedRange = null;
+        if (parent != null) {
+            parent.invalidateRange();
+        }
     }
 
     /**
@@ -161,7 +189,7 @@ public class ASTElement {
     }
 
     public @NotNull List<ASTElement> children() {
-        return children;
+        return childrenView;
     }
 
     public @Nullable Location location() {
@@ -181,5 +209,10 @@ public class ASTElement {
     public <T extends ASTElement> T accept(ProcessorAttributes attributes) {
         attributes.fill(this);
         return (T) this;
+    }
+
+    @Override
+    public String toString() {
+        return content();
     }
 }

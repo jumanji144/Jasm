@@ -27,7 +27,7 @@ public class ASTDeclaration extends ASTElement {
             this.value = keyword.value();
         }
         this.keyword = keyword;
-        this.elements = elements;
+        this.elements = CollectionUtil.immutableCopy(elements);
     }
 
     public ASTIdentifier keyword() {

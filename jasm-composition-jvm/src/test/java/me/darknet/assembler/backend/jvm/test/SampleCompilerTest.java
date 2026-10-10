@@ -1,0 +1,1345 @@
+package me.darknet.assembler.backend.jvm.test;
+
+import me.darknet.assembler.ast.primitive.ASTInstruction;
+import me.darknet.assembler.backend.jvm.compile.JavaClassRepresentation;
+import me.darknet.assembler.backend.jvm.compile.JvmVariableMode;
+import me.darknet.assembler.backend.jvm.compile.analysis.AnalysisResults;
+import me.darknet.assembler.backend.jvm.compile.analysis.Local;
+import me.darknet.assembler.backend.jvm.compile.analysis.LocalVariableState;
+import me.darknet.assembler.analysis.Value;
+import me.darknet.assembler.analysis.Values;
+import me.darknet.assembler.backend.jvm.compile.analysis.frame.Frame;
+import me.darknet.assembler.backend.jvm.compile.analysis.frame.ValuedFrame;
+import me.darknet.assembler.analysis.registry.BasicMethodValueLookup;
+import me.darknet.assembler.analysis.MethodReference;
+import me.darknet.assembler.descriptor.ClassDescriptor;
+import me.darknet.assembler.analysis.registry.MethodValueLookup;
+import me.darknet.assembler.backend.jvm.compile.analysis.jvm.TypedJvmAnalysisEngine;
+import me.darknet.assembler.backend.jvm.compile.analysis.jvm.ValuedJvmAnalysisEngine;
+import me.darknet.assembler.compiler.ReflectiveInheritanceChecker;
+import me.darknet.assembler.backend.jvm.printer.JvmClassPrinter;
+import me.darknet.assembler.printer.PrintContext;
+
+import me.darknet.assembler.test.ClassDefiner;
+import me.darknet.assembler.backend.jvm.util.JvmTypeUtils;
+import me.darknet.assembler.util.Location;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.ThrowingSupplier;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.LocalVariableNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.VarInsnNode;
+
+import static me.darknet.assembler.backend.jvm.test.TestUtils.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.NavigableMap;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+public class SampleCompilerTest {
+    private static final String PATH_PREFIX = "src/test/resources/samples/jasm/";
+    private static final String PATH_BIN_PREFIX = "src/test/resources/samples/binary/";
+    private static final String PATH_ILLEGAL_PREFIX = "src/test/resources/samples/jasm-illegal/";
+
+    /**
+     * For testing variable outputs.
+     */
+    @Nested
+    class Variables {
+        @Test
+        void basic() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-variables.jasm");
+            String source = arg.source.get();
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                Set<String> varNames = results.frames().values().stream().flatMap(Frame::locals).map(Local::name)
+                        .collect(Collectors.toSet());
+                assertTrue(varNames.contains("this"), "Expected 'this' variable");
+                assertTrue(varNames.contains("other"), "Expected 'other' variable");
+                assertTrue(varNames.contains("hundred"), "Expected 'hundred' variable");
+                assertTrue(varNames.contains("fifty"), "Expected 'fifty' variable");
+                assertTrue(varNames.contains("result"), "Expected 'result' variable");
+                assertTrue(varNames.contains("msPerTick"), "Expected 'msPerTick' variable");
+                assertTrue(varNames.contains("ex"), "Expected 'ex' variable");
+            });
+        }
+
+        @Test
+        void instanceWideParametersKeepSourceNamesAndSlots() {
+            // Similar test derived from MethodVariableLayoutTest
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public test (JLjava/lang/String;)V {
+                            parameters: { this, count, name },
+                            code: {
+                            A:
+                                lload count
+                                pop2
+                                aload name
+                                pop
+                                return
+                            B:
+                            }
+                        }
+                    }
+                    """;
+
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "(JLjava/lang/String;)V");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                Set<String> varNames = results.frames().values().stream()
+                        .flatMap(Frame::locals)
+                        .map(Local::name)
+                        .collect(Collectors.toSet());
+                assertTrue(varNames.contains("this"), "Expected 'this' variable");
+                assertTrue(varNames.contains("count"), "Expected 'count' variable");
+                assertTrue(varNames.contains("name"), "Expected 'name' variable");
+
+                boolean countUsesLongSlot = results.frames().values().stream()
+                        .flatMap(Frame::locals)
+                        .anyMatch(local -> local.index() == 1 && local.name().equals("count"));
+                boolean nameUsesObjectSlot = results.frames().values().stream()
+                        .flatMap(Frame::locals)
+                        .anyMatch(local -> local.index() == 3 && local.name().equals("name"));
+                assertTrue(countUsesLongSlot, "Expected 'count' at local slot 1");
+                assertTrue(nameUsesObjectSlot, "Expected 'name' at local slot 3");
+            });
+        }
+
+        @Test
+        void writeIfAlreadyPresentOnlyEmitsVariablesWhenOverlayMethodHadLocalTable() {
+            // Our small class with a 'value' int variable.
+            String source = """
+                    .super java/lang/Object
+                    .class public hardening/VariableModeOverlay {
+                        .method public static test ()V {
+                            code: {
+                            A:
+                                iconst_0
+                                istore value
+                                return
+                            B:
+                            }
+                        }
+                    }
+                    """;
+
+            // We'll compile this class twice with the same source but different overlays.
+            // First, an overlay that includes a local variable table.
+            TestJvmCompilerOptions withLocals = new TestJvmCompilerOptions();
+            withLocals.withVariableTableMode(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
+            withLocals.withOverlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(true)));
+
+            // In this case we should see that the variable 'value' is emitted since the
+            // overlay method has a local variable table with that variable.
+            processJvm(source, withLocals, result -> {
+                MethodNode method = readMethod(result.representation().classFile(), "test", "()V");
+                assertNotNull(method.localVariables);
+                assertEquals(1, method.localVariables.size());
+                assertEquals("value", method.localVariables.getFirst().name);
+            });
+
+            // The second time the overlay will not have a local variable table, so since the method
+            // no longer matches the 'if already present' contract, we get no variables emitted at all.
+            TestJvmCompilerOptions withoutLocals = new TestJvmCompilerOptions();
+            withoutLocals.withVariableTableMode(JvmVariableMode.WRITE_IF_ALREADY_PRESENT);
+            withoutLocals.withOverlay(new JavaClassRepresentation(buildOverlayClassWithOptionalLocalTable(false)));
+            processJvm(source, withoutLocals, result -> {
+                MethodNode method = readMethod(result.representation().classFile(), "test", "()V");
+                assertTrue(method.localVariables == null || method.localVariables.isEmpty());
+            });
+        }
+    }
+
+    /**
+     * For testing analysis engine capabilities.
+     */
+    @Nested
+    class Analysis {
+        @ParameterizedTest
+        @ValueSource(
+                strings = { "Example-int-multi.jasm", "Example-int-addition.jasm", "Example-int-division.jasm",
+                        "Example-int-iinc.jasm", "Example-int-multiplication.jasm", "Example-int-remainder.jasm",
+                        "Example-int-subtraction.jasm", }
+        )
+        void intMath(String name) throws Throwable {
+            TestArgument arg = TestArgument.fromName(name);
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+                results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
+                    Value returnValue = frame.peek();
+                    if (returnValue instanceof Value.KnownIntValue(int value))
+                        assertEquals(100, value);
+                    else
+                        fail("Unexpected ret-val: " + returnValue);
+                });
+            });
+        }
+
+        @Test
+        void ldcPushType() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-push-type.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+
+                ValuedFrame frame = (ValuedFrame) results.terminalFrames().values().iterator().next();
+                if (frame.peek() instanceof Value.ObjectValue objectValue) {
+                    assertEquals(new ClassDescriptor("java/lang/Class"), objectValue.type(), "Pushing type to stack did not yield class reference");
+                } else {
+                    fail("Did not yield object value");
+                }
+            });
+        }
+
+        @Test
+        void methodLookup() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-string-ops.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(lookup -> {
+                ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
+                engine.setMethodValueLookup(new BasicMethodValueLookup());
+                return engine;
+            });
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+                results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
+                    Value returnValue = frame.peek();
+                    if (returnValue instanceof Value.KnownIntValue(int value))
+                        assertEquals(100, value);
+                    else
+                        fail("Unexpected ret-val: " + returnValue);
+                });
+            });
+        }
+
+        @Test
+        void fieldLookup() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-getstatic.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(lookup -> {
+                ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
+                engine.setFieldValueLookup((instruction, context) -> Values.valueOf(100));
+                return engine;
+            });
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+                results.terminalFrames().values().stream().map(f -> (ValuedFrame) f).forEach(frame -> {
+                    Value returnValue = frame.peek();
+                    if (returnValue instanceof Value.KnownIntValue(int value))
+                        assertEquals(100, value);
+                    else
+                        fail("Unexpected ret-val: " + returnValue);
+                });
+            });
+        }
+
+        @Test
+        void typeInferenceListForValuedAnalysis() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-type-infer-list.jasm");
+            String source = arg.source.get();
+            listTypeInference(source, options -> options.withEngineProvider(ValuedJvmAnalysisEngine::new));
+        }
+
+        @Test
+        void typeInferenceListForValuedAnalysisAlt() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-type-infer-list-alt.jasm");
+            String source = arg.source.get();
+            listTypeInference(source, options -> options.withEngineProvider(ValuedJvmAnalysisEngine::new));
+        }
+
+        @Test
+        void typeInferenceListForTypedAnalysis() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-type-infer-list.jasm");
+            String source = arg.source.get();
+            listTypeInference(source, options -> options.withEngineProvider(TypedJvmAnalysisEngine::new));
+        }
+
+        @Test
+        void typeInferenceListForTypedAnalysisAlt() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-type-infer-list-alt.jasm");
+            String source = arg.source.get();
+            listTypeInference(source, options -> options.withEngineProvider(TypedJvmAnalysisEngine::new));
+        }
+
+        @Test
+        void scopedVariableStatesMergeConcreteTypesAndRewriteLvt() {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public static test (I)V {
+                            parameters: { branch },
+                            code: {
+                            A:
+                                iload branch
+                                ifeq B
+                                new java/lang/Integer
+                                dup
+                                iconst_0
+                                invokespecial java/lang/Integer.<init> (I)V
+                                astore value
+                                goto C
+                            B:
+                                new java/lang/Double
+                                dup
+                                dconst_0
+                                invokespecial java/lang/Double.<init> (D)V
+                                astore value
+                            C:
+                                return
+                            D:
+                            }
+                        }
+                    }
+                    """;
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "(I)V");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                LocalVariableState value = results.localVariableStates().stream()
+                        .filter(state -> state.name().equals("value"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(Type.getType(Number.class), value.type());
+                assertTrue(value.endIndex() > value.startIndex());
+
+                MethodNode method = readMethod(result.representation().classFile(), "test", "(I)V");
+                LocalVariableNode local = method.localVariables.stream()
+                        .filter(candidate -> candidate.name.equals("value"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(Type.getType(Number.class).getDescriptor(), local.desc);
+            });
+        }
+
+        @Test
+        void scopedStatesIgnoreTopWithoutWideningVerifierFrames() {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public static test (I)V {
+                            parameters: { branch },
+                            code: {
+                            A:
+                                iload branch
+                                ifeq B
+                                new java/lang/Integer
+                                dup
+                                iconst_0
+                                invokespecial java/lang/Integer.<init> (I)V
+                                astore value
+                            B:
+                                return
+                            C:
+                            }
+                        }
+                    }
+                    """;
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "(I)V");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                LocalVariableState value = results.localVariableStates().stream()
+                        .filter(state -> state.name().equals("value"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(Type.getType(Integer.class), value.type(), results.localVariableStates().toString());
+                assertTrue(results.localVariableStates().stream()
+                        .noneMatch(state -> JvmTypeUtils.isTop(state.type())));
+
+                MethodNode method = readMethod(result.representation().classFile(), "test", "(I)V");
+                LocalVariableNode local = method.localVariables.stream()
+                        .filter(candidate -> candidate.name.equals("value"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(Type.getType(Integer.class).getDescriptor(), local.desc);
+            });
+        }
+
+        @Test
+        void reportedStatesAreScopedToWhereVariablesAreUsed() {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public static test ()I {
+                            code: {
+                            A:
+                                iconst_1
+                                istore x
+                                iconst_2
+                                istore y
+                                iload y
+                                iload x
+                                iadd
+                                ireturn
+                            B:
+                            }
+                        }
+                    }
+                    """;
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "()I");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                MethodNode method = readMethod(result.representation().classFile(), "test", "()I");
+
+                // Locate the first store and last load for 'x' (slot 0) to derive its expected scope.
+                int firstStore = -1;
+                int lastLoad = -1;
+                for (int i = 0; i < method.instructions.size(); i++) {
+                    AbstractInsnNode instruction = method.instructions.get(i);
+                    if (!(instruction instanceof VarInsnNode variable) || variable.var != 0)
+                        continue;
+                    if (isVarStore(variable.getOpcode()) && firstStore < 0)
+                        firstStore = i;
+                    if (isVarLoad(variable.getOpcode()))
+                        lastLoad = i;
+                }
+                assertTrue(firstStore >= 0, "Expected a store to slot 0");
+                assertTrue(lastLoad >= 0, "Expected a load from slot 0");
+
+                LocalVariableState x = results.localVariableStates().stream()
+                        .filter(state -> state.name().equals("x"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(firstStore, x.startIndex());
+                assertEquals(lastLoad + 1, x.endIndex());
+                // The scope must be strictly narrower than the whole method body.
+                assertTrue(x.startIndex() > 0);
+                assertTrue(x.endIndex() < method.instructions.size());
+            });
+        }
+
+        @Test
+        void reportedParameterStatesKeepFullMethodScope() {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public static test (I)I {
+                            parameters: { branch },
+                            code: {
+                            A:
+                                iload branch
+                                ifeq B
+                                iconst_1
+                                istore x
+                            B:
+                                iconst_2
+                                istore y
+                                iload y
+                                ireturn
+                            C:
+                            }
+                        }
+                    }
+                    """;
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "(I)I");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                MethodNode method = readMethod(result.representation().classFile(), "test", "(I)I");
+
+                // The parameter keeps the full-method scope of its emitted debug entry,
+                // even though it is only read at the start of the method.
+                LocalVariableNode branch = method.localVariables.stream()
+                        .filter(local -> local.name.equals("branch"))
+                        .findFirst()
+                        .orElseThrow();
+                int start = method.instructions.indexOf(branch.start);
+                int end = method.instructions.indexOf(branch.end);
+
+                LocalVariableState branchState = results.localVariableStates().stream()
+                        .filter(state -> state.name().equals("branch"))
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(start, branchState.startIndex());
+                assertEquals(end, branchState.endIndex());
+
+                // Non-parameter locals are still narrowed to their usage range.
+                LocalVariableState y = results.localVariableStates().stream()
+                        .filter(state -> state.name().equals("y"))
+                        .findFirst()
+                        .orElseThrow();
+                assertTrue(y.endIndex() > y.startIndex());
+                assertTrue(y.endIndex() < method.instructions.size());
+            });
+        }
+
+        private static boolean isVarStore(int opcode) {
+            return opcode == Opcodes.ISTORE || opcode == Opcodes.LSTORE || opcode == Opcodes.FSTORE
+                    || opcode == Opcodes.DSTORE || opcode == Opcodes.ASTORE;
+        }
+
+        private static boolean isVarLoad(int opcode) {
+            return opcode == Opcodes.ILOAD || opcode == Opcodes.LLOAD || opcode == Opcodes.FLOAD
+                    || opcode == Opcodes.DLOAD || opcode == Opcodes.ALOAD;
+        }
+
+        @Test
+        void frameDerivedStatesWorkWithoutLocalVariableTable() {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .method public static test ()V {
+                            code: {
+                            A:
+                                ldc "value"
+                                astore value
+                                return
+                            B:
+                            }
+                        }
+                    }
+                    """;
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withVariableTableMode(JvmVariableMode.NEVER_WRITE); // Explicitly disable writing local variable table
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().results("test", "()V");
+                assertNotNull(results);
+                assertNull(results.getAnalysisFailure());
+
+                // We should still be able to infer the type of the variable 'value' from the frame analysis,
+                // even though there is no local variable table.
+                LocalVariableState value = results.localVariableStates().stream()
+                        .filter(state -> state.index() == 0)
+                        .findFirst()
+                        .orElseThrow();
+                assertEquals(Type.getType(String.class), value.type());
+                assertEquals("value", value.name());
+
+                // The actual output LVT should be empty or not present at all.
+                MethodNode method = readMethod(result.representation().classFile(), "test", "()V");
+                assertTrue(method.localVariables == null || method.localVariables.isEmpty());
+            });
+        }
+
+        @SuppressWarnings("DataFlowIssue")
+        void listTypeInference(@NotNull String source, @Nullable Consumer<TestJvmCompilerOptions> optionsConsumer) {
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            if (optionsConsumer != null) optionsConsumer.accept(options);
+            processJvm(source, options, result -> {
+                ClassReader reader = new ClassReader(result.representation().classFile());
+                ClassNode node = new ClassNode();
+                reader.accept(node, 0);
+
+
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                NavigableMap<Integer, Frame> frames = results.frames();
+                Frame lastFrame = frames.lastEntry().getValue();
+                Local local = lastFrame.locals()
+                        .filter(l -> l.name().equals("c"))
+                        .findFirst().orElse(null);
+                 assertNotNull(local, "The 'c' local was not found");
+                 assertEquals(Type.getType(List.class), local.type(), "Expected 'c' == List.class");
+            });
+        }
+    }
+
+    /**
+     * Cases that came up as bug reports. Exist to ensure we do not regress in behavior and re-introduce bugs.
+     */
+    @Nested
+    class Regresssion {
+        @Test
+        void varDifferentiationWithoutDebugSymbols() throws Throwable {
+            byte[] buf = Files.readAllBytes(Path.of(PATH_BIN_PREFIX + "same-var-slot-diff-types.sample"));
+            JvmClassPrinter classPrinter = new JvmClassPrinter(new ByteArrayInputStream(buf));
+            PrintContext<PrintContext<?>> ctx = new PrintContext<>("  ");
+            classPrinter.print(ctx);
+            String source = ctx.toString();
+
+            // Assert the constructor printed OK
+            assertTrue(Pattern.compile("aload this\\n\\s+invokespecial java\\/lang\\/Object\\.<init> \\(\\)V").matcher(source).find(),
+                    "Constructor did not properly emit 'aload this' + 'invokespecial super'");
+
+            // Assert the primitive 'consume(T)' calls printed OK
+            char[] prims = new char[]{'I', 'F', 'D', 'J'};
+            for (char prim : prims) {
+                char lowerPrim = Character.toLowerCase(prim);
+                char insnPrim = lowerPrim;
+                if (insnPrim == 'j') insnPrim = 'l'; // Edge case for longs
+                assertTrue(Pattern.compile(insnPrim + "store " + lowerPrim + "0\\n\\s+" + insnPrim +
+                                "load " + lowerPrim + "0\\n\\s+invokestatic Vars\\.consume \\(" + prim + "\\)V").matcher(source).find(),
+                        "Did not properly emit 'const_T' + 'tstore 0', 'tload 0', 'invoke consume(T)' for T=" + prim);
+            }
+
+            // Assert the object 'consume(T)' printed OK
+            assertTrue(Pattern.compile("astore v0\\n\\s+aload v0\\n\\s+invokestatic Vars\\.consume \\(Ljava\\/lang\\/Object;\\)V").matcher(source).find(),
+                    "Did not properly emit 'aload 0' + 'invoke consume(A)'");
+
+            // The bug before was any variable slot would fall back to 'vN' for N being the var slot.
+            // This would lead 'astore N' and 'istore N' in classes without variable symbols to emit
+            // in JASM 'astore vN' and 'istore vN' which would cause frame merge errors since two incompatible
+            // types were occupying the same space.
+            //
+            // The fix is to differentiate generated names based on type.
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            });
+        }
+
+        @Test
+        void spacesAndCommentsDoNotBreakAstReportedLocations() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-comment.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults methodAnalysis = result.analysisLookup().results("exampleMethod", "()I");
+                assertNotNull(methodAnalysis);
+                Set<ASTInstruction> instructionAstNodes = methodAnalysis.getAstToInstructionMap().keySet();
+                for (ASTInstruction astNode : instructionAstNodes) {
+                    if ("istore".equals(astNode.identifier().content()) ) {
+                        // The istore should appear on line 23
+                        Location location = astNode.location();
+                        assertNotNull(location);
+                        assertEquals(23, location.line());
+                    } else  if ("iload".equals(astNode.identifier().content()) ) {
+                        // The istore should appear on line 36
+                        Location location = astNode.location();
+                        assertNotNull(location);
+                        assertEquals(36, location.line());
+                    }
+                }
+            });
+        }
+
+        @Test
+        void tryWithResourceVariableScopeConfusion_Valued() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            }, warns -> {
+                warns.forEach(System.err::println);
+                fail("No warnings allowed");
+            });
+        }
+
+        @Test
+        void tryWithResourceVariableScopeConfusion_Typed() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-try-with-resources.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(TypedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            }, warns -> {
+                warns.forEach(System.err::println);
+                fail("No warnings allowed");
+            });
+        }
+
+        @Test
+        void newArrayPopsSizeOffStack() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-anewarray.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            });
+        }
+
+        @Test
+        void arrayLoadAndStores() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-varied-array-ops.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            });
+
+            // Again with the other engine
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            });
+        }
+
+        @Test
+        void athrowDoesNotAllowFlowThroughToNextFrameAndClearsStack() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-exit-exception.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+            });
+        }
+
+        @Test
+        void stackPopForInvokes() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-wide-invoke.jasm");
+            String source = arg.source.get();
+
+            // Create an analysis engine which will observe the invokestatic method in the source.
+            // If wide types are mishandled it will not get visited.
+            boolean[] visited = new boolean[1];
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(lookup -> {
+                ValuedJvmAnalysisEngine engine = new ValuedJvmAnalysisEngine(lookup);
+                engine.setMethodValueLookup(new MethodValueLookup() {
+                    @Override
+                    public @NotNull Value accept(@NotNull MethodReference method, Value.@Nullable ObjectValue context, @NotNull List<Value> parameters) {
+                        visited[0] = true;
+                        return Values.LONG_VALUE;
+                    }
+                });
+                return engine;
+            });
+
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+			}, warns -> {
+				fail("Expected no warnings, found: " + warns);
+			});
+            assertTrue(visited[0], "Method call was not visited");
+        }
+
+        @Test
+        void checkcastChangesType() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-checkcast.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withInheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                assertNull(results.getAnalysisFailure());
+                assertFalse(results.terminalFrames().isEmpty());
+
+                Frame endFrame = results.terminalFrames().lastEntry().getValue();
+                if (endFrame instanceof ValuedFrame valuedEndFrame) {
+                    Value returnValue = valuedEndFrame.peek();
+                    assertEquals(new ClassDescriptor("java/util/List"), returnValue.type());
+                } else {
+                    fail("Wrong return value");
+                }
+            });
+        }
+
+	    @Test
+	    void floatingPointFormat() throws Throwable {
+		    TestArgument arg = TestArgument.fromName("Example-floats.jasm");
+		    String source = arg.source.get();
+		    TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+		    options.withEngineProvider(TypedJvmAnalysisEngine::new);
+		    processJvm(source, options, result -> {
+			    // Should build
+			    AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+			    assertNull(results.getAnalysisFailure());
+			    assertFalse(results.terminalFrames().isEmpty());
+
+			    // Disassembled code should be normalized
+			    // 4x ldc 100.0F
+			    // 4x ldc 100.0D
+			    String dissassembled = dissassemble(result.representation().classFile());
+			    int last = 0;
+			    for (int i = 0; i < 4; i++) {
+				    int next = dissassembled.indexOf("ldc 100.0F", last+1);
+				    assertTrue(next > last, "Missing 'ldc float' iteration " + i);
+				    last = next;
+			    }
+			    last = 0;
+			    for (int i = 0; i < 4; i++) {
+				    int next = dissassembled.indexOf("ldc 100.0D", last+1);
+				    assertTrue(next > last, "Missing 'ldc double' iteration " + i);
+				    last = next;
+			    }
+		    }, warns -> {
+			    warns.forEach(System.err::println);
+			    fail("No warnings allowed");
+		    });
+	    }
+
+        @Test
+        void arrayObjectMergeOnParameter() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-array-object-merge-on-parameter.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                // The method intentionally leaves an int on the stack before RETURN;
+                // the analyzer must report that structural mismatch.
+                assertNull(results.getAnalysisFailure());
+
+                Type p0Type = results.frames().lastEntry().getValue().getLocalType(0);
+                assertEquals(JvmTypeUtils.OBJECT, p0Type);
+             }, warns -> {
+                 assertTrue(warns.stream().anyMatch(warning -> warning.message()
+                                 .contains("Return instruction leaves values on the operand stack")),
+                         "Expected the invalid non-empty return stack to be diagnosed: " + warns);
+             });
+        }
+
+        @Test
+        void arrayObjectMergeOnMethodCall() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-array-object-merge-on-method-call.jasm");
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            options.withInheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                // should not fail or produce warning
+                assertNull(results.getAnalysisFailure());
+
+            }, warns -> {
+                fail("Expected no warnings, found: " + warns);
+            });
+        }
+
+        @Test
+        void arrayStore() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-arraystore-inheritance.jasm");
+
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+
+            options.withInheritanceChecker(ReflectiveInheritanceChecker.INSTANCE);
+
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processJvm(source, options, result -> {
+                AnalysisResults results = result.analysisLookup().allResults().values().iterator().next();
+                // should not fail or produce warning
+                assertNull(results.getAnalysisFailure());
+
+            }, warns -> {
+                // Void type usage in the engine for method parameters should emit a warning.
+                // If this occurs we've broken something.
+                fail("Expected no warnings, found: " + warns);
+            });
+        }
+
+        @Test
+        void methodArrayMerging() throws Throwable {
+            TestArgument arg = TestArgument.fromName("Example-array-object-primitive-merge-on-method-call.jasm");
+
+            // Both analysis engines should have warnings for these cases
+            String source = arg.source.get();
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+
+            // Value stack analysis engine
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            processAnalysisWarnJvm(source, options);
+        }
+
+        @Test
+        void overlayMethodCausesAnalysisFailure() {
+            // This class has a method 'fixMissingVariableLabels(Lorg/objectweb/asm/tree/MethodNode;)V'
+            //
+            // Our JvmCompiler analyzes all methods of a class, even ones that are not present in the AST source
+            // and this results in our totally valid source for 'getSizeProduced' to fail.
+            //
+            // Interestingly enough, the 'fixMissingVariableLabels' seems to be fine when you compile it on its own...
+	        // This is probably a "meh" test since the actual source of the problem isn't what is described.
+	        // The fix was to treat the symptom by skipping analysis of non-AST methods in overlay classes.
+            BinaryTestArgument arg = BinaryTestArgument.fromName("AsmInsnUtil.sample");
+            String source = """
+                    .method public static getSizeProduced (Lorg/objectweb/asm/tree/AbstractInsnNode;)I {
+                        parameters: { insn },
+                        code: {
+                        A:
+                            iconst_1
+                            ireturn
+                        B:
+                        }
+                    }""";
+
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withInheritanceChecker(new ReflectiveInheritanceChecker(getClass().getClassLoader()));
+            options.withEngineProvider(ValuedJvmAnalysisEngine::new);
+            assertDoesNotThrow(() -> options.withOverlay(new JavaClassRepresentation(arg.source().get())));
+
+			// Compiling the method shouldn't fail for any reason.
+            JvmCompilation compilation = assertDoesNotThrow(() -> JvmAssemblerFixture.compileJvm(source, options));
+            compilation.requireSuccess();
+        }
+
+        @Test
+        void variableScopingCausesHorribleDeconflictionThatBreaksThings() {
+            byte[] raw = BinarySampleFixture.binarySample("ScopedVariables.sample").read();
+            String decompileOriginal = JvmDecompilationFixture.decompile(raw);
+
+            String source = JvmDisassemblyFixture.disassembleJvm(raw);
+            var result = JvmRoundTripFixture.roundTripJvm(source, new TestJvmCompilerOptions());
+            String decompileModified = result.compilation().requireDecompilation();
+
+//            System.out.println("========= ORIGINAL DECOMPILED CODE =============");
+//            System.out.println(decompileOriginal);
+//            System.out.println("========= DECOMPILED CODE AFTER ROUND-TRIP =============");
+//            System.out.println(decompileModified);
+
+            System.out.println("This test should print 'key:value' (null:null) twice");
+            ClassDefiner definer1 = new ClassDefiner("Temp", raw);
+            ClassDefiner definer2 = new ClassDefiner("Temp", result.compilation().requireClassBytes());
+            assertDoesNotThrow(() -> {
+                // Baseline with no modifications
+                Class<?> klass = definer1.loadClass("Temp");
+                Method main = klass.getDeclaredMethods()[0];
+                main.invoke(null, (Object) new String[0]);
+            });
+            assertDoesNotThrow(() -> {
+                // Round-tripped version should also work
+                Class<?> klass = definer2.loadClass("Temp");
+                Method main = klass.getDeclaredMethods()[0];
+                main.invoke(null, (Object) new String[0]);
+            });
+        }
+    }
+
+    @Nested
+    class AttributeSupport {
+        @Test
+        void defaultAnnotationValue() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("AnnoDefaultValues.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert all the default values are there
+            assertTrue(source.contains("default-value: 0"));
+            assertTrue(source.contains("default-value: 'c'"));
+            assertTrue(source.contains("default-value: \"hello\""));
+            assertTrue(source.contains("default-value: { 0, 1, 2 }"));
+            assertTrue(source.contains("default-value: .enum java/lang/annotation/ElementType FIELD"));
+            assertTrue(source.contains("default-value: .annotation java/lang/annotation/Retention {"));
+            assertTrue(source.contains("    value: .enum java/lang/annotation/RetentionPolicy CLASS"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void parameterAnnotation() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TypeAnnoOnMethod.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("the foo"));
+            assertTrue(source.contains("the bar"));
+            assertTrue(source.contains("\"a\""));
+            assertTrue(source.contains("\"b\""));
+            assertTrue(source.contains("\"c\""));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void typeAnnotationOnClassTypeArgument() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TypeAnnoOnClassTypeArg.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("ref: 0b0"));
+            assertTrue(source.contains("path: _")); // Top level type-anno has no path, and we use '_' as a placeholder
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void typeAnnotationInArray() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("TypeAnnoInArray.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+            assertTrue(source.contains("ref: 0b10110000000000000000000000000"));
+            assertTrue(source.contains("path: [[")); // Top level type-anno has no path, and we use '_' as a placeholder
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void outerClassInfo() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("Outside$1.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert it has the expected outside class attribute information (including nest-host)
+            assertTrue(source.contains(".nest-host Outside"));
+            assertTrue(source.contains(".outer-class Outside"));
+            assertTrue(source.contains(".outer-method run ()V "));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void innerClassInfo() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("Outside.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert it has the expected inner class attribute information (including nest-member)
+            assertTrue(source.contains("""
+                    .inner {
+                        inner: Outside$1
+                    }"""));
+            assertTrue(source.contains(".nest-member Outside$1"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void pickCorrectlyTypedParameterName() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("RedHerringVarEntries.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Ensure we extract the correct variable name from the table.
+            // The table has bogus in it as defined by:
+            //
+            // 0: new Variable("vWrongF", "F", start, end, 0);
+            // 1: new Variable("vWrongObject", "Ljava/lang/Object;", null, start, end, 0);
+            // 2: new Variable("vCorrect", "I", start, end, 0);
+            // 3: new Variable("vWrongD", "D", start, end, 0);
+            assertTrue(source.contains("parameters: { vCorrect }"));
+            assertTrue(source.contains("iload vCorrect"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void permittedSubclasses() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("SubclassTest.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert it has the permitted subclass attribute
+            assertTrue(source.contains(".permitted-subclass foo/ImplA"));
+            assertTrue(source.contains(".permitted-subclass foo/ImplB"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void recordComponents() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("ExampleRecord.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert it has the record component attributes
+            assertTrue(source.contains(".record-component foo I"));
+            assertTrue(source.contains(".record-component bar J"));
+            assertTrue(source.contains(".record-component s Ljava/lang/String;"));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void recordComponentWithGenerics() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("GenericRecord.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert it has the record component attributes and the generic attribute before it.
+            assertTrue(source.contains(".signature \"Ljava/util/Map<TK;TV;>;\""));
+            assertTrue(source.contains(".record-component map Ljava/util/Map;"));
+
+            // The class should keep its overall signature as well.
+            assertTrue(source.contains(".signature \"<K::Ljava/lang/Comparable<*>;V:Ljava/lang/Object;>Ljava/lang/Record;\""));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void recordComponentWithAnnos() throws Throwable {
+            BinaryTestArgument arg = BinaryTestArgument.fromName("AnnotatedRecord.sample");
+            byte[] raw = arg.source.get();
+
+            // Print the initial raw
+            String source = dissassemble(raw);
+
+            // Assert both annotations on the record component AND the class are kept.
+            assertTrue(source.contains("""
+                    .visible-annotation Marked {
+                        value: "class"
+                    }"""));
+            assertTrue(source.contains("""
+                    .visible-annotation Marked {
+                        value: "param"
+                    }"""));
+            assertTrue(source.contains(".record-component s Ljava/lang/String; "));
+
+            // Round-trip it
+            roundTrip(source, arg);
+        }
+
+        @Test
+        void sourceDebugExtensionFromSource() throws Throwable {
+            String source = """
+                    .source-debug-extension "SMAP\\nExample.java"
+                    .super java/lang/Object
+                    .class public Example {}
+                    """;
+
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                ClassNode node = new ClassNode();
+                new ClassReader(result.representation().classFile()).accept(node, 0);
+                assertEquals("SMAP\nExample.java", node.sourceDebug);
+
+                String newPrinted = dissassemble(result.representation().classFile());
+                assertTrue(newPrinted.contains(".source-debug-extension"), newPrinted);
+            });
+        }
+
+        @Test
+        void deprecatedAndThrowsFromSource() throws Throwable {
+            String source = """
+                    .super java/lang/Object
+                    .class public Example {
+                        .deprecated
+                        .field public value I
+
+                        .deprecated
+                        .method public work ()V {
+                            throws: { java/lang/Exception, java/io/IOException },
+                            code: {
+                                A:
+                                return
+                            }
+                        }
+                    }
+                    """;
+
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                ClassNode node = new ClassNode();
+                new ClassReader(result.representation().classFile()).accept(node, 0);
+
+                assertTrue((node.fields.getFirst().access & Opcodes.ACC_DEPRECATED) != 0);
+                assertTrue((node.methods.stream().filter(m -> m.name.equals("work")).findFirst().orElseThrow().access & Opcodes.ACC_DEPRECATED) != 0);
+                assertEquals(
+                        List.of("java/lang/Exception", "java/io/IOException"),
+                        node.methods.stream().filter(m -> m.name.equals("work")).findFirst().orElseThrow().exceptions
+                );
+
+                String newPrinted = dissassemble(result.representation().classFile());
+                assertTrue(newPrinted.contains(".deprecated"), newPrinted);
+                assertTrue(newPrinted.contains("throws: { java/lang/Exception, java/io/IOException }"), newPrinted);
+            });
+        }
+
+        @Test
+        void emptyRecordPreservedWithoutComponents() throws Throwable {
+            String source = """
+                    .super java/lang/Record
+                    .class public final record example/EmptyRecord {}
+                    """;
+
+            TestJvmCompilerOptions options = new TestJvmCompilerOptions();
+            options.withVersion(21);
+            processJvm(source, options, result -> {
+                ClassNode node = new ClassNode();
+                new ClassReader(result.representation().classFile()).accept(node, 0);
+                assertTrue((node.access & Opcodes.ACC_RECORD) != 0);
+                assertNull(node.recordComponents);
+
+                String newPrinted = dissassemble(result.representation().classFile());
+                assertTrue(newPrinted.contains(".class public final record example/EmptyRecord"), newPrinted);
+            });
+        }
+
+        private static void roundTrip(String source, BinaryTestArgument arg) {
+            processJvm(source, new TestJvmCompilerOptions(), result -> {
+                String newPrinted = dissassemble(result.representation().classFile());
+
+                assertEquals(
+                        normalize(source), normalize(newPrinted),
+                        "There was an unexpected difference in unmodified class: " + arg.name
+                );
+            });
+        }
+    }
+
+    private static String dissassemble(byte[] raw) throws IOException {
+        return dissassemble(raw, null);
+    }
+
+    private static byte[] buildOverlayClassWithOptionalLocalTable(boolean includeLocalTable) {
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        writer.visit(Opcodes.V21, Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER, "hardening/VariableModeOverlay", null,
+                "java/lang/Object", null);
+
+        MethodVisitor constructor = writer.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+        constructor.visitCode();
+        Label ctorStart = new Label();
+        Label ctorEnd = new Label();
+        constructor.visitLabel(ctorStart);
+        constructor.visitVarInsn(Opcodes.ALOAD, 0);
+        constructor.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+        constructor.visitInsn(Opcodes.RETURN);
+        constructor.visitLabel(ctorEnd);
+        constructor.visitLocalVariable("this", "Lhardening/VariableModeOverlay;", null, ctorStart, ctorEnd, 0);
+        constructor.visitMaxs(0, 0);
+        constructor.visitEnd();
+
+        MethodVisitor method = writer.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "test", "()V", null, null);
+        method.visitCode();
+        Label start = new Label();
+        Label end = new Label();
+        method.visitLabel(start);
+        method.visitInsn(Opcodes.RETURN);
+        method.visitLabel(end);
+        if (includeLocalTable) {
+            method.visitLocalVariable("previous", "I", null, start, end, 0);
+        }
+        method.visitMaxs(0, 0);
+        method.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static MethodNode readMethod(byte[] bytes, String name, String descriptor) {
+        ClassNode node = new ClassNode();
+        new ClassReader(bytes).accept(node, 0);
+        return node.methods.stream()
+                .filter(method -> method.name.equals(name) && method.desc.equals(descriptor))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static String dissassemble(byte[] raw, Consumer<PrintContext<?>> contextConsumer) throws IOException {
+        JvmClassPrinter initPrinter = new JvmClassPrinter(raw);
+        PrintContext<?> initCtx = new PrintContext<>("    ");
+        if (contextConsumer != null) contextConsumer.accept(initCtx);
+        initPrinter.print(initCtx);
+        return initCtx.toString();
+    }
+
+    record TestArgument(Path path, String name, ThrowingSupplier<String> source) {
+        public static TestArgument fromName(String name) {
+            Path path = Paths.get(System.getProperty("user.dir")).resolve(PATH_PREFIX).resolve(name);
+            if (!Files.exists(path))
+                path = Paths.get(System.getProperty("user.dir")).resolve(PATH_ILLEGAL_PREFIX).resolve(name);
+            return from(path);
+        }
+
+        public static TestArgument from(Path path) {
+            return new TestArgument(path, path.getFileName().toString(), () -> Files.readString(path));
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
+    record BinaryTestArgument(Path path, String name, ThrowingSupplier<byte[]> source) {
+        public static BinaryTestArgument fromName(String name) {
+            Path path = Paths.get(System.getProperty("user.dir")).resolve(PATH_BIN_PREFIX).resolve(name);
+            return from(path);
+        }
+
+        public static BinaryTestArgument from(Path path) {
+            return new BinaryTestArgument(path, path.getFileName().toString(), () -> Files.readAllBytes(path));
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+}

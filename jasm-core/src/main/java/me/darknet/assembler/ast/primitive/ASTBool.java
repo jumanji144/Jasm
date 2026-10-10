@@ -4,6 +4,9 @@ import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.specific.ASTValue;
 import me.darknet.assembler.parser.Token;
 
+/**
+ * Boolean literal node backed by a parser token.
+ */
 public class ASTBool extends ASTValue {
 
     public ASTBool(Token value) {

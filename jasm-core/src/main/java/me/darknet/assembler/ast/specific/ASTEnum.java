@@ -4,23 +4,39 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 
+/**
+ * Enum constant reference node containing its owner, field name, and optional field type.
+ */
 public class ASTEnum extends ASTElement {
 
-    private final ASTIdentifier enumType;
-    private final ASTIdentifier enumValue;
+    private final ASTIdentifier enumOwner;
+    private final ASTIdentifier enumFieldName;
+    private final ASTIdentifier enumFieldType;
 
     public ASTEnum(ASTIdentifier type, ASTIdentifier value) {
         super(ElementType.ENUM, type, value);
-        this.enumType = type;
-        this.enumValue = value;
+        this.enumOwner = type;
+        this.enumFieldName = value;
+        this.enumFieldType = null;
     }
 
-    public ASTIdentifier enumType() {
-        return enumType;
+    public ASTEnum(ASTIdentifier type, ASTIdentifier value, ASTIdentifier fieldType) {
+        super(ElementType.ENUM, type, value, fieldType);
+        this.enumOwner = type;
+        this.enumFieldName = value;
+        this.enumFieldType = fieldType;
     }
 
-    public ASTIdentifier enumValue() {
-        return enumValue;
+    public ASTIdentifier enumOwner() {
+        return enumOwner;
+    }
+
+    public ASTIdentifier enumFieldName() {
+        return enumFieldName;
+    }
+
+    public ASTIdentifier enumFieldType() {
+        return enumFieldType;
     }
 
 }

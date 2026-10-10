@@ -1,110 +1,96 @@
 package me.darknet.assembler.cli.commands;
 
-import me.darknet.assembler.printer.JvmClassPrinter;
+import me.darknet.assembler.cli.targets.CliRuntime;
+import me.darknet.assembler.cli.targets.CliTarget;
+import me.darknet.assembler.cli.targets.CliTargetCandidates;
+import me.darknet.assembler.cli.targets.CliTargets;
+import me.darknet.assembler.cli.targets.DecompileRequest;
 import me.darknet.assembler.printer.PrintContext;
-import me.darknet.assembler.printer.Printer;
-
 import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Optional;
-import java.util.zip.ZipFile;
+import java.util.concurrent.Callable;
 
 @CommandLine.Command(
         name = "decompile", description = "Decompile Java Assembler bytecode", mixinStandardHelpOptions = true
 )
-public class DecompileCommand implements Runnable {
+public class DecompileCommand implements Callable<Integer> {
+
+    @CommandLine.Spec
+    private CommandLine.Model.CommandSpec commandSpec;
+
+    @CommandLine.ParentCommand
+    private MainCommand parentCommand;
 
     @CommandLine.Parameters(index = "0", description = "Source file", arity = "1", paramLabel = "file")
     private File source;
 
-    @CommandLine.Option(names = { "-o", "--output" }, description = "Output file")
-    private Optional<File> output;
+    @CommandLine.Option(names = {"-o", "--output"}, description = "Output file or directory")
+    private Optional<File> output = Optional.empty();
 
-    @CommandLine.Option(names = { "-i", "--indent" }, description = "Indentation", defaultValue = "    ")
+    @CommandLine.Option(names = {"-i", "--indent"}, description = "Indentation", defaultValue = "    ")
     private String indent;
 
-    @CommandLine.Option(names = { "-c", "--class" }, description = "Class name (in java format a.b.c) if a archive file is used", paramLabel = "name")
-    private Optional<String> className;
+    @CommandLine.Option(
+            names = {"-c", "--class"},
+            description = "Class name (in Java or internal-name form) for an archive or DEX file",
+            paramLabel = "name"
+    )
+    private Optional<String> className = Optional.empty();
+
+    @CommandLine.Option(
+            names = {"-t", "--target"}, completionCandidates = CliTargetCandidates.class,
+            description = "Target platform (overrides the root target)", paramLabel = "target"
+    )
+    private Optional<String> targetOverride = Optional.empty();
+
+    @CommandLine.Option(
+            names = {"--float-representation", "--float-format"},
+            description = "Floating-point representation: standard, hex or binary",
+            defaultValue = "standard", paramLabel = "mode"
+    )
+    private String floatRepresentation;
 
     @Override
-    public void run() {
-        OutputStream out = System.out;
-
+    public Integer call() {
+        CliRuntime runtime = new CliRuntime(commandSpec.commandLine());
+        CliTarget target = resolveTarget(runtime);
+        PrintContext.FloatPrintMode floatMode;
         try {
-            InputStream classStream = Files.newInputStream(source.toPath());
-            if (source.getName().endsWith(".jar")) {
-                ZipFile zipFile = new ZipFile(source);
-                if (className.isEmpty()) {
-                    // decompile all classes
-                    if (output.isEmpty()) {
-                        System.err.println("Output folder or target class name is required for decompiling jar files");
-                        System.exit(1);
-                    }
-
-                    Path outputPath = output.get().toPath();
-
-                    zipFile.stream().forEach(entry -> {
-                        try {
-                            if (entry.getName().endsWith(".class")) {
-                                InputStream stream = zipFile.getInputStream(entry);
-                                String name = entry.getName().replace(".class", ".jasm");
-                                Path outputPathFile = outputPath.resolve(name);
-                                // make sure parent directories exist
-                                Files.createDirectories(outputPathFile.getParent());
-                                decompile(stream, Files.newOutputStream(outputPathFile));
-                                System.out.println("Decompiled: " + name);
-                            }
-                        } catch (IOException e) {
-                            System.err.println("Failed to decompile file: " + e.getMessage());
-                            e.printStackTrace();
-                            System.exit(1);
-                        }
-                    });
-
-                    return;
-                }
-
-                classStream = zipFile.getInputStream(zipFile.getEntry(className.get().replace('.', '/') + ".class"));
-            }
-
-            if (output.isPresent()) {
-                try {
-                    out = Files.newOutputStream(output.get().toPath());
-                } catch (IOException e) {
-                    System.err.println("Failed to open output file: " + e.getMessage());
-                    System.exit(1);
-                }
-            }
-
-            decompile(classStream, out);
-
-            System.out.println("\nDecompiled successfully");
-        } catch (IOException e) {
-            System.err.println("Failed to decompile file: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(1);
+            floatMode = PrintContext.FloatPrintMode.fromString(floatRepresentation.toLowerCase());
+        } catch (IllegalArgumentException exception) {
+            throw runtime.failure("Invalid float representation: " + floatRepresentation);
+        }
+        DecompileRequest request = new DecompileRequest(
+                runtime,
+                source,
+                output,
+                indent,
+                className,
+                floatMode
+        );
+        try {
+            return target.decompile(request);
+        } catch (CommandLine.ExecutionException exception) {
+            throw exception;
+        } catch (IOException exception) {
+            throw runtime.failure("Failed to decompile file: " + exception.getMessage(), exception);
+        } catch (RuntimeException exception) {
+            throw runtime.failure("Failed to decompile file: " + exception.getMessage(), exception);
         }
     }
 
-    private void decompile(InputStream input, OutputStream output) throws IOException {
-        PrintContext<?> ctx = new PrintContext<>(indent);
-
-        Printer printer;
-
-        switch (MainCommand.target) {
-            case JVM -> printer = new JvmClassPrinter(input);
-            case DALVIK -> throw new UnsupportedOperationException("Dalvik target is not supported yet");
-            default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
+    private CliTarget resolveTarget(CliRuntime runtime) {
+        String value = targetOverride.orElse(parentCommand.target());
+        CliTarget target = CliTargets.findStrategy(value);
+        if (target == null) {
+            String validIds = String.join(", ", CliTargets.registry().ids().stream().map(id -> id.value()).toList());
+            throw runtime.failure("Unknown target: " + value + ". Valid targets: " + validIds);
         }
-
-        printer.print(ctx);
-
-        output.write(ctx.toString().getBytes());
+        return target;
     }
+
 }

@@ -4,6 +4,9 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.parser.Token;
 
+/**
+ * Base AST node for literal values backed by a parser token.
+ */
 public class ASTLiteral extends ASTElement {
     public ASTLiteral(ElementType type, Token value) {
         super(type);

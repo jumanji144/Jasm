@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'com.gradleup.shadow' version '9.4.0'
 }
 
 dependencies {
@@ -9,12 +9,13 @@ dependencies {
     annotationProcessor 'info.picocli:picocli-codegen:4.7.5'
 
     // jvm
-    // asm
-    implementation 'org.ow2.asm:asm:9.7.1'
     api project(path: ':jasm-composition-jvm')
+    testImplementation(testFixtures(project(path: ':jasm-composition-jvm')))
 
     // dalvik
-    // api project(path: ':jasm-composition-dalvik // TODO
+    api project(path: ':jasm-composition-dalvik')
+    testImplementation(testFixtures(project(path: ':jasm-composition-dalvik')))
+    testImplementation(testFixtures(project(path: ':jasm-core')))
 }
 
 shadowJar {
