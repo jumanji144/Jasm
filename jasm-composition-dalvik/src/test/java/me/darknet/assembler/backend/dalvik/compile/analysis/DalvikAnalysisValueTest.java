@@ -454,7 +454,7 @@ class DalvikAnalysisValueTest {
 	}
 
 	@Test
-	void preservesRawFloatingConstantPayloads() {
+	void preservesRawFloatingConstantPayloadsWithoutCategory() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
 				.class public ValueAnalysisFloatingPayloads {
@@ -475,12 +475,199 @@ class DalvikAnalysisValueTest {
 				}
 				""");
 
-		Value.KnownFloatValue floatNan = assertInstanceOf(Value.KnownFloatValue.class,
-				terminal(compilation.results("floatPayload", "()F"), compilation.method("floatPayload", "()F")).value());
-		Value.KnownDoubleValue doubleNan = assertInstanceOf(Value.KnownDoubleValue.class,
-				terminal(compilation.results("doublePayload", "()D"), compilation.method("doublePayload", "()D")).value());
-		assertEquals(0x7FC01234, Float.floatToRawIntBits(floatNan.value()));
-		assertEquals(0x7FF8000000000001L, Double.doubleToRawLongBits(doubleNan.value()));
+		DalvikRawValue floatRaw = assertInstanceOf(DalvikRawValue.class, terminal(compilation.results("floatPayload", "()F"), compilation.method("floatPayload", "()F")).value());
+		DalvikWideRawValue doubleRaw = assertInstanceOf(DalvikWideRawValue.class, terminal(compilation.results("doublePayload", "()D"), compilation.method("doublePayload", "()D")).value());
+		assertTrue(floatRaw.known());
+		assertEquals(0x7FC01234, floatRaw.bits());
+		assertTrue(doubleRaw.known());
+		assertEquals(0x7FF8000000000001L, doubleRaw.bits());
+	}
+
+	@Test
+	void mergesRawNarrowAndWideValuesAcrossPrimitiveCategories() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisRawCategories {
+				    .method public static rawIntegerJoin (I)I {
+				        registers: 3,
+				        parameters: { flag },
+				        code: {
+				            const v0 #0x00000001
+				            if-eqz flag Join
+				            const v0 2
+				        Join:
+				            add-int v1 v0 v0
+				            return v1
+				        }
+				    }
+				    .method public static rawFloatJoin (I)F {
+				        registers: 3,
+				        parameters: { flag },
+				        code: {
+				            const v0 #0x3F800000
+				            if-eqz flag Join
+				            const v0 2.0f
+				        Join:
+				            add-float v1 v0 v0
+				            return v1
+				        }
+				    }
+				    .method public static rawMoveJoin (I)V {
+				        registers: 3,
+				        parameters: { flag },
+				        code: {
+				            const v0 #0x00000001
+				            if-eqz flag Join
+				            const v0 #0x00000002
+				        Join:
+				            move v1 v0
+				            return-void
+				        }
+				    }
+				    .method public static rawLongJoin (I)J {
+				        registers: 5,
+				        parameters: { flag },
+				        code: {
+				            const-wide v0 #0x0000000000000001
+				            if-eqz flag Join
+				            const-wide v0 5L
+				        Join:
+				            add-long v2 v0 v0
+				            return-wide v2
+				        }
+				    }
+				    .method public static rawDoubleJoin (I)D {
+				        registers: 5,
+				        parameters: { flag },
+				        code: {
+				            const-wide v0 #0x3FF0000000000000
+				            if-eqz flag Join
+				            const-wide v0 2.0
+				        Join:
+				            add-double v2 v0 v0
+				            return-wide v2
+				        }
+				    }
+				}
+				""");
+
+		DalvikAnalysisResults integerResults = compilation.results("rawIntegerJoin", "(I)I");
+		assertTrue(integerResults.getFailures().isEmpty(), integerResults.getFailures().toString());
+		MethodMember integerJoin = compilation.method("rawIntegerJoin", "(I)I");
+		assertEquals(Values.INT_VALUE, value(integerResults.getStateBefore(instruction(integerJoin.getCode(), BinaryInstruction.class)), 0));
+		assertEquals(Values.INT_VALUE, terminal(integerResults, integerJoin).value());
+
+		DalvikAnalysisResults floatResults = compilation.results("rawFloatJoin", "(I)F");
+		assertTrue(floatResults.getFailures().isEmpty(), floatResults.getFailures().toString());
+		MethodMember floatJoin = compilation.method("rawFloatJoin", "(I)F");
+		assertEquals(Values.FLOAT_VALUE, value(floatResults.getStateBefore(instruction(floatJoin.getCode(), BinaryInstruction.class)), 0));
+		assertEquals(Values.FLOAT_VALUE, terminal(floatResults, floatJoin).value());
+
+		DalvikAnalysisResults moveResults = compilation.results("rawMoveJoin", "(I)V");
+		assertTrue(moveResults.getFailures().isEmpty(), moveResults.getFailures().toString());
+
+		DalvikAnalysisResults longResults = compilation.results("rawLongJoin", "(I)J");
+		assertTrue(longResults.getFailures().isEmpty(), longResults.getFailures().toString());
+		MethodMember longJoin = compilation.method("rawLongJoin", "(I)J");
+		assertEquals(Values.LONG_VALUE, value(longResults.getStateBefore(instruction(longJoin.getCode(), BinaryInstruction.class)), 0));
+		assertEquals(Values.LONG_VALUE, terminal(longResults, longJoin).value());
+
+		DalvikAnalysisResults doubleResults = compilation.results("rawDoubleJoin", "(I)D");
+		assertTrue(doubleResults.getFailures().isEmpty(), doubleResults.getFailures().toString());
+		MethodMember doubleJoin = compilation.method("rawDoubleJoin", "(I)D");
+		assertEquals(Values.DOUBLE_VALUE, value(doubleResults.getStateBefore(instruction(doubleJoin.getCode(), BinaryInstruction.class)), 0));
+		assertEquals(Values.DOUBLE_VALUE, terminal(doubleResults, doubleJoin).value());
+	}
+
+	@Test
+	void rejectsRawReferenceCategoryMerge() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisRawReferenceCategory {
+				    .method public static rawReferenceJoin (I)Ljava/lang/Object; {
+				        registers: 3,
+				        parameters: { flag },
+				        code: {
+				            const v0 #0x00000001
+				            if-eqz flag Join
+				            const-string v0 "reference"
+				        Join:
+				            return-object v0
+				        }
+				    }
+				}
+				""");
+
+		assertIncompatibleMerge(compilation, "rawReferenceJoin", "(I)Ljava/lang/Object;", 0);
+	}
+
+	@Test
+	void rejectsRawValuesAfterConcreteCategoryJoins() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisRawCategoryReads {
+				    .method public static rawThenIntReadAsFloat (I)V {
+				        registers: 3,
+				        parameters: { flag },
+				        code: {
+				            const v0 #0x00000001
+				            if-eqz flag Join
+				            const v0 2
+				        Join:
+				            add-float v1 v0 v0
+				            return-void
+				        }
+				    }
+				    .method public static rawThenFloatReadAsInt (I)V {
+				        registers: 3,
+				        parameters: { flag },
+				        code: {
+				            const v0 #0x3F800000
+				            if-eqz flag Join
+				            const v0 2.0f
+				        Join:
+				            add-int v1 v0 v0
+				            return-void
+				        }
+				    }
+				    .method public static rawThenLongReadAsDouble (I)V {
+				        registers: 5,
+				        parameters: { flag },
+				        code: {
+				            const-wide v0 #0x0000000000000001
+				            if-eqz flag Join
+				            const-wide v0 5L
+				        Join:
+				            add-double v2 v0 v0
+				            return-void
+				        }
+				    }
+				    .method public static rawThenDoubleReadAsLong (I)V {
+				        registers: 5,
+				        parameters: { flag },
+				        code: {
+				            const-wide v0 #0x3FF0000000000000
+				            if-eqz flag Join
+				            const-wide v0 2.0
+				        Join:
+				            add-long v2 v0 v0
+				            return-void
+				        }
+				    }
+				}
+				""");
+
+		DalvikAnalysisResults rawThenIntReadAsFloat = compilation.results("rawThenIntReadAsFloat", "(I)V");
+		assertTrue(rawThenIntReadAsFloat.getFailures().toString().contains("wrong primitive category for FLOAT"), rawThenIntReadAsFloat.getFailures().toString());
+
+		DalvikAnalysisResults rawThenFloatReadAsInt = compilation.results("rawThenFloatReadAsInt", "(I)V");
+		assertTrue(rawThenFloatReadAsInt.getFailures().toString().contains("wrong primitive category for INT"), rawThenFloatReadAsInt.getFailures().toString());
+
+		DalvikAnalysisResults rawThenLongReadAsDouble = compilation.results("rawThenLongReadAsDouble", "(I)V");
+		assertTrue(rawThenLongReadAsDouble.getFailures().toString().contains("wrong primitive category for DOUBLE"), rawThenLongReadAsDouble.getFailures().toString());
+
+		DalvikAnalysisResults rawThenDoubleReadAsLong = compilation.results("rawThenDoubleReadAsLong", "(I)V");
+		assertTrue(rawThenDoubleReadAsLong.getFailures().toString().contains("wrong primitive category for LONG"), rawThenDoubleReadAsLong.getFailures().toString());
 	}
 
 	@Test
@@ -964,10 +1151,10 @@ class DalvikAnalysisValueTest {
 	}
 
 	@Test
-	void joinsDifferentNaNPayloadsAsUnknownFloat() {
+	void joinsDifferentRawPayloadsAsUnknownRaw() {
 		Compilation compilation = compile("""
 				.super java/lang/Object
-				.class public ValueAnalysisDifferingNaN {
+				.class public ValueAnalysisDifferingRaw {
 				    .method public static differingNaNPayloads ()F {
 				        registers: 2,
 				        code: {
@@ -984,8 +1171,10 @@ class DalvikAnalysisValueTest {
 				}
 				""");
 
-		assertEquals(Values.FLOAT_VALUE, terminal(compilation.results("differingNaNPayloads", "()F"),
-				compilation.method("differingNaNPayloads", "()F")).value());
+		DalvikRawValue merged = assertInstanceOf(DalvikRawValue.class,
+				terminal(compilation.results("differingNaNPayloads", "()F"),
+						compilation.method("differingNaNPayloads", "()F")).value());
+		assertFalse(merged.known());
 	}
 
 	@Test
@@ -1084,6 +1273,80 @@ class DalvikAnalysisValueTest {
 		assertEquals(Values.valueOfInstance(new ClassDescriptor("java/lang/String")), value(state, 5));
 		assertEquals(Values.LONG_VALUE, value(state, 7));
 		assertEquals(new DalvikRegisterState.WideTail(7), state.slot(8));
+	}
+
+	@Test
+	void acceptsNullArrayJoinedWithDoubleArrayBeforeWideRead() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisNullArrayJoin {
+				    .method public static forwardJoin (I)V {
+				        registers: 7,
+				        parameters: { flag },
+				        code: {
+				            const v0 #0x00000000
+				            if-eqz flag Join
+				            const v2 2
+				            new-array v0 v2 [D
+				        Join:
+				            const v3 0
+				            aget-wide v4 v0 v3
+				            return-void
+				        }
+				    }
+				    .method public static loopJoin (I)V {
+				        registers: 7,
+				        parameters: { n },
+				        code: {
+				        Start:
+				            const v0 #0x00000000
+				            const v1 0
+				        Head:
+				            if-ge v1 n Exit
+				            if-nez v0 Read
+				            const v2 2
+				            new-array v0 v2 [D
+				            goto Next
+				        Read:
+				            const v3 0
+				            aget-wide v4 v0 v3
+				        Next:
+				            add-int/lit8 v1 v1 1
+				            goto Head
+				        Exit:
+				            return-void
+				        }
+				    }
+				}
+				""");
+
+		DalvikAnalysisResults forward = compilation.results("forwardJoin", "(I)V");
+		assertTrue(forward.getFailures().isEmpty(), forward.getFailures().toString());
+
+		DalvikAnalysisResults loop = compilation.results("loopJoin", "(I)V");
+		assertTrue(loop.getFailures().isEmpty(), loop.getFailures().toString());
+	}
+
+	@Test
+	void rejectsWideArrayReadOfIntegerOperand() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisIntArrayWideRead {
+				    .method public static test ()V {
+				        registers: 6,
+				        code: {
+				            const v0 5
+				            const v3 0
+				            aget-wide v4 v0 v3
+				            return-void
+				        }
+				    }
+				}
+				""");
+
+		DalvikAnalysisResults results = compilation.results("test", "()V");
+		assertTrue(results.getFailures().toString().contains("aget-wide element category is unknown"),
+				results.getFailures().toString());
 	}
 
 	@Test

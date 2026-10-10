@@ -1,21 +1,26 @@
 package me.darknet.assembler.backend.dalvik.compile.visitor;
 
-import me.darknet.assembler.backend.dalvik.DalvikModifiers;
+import me.darknet.assembler.analysis.MethodReference;
+import me.darknet.assembler.analysis.registry.FieldValueLookup;
+import me.darknet.assembler.analysis.registry.MethodValueLookup;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.AnnotationVisibility;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.specific.ASTMethod;
-import me.darknet.assembler.analysis.MethodReference;
-import me.darknet.assembler.analysis.registry.FieldValueLookup;
-import me.darknet.assembler.analysis.registry.MethodValueLookup;
+import me.darknet.assembler.backend.dalvik.DalvikModifiers;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisEngine;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisResults;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikMethodData;
-import me.darknet.assembler.processing.ProcessedMethod;
+import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
+import me.darknet.assembler.backend.dalvik.instructions.RegisterRange;
+import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticSink;
+import me.darknet.assembler.instructions.OperandRole;
+import me.darknet.assembler.processing.ProcessedInstruction;
+import me.darknet.assembler.processing.ProcessedMethod;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Pair;
 import me.darknet.assembler.visitor.ASTAnnotationVisitor;
@@ -35,8 +40,10 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Visits a Dalvik method declaration and builds its dex member, code, registers, and debug information.
@@ -51,6 +58,7 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     private final InheritanceChecker inheritanceChecker;
     private final MethodValueLookup methodValueLookup;
     private final FieldValueLookup fieldValueLookup;
+    private final Set<Integer> explicitRegisters;
     private Integer declaredRegisterCount;
     private int incomingRegisterCount;
     private CodeBuilder codeBuilder;
@@ -59,17 +67,18 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
 
     /**
      * @param member
-     * 		Method being built.
+     *         Method being built.
      * @param processed
-     * 		Semantic method view carrying source and target extensions.
+     *         Semantic method view carrying source and target extensions.
      * @param analysisMethod
-     * 		Full key for this source-emitted method.
+     *         Full key for this source-emitted method.
      * @param analysisResults
-     * 		Insertion-ordered collector for emitted method results.
+     *         Insertion-ordered collector for emitted method results.
      * @param sink
-     * 		Sink reporting forms and register layouts this backend cannot encode.
+     *         Sink reporting forms and register layouts this backend cannot encode.
      */
-    public DalvikMethodVisitor(MethodMember member, @NotNull ProcessedMethod processed,
+    public DalvikMethodVisitor(@NotNull MethodMember member, 
+                               @NotNull ProcessedMethod processed,
                                @NotNull MethodReference analysisMethod,
                                @NotNull Map<MethodReference, DalvikAnalysisResults> analysisResults,
                                @NotNull DiagnosticSink sink,
@@ -85,6 +94,7 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
         this.inheritanceChecker = inheritanceChecker;
         this.methodValueLookup = methodValueLookup;
         this.fieldValueLookup = fieldValueLookup;
+        this.explicitRegisters = collectExplicitRegisters(processed);
     }
 
     @Override
@@ -169,40 +179,11 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
                     parameterRegisters(parameterBase),
                     registerLimit,
                     parameterBase,
-                    registerDeclaration
+                    registerDeclaration,
+                    explicitRegisters
             );
         }
         return codeVisitor;
-    }
-
-    private int incomingRegisterWords() {
-        int words = (member.getAccess() & DalvikModifiers.ACC_STATIC) == 0 ? 1 : 0;
-        for (ClassType parameter : member.getType().parameterTypes())
-            words += registerWords(parameter.descriptor());
-        return words;
-    }
-
-    private Map<String, Integer> parameterRegisters(int parameterBase) {
-        Map<String, Integer> registers = new HashMap<>();
-        int aliasBase = Math.max(parameterBase, 0);
-        int offset = 0;
-        if ((member.getAccess() & DalvikModifiers.ACC_STATIC) == 0) {
-            registers.put("this", aliasBase);
-            offset++;
-        }
-        for (int index = 0; index < member.getType().parameterTypes().size(); index++) {
-            int register = aliasBase + offset;
-            String name = index < parameterNames.size() ? parameterNames.get(index) : null;
-            if (name != null)
-                registers.put(name, register);
-            registers.put("p" + index, register);
-            offset += registerWords(member.getType().parameterTypes().get(index).descriptor());
-        }
-        return registers;
-    }
-
-    private static int registerWords(String descriptor) {
-        return descriptor.length() == 1 && (descriptor.charAt(0) == 'J' || descriptor.charAt(0) == 'D') ? 2 : 1;
     }
 
     @Override
@@ -237,7 +218,48 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
         }
     }
 
-    private DebugInformation debugInformation(Code code) {
+    /**
+     * @return Number of Dalvik registers required for the incoming parameters of this method.
+     */
+    private int incomingRegisterWords() {
+        int words = (member.getAccess() & DalvikModifiers.ACC_STATIC) == 0 ? 1 : 0;
+        for (ClassType parameter : member.getType().parameterTypes())
+            words += registerWords(parameter.descriptor());
+        return words;
+    }
+
+    /**
+     * @param parameterBase
+     *         Base register index for the first parameter.
+     *
+     * @return Map of parameter names to their corresponding Dalvik register indices.
+     */
+    private @NotNull Map<String, Integer> parameterRegisters(int parameterBase) {
+        Map<String, Integer> registers = new HashMap<>();
+        int aliasBase = Math.max(parameterBase, 0);
+        int offset = 0;
+        if ((member.getAccess() & DalvikModifiers.ACC_STATIC) == 0) {
+            registers.put("this", aliasBase);
+            offset++;
+        }
+        for (int index = 0; index < member.getType().parameterTypes().size(); index++) {
+            int register = aliasBase + offset;
+            String name = index < parameterNames.size() ? parameterNames.get(index) : null;
+            if (name != null)
+                registers.put(name, register);
+            registers.put("p" + index, register);
+            offset += registerWords(member.getType().parameterTypes().get(index).descriptor());
+        }
+        return registers;
+    }
+
+    /**
+     * @param code
+     *         Code to build debug information for.
+     *
+     * @return Debug information for the code, or {@code null} if no debug information is available.
+     */
+    private @Nullable DebugInformation debugInformation(@NotNull Code code) {
         List<DebugInformation.LineNumber> lineNumbers = new ArrayList<>();
         for (Instruction instruction : code.getInstructions())
             if (instruction instanceof Label label && label.lineNumber() != Label.UNASSIGNED)
@@ -245,5 +267,89 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
         if (lineNumbers.isEmpty() && parameterNames.isEmpty())
             return null;
         return new DebugInformation(lineNumbers, List.copyOf(parameterNames), List.of());
+    }
+
+    /**
+     * @param descriptor
+     *         Type descriptor of the parameter.
+     *
+     * @return Number of Dalvik registers required for the parameter (1 or 2).
+     */
+    private static int registerWords(@NotNull String descriptor) {
+        return descriptor.length() == 1 && (descriptor.charAt(0) == 'J' || descriptor.charAt(0) == 'D') ? 2 : 1;
+    }
+
+    /**
+     * Collects all registers explicitly referenced in the method's code.
+     * <p>
+     * This is used to ensure that the backend does not allocate a register that is already used by the source code.
+     *
+     * @param processed
+     *         Processed method containing the code to analyze.
+     *
+     * @return Set of register indices explicitly referenced in the method's code.
+     */
+    private static @NotNull Set<Integer> collectExplicitRegisters(@NotNull ProcessedMethod processed) {
+        Set<Integer> registers = new HashSet<>();
+        for (var entry : processed.code()) {
+            if (!(entry instanceof ProcessedInstruction instruction))
+                continue;
+            for (var operand : instruction.operands()) {
+                if (operand.value() instanceof RegisterRef register) {
+                    reserveExplicitRegister(registers, register);
+                } else if (operand.value() instanceof RegisterOperands operands) {
+                    if (operands instanceof RegisterRange(RegisterRef first, RegisterRef last)
+                            && first.index() != null && last.index() != null) {
+                        reserveExplicitRange(registers, first.index(), last.index());
+                    } else {
+                        for (RegisterRef register : operands.registers())
+                            reserveExplicitRegister(registers, register);
+                    }
+                }
+            }
+        }
+        return Set.copyOf(registers);
+    }
+
+    /**
+     * Reserves a range of registers in the given set, ensuring that the first index is less than or equal to the last index.
+     *
+     * @param registers
+     *         Set of register indices to reserve.
+     * @param first
+     *         First register index in the range.
+     * @param last
+     *         Last register index in the range.
+     */
+    private static void reserveExplicitRange(@NotNull Set<Integer> registers, int first, int last) {
+        if (first > last) {
+            int swap = first;
+            first = last;
+            last = swap;
+        }
+        for (int index = first; index <= last; index++) {
+            registers.add(index);
+            if (index == Integer.MAX_VALUE)
+                break;
+        }
+    }
+
+    /**
+     * Reserves a single register in the given set, and if the register is wide, also reserves the next register.
+     *
+     * @param registers
+     *         Set of register indices to reserve.
+     * @param register
+     *         Register reference to reserve.
+     */
+    private static void reserveExplicitRegister(@NotNull Set<Integer> registers, @NotNull RegisterRef register) {
+        Integer index = register.index();
+        if (index == null || index < 0)
+            return;
+        registers.add(index);
+        if (register.width() == OperandRole.WidthPolicy.WIDE
+                && index < Integer.MAX_VALUE) {
+            registers.add(index + 1);
+        }
     }
 }

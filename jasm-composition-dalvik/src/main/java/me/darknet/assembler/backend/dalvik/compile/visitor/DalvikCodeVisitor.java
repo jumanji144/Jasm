@@ -130,16 +130,20 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * 		First register slot holding a parameter, or {@code -1} when no register count was declared.
 	 * @param registerDeclaration
 	 * 		Location of the {@code registers} declaration, or {@code null} when the method declared no count.
+	 * @param explicitRegisters
+	 * 		Physical slots addressed by explicit {@code vN} operands in the whole method.
 	 */
-	public DalvikCodeVisitor(CodeBuilder codeBuilder, DiagnosticSink sink,
-	                         Map<String, Integer> initialRegisterMap,
+	public DalvikCodeVisitor(@NotNull CodeBuilder codeBuilder, @NotNull DiagnosticSink sink,
+	                         @NotNull Map<String, Integer> initialRegisterMap,
 	                         int registerLimit, int parameterBase,
-	                         @Nullable Location registerDeclaration) {
+	                         @Nullable Location registerDeclaration,
+	                         @NotNull Set<Integer> explicitRegisters) {
 		this.codeBuilder = codeBuilder;
 		this.sink = sink;
 		this.registerLimit = registerLimit;
 		this.parameterBase = parameterBase;
 		this.registerDeclaration = registerDeclaration;
+		usedRegisters.addAll(explicitRegisters);
 		initialRegisterMap.forEach((name, index) -> {
 			registerMap.put(name, index);
 			usedRegisters.add(index);
@@ -180,7 +184,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * 		Name to allocate a slot for.
 	 *
 	 * @return Slot index bound to the name. A name already bound keeps its slot; a new name takes the first
-	 * free slot below the parameter base. When no such slot exists the problem is reported and
+	 * free slot below the parameter base that is not occupied by a parameter or explicit {@code vN} operand.
+	 * When no such slot exists the problem is reported and
 	 * {@link #localCeiling()} is returned, which is outside the declared count so the compile still fails.
 	 */
 	public int getRegisterIndex(String registerName) {

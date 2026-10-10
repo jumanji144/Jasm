@@ -268,6 +268,18 @@ public final class DalvikRegisterStateMerger {
 		if (left instanceof Value.UninitializedReferenceValue || right instanceof Value.UninitializedReferenceValue)
 			return left.equals(right) ? left : null;
 
+		// Nonzero raw values are category-agnostic primitive values, but never references.
+		// Preserve that distinction when joining raw payloads or the untyped zero sentinel,
+		// and refine to a concrete primitive category when available.
+		if (left instanceof DalvikRawValue leftRaw)
+			return joinRaw(leftRaw, right);
+		if (right instanceof DalvikRawValue rightRaw)
+			return joinRaw(rightRaw, left);
+		if (left instanceof DalvikWideRawValue leftRaw)
+			return joinWideRaw(leftRaw, right);
+		if (right instanceof DalvikWideRawValue rightRaw)
+			return joinWideRaw(rightRaw, left);
+
 		// Dalvik "zero" values are compatible with any integer or null reference value, so we can join them specially.
 		if (left == DalvikZeroValue.INSTANCE || right == DalvikZeroValue.INSTANCE)
 			return joinZero(left, right);
@@ -276,7 +288,7 @@ public final class DalvikRegisterStateMerger {
 		if (left == DalvikWideZeroValue.INSTANCE || right == DalvikWideZeroValue.INSTANCE)
 			return joinWideZero(left, right);
 
-		// Top values and backend markers are compatible with any value, so we can return null to indicate that the result is unknown.
+		// Other backend markers cannot be represented as a safe common value.
 		if (left instanceof Value.TopValue
 				|| right instanceof Value.TopValue
 				|| left instanceof Value.BackendMarker
@@ -351,6 +363,50 @@ public final class DalvikRegisterStateMerger {
 		))
 			return Double.doubleToRawLongBits(leftD) == Double.doubleToRawLongBits(rightD);
 		return left.equals(right);
+	}
+
+	/**
+	 * Joins a narrow raw value with another value.
+	 *
+	 * @param raw
+	 * 		Raw narrow value.
+	 * @param other
+	 * 		Other value.
+	 *
+	 * @return Joined value, or {@code null} when the other value is not a narrow primitive.
+	 */
+	private static @Nullable Value joinRaw(@NotNull DalvikRawValue raw, @NotNull Value other) {
+		if (other instanceof DalvikRawValue otherRaw)
+			return DalvikRawValue.join(raw, otherRaw);
+		if (other == DalvikZeroValue.INSTANCE)
+			return DalvikRawValue.UNKNOWN;
+		if (other instanceof Value.IntValue)
+			return Values.INT_VALUE;
+		if (other instanceof Value.FloatValue)
+			return Values.FLOAT_VALUE;
+		return null;
+	}
+
+	/**
+	 * Joins a wide raw value with another value.
+	 *
+	 * @param raw
+	 * 		Raw wide value.
+	 * @param other
+	 * 		Other value.
+	 *
+	 * @return Joined value, or {@code null} when the other value is not a wide primitive.
+	 */
+	private static @Nullable Value joinWideRaw(@NotNull DalvikWideRawValue raw, @NotNull Value other) {
+		if (other instanceof DalvikWideRawValue otherRaw)
+			return DalvikWideRawValue.join(raw, otherRaw);
+		if (other == DalvikWideZeroValue.INSTANCE)
+			return DalvikWideRawValue.UNKNOWN;
+		if (other instanceof Value.LongValue)
+			return Values.LONG_VALUE;
+		if (other instanceof Value.DoubleValue)
+			return Values.DOUBLE_VALUE;
+		return null;
 	}
 
 	/**

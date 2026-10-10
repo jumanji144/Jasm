@@ -110,12 +110,22 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 		}
 		if (opcode == Opcodes.AGET_WIDE) {
 			Value array = arrayValue(instruction.array());
+
+			// An untyped zero is a null array operand. Dalvik accepts null here, and the element category stays undecided
+			// until some later usage of the value. We cannot decide the element category here, so we propagate an untyped wide value.
+			if (array == DalvikZeroValue.INSTANCE) {
+				write(instruction.value(), DalvikWideRawValue.UNKNOWN);
+				return;
+			}
+
+			// So it's not the zero instance.
+			// If it's not a long/double array then it's not wide.
 			if (!(array instanceof Value.ArrayValue arrayValue)
-					|| !(arrayValue.arrayType().component() == LONG
-					|| arrayValue.arrayType().component() == DOUBLE)) {
+					|| !(arrayValue.arrayType().component() == LONG || arrayValue.arrayType().component() == DOUBLE)) {
 				failDestination(instruction.value(), true, "aget-wide element category is unknown");
 				return;
 			}
+
 			write(instruction.value(), Values.valueOfPrimitive((PrimitiveType) arrayValue.arrayType().component()));
 			return;
 		}
@@ -244,9 +254,12 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 		ASTElement literal = sourceLiteral();
 		if (literal instanceof ASTNumber number) {
 			try {
-				// Zero bits are the same for int, float and null, so they stay untyped until a consumer reads them.
-				if (number.isBitPattern() && instruction.value() == 0)
-					write(instruction.register(), DalvikZeroValue.INSTANCE);
+				// A raw literal has no int/float tag. Zero retains its special Dalvik representation; every other raw
+				// payload keeps its bits and category ambiguity until a typed consumer reads it.
+				if (number.isBitPattern())
+					write(instruction.register(), instruction.value() == 0
+							? DalvikZeroValue.INSTANCE
+							: DalvikRawValue.of(instruction.value()));
 				else if (number.isFloatingPoint())
 					write(instruction.register(), new Value.KnownFloatValue(Float.intBitsToFloat(instruction.value())));
 				else if (instruction.value() == 0)
@@ -275,9 +288,12 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 		ASTElement literal = sourceLiteral();
 		if (literal instanceof ASTNumber number) {
 			try {
-				// Zero bits are the same for long, double and +0.0, so they stay untyped until a consumer reads them.
-				if (number.isBitPattern() && instruction.value() == 0)
-					write(instruction.register(), DalvikWideZeroValue.INSTANCE);
+				// A raw literal has no long/double tag. Zero retains its special Dalvik representation; every other raw
+				// payload keeps its bits and category ambiguity until a typed consumer reads it.
+				if (number.isBitPattern())
+					write(instruction.register(), instruction.value() == 0
+							? DalvikWideZeroValue.INSTANCE
+							: DalvikWideRawValue.of(instruction.value()));
 				else if (number.isFloatingPoint())
 					write(instruction.register(), new Value.KnownDoubleValue(Double.longBitsToDouble(instruction.value())));
 				else
@@ -482,7 +498,7 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 			returned = readReference(register, register, false);
 		} else {
 			returned = readSingle(register, register, false);
-			if (returned != null && returned != DalvikZeroValue.INSTANCE
+			if (returned != null && returned != DalvikZeroValue.INSTANCE && !(returned instanceof DalvikRawValue)
 					&& (!(returned instanceof Value.PrimitiveValue primitive) || primitive.isWide())) {
 				failDestination(register, false, "return requires a single-word primitive value");
 				returned = null;
@@ -986,7 +1002,7 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 	 * 		Whether the destination register is wide (for error reporting).
 	 *
 	 * @return The primitive value in the given register,
-	 * or {@code null} if the register doesn't contain a valid primitive value of the expected type.
+	 * or {@code null} if the register doesn't contain a valid primitive value of the expected category.
 	 */
 	private @Nullable Value readTyped(int register, @NotNull PrimitiveType expected, int destination, boolean destinationWide) {
 		// Read the value from the register, using the appropriate method for wide or single-word types.
@@ -996,8 +1012,24 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 		if (value == null)
 			return null;
 
-		// If the value is the Dalvik zero value and the expected type is INT, treat it as a known int zero.
-		if (value == DalvikZeroValue.INSTANCE && expected == INT)
+		// A nonzero raw value can be read as either narrow primitive category because its bits carry no tag.
+		if (value instanceof DalvikRawValue raw) {
+			if (Descriptors.isIntLike(expected))
+				return raw.known() ? Values.valueOf(raw.bits()) : Values.INT_VALUE;
+			if (expected == FLOAT)
+				return raw.known() ? new Value.KnownFloatValue(Float.intBitsToFloat(raw.bits())) : Values.FLOAT_VALUE;
+		}
+
+		// A nonzero wide raw value can be read as either wide primitive category for the same reason.
+		if (value instanceof DalvikWideRawValue raw) {
+			if (expected == LONG)
+				return raw.known() ? Values.valueOf(raw.bits()) : Values.LONG_VALUE;
+			if (expected == DOUBLE)
+				return raw.known() ? new Value.KnownDoubleValue(Double.longBitsToDouble(raw.bits())) : Values.DOUBLE_VALUE;
+		}
+
+		// If the value is the Dalvik zero value and the expected type is int-like, treat it as a known int zero.
+		if (value == DalvikZeroValue.INSTANCE && Descriptors.isIntLike(expected))
 			return Values.INT_0;
 
 		// Zero bits read as a float are +0.0f.
@@ -1008,8 +1040,9 @@ final class DalvikInstructionTransferEngine implements ExecutionEngine {
 		if (value == DalvikWideZeroValue.INSTANCE)
 			return expected == LONG ? Values.valueOf(0L) : new Value.KnownDoubleValue(0.0);
 
-		// If the value is not a primitive value or its type does not match the expected type, fail.
-		if (!(value instanceof Value.PrimitiveValue primitive) || primitive.type() != expected) {
+		// If the value is not a primitive value or its category does not match the expected category, fail.
+		if (!(value instanceof Value.PrimitiveValue primitive)
+				|| (Descriptors.isIntLike(expected) ? !(primitive instanceof Value.IntValue) : primitive.type() != expected)) {
 			failDestination(destination, destinationWide, "v" + register + " has the wrong primitive category for " + expected);
 			return null;
 		}

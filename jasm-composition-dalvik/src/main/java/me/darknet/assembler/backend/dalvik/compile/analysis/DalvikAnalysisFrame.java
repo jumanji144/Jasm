@@ -161,6 +161,8 @@ final class DalvikAnalysisFrame {
 	}
 
 	static boolean isWide(Value value) {
-		return value == DalvikWideZeroValue.INSTANCE || value instanceof Value.PrimitiveValue primitive && primitive.isWide();
+		return value == DalvikWideZeroValue.INSTANCE
+				|| value instanceof DalvikWideRawValue
+				|| value instanceof Value.PrimitiveValue primitive && primitive.isWide();
 	}
 }
