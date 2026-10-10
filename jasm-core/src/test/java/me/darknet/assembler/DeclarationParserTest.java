@@ -2,6 +2,7 @@ package me.darknet.assembler;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.*;
+import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticPhase;
 import me.darknet.assembler.test.AssemblyParseFixture;
@@ -237,6 +238,48 @@ public class DeclarationParserTest {
                     assertEquals("java/io/IOException", declaredThrows.value(1).content());
                 }
         );
+    }
+
+    @Test
+    public void testParameterAnnotationCodeKeyIsNotParsedAsMethodCode() {
+        List<ASTElement> processed = DiagnosticAssertions.requireSuccess(
+                AssemblyParseFixture.processAst(
+                        ".method public test (Ljava/lang/String;)V { " +
+                                "parameters: { code }, " +
+                                "parameter-annotations: { code: { .invisible-annotation gov/tak/api/annotation/NonNull {} } }, " +
+                                "code: {} }"
+                ),
+                "Parameter annotation key named code should process successfully"
+        );
+        ASTMethod method = assertIs(ASTMethod.class, processed.getFirst());
+
+        assertEquals(1, method.getParameterAnnotations().size());
+        assertEquals(1, method.getParameterAnnotations().values().iterator().next().size());
+    }
+
+    @Test
+    public void testCodeKeyInAnnotationValuesRemainsAnObject() {
+        assertOne(
+                ".annotation Example { code: { value: 1 } }",
+                ASTDeclaration.class,
+                declaration -> {
+                    ASTObject values = assertIs(ASTObject.class, declaration.element(1));
+                    ASTObject code = assertIs(ASTObject.class, values.value("code"));
+                    assertEquals("1", code.value("value").content());
+                }
+        );
+    }
+
+    @Test
+    public void testMethodCodeKeyStillProducesAstCode() {
+        List<ASTElement> processed = DiagnosticAssertions.requireSuccess(
+                AssemblyParseFixture.processAst(".method public test ()V {\n    code: {\n        return-void\n    }\n}"),
+                "Method code block should process"
+        );
+        ASTMethod method = assertIs(ASTMethod.class, processed.getFirst());
+
+        assertInstanceOf(ASTCode.class, method.getCode());
+        assertEquals(1, method.getCode().getInstructions().size());
     }
 
     @Test

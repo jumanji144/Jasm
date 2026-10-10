@@ -77,7 +77,7 @@ public class DeclarationParser {
             ctx.throwUnexpectedError(token.content());
             return null;
         }
-        if (ctx.isCurrentState(State.IN_OBJECT)) {
+        if (ctx.isCurrentState(State.IN_OBJECT) && ctx.isMethodBodyObject()) {
             Token objectKey = ctx.peek(-2);
             if (objectKey != null && objectKey.content().equals("code")) {
                 // this is the only way I could easily sneak in the code format into the parser
@@ -195,44 +195,51 @@ public class DeclarationParser {
     }
 
     private @Nullable ASTObject parseObject() {
-        ctx.enterState(State.IN_OBJECT);
-        if (ctx.take("{") == null)
-            return null;
-        ElementMap<ASTIdentifier, ASTElement> elements = new ElementMap<>();
-        while (true) {
-            Token peek = ctx.peek();
-            if (peek == null) {
-                ctx.throwEofError("identifier or }");
+        // The code key has special syntax only in a method's direct body object.
+        // We don't want things like local variable names of 'code' to be treated as code blocks...
+        ctx.enterObject(ctx.isDirectDeclarationElement() && ctx.isCurrentDeclaration(".method"));
+        try {
+            ctx.enterState(State.IN_OBJECT);
+            if (ctx.take("{") == null)
                 return null;
-            }
-            if (peek.content().equals("}")) {
-                break;
-            }
-            ASTIdentifier identifier = ctx.literal();
-            if (identifier == null)
-                return null;
-            if (ctx.take(":") == null)
-                return null;
-            ASTElement element = parse();
-            if (element == null) {
-                ctx.throwExpectedError("element", peek.content());
-                return null;
-            }
-            elements.put(identifier, element);
-            peek = ctx.peek();
-            if (peek == null) {
-                ctx.throwEofError(", or }");
-                return null;
-            }
-            if (!peek.content().equals("}")) {
-                if (ctx.take(",") == null)
+            ElementMap<ASTIdentifier, ASTElement> elements = new ElementMap<>();
+            while (true) {
+                Token peek = ctx.peek();
+                if (peek == null) {
+                    ctx.throwEofError("identifier or }");
                     return null;
+                }
+                if (peek.content().equals("}")) {
+                    break;
+                }
+                ASTIdentifier identifier = ctx.literal();
+                if (identifier == null)
+                    return null;
+                if (ctx.take(":") == null)
+                    return null;
+                ASTElement element = parse();
+                if (element == null) {
+                    ctx.throwExpectedError("element", peek.content());
+                    return null;
+                }
+                elements.put(identifier, element);
+                peek = ctx.peek();
+                if (peek == null) {
+                    ctx.throwEofError(", or }");
+                    return null;
+                }
+                if (!peek.content().equals("}")) {
+                    if (ctx.take(",") == null)
+                        return null;
+                }
             }
+            if (ctx.take("}") == null)
+                return null;
+            ctx.leaveState(State.IN_OBJECT);
+            return new ASTObject(elements);
+        } finally {
+            ctx.leaveObject();
         }
-        if (ctx.take("}") == null)
-            return null;
-        ctx.leaveState(State.IN_OBJECT);
-        return new ASTObject(elements);
     }
 
     private @Nullable ASTDeclaration parseDeclaration() {
@@ -241,47 +248,58 @@ public class DeclarationParser {
             ctx.throwExpectedError("identifier starting with '.'", identifier.content());
             return null;
         }
-        State state = ctx.getState();
-        Token peek = ctx.peek();
-        if (peek == null) {
-            return new ASTDeclaration(identifier, List.of());
-        }
-        List<ASTElement> elements = new ArrayList<>();
-        while (!peek.content().startsWith(".")) {
-            ASTElement element = parse();
-            if (element == null) {
-                return null;
+        ctx.enterDeclaration(identifier.content());
+        try {
+            State state = ctx.getState();
+            Token peek = ctx.peek();
+            if (peek == null) {
+                return new ASTDeclaration(identifier, List.of());
             }
-            elements.add(element);
-            peek = ctx.peek();
-            if (peek == null)
-                break; // declarations are the top level elements, so we can just stop here
-            if (state == State.IN_NESTED_DECLARATION_OR_ARRAY) {
-                if (peek.content().equals("}") || peek.content().equals(",")) {
-                    break;
+            List<ASTElement> elements = new ArrayList<>();
+            while (!peek.content().startsWith(".")) {
+                ctx.enterDeclarationElement();
+                ASTElement element;
+                try {
+                    element = parse();
+                } finally {
+                    ctx.leaveDeclarationElement();
                 }
-            }
-            if ((state == State.IN_NESTED_DECLARATION) && peek.content().equals("}")) {
-                break;
-            } else if (state == State.IN_OBJECT) {
-                // detection is a bit hacky, but it works
-                // check if over next token is a : or next token is a }
-                if (peek.content().equals("}") || peek.content().equals(",")) {
-                    break;
-                }
-                Token next = ctx.peek(1);
-                if (next == null) {
-                    ctx.throwEofError("end of declaration");
+                if (element == null) {
                     return null;
                 }
-                if (next.content().equals(":")) {
+                elements.add(element);
+                peek = ctx.peek();
+                if (peek == null)
+                    break; // declarations are the top level elements, so we can just stop here
+                if (state == State.IN_NESTED_DECLARATION_OR_ARRAY) {
+                    if (peek.content().equals("}") || peek.content().equals(",")) {
+                        break;
+                    }
+                }
+                if ((state == State.IN_NESTED_DECLARATION) && peek.content().equals("}")) {
+                    break;
+                } else if (state == State.IN_OBJECT) {
+                    // detection is a bit hacky, but it works
+                    // check if over next token is a : or next token is a }
+                    if (peek.content().equals("}") || peek.content().equals(",")) {
+                        break;
+                    }
+                    Token next = ctx.peek(1);
+                    if (next == null) {
+                        ctx.throwEofError("end of declaration");
+                        return null;
+                    }
+                    if (next.content().equals(":")) {
+                        break;
+                    }
+                } else if ((state == State.IN_ARRAY) && (peek.content().equals(",") || peek.content().equals("}"))) { // arrays are a bit easier
                     break;
                 }
-            } else if ((state == State.IN_ARRAY) && (peek.content().equals(",") || peek.content().equals("}"))) { // arrays are a bit easier
-                break;
             }
+            return new ASTDeclaration(identifier, elements);
+        } finally {
+            ctx.leaveDeclaration();
         }
-        return new ASTDeclaration(identifier, elements);
     }
 
     private @Nullable ASTElement parseArrayOrNestedDeclaration() {
@@ -419,6 +437,9 @@ public class DeclarationParser {
         private final DeclarationParser parser;
         private final List<Token> tokens;
         private final DiagnosticSink diagnostics = new DiagnosticSink(DiagnosticPhase.SYNTAX);
+        private final LinkedList<Boolean> objectRoles = new LinkedList<>();
+        private final LinkedList<String> declarations = new LinkedList<>();
+        private final LinkedList<State> declarationElementStates = new LinkedList<>();
         private int idx = 0;
         private Token latest;
 
@@ -426,6 +447,42 @@ public class DeclarationParser {
             this.parser = parser;
             this.tokens = Collections.unmodifiableList(tokens);
             this.latest = tokens.getFirst();
+        }
+
+        private void enterObject(boolean methodBody) {
+            objectRoles.push(methodBody);
+        }
+
+        private void leaveObject() {
+            objectRoles.poll();
+        }
+
+        private boolean isMethodBodyObject() {
+            return !objectRoles.isEmpty() && objectRoles.peek();
+        }
+
+        private void enterDeclaration(String keyword) {
+            declarations.push(keyword);
+        }
+
+        private void leaveDeclaration() {
+            declarations.poll();
+        }
+
+        private boolean isCurrentDeclaration(String keyword) {
+            return keyword.equals(declarations.peek());
+        }
+
+        private void enterDeclarationElement() {
+            declarationElementStates.push(getState());
+        }
+
+        private void leaveDeclarationElement() {
+            declarationElementStates.poll();
+        }
+
+        private boolean isDirectDeclarationElement() {
+            return !declarationElementStates.isEmpty() && getState() == declarationElementStates.peek();
         }
 
         private boolean done() {

@@ -16,7 +16,7 @@ It can be represented by the following expressions:
 - `vN`: A numeric register, where `N` is the register index (`v0`, `v12`)
 - Any identifier: A named register, which is given a slot automatically
 
-Important: Named registers are allocated the lowest free slot below the method's parameters, so the `registers`
+Important: Named registers are allocated the lowest free slot below the method's parameters that no numeric `vN` operand of the same method uses, so the `registers`
 declaration has
 to leave room for every local a method uses.
 
