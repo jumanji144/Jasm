@@ -3,7 +3,7 @@ package me.darknet.assembler.printer;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * This class used to expose annotation printing capabilities for API consumers.
+ * Provides access to annotation printers by visibility and index.
  */
 @SuppressWarnings("unused")
 public interface AnnotationHolder {

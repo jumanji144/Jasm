@@ -1,6 +1,7 @@
 package me.darknet.assembler.util;
 
 import me.darknet.assembler.ast.ASTElement;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,7 +15,7 @@ import java.util.List;
  * @param <B>
  *            The value type.
  */
-public class ElementMap<A extends ASTElement, B extends ASTElement> {
+public class ElementMap<A extends ASTElement, B extends ASTElement> implements ElementMapView<A, B> {
 
     private final List<Pair<A, B>> values = new ArrayList<>();
 
@@ -26,13 +27,15 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
         values.add(new Pair<>(key, value));
     }
 
+    @Override
     @SuppressWarnings("unchecked")
-    public <T extends B> T get(int index) {
+    public <T extends B> @Nullable T get(int index) {
         return (T) values.get(index).second();
     }
 
+    @Override
     @SuppressWarnings("unchecked")
-    public <T extends B> T get(String content) {
+    public <T extends B> @Nullable T get(String content) {
         for (Pair<A, B> pair : values) {
             if (pair.first().content().equals(content)) {
                 return (T) pair.second();
@@ -41,11 +44,13 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
         return null;
     }
 
-    public A key(int index) {
+    @Override
+    public @Nullable A key(int index) {
         return values.get(index).first();
     }
 
-    public A key(String content) {
+    @Override
+    public @Nullable A key(String content) {
         for (Pair<A, B> pair : values) {
             if (pair.first().content().equals(content)) {
                 return pair.first();
@@ -54,14 +59,17 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
         return null;
     }
 
-    public Pair<A, B> pair(int index) {
+    @Override
+    public @Nullable Pair<A, B> pair(int index) {
         return values.get(index);
     }
 
+    @Override
     public Collection<Pair<A, B>> pairs() {
         return values;
     }
 
+    @Override
     public boolean containsKey(String content) {
         for (Pair<A, B> pair : values) {
             if (pair.first().content().equals(content)) {
@@ -71,6 +79,7 @@ public class ElementMap<A extends ASTElement, B extends ASTElement> {
         return false;
     }
 
+    @Override
     public List<ASTElement> elements() {
         List<ASTElement> elements = new ArrayList<>();
         for (Pair<A, B> pair : values) {

@@ -1,14 +1,19 @@
 package me.darknet.assembler.printer;
 
 import me.darknet.assembler.util.EscapeUtil;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 
+/**
+ * Shared source-emission context with indentation, escaping, and builders for objects, declaration objects, arrays, and code.
+ */
 @SuppressWarnings("unchecked")
 public class PrintContext<T extends PrintContext<?>> {
 
@@ -23,6 +28,7 @@ public class PrintContext<T extends PrintContext<?>> {
     protected boolean debugTryCatchRanges;
     protected boolean ignoreExistingVariableNames;
     protected boolean forceWholeNumberRepresentation;
+    protected FloatPrintMode floatPrintMode = FloatPrintMode.STANDARD;
 
     public PrintContext(String indentStep, Writer writer) {
         this.indentStep = indentStep;
@@ -37,6 +43,7 @@ public class PrintContext<T extends PrintContext<?>> {
         this.debugTryCatchRanges = ctx.debugTryCatchRanges;
         this.ignoreExistingVariableNames = ctx.ignoreExistingVariableNames;
         this.forceWholeNumberRepresentation = ctx.forceWholeNumberRepresentation;
+        this.floatPrintMode = ctx.floatPrintMode;
         this.indentStep = ctx.indentStep;
         this.writer = ctx.writer;
         this.indent = ctx.indent;
@@ -62,7 +69,31 @@ public class PrintContext<T extends PrintContext<?>> {
         this.forceWholeNumberRepresentation = forceWholeNumberRepresentation;
     }
 
-    T append(String s) {
+    public void setFloatPrintMode(FloatPrintMode floatPrintMode) {
+        this.floatPrintMode = Objects.requireNonNull(floatPrintMode, "floatPrintMode");
+    }
+
+    public String labelPrefix() {
+        return labelPrefix;
+    }
+
+    public boolean debugTryCatchRanges() {
+        return debugTryCatchRanges;
+    }
+
+    public boolean ignoreExistingVariableNames() {
+        return ignoreExistingVariableNames;
+    }
+
+    public boolean forceWholeNumberRepresentation() {
+        return forceWholeNumberRepresentation;
+    }
+
+    public FloatPrintMode floatPrintMode() {
+        return floatPrintMode;
+    }
+
+    public T append(String s) {
         try {
             writer.append(s);
         } catch (IOException e) {
@@ -71,7 +102,7 @@ public class PrintContext<T extends PrintContext<?>> {
         return (T) this;
     }
 
-    T append(char c) {
+    public T append(char c) {
         try {
             writer.append(c);
         } catch (IOException e) {
@@ -170,6 +201,31 @@ public class PrintContext<T extends PrintContext<?>> {
         return indent;
     }
 
+    /**
+     * Selects the spelling used for floating-point constants.
+     */
+    public enum FloatPrintMode {
+        STANDARD,
+        HEX,
+        BINARY;
+
+        /**
+         * Converts a string to a FloatPrintMode enum value.
+         *
+         * @param mode The string representation of the float print mode.
+         * @return The corresponding FloatPrintMode enum value.
+         * @throws IllegalArgumentException If the provided string does not match any known mode.
+         */
+        public static @NotNull FloatPrintMode fromString(@NotNull String mode) {
+            return switch (mode.toLowerCase()) {
+                case "standard" -> STANDARD;
+                case "hex" -> HEX;
+                case "binary" -> BINARY;
+                default -> throw new IllegalArgumentException("Unknown float print mode: " + mode);
+            };
+        }
+    }
+
     public static class ObjectPrint extends PrintContext<ObjectPrint> {
 
         public ObjectPrint(PrintContext<?> ctx) {
@@ -259,6 +315,16 @@ public class PrintContext<T extends PrintContext<?>> {
                 printer.accept(this, iterator.next());
                 while (iterator.hasNext()) {
                     printer.accept(arg(), iterator.next());
+                }
+            }
+            return this;
+        }
+
+        public <E> ArrayPrint printArray(E[] array, BiConsumer<ArrayPrint, E> printer) {
+            for (int i = 0; i < array.length; i++) {
+                printer.accept(this, array[i]);
+                if (i < array.length - 1) {
+                    this.arg();
                 }
             }
             return this;

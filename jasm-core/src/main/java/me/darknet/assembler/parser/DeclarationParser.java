@@ -3,11 +3,12 @@ package me.darknet.assembler.parser;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.*;
-import me.darknet.assembler.error.Error;
-import me.darknet.assembler.error.ErrorCollector;
+import me.darknet.assembler.error.DiagnosticCode;
+import me.darknet.assembler.error.DiagnosticPhase;
+import me.darknet.assembler.error.DiagnosticSink;
+import me.darknet.assembler.error.Outcome;
 import me.darknet.assembler.util.ElementMap;
 import me.darknet.assembler.util.Location;
-import me.darknet.assembler.util.Pair;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -22,64 +23,51 @@ public class DeclarationParser {
 
     private ParserContext ctx;
 
-    /**
-     * Parse all declarations from the given tokens, this will only try to parse
-     * declarations. Result for this method will always be a list of
-     * {@link ASTDeclaration} or null if parsing that element failed.
-     *
-     * @param tokens
-     *               the tokens to parse
-     *
-     * @return {@link ParsingResult} of the parsing
-     */
-    public ParsingResult<List<@Nullable ASTElement>> parseDeclarations(Collection<Token> tokens) {
-        if (tokens.isEmpty()) {
-            return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
-        }
-        Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
-        this.ctx = new ParserContext(this, new ArrayList<>(filtered.second()));
-        List<ASTElement> declarations = new ArrayList<>();
-        while (!this.ctx.done()) {
+	/**
+	 * Parse all declarations from the given tokens, preserving partial AST recovery when syntax errors occur.
+	 *
+	 * @param tokens
+	 * 		the tokens to parse
+	 *
+	 * @return the parsed declarations and syntax diagnostics
+	 */
+    public Outcome<List<@Nullable ASTElement>> parseDeclarations(Collection<Token> tokens) {
+        List<Token> filtered = filterComments(tokens);
+        if (filtered.isEmpty())
+            return Outcome.success(List.of());
+        this.ctx = new ParserContext(this, filtered);
+        List<@Nullable ASTElement> declarations = new ArrayList<>();
+        while (!this.ctx.done())
             declarations.add(parseDeclaration());
-        }
-        return new ParsingResult<>(declarations, ctx.errorCollector.getErrors(), filtered.first());
+        return Outcome.of(declarations, ctx.diagnostics.diagnostics());
     }
 
-    /**
-     * Parse any element from the given tokens, this will try to parse any element.
-     * Results for this method can only include objects from
-     * {@link me.darknet.assembler.ast.primitive} and {@link ASTDeclaration}
-     *
-     * @param tokens
-     *               the tokens to parse
-     *
-     * @return {@link ParsingResult} of the parsing
-     */
-    public ParsingResult<List<@Nullable ASTElement>> parseAny(Collection<Token> tokens) {
-        if (tokens.isEmpty()) {
-            return new ParsingResult<>(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
-        }
-        Pair<List<ASTComment>, Collection<Token>> filtered = filterComments(tokens);
-        this.ctx = new ParserContext(this, new ArrayList<>(filtered.second()));
-        List<ASTElement> result = new ArrayList<>();
-        while (!this.ctx.done()) {
-            ASTElement element = parse();
-            result.add(element);
-        }
-        return new ParsingResult<>(result, ctx.errorCollector.getErrors(), filtered.first());
+	/**
+	 * Parse any supported element from the given tokens, preserving partial AST recovery.
+	 *
+	 * @param tokens
+	 * 		the tokens to parse
+	 *
+	 * @return the parsed elements and syntax diagnostics
+	 */
+    public Outcome<List<@Nullable ASTElement>> parseAny(Collection<Token> tokens) {
+        List<Token> filtered = filterComments(tokens);
+        if (filtered.isEmpty())
+            return Outcome.success(List.of());
+        this.ctx = new ParserContext(this, filtered);
+        List<@Nullable ASTElement> result = new ArrayList<>();
+        while (!this.ctx.done())
+            result.add(parse());
+        return Outcome.of(result, ctx.diagnostics.diagnostics());
     }
 
-    private Pair<List<ASTComment>, Collection<Token>> filterComments(Collection<Token> tokens) {
-        List<Token> filtered = new ArrayList<>();
-        List<ASTComment> comments = new ArrayList<>();
+    private List<Token> filterComments(Collection<Token> tokens) {
+        List<Token> filtered = new ArrayList<>(tokens.size());
         for (Token token : tokens) {
-            if (token.type().equals(TokenType.COMMENT)) {
-                comments.add(new ASTComment(token));
-            } else {
+            if (token.type() != TokenType.COMMENT)
                 filtered.add(token);
-            }
         }
-        return new Pair<>(comments, filtered);
+        return filtered;
     }
 
     private @Nullable ASTElement parseOperator(Token token) {
@@ -89,7 +77,7 @@ public class DeclarationParser {
             ctx.throwUnexpectedError(token.content());
             return null;
         }
-        if (ctx.isCurrentState(State.IN_OBJECT)) {
+        if (ctx.isCurrentState(State.IN_OBJECT) && ctx.isMethodBodyObject()) {
             Token objectKey = ctx.peek(-2);
             if (objectKey != null && objectKey.content().equals("code")) {
                 // this is the only way I could easily sneak in the code format into the parser
@@ -130,6 +118,10 @@ public class DeclarationParser {
 
     private @Nullable ASTElement parse() {
         Token token = ctx.peek();
+        if (token == null) {
+            ctx.throwEofError("element");
+            return null;
+        }
 
         switch (token.type()) {
             case IDENTIFIER -> {
@@ -152,7 +144,7 @@ public class DeclarationParser {
             case OPERATOR -> {
                 return parseOperator(token);
             }
-            default -> ctx.errorCollector.addError(new Error("Unexpected token " + token.content(), token.location()));
+            default -> ctx.throwError(DiagnosticCode.UNEXPECTED_TOKEN, "Unexpected token " + token.content(), token.location());
         }
         return null;
     }
@@ -172,44 +164,20 @@ public class DeclarationParser {
 
     private @Nullable ASTArray parseHalfArray(List<ASTElement> elements) {
         ctx.enterState(State.IN_ARRAY);
-        Token peek = ctx.peek();
-        while (!peek.content().equals("}")) {
-            elements.add(parse());
-            peek = ctx.peek();
+        while (true) {
+            Token peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError(", or {");
                 return null;
             }
-            if (!peek.content().equals("}")) {
-                if (ctx.take(",") == null)
-                    return null;
-                peek = ctx.peek();
+            if (peek.content().equals("}")) {
+                break;
             }
-        }
-        if (ctx.take("}") == null)
-            return null;
-        ctx.leaveState(State.IN_ARRAY);
-        return new ASTArray(elements);
-    }
-
-    private @Nullable ASTObject parseObject() {
-        ctx.enterState(State.IN_OBJECT);
-        if (ctx.take("{") == null)
-            return null;
-        ElementMap<ASTIdentifier, ASTElement> elements = new ElementMap<>();
-        Token peek = ctx.peek();
-        while (!peek.content().equals("}")) {
-            ASTIdentifier identifier = ctx.literal();
-            if (identifier == null)
-                return null;
-            if (ctx.take(":") == null)
-                return null;
             ASTElement element = parse();
             if (element == null) {
-                ctx.throwExpectedError("element", peek.content());
                 return null;
             }
-            elements.put(identifier, element);
+            elements.add(element);
             peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError(", or }");
@@ -222,8 +190,56 @@ public class DeclarationParser {
         }
         if (ctx.take("}") == null)
             return null;
-        ctx.leaveState(State.IN_OBJECT);
-        return new ASTObject(elements);
+        ctx.leaveState(State.IN_ARRAY);
+        return new ASTArray(elements);
+    }
+
+    private @Nullable ASTObject parseObject() {
+        // The code key has special syntax only in a method's direct body object.
+        // We don't want things like local variable names of 'code' to be treated as code blocks...
+        ctx.enterObject(ctx.isDirectDeclarationElement() && ctx.isCurrentDeclaration(".method"));
+        try {
+            ctx.enterState(State.IN_OBJECT);
+            if (ctx.take("{") == null)
+                return null;
+            ElementMap<ASTIdentifier, ASTElement> elements = new ElementMap<>();
+            while (true) {
+                Token peek = ctx.peek();
+                if (peek == null) {
+                    ctx.throwEofError("identifier or }");
+                    return null;
+                }
+                if (peek.content().equals("}")) {
+                    break;
+                }
+                ASTIdentifier identifier = ctx.literal();
+                if (identifier == null)
+                    return null;
+                if (ctx.take(":") == null)
+                    return null;
+                ASTElement element = parse();
+                if (element == null) {
+                    ctx.throwExpectedError("element", peek.content());
+                    return null;
+                }
+                elements.put(identifier, element);
+                peek = ctx.peek();
+                if (peek == null) {
+                    ctx.throwEofError(", or }");
+                    return null;
+                }
+                if (!peek.content().equals("}")) {
+                    if (ctx.take(",") == null)
+                        return null;
+                }
+            }
+            if (ctx.take("}") == null)
+                return null;
+            ctx.leaveState(State.IN_OBJECT);
+            return new ASTObject(elements);
+        } finally {
+            ctx.leaveObject();
+        }
     }
 
     private @Nullable ASTDeclaration parseDeclaration() {
@@ -232,44 +248,58 @@ public class DeclarationParser {
             ctx.throwExpectedError("identifier starting with '.'", identifier.content());
             return null;
         }
-        State state = ctx.getState();
-        Token peek = ctx.peek();
-        if (peek == null) {
-            ctx.throwEofError("content");
-            return null;
-        }
-        List<ASTElement> elements = new ArrayList<>();
-        while (!peek.content().startsWith(".")) {
-            elements.add(parse());
-            peek = ctx.peek();
-            if (peek == null)
-                break; // declarations are the top level elements, so we can just stop here
-            if (state == State.IN_NESTED_DECLARATION_OR_ARRAY) {
-                if (peek.content().equals("}") || peek.content().equals(",")) {
-                    break;
-                }
+        ctx.enterDeclaration(identifier.content());
+        try {
+            State state = ctx.getState();
+            Token peek = ctx.peek();
+            if (peek == null) {
+                return new ASTDeclaration(identifier, List.of());
             }
-            if ((state == State.IN_NESTED_DECLARATION) && peek.content().equals("}")) {
-                break;
-            } else if (state == State.IN_OBJECT) {
-                // detection is a bit hacky, but it works
-                // check if over next token is a : or next token is a }
-                if (peek.content().equals("}") || peek.content().equals(",")) {
-                    break;
+            List<ASTElement> elements = new ArrayList<>();
+            while (!peek.content().startsWith(".")) {
+                ctx.enterDeclarationElement();
+                ASTElement element;
+                try {
+                    element = parse();
+                } finally {
+                    ctx.leaveDeclarationElement();
                 }
-                Token next = ctx.peek(1);
-                if (next == null) {
-                    ctx.throwEofError("end of declaration");
+                if (element == null) {
                     return null;
                 }
-                if (next.content().equals(":")) {
+                elements.add(element);
+                peek = ctx.peek();
+                if (peek == null)
+                    break; // declarations are the top level elements, so we can just stop here
+                if (state == State.IN_NESTED_DECLARATION_OR_ARRAY) {
+                    if (peek.content().equals("}") || peek.content().equals(",")) {
+                        break;
+                    }
+                }
+                if ((state == State.IN_NESTED_DECLARATION) && peek.content().equals("}")) {
+                    break;
+                } else if (state == State.IN_OBJECT) {
+                    // detection is a bit hacky, but it works
+                    // check if over next token is a : or next token is a }
+                    if (peek.content().equals("}") || peek.content().equals(",")) {
+                        break;
+                    }
+                    Token next = ctx.peek(1);
+                    if (next == null) {
+                        ctx.throwEofError("end of declaration");
+                        return null;
+                    }
+                    if (next.content().equals(":")) {
+                        break;
+                    }
+                } else if ((state == State.IN_ARRAY) && (peek.content().equals(",") || peek.content().equals("}"))) { // arrays are a bit easier
                     break;
                 }
-            } else if ((state == State.IN_ARRAY) && (peek.content().equals(",") || peek.content().equals("}"))) { // arrays are a bit easier
-                break;
             }
+            return new ASTDeclaration(identifier, elements);
+        } finally {
+            ctx.leaveDeclaration();
         }
-        return new ASTDeclaration(identifier, elements);
     }
 
     private @Nullable ASTElement parseArrayOrNestedDeclaration() {
@@ -308,14 +338,20 @@ public class DeclarationParser {
 
     private @Nullable ASTDeclaration parseHalfNestedDeclaration(List<ASTElement> elements) {
         ctx.enterState(State.IN_NESTED_DECLARATION);
-        Token peek = ctx.peek();
-        while (!peek.content().equals("}")) {
-            elements.add(parseDeclaration());
-            peek = ctx.peek();
+        while (true) {
+            Token peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError("} or declaration");
                 return null;
             }
+            if (peek.content().equals("}")) {
+                break;
+            }
+            ASTDeclaration declaration = parseDeclaration();
+            if (declaration == null) {
+                return null;
+            }
+            elements.add(declaration);
         }
         if (ctx.take("}") == null)
             return null;
@@ -327,18 +363,20 @@ public class DeclarationParser {
         ctx.enterState(State.IN_CODE);
         if (ctx.take("{") == null)
             return null;
-        Token peek = ctx.peek();
         List<ASTInstruction> instructions = new ArrayList<>();
-        while (!peek.content().equals("}")) {
-            ASTInstruction instruction = parseInstruction();
-            if (instruction == null)
-                return null;
-            instructions.add(instruction);
-            peek = ctx.peek();
+        while (true) {
+            Token peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError("} or instruction");
                 return null;
             }
+            if (peek.content().equals("}")) {
+                break;
+            }
+            ASTInstruction instruction = parseInstruction();
+            if (instruction == null)
+                return null;
+            instructions.add(instruction);
         }
         if (ctx.take("}") == null)
             return null;
@@ -369,11 +407,14 @@ public class DeclarationParser {
         List<ASTElement> arguments = new ArrayList<>();
         // parse until peek is eof or on a different line
         while (peek.location().line() == instruction.location().line()) {
-            arguments.add(parse());
+            ASTElement argument = parse();
+            if (argument == null) {
+                return null;
+            }
+            arguments.add(argument);
             peek = ctx.peek();
             if (peek == null) {
-                ctx.throwEofError("instruction argument");
-                return null;
+                break;
             }
         }
         ctx.leaveState(State.IN_INSTRUCTION);
@@ -395,7 +436,10 @@ public class DeclarationParser {
 
         private final DeclarationParser parser;
         private final List<Token> tokens;
-        private final ErrorCollector errorCollector = new ErrorCollector();
+        private final DiagnosticSink diagnostics = new DiagnosticSink(DiagnosticPhase.SYNTAX);
+        private final LinkedList<Boolean> objectRoles = new LinkedList<>();
+        private final LinkedList<String> declarations = new LinkedList<>();
+        private final LinkedList<State> declarationElementStates = new LinkedList<>();
         private int idx = 0;
         private Token latest;
 
@@ -403,6 +447,42 @@ public class DeclarationParser {
             this.parser = parser;
             this.tokens = Collections.unmodifiableList(tokens);
             this.latest = tokens.getFirst();
+        }
+
+        private void enterObject(boolean methodBody) {
+            objectRoles.push(methodBody);
+        }
+
+        private void leaveObject() {
+            objectRoles.poll();
+        }
+
+        private boolean isMethodBodyObject() {
+            return !objectRoles.isEmpty() && objectRoles.peek();
+        }
+
+        private void enterDeclaration(String keyword) {
+            declarations.push(keyword);
+        }
+
+        private void leaveDeclaration() {
+            declarations.poll();
+        }
+
+        private boolean isCurrentDeclaration(String keyword) {
+            return keyword.equals(declarations.peek());
+        }
+
+        private void enterDeclarationElement() {
+            declarationElementStates.push(getState());
+        }
+
+        private void leaveDeclarationElement() {
+            declarationElementStates.poll();
+        }
+
+        private boolean isDirectDeclarationElement() {
+            return !declarationElementStates.isEmpty() && getState() == declarationElementStates.peek();
         }
 
         private boolean done() {
@@ -427,7 +507,7 @@ public class DeclarationParser {
         }
 
         private Token take(String exact) {
-            if (tokens.isEmpty()) {
+            if (done()) {
                 throwEofError(exact);
                 return null;
             }
@@ -441,7 +521,7 @@ public class DeclarationParser {
         }
 
         private Token takeAny() {
-            if (tokens.isEmpty()) {
+            if (done()) {
                 throwEofError("any token");
                 return null;
             }
@@ -449,7 +529,7 @@ public class DeclarationParser {
         }
 
         private ASTIdentifier literal() {
-            if (tokens.isEmpty()) {
+            if (done()) {
                 throwEofError("literal");
                 return null;
             }
@@ -481,27 +561,21 @@ public class DeclarationParser {
                 }
             }
             if (!valid) {
-                errorCollector.addError(
-                        new Error(
-                                "Expected one of " + Arrays.toString(validTypes) + " but got " + element.type(),
-                                element.value().location()
-                        )
-                );
+                diagnostics.error(DiagnosticCode.UNEXPECTED_TOKEN,
+                        "Expected one of " + Arrays.toString(validTypes) + " but got " + element.type(),
+                        element.value().location());
                 return null;
             }
             return element;
         }
 
-        public void throwError(Error error) {
-            errorCollector.addError(error);
+        public void throwError(DiagnosticCode code, String message, Location location) {
+            diagnostics.error(code, message, location);
         }
 
         public void throwEofError(String expected) {
-            if (latest == null) {
-                throwError(new Error("Expected '" + expected + "' but got EOF", new Location(-1, -1, 0, "")));
-                return;
-            }
-            throwError(new Error("Expected '" + expected + "' but got EOF", latest.location()));
+            Location location = latest == null ? new Location(-1, -1, 0, "") : latest.location();
+            throwError(DiagnosticCode.UNEXPECTED_TOKEN, "Expected '" + expected + "' but got EOF", location);
         }
 
         public void throwExpectedError(String expected, String got) {
@@ -509,7 +583,7 @@ public class DeclarationParser {
                 throwEofError(expected);
                 return;
             }
-            throwError(new Error("Expected '" + expected + "' but got '" + got + "'", latest.location()));
+            throwError(DiagnosticCode.UNEXPECTED_TOKEN, "Expected '" + expected + "' but got '" + got + "'", latest.location());
         }
 
         public void throwUnexpectedError(String got) {
@@ -517,9 +591,7 @@ public class DeclarationParser {
                 throwEofError("any token");
                 return;
             }
-            throwError(new Error("Unexpected token '" + got + "'", latest.location()));
+            throwError(DiagnosticCode.UNEXPECTED_TOKEN, "Unexpected token '" + got + "'", latest.location());
         }
-
     }
-
 }

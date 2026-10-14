@@ -5,6 +5,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
+/**
+ * Utilities for creating, merging, filtering, and safely copying collections.
+ */
 public class CollectionUtil {
 
     public static <T> List<T> fromArray(@Nullable T[] array) {
@@ -73,5 +76,11 @@ public class CollectionUtil {
             return null;
         }
         return T.get(index);
+    }
+
+    public static <T> @NotNull List<T> immutableCopy(@Nullable Collection<? extends T> elements) {
+        if (elements == null || elements.isEmpty())
+            return Collections.emptyList();
+        return Collections.unmodifiableList(new ArrayList<>(elements));
     }
 }

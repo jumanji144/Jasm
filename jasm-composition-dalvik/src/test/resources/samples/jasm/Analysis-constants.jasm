@@ -1,0 +1,12 @@
+.super java/lang/Object
+.class public AnalysisConstants {
+    .method public static sum ()I {
+        registers: 3,
+        code: {
+            const v0 7
+            const v1 5
+            add-int v2 v0 v1
+            return v2
+        }
+    }
+}

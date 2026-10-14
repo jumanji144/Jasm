@@ -5,6 +5,9 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 
+/**
+ * Label declaration node represented by an identifier followed by a colon in source code.
+ */
 public class ASTLabel extends ASTInstruction {
 
     public ASTLabel(ASTIdentifier identifier) {

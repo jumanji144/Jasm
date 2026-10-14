@@ -2,6 +2,7 @@ package me.darknet.assembler.parser.processor;
 
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.ast.specific.*;
 import org.jetbrains.annotations.NotNull;
@@ -17,10 +18,14 @@ public class ProcessorAttributes {
     public final List<ASTAnnotation> visibleTypeAnnotations = new ArrayList<>();
     public final List<ASTAnnotation> invisibleTypeAnnotations = new ArrayList<>();
     public ASTString signature;
+    public boolean deprecated;
+    public ASTElement deprecatedAttribute;
 
     // class attributes
     public ASTIdentifier superName;
+    public ASTNumber version;
     public ASTString sourceFile;
+    public ASTString sourceDebugExtension;
     public ASTOuterMethod outerMethod;
     public ASTElement outerClass;
     public ASTIdentifier nestHost;
@@ -33,8 +38,46 @@ public class ProcessorAttributes {
     // all attributes
     List<ASTElement> attributes = new ArrayList<>();
 
+   public void fill(ProcessorAttributes other) {
+        visibleAnnotations.addAll(other.visibleAnnotations);
+        invisibleAnnotations.addAll(other.invisibleAnnotations);
+        visibleTypeAnnotations.addAll(other.visibleTypeAnnotations);
+        invisibleTypeAnnotations.addAll(other.invisibleTypeAnnotations);
+
+        if (other.signature != null)
+            signature = other.signature;
+        if (other.deprecatedAttribute != null) {
+            deprecated = other.deprecated;
+            deprecatedAttribute = other.deprecatedAttribute;
+        }
+
+        if (other.superName != null)
+            superName = other.superName;
+        if (other.version != null)
+            version = other.version;
+        if (other.sourceFile != null)
+            sourceFile = other.sourceFile;
+        if (other.sourceDebugExtension != null)
+            sourceDebugExtension = other.sourceDebugExtension;
+        if (other.outerMethod != null)
+            outerMethod = other.outerMethod;
+        if (other.outerClass != null)
+            outerClass = other.outerClass;
+        if (other.nestHost != null)
+            nestHost = other.nestHost;
+
+        nestMembers.addAll(other.nestMembers);
+        interfaces.addAll(other.interfaces);
+        inners.addAll(other.inners);
+        permittedSubclasses.addAll(other.permittedSubclasses);
+        recordComponents.addAll(other.recordComponents);
+        attributes.addAll(other.attributes);
+    }
+
     public @NotNull ProcessorAttributes clearGenericAttributes() {
         signature = null;
+        deprecated = false;
+        deprecatedAttribute = null;
         visibleAnnotations.clear();
         invisibleAnnotations.clear();
         visibleTypeAnnotations.clear();
@@ -57,12 +100,18 @@ public class ProcessorAttributes {
         // Same idea as annotations above
         if (signature != null && element instanceof ASTSigned signed)
             signed.setSignature(signature);
+        if (deprecated && element instanceof ASTMember member)
+            member.setDeprecated(true);
 
         if (element instanceof ASTClass clazz) {
             if (sourceFile != null)
                 clazz.setSourceFile(sourceFile);
+            if (sourceDebugExtension != null)
+                clazz.setSourceDebugExtension(sourceDebugExtension);
             if (superName != null)
                 clazz.setSuperName(superName);
+            if (version != null)
+                clazz.setVersion(version);
             if (outerClass != null)
                 clazz.setOuterClass(outerClass);
             if (outerMethod != null)

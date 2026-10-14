@@ -1,61 +1,85 @@
-# JVM Instruction set
-The jvm instruction set for jasm 
+# JVM Instructions
+
+Java is a stack based language, meaning that all operations are performed on a stack of values.
+The JVM instruction set is designed to be as close to the Java language as possible _(with conveniences like variable
+names and labels)_, while still being a low level language.
 
 ## Objects
-Objects used by the jvm instruction set
+
+Objects used by the JVM instruction set:
 
 ### Variable
+
 A variable is a label for a local variable which can also be a parameter.
 It can be represented by the following expressions:
-- any identifier
-- any number
 
-Important: In order to make sure obfuscation does not break jasm, number literals are **interpreted as identifiers**. This means that `astore 2` does NOT store the top object to the variable in slot `2`, but stores it to a variable CALLED `2`. It does not have to be variable 2.
+- Any identifier
+- Any number
+
+Important: In order to make sure obfuscation does not break Jasm, number literals are **interpreted as identifiers**.
+This means that `astore 2` does NOT store the top object to the variable in slot `2`, but stores it to a variable CALLED
+`2`. It does not have to be variable 2.
+
 There is currently no way to load / store a specific local index.
 
 ### Constant
-A constant is a object present in the constant pool and can be represented by the following expressions:
-- identifier:
-  - class type (`Lsome/package/Class;` `[Lsome/package/Array` `[I` `I`)
-  - a method type (`(Lsome/package/Argument;IIJJZZ)Lsome/package/Return;`)
-- number:
-    represents a numeric constant, depending on context only certain number kinds are allowed
-- string:
-    a string constant
-- array:
-    - handle:
-        The jvm takes the [handle](#handle) and resolves it to a MethodHandle
-    - constant dynamic: The jvm evaluates the constant dynamic using the handle to resolve a method handle and then invokes it
+
+A constant is an object present in the constant pool and can be represented by the following expressions:
+
+- `identifier`:
+    - A class type (`Lsome/package/Class;` `[Lsome/package/Array` `[I` `I`)
+    - A method type (`(Lsome/package/Argument;IIJJZZ)Lsome/package/Return;`)
+- `number`: An `int`, `long`, `float` or `double`, depending on the [number suffix](../Syntax.md#number)
+- `string`: A string constant
+- `array`:
+    - `handle`: The jvm takes the [`handle`](#handle) and resolves it to a `MethodHandle`.
+    - `constant dynamic`: The jvm evaluates the constant dynamic using the handle to resolve a method handle and then
+      invokes it.
 
 ### Handle
+
 Format:
+
 ```
 { kind, owner.member, descriptor }
 ```      
+
 A handle is a way to describe a way for the jvm to obtain a `java/lang/invoke/MethodHandle` from the instructions given.
 The way the jvm obtains this is determined by the kind:
-- invokevirtual (equivalent to: `invokevirtual owner.member descriptor`)
-- invokestatic (equivalent to: `invokestatic owner.member descriptor`)
-- invokespecial (equivalent to: `invokespecial owner.member descriptor`)
-- getfield (equivalent to: `getfield owner.member descriptor`)
-- putfield (equivalent to: `putfield owner.member descriptor`)
-- getstatic (equivalent to: `getstatic owner.member descriptor`)
-- putstatic (equivalent to: `putstatic owner.member descriptor`)
-- invokeinterface (equivalent to: `invokeinterface owner.member descriptor`)
-- newinvokespecial (equivalent to: `new owner; dup; invokespecial owner.<init> descriptor`
+
+- `invokevirtual` (equivalent to: `invokevirtual owner.member descriptor`)
+- `invokestatic` (equivalent to: `invokestatic owner.member descriptor`)
+- `invokespecial` (equivalent to: `invokespecial owner.member descriptor`)
+- `getfield` (equivalent to: `getfield owner.member descriptor`)
+- `putfield` (equivalent to: `putfield owner.member descriptor`)
+- `getstatic` (equivalent to: `getstatic owner.member descriptor`)
+- `putstatic` (equivalent to: `putstatic owner.member descriptor`)
+- `invokeinterface` (equivalent to: `invokeinterface owner.member descriptor`)
+- `newinvokespecial` (equivalent to: `new owner; dup; invokespecial owner.<init> descriptor`
+
+A handle naming one of the shortcut methods (`ConstantBootstraps.nullConstant`, `LambdaMetafactory.metafactory`, etc.)
+can be written by that name instead of as an array for brevity. The full list is defined in
+`me.darknet.assembler.helper.Handle#HANDLE_SHORTCUTS`
 
 ### Constant dynamic
+
 Format:
+
 ```
 { name, descriptor { kind, owner.member, descriptor } { arguments } }
 ```
-Constant dynamic is the constant equivalent of the [invokedynamic](#invokedynamic) instruction, as it evaluates the same
+
+Constant dynamic is the constant equivalent of the [`invokedynamic`](#invokedynamic) instruction, as it evaluates the
+same
 but counts as a constant, thus can be used in any other place a constant of its type is permitted.
 
-It behaves the same as a invokedynamic instruction, but evaluates the value directly in place, instead of on the stack
+It behaves the same as an `invokedynamic` instruction, but evaluates the value directly in place, instead of on the
+stack
 
 ### Tableswitch
+
 Format:
+
 ```
 { 
     default: label,
@@ -64,14 +88,17 @@ Format:
     cases: { label... }
 }
 ```
+
 A tableswitch is a way to jump to a label based on a integer value, it takes an integer and jumps to the label at the
 index of the integer in the cases array, if the integer is less than min or greater than max it jumps to the default
 label.
 
 ### Lookupswitch
+
 Format:
+
 ```
-{ 
+{ 0
     default: label,
     cases: { 
         key: label,
@@ -79,11 +106,14 @@ Format:
     }
 }
 ```
+
 A `lookupswitch` is a way to jump to a label based on a integer value, it takes an integer and jumps to the label at the
 key in the cases array, if the integer is not present in the cases array it jumps to the default label.
 
 ### Array Type
+
 Array type specifies the primitive type of the array, it can be one of the following:
+
 - `byte`
 - `short`
 - `char`
@@ -94,6 +124,7 @@ Array type specifies the primitive type of the array, it can be one of the follo
 - `boolean`
 
 ## Instructions
+
 | Opcode                                                                                                     | Stack [before] -> [after]                                                                  | Description                                                                                                                                                                                      |
 |------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `nop`                                                                                                      | ->                                                                                         | does nothing                                                                                                                                                                                     |
@@ -237,8 +268,8 @@ Array type specifies the primitive type of the array, it can be one of the follo
 | `anewarray {class or array}`                                                                               | `int` -> `array`                                                                           | creates a new array of `class` or `array`, where `array` is a array descriptor `[...`, with length `int` and pushes it onto the stack                                                            |
 | `arraylength`                                                                                              | `array` -> `int`                                                                           | gets the length of `array` and pushes it onto the stack                                                                                                                                          |
 | `athrow`                                                                                                   | `object` ->                                                                                | throws `object`                                                                                                                                                                                  |
-| `checkcast {class or array}`                                                                                          | `object` -> `object`                                                                       | casts `object` to `class` and pushes it onto the stack                                                                                                                                           |
-| `instanceof {class or array}`                                                                                         | `object` -> `int`                                                                          | checks if `object` is an instance of `class` and pushes the result onto the stack                                                                                                                |
+| `checkcast {class or array}`                                                                               | `object` -> `object`                                                                       | casts `object` to `class` and pushes it onto the stack                                                                                                                                           |
+| `instanceof {class or array}`                                                                              | `object` -> `int`                                                                          | checks if `object` is an instance of `class` and pushes the result onto the stack                                                                                                                |
 | `monitorenter`                                                                                             | `object` ->                                                                                | enters the monitor of `object`                                                                                                                                                                   |
 | `monitorexit`                                                                                              | `object` ->                                                                                | exits the monitor of `object`                                                                                                                                                                    |
 | `multianewarray class dimensions`                                                                          | `int...` -> `array`                                                                        | creates a new multidimensional array of `class` with dimensions `dimensions` and pushes it onto the stack                                                                                        |

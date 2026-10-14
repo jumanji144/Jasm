@@ -1,0 +1,52 @@
+package me.darknet.assembler.backend.dalvik.printer;
+
+import me.darknet.assembler.printer.*;
+
+import me.darknet.dex.tree.definitions.annotation.Annotation;
+import me.darknet.dex.tree.definitions.constant.*;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Iterator;
+import java.util.Map;
+
+public record DalvikAnnotationPrinter(Annotation annotation) implements AnnotationPrinter {
+
+    public final static byte VISIBILITY_INTERNAL = Annotation.VISIBILITY_SYSTEM + 1;
+
+    @Override
+    public void print(PrintContext<?> ctx) {
+        var part = annotation.annotation();
+        var visibility = annotation.visibility();
+
+        String token = switch (visibility) {
+            case Annotation.VISIBILITY_BUILD -> ".invisible-annotation";
+            case Annotation.VISIBILITY_RUNTIME -> ".visible-annotation";
+            case Annotation.VISIBILITY_SYSTEM -> ".system-annotation";
+            case VISIBILITY_INTERNAL -> ".annotation";
+            default -> throw new IllegalStateException("Unexpected value: " + visibility);
+        };
+
+        ctx.begin().element(token).literal(part.type().internalName()).print(" ");
+        if (part.elements().isEmpty()) {
+            ctx.print("{}").newline();
+            return;
+        }
+
+        var obj = ctx.object();
+        obj.print(new Iterable<>() {
+            @Override
+            public @NotNull Iterator<Map.Entry<String, Constant>> iterator() {
+                return part.elements().entrySet().stream()
+                        .sorted(Map.Entry.comparingByKey())
+                        .iterator();
+            }
+        }, this::printEntry);
+        obj.end();
+        ctx.newline();
+    }
+
+    private void printEntry(PrintContext.ObjectPrint ctx, Map.Entry<String, Constant> entry) {
+        ctx.literalValue(entry.getKey());
+        DalvikConstantPrinter.printConstant(ctx, entry.getValue());
+    }
+}

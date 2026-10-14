@@ -2,6 +2,9 @@ package me.darknet.assembler.parser;
 
 import java.util.LinkedList;
 
+/**
+ * Stack-backed state tracker for entering, leaving, and querying nested states.
+ */
 public class Stateful<S> {
 
     private final LinkedList<S> stack = new LinkedList<>();

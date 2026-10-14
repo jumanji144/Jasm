@@ -1,204 +1,116 @@
 package me.darknet.assembler.cli.commands;
 
-import me.darknet.assembler.ast.ASTElement;
-import me.darknet.assembler.cli.compile.jvm.SafeClassLoader;
-import me.darknet.assembler.compile.JavaClassRepresentation;
-import me.darknet.assembler.compile.JvmCompiler;
-import me.darknet.assembler.compile.JvmCompilerOptions;
-import me.darknet.assembler.compiler.*;
-import me.darknet.assembler.compiler.Compiler;
-import me.darknet.assembler.helper.Processor;
-
+import me.darknet.assembler.cli.targets.CliRuntime;
+import me.darknet.assembler.cli.targets.CliTarget;
+import me.darknet.assembler.cli.targets.CliTargetCandidates;
+import me.darknet.assembler.cli.targets.CliTargets;
+import me.darknet.assembler.cli.targets.CompileRequest;
+import me.darknet.assembler.cli.targets.SourceUnit;
 import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 @CommandLine.Command(
         name = "compile", description = "Compile Java Assembler source code", mixinStandardHelpOptions = true
 )
-public class CompileCommand implements Runnable {
+public class CompileCommand implements Callable<Integer> {
 
-    @CommandLine.Parameters(index = "0", description = "Source file", arity = "0..1", paramLabel = "file")
-    private Optional<File> source;
+    @CommandLine.Spec
+    private CommandLine.Model.CommandSpec commandSpec;
 
-    @CommandLine.Option(names = { "-o", "--output" }, description = "Output file", paramLabel = "file")
+    @CommandLine.ParentCommand
+    private MainCommand parentCommand;
+
+    @CommandLine.Parameters(index = "0..*", description = "Source file(s)", arity = "0..*", paramLabel = "file")
+    private List<File> sources = new ArrayList<>();
+
+    @CommandLine.Option(names = {"-o", "--output"}, description = "Output file", paramLabel = "file")
     private File output;
 
-    @CommandLine.Option(names = { "-s", "--source" }, description = "Source code", paramLabel = "code")
-    private Optional<String> sourceCode;
+    @CommandLine.Option(names = {"-s", "--source"}, description = "Source code", paramLabel = "code")
+    private Optional<String> sourceCode = Optional.empty();
+
+    @CommandLine.Option(names = {"-ov", "--overlay"}, description = "Overlay class file\nRequired for non-class code", paramLabel = "file")
+    private Optional<File> overlay = Optional.empty();
+
+    @CommandLine.Option(names = {"-at", "--annotation-target"}, description = "Annotation target", paramLabel = "target")
+    private Optional<String> annotationTarget = Optional.empty();
+
+    @CommandLine.Option(names = {"-bv", "--bytecode-version"}, description = "Bytecode version", paramLabel = "version")
+    private Optional<Integer> bytecodeVersion = Optional.empty();
+
+    @CommandLine.Option(names = {"-lib", "--library-folder"}, description = "Library folder path", paramLabel = "path")
+    private Optional<String> libraryFolder = Optional.empty();
 
     @CommandLine.Option(
-            names = { "-ov",
-                    "--overlay" }, description = "Overlay class file\nRequired for non-class code", paramLabel = "file"
-    )
-    private Optional<File> overlay;
-
-    @CommandLine.Option(
-            names = { "-at", "--annotation-target" }, description = "Annotation target", paramLabel = "target"
-    )
-    private Optional<String> annotationTarget;
-
-    @CommandLine.Option(
-            names = { "-bv",
-                    "--bytecode-version" }, description = "Bytecode version (default: ${DEFAULT-VALUE})", defaultValue = "8", paramLabel = "version"
-    )
-    private int bytecodeVersion;
-
-    @CommandLine.Option(
-            names = { "-lib",
-                    "--library-folder" }, description = "Library folder path", paramLabel = "path"
-    )
-    private Optional<String> libraryFolder;
-    
-    @CommandLine.Option(
-            names = { "-ic",
-                    "--inheritance-checker" }, description = "Enable the inheritance checker (default: ${DEFAULT-VALUE})", defaultValue = "true", paramLabel = "boolean"
+            names = {"-ic", "--inheritance-checker"},
+            description = "Enable the inheritance checker (default: ${DEFAULT-VALUE})",
+            defaultValue = "true", paramLabel = "boolean"
     )
     private boolean enableInheritanceChecker;
 
-    private Compiler compiler;
-    private CompilerOptions<?> options;
-
-    private void configureCompiler() {
-        switch (MainCommand.target) {
-            case JVM -> {
-                compiler = new JvmCompiler();
-                options = new JvmCompilerOptions();
-            }
-            case DALVIK -> throw new UnsupportedOperationException("Dalvik target is not supported yet");
-            default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
-        }
-
-        InheritanceChecker inheritanceChecker;
-        if (enableInheritanceChecker) {
-            inheritanceChecker = new ReflectiveInheritanceChecker(new SafeClassLoader(new URL[0]));
-            if (this.libraryFolder.isPresent()) {
-                URL[] urls = new URL[0];
-                try (var stream = Files.walk(Paths.get(this.libraryFolder.get()))) {
-                    urls = stream
-                        .filter(Files::isRegularFile)
-                        .filter(path -> path.toString().endsWith(".class") || path.toString().endsWith(".jar"))
-                        .map(Path::toUri)
-                        .map(uri -> {
-                            try {
-                                return uri.toURL();
-                            } catch (Exception e) {
-                                System.err.println("Failed to convert path to URL: " + e.getMessage());
-                                System.exit(1);
-                                return null;
-                            }
-                        }).toArray(URL[]::new);
-                } catch (IOException e) {
-                    System.err.println("Failed to read library folder: " + e.getMessage());
-                    System.exit(1);
-                }
-                inheritanceChecker = new ReflectiveInheritanceChecker(new SafeClassLoader(urls));
-            }
-        } else {
-            inheritanceChecker = EmptyInheritanceChecker.INSTANCE;
-        }
-
-        options.version(bytecodeVersion).overlay(new JavaClassRepresentation(overlay.map(file -> {
-            try {
-                return Files.readAllBytes(file.toPath());
-            } catch (IOException e) {
-                System.err.println("Failed to read overlay file: " + e.getMessage());
-                System.exit(1);
-                return null;
-            }
-        }).orElse(null))).annotationPath(annotationTarget.orElse(null))
-        .inheritanceChecker(inheritanceChecker);
-    }
-
-    private void validateAst(List<ASTElement> ast) {
-        if (ast.size() != 1) {
-            System.err.println("Expected exactly one class, method or field declaration");
-            System.exit(1);
-        }
-
-        switch (ast.getFirst().type()) {
-            case CLASS -> {
-            }
-            case METHOD, FIELD -> {
-                if (overlay.isEmpty()) {
-                    System.err.println("Overlay is required for non-class code");
-                    System.exit(1);
-                }
-            }
-            case ANNOTATION -> {
-                if (overlay.isEmpty() || annotationTarget.isEmpty()) {
-                    System.err.println("Overlay and annotation target are required for annotation code");
-                    System.exit(1);
-                }
-            }
-            default -> {
-                System.err.println("Expected exactly one class, method or field declaration");
-                System.exit(1);
-            }
-        }
-    }
+    @CommandLine.Option(
+            names = {"-t", "--target"}, completionCandidates = CliTargetCandidates.class,
+            description = "Target platform (overrides the root target)", paramLabel = "target"
+    )
+    private Optional<String> targetOverride = Optional.empty();
 
     @Override
-    public void run() {
+    public Integer call() {
+        CliRuntime runtime = new CliRuntime(commandSpec.commandLine());
+        CliTarget target = resolveTarget(runtime);
+        List<SourceUnit> units = readSources(runtime);
+        CompileRequest request = new CompileRequest(
+                runtime,
+                units,
+                Optional.ofNullable(output),
+                overlay,
+                annotationTarget,
+                bytecodeVersion.orElse(target.defaultBytecodeVersion()),
+                libraryFolder,
+                enableInheritanceChecker
+        );
+        try {
+            return target.compile(request);
+        } catch (CommandLine.ExecutionException exception) {
+            throw exception;
+        } catch (IOException exception) {
+            throw runtime.failure("Failed to compile source file: " + exception.getMessage(), exception);
+        }
+    }
 
-        String code = sourceCode.map(String::trim).orElse("");
-        String src = source.map(File::getAbsolutePath).orElse("<stdin>");
+    private CliTarget resolveTarget(CliRuntime runtime) {
+        String value = targetOverride.orElse(parentCommand.target());
+        CliTarget target = CliTargets.findStrategy(value);
+        if (target == null) {
+            String validIds = String.join(", ", CliTargets.registry().ids().stream().map(id -> id.value()).toList());
+            throw runtime.failure("Unknown target: " + value + ". Valid targets: " + validIds);
+        }
+        return target;
+    }
 
-        if (source.isPresent()) {
-            try {
-                code = Files.readString(source.get().toPath());
-            } catch (IOException e) {
-                System.err.println("Failed to read source file: " + e.getMessage());
-                System.exit(1);
-            }
+    private List<SourceUnit> readSources(CliRuntime runtime) {
+        if (sourceCode.isPresent() && !sources.isEmpty()) {
+            throw runtime.failure("--source cannot be combined with source files");
+        }
+        if (sources.isEmpty()) {
+            return List.of(new SourceUnit("<stdin>", sourceCode.map(String::trim).orElse(""), null));
         }
 
-        configureCompiler();
-
-        Processor.processSource(code, src, ast -> {
-            validateAst(ast);
-
-            compiler.compile(ast, options).ifErr((unused, errors) -> {
-                System.err.println("Failed to compile source file:");
-                errors.forEach(System.err::println);
-                System.exit(1);
-            }).ifOk((result) -> {
-                ClassRepresentation representation = result.representation();
-                switch (MainCommand.target) {
-                    case JVM -> {
-		        Path outputPath;
-                        if (output != null) {
-                           outputPath = output.toPath();
-                        } else {
-                           String inputFilename = source.isPresent() ? source.get().getName() : "output";
-                           String classFilename = inputFilename.endsWith(".jasm") ? inputFilename.substring(0, inputFilename.length() - 5) + ".class" : inputFilename + ".class";
-                           outputPath = Paths.get(classFilename);
-                        }
-                        try {
-                            Files.createDirectories(outputPath.getParent());
-                            Files.write(outputPath, ((JavaClassRepresentation) representation).classFile());
-                        } catch (IOException e) {
-                            System.err.println("Failed to write output file: " + e.getMessage());
-                            e.printStackTrace();
-                            System.exit(1);
-                        }
-                    }
-                    case DALVIK -> throw new UnsupportedOperationException("Dalvik target is not supported yet");
-                    default -> throw new UnsupportedOperationException("Unknown target: " + MainCommand.target);
-                }
-            });
-        }, errors -> {
-            System.err.println("Failed to parse source file:");
-            errors.forEach(System.err::println);
-            System.exit(1);
-        }, MainCommand.target);
+        List<SourceUnit> units = new ArrayList<>(sources.size());
+        for (File source : sources) {
+            try {
+                units.add(new SourceUnit(source.getAbsolutePath(), Files.readString(source.toPath()), source.getName()));
+            } catch (IOException exception) {
+                throw runtime.failure("Failed to read source file: " + exception.getMessage(), exception);
+            }
+        }
+        return List.copyOf(units);
     }
 }

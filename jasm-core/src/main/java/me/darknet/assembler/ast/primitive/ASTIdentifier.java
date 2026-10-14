@@ -7,6 +7,9 @@ import me.darknet.assembler.util.EscapeUtil;
 import me.darknet.assembler.util.Location;
 import me.darknet.assembler.util.Range;
 
+/**
+ * Identifier literal node representing a source name or other identifier token.
+ */
 public class ASTIdentifier extends ASTLiteral {
 	public static final ASTIdentifier STUB = new ASTIdentifier(new Token(Range.EMPTY, Location.UNKNOWN, TokenType.IDENTIFIER, ""));
 

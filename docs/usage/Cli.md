@@ -4,62 +4,71 @@ The Jasm CLI is the main way to easily use JASM.
 The CLI is a thin wrapper around the internal api.
 
 ## Usage
-Here is the help page of the `jasm` command:
-```bash
-Usage: jasm [-hV] [-t=<target>] [COMMAND]
-Java Assembler CLI
-  -h, --help              Show this help message and exit.
-  -t, --target=<target>   Target platform
-                          Possible values: JVM, DALVIK (default: JVM)
-  -V, --version           Print version information and exit.
+
+The root `--target` option selects the default backend for subcommands.
+
+```text
+jasm [-t <target>] [COMMAND]
+  -t, --target <target>   Default target platform (JVM or DALVIK; default: JVM)
+
 Commands:
   compile    Compile Java Assembler source code
   decompile  Decompile Java Assembler bytecode
 ```
-Here the `target` platform specifies which instruction set the assembler will use.
 
-### Compile
-The `compile` command compiles a `.jasm` file into a `.class` file.
+For example, `jasm --target DALVIK compile --target JVM ...` compiles for the JVM because the child option wins.
 
-Here is the help page of the `compile` command:
-```bash
-Usage: jasm compile [-hV] [-at=target] [-bv=version] -o=file [-ov=file]
-                    [-s=code] [file]
-Compile Java Assembler source code
-      [file]                Source file
-      -at, --annotation-target=target
-                            Annotation target
-      -bv, --bytecode-version=version
-                            Bytecode version (default: 8)
-  -h, --help                Show this help message and exit.
-  -o, --output=file         Output file
-      -ov, --overlay=file   Overlay class file
-                            Required for non-class code
-  -s, --source=code         Source code
-  -V, --version             Print version information and exit.
+## Compile
+
+`compile` accepts a `.jasm` file or inline source supplied with `--source`. 
+
+The target determines the output format and default bytecode version:
+
+- JVM defaults version to 8 
+- Dalvik defaults version to 35.
+
+- Use `--bytecode-version` to select another version _(Dalvik accepts 35 through 41)_.
+
+```text
+jasm compile [-hV] [-ic] [-at=target] [-bv=version] [-lib=path] [-o=file] [-ov=file] [-s=code] [-t=target] [file...]
+  -t, --target <target>            Target override for this command
+  -o, --output <file>              Output file
+  -s, --source <code>              Inline source (cannot accompany source files)
+  -bv, --bytecode-version <version> Bytecode version
+  -ov, --overlay <file>            Overlay class file for method, field or annotation source
+  -at, --annotation-target <path>  JVM annotation placement path
+  -lib, --library-folder <path>    JVM inheritance-checker classpath folder
+  -ic, --inheritance-checker       Enable the JVM inheritance checker
 ```
-Most notable options are:   
-`-at`/`--annotation-target`: Specifies a target path to know where to place an annotation when the target
-source is not a full class file, the path is in the form of:
-- `path/to/class.<index>` for a class file
-- `path/to/class.method.<name>.<descriptor>.<index>` for a method
-- `path/to/class.field.<name>.<descriptor>.<index>` for a field
-Where `<index>` is the index of the annotation on the target.
-`-ov`/`--overlay`: Specifies a class file to use as an overlay for the compiled class, which basically loads the class
-file and then applies the singular method/field/annotation to that class file. (This is required for non-class code)
-`-s`/`--source`: Specifies the source code to compile, this is useful for piping the source code into the compiler.
 
-### Decompile
-The `decompile` command decompiles a `.class` file into a `.jasm` file.
+`--annotation-target` specifies where an annotation is placed when the source is not a full class:
 
-Here is the help page of the `decompile` command:
-```bash
-Usage: jasm decompile [-hV] [-i=<indent>] [-o=<output>] file
-Decompile Java Assembler bytecode
-      file                Source file
-  -h, --help              Show this help message and exit.
-  -i, --indent=<indent>   Indentation
-  -o, --output=<output>   Output file
-  -V, --version           Print version information and exit.
+- `path/to/class.<index>` for a class annotation
+- `path/to/class.method.<name>.<descriptor>.<index>` for a method annotation
+- `path/to/class.field.<name>.<descriptor>.<index>` for a field annotation
+
+`--overlay` supplies the class to which a single method, field or annotation declaration is applied. 
+Method and field declarations require an overlay. Annotations require both an overlay and an annotation target. 
+
+Dalvik overlays must be standalone DEX files containing exactly one class.
+
+`--library-folder` and `--annotation-target` are JVM-only options.
+
+## Decompile
+
+`decompile` renders a class file, JAR, DEX file or APK as JASM. 
+A single class is printed to standard output unless `--output` is supplied. 
+For an archive with multiple classes, use `--class` to select one class or provide an output directory to emit every class as a `.jasm` file. 
+Class names may use dotted (`example.Foo`) or internal (`example/Foo`) form.
+
+```text
+jasm decompile [-hV] [-c=name] [--float-format=mode] [-i=<indent>] [-o=<output>] [-t=target] file
+  -t, --target <target>                 Target override for this command
+  -o, --output <file-or-directory>      Output file or directory
+  -c, --class <name>                    Select a class from an archive or DEX/APK
+  -i, --indent <indent>                 Indentation (default: four spaces)
+      --float-representation <mode>     standard, hex or binary (default: standard)
+      --float-format <mode>             Alias for --float-representation
 ```
-The options are pretty self explanatory.
+
+Floating-point constants use `standard` decimal output by default. Use `hex` or `binary` to emit their raw bit patterns.

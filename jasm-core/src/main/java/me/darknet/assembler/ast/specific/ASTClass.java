@@ -3,10 +3,9 @@ package me.darknet.assembler.ast.specific;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
-import me.darknet.assembler.error.ErrorCollector;
-import me.darknet.assembler.visitor.ASTClassVisitor;
-import me.darknet.assembler.visitor.ASTRecordComponentVisitor;
+import me.darknet.assembler.util.CollectionUtil;
 import me.darknet.assembler.visitor.Modifiers;
 
 import org.jetbrains.annotations.NotNull;
@@ -15,6 +14,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Class declaration node containing class members and class-level metadata such as interfaces, nesting, and record components.
+ */
 public class ASTClass extends ASTMember {
     private final @NotNull List<ASTElement> contents;
     private @NotNull List<ASTIdentifier> interfaces = Collections.emptyList();
@@ -22,7 +24,9 @@ public class ASTClass extends ASTMember {
     private @NotNull List<ASTRecordComponent> recordComponents = Collections.emptyList();
     private @NotNull List<ASTInner> inners = Collections.emptyList();
     private @Nullable ASTIdentifier superName;
+    private @Nullable ASTNumber version;
     private @Nullable ASTString sourceFile;
+    private @Nullable ASTString sourceDebugExtension;
     private @Nullable ASTElement outerClass;
     private @Nullable ASTOuterMethod outerMethod;
     private @Nullable ASTIdentifier nestHost;
@@ -30,8 +34,9 @@ public class ASTClass extends ASTMember {
 
     public ASTClass(@NotNull Modifiers modifiers, @NotNull ASTIdentifier name, @NotNull List<ASTElement> contents) {
         super(ElementType.CLASS, modifiers, name, name);
-        addChildren(contents);
-        this.contents = contents;
+        List<ASTElement> ownedContents = CollectionUtil.immutableCopy(contents);
+        addChildren(ownedContents);
+        this.contents = ownedContents;
     }
 
     @Nullable
@@ -44,6 +49,16 @@ public class ASTClass extends ASTMember {
         this.sourceFile = sourceFile;
     }
 
+    @Nullable
+    public ASTString getSourceDebugExtension() {
+        return sourceDebugExtension;
+    }
+
+    public void setSourceDebugExtension(@Nullable ASTString sourceDebugExtension) {
+        replaceChild(this.sourceDebugExtension, sourceDebugExtension);
+        this.sourceDebugExtension = sourceDebugExtension;
+    }
+
     public @Nullable ASTIdentifier getSuperName() {
         return superName;
     }
@@ -51,6 +66,21 @@ public class ASTClass extends ASTMember {
     public void setSuperName(@Nullable ASTIdentifier superName) {
         replaceChild(this.superName, superName);
         this.superName = superName;
+    }
+
+    /**
+     * @return Declared class-file version, or {@code null} when not present.
+     */
+    public @Nullable ASTNumber getVersion() {
+        return version;
+    }
+
+    /**
+     * @param version Declared class-file version, or {@code null} to clear it.
+     */
+    public void setVersion(@Nullable ASTNumber version) {
+        replaceChild(this.version, version);
+        this.version = version;
     }
 
     @Nullable
@@ -78,9 +108,18 @@ public class ASTClass extends ASTMember {
         this.nestHost = nestHost;
     }
 
+    public @Nullable ASTIdentifier getNestHost() {
+        return nestHost;
+    }
+
     public void setNestMembers(@NotNull List<ASTIdentifier> nestMembers) {
-        replaceChildren(this.nestMembers, nestMembers);
-        this.nestMembers = nestMembers;
+        List<ASTIdentifier> ownedNestMembers = CollectionUtil.immutableCopy(nestMembers);
+        replaceChildren(this.nestMembers, ownedNestMembers);
+        this.nestMembers = ownedNestMembers;
+    }
+
+    public @NotNull List<ASTIdentifier> getNestMembers() {
+        return nestMembers;
     }
 
     @NotNull
@@ -89,12 +128,15 @@ public class ASTClass extends ASTMember {
     }
 
     public void setInterfaces(@NotNull List<ASTIdentifier> interfaces) {
-        replaceChildren(this.interfaces, interfaces);
-        this.interfaces = interfaces;
+        List<ASTIdentifier> ownedInterfaces = CollectionUtil.immutableCopy(interfaces);
+        replaceChildren(this.interfaces, ownedInterfaces);
+        this.interfaces = ownedInterfaces;
     }
 
     public void setPermittedSubclasses(@NotNull List<ASTIdentifier> permittedSubclasses) {
-        this.permittedSubclasses = permittedSubclasses;
+        List<ASTIdentifier> ownedPermittedSubclasses = CollectionUtil.immutableCopy(permittedSubclasses);
+        replaceChildren(this.permittedSubclasses, ownedPermittedSubclasses);
+        this.permittedSubclasses = ownedPermittedSubclasses;
     }
 
     @NotNull
@@ -103,7 +145,9 @@ public class ASTClass extends ASTMember {
     }
 
     public void setRecordComponents(@NotNull List<ASTRecordComponent> recordComponents) {
-        this.recordComponents = recordComponents;
+        List<ASTRecordComponent> ownedRecordComponents = CollectionUtil.immutableCopy(recordComponents);
+        replaceChildren(this.recordComponents, ownedRecordComponents);
+        this.recordComponents = ownedRecordComponents;
     }
 
     @NotNull
@@ -117,8 +161,9 @@ public class ASTClass extends ASTMember {
     }
 
     public void setInnerClasses(@NotNull List<ASTInner> inners) {
-        replaceChildren(this.inners, inners);
-        this.inners = inners;
+        List<ASTInner> ownedInners = CollectionUtil.immutableCopy(inners);
+        replaceChildren(this.inners, ownedInners);
+        this.inners = ownedInners;
     }
 
     @NotNull
@@ -130,62 +175,4 @@ public class ASTClass extends ASTMember {
         return contents.get(index);
     }
 
-    public void accept(ErrorCollector collector, ASTClassVisitor visitor) {
-        super.accept(collector, visitor);
-        if (visitor == null)
-            return;
-
-        visitor.visitSourceFile(sourceFile);
-        visitor.visitSuperClass(superName);
-        visitor.visitOuterClass(outerClass);
-        visitor.visitOuterMethod(outerMethod);
-        visitor.visitNestHost(nestHost);
-        for (ASTIdentifier nestMember : nestMembers) {
-            visitor.visitNestMember(nestMember);
-        }
-        for (ASTIdentifier anInterface : interfaces) {
-            visitor.visitInterface(anInterface);
-        }
-
-        for (ASTIdentifier permittedSubclass : permittedSubclasses) {
-            visitor.visitPermittedSubclass(permittedSubclass);
-        }
-
-        for (ASTRecordComponent recordComponent : recordComponents) {
-            ASTRecordComponentVisitor componentVisitor = visitor.visitRecordComponent(recordComponent.getComponentType(),
-                    recordComponent.getComponentDescriptor(), recordComponent.getSignature());
-            for (ASTAnnotation annotation : recordComponent.getVisibleAnnotations()) {
-                annotation.accept(collector, componentVisitor.visitVisibleAnnotation(annotation.classType()));
-            }
-            for (ASTAnnotation annotation : recordComponent.getInvisibleAnnotations()) {
-                annotation.accept(collector, componentVisitor.visitInvisibleAnnotation(annotation.classType()));
-            }
-            for (ASTAnnotation annotation : recordComponent.getVisibleTypeAnnotations()) {
-                annotation.accept(collector, componentVisitor.visitVisibleTypeAnnotation(annotation.classType(), annotation.typeRef(), annotation.typePath()));
-            }
-            for (ASTAnnotation annotation : recordComponent.getInvisibleTypeAnnotations()) {
-                annotation.accept(collector, componentVisitor.visitInvisibleTypeAnnotation(annotation.classType(), annotation.typeRef(), annotation.typePath()));
-            }
-        }
-
-        for (ASTInner inner : inners) {
-            visitor.visitInnerClass(inner.getModifiers(), inner.name(), inner.outerClass(), inner.innerClass());
-        }
-
-        for (ASTElement declaration : contents) {
-            if (declaration instanceof ASTField field) {
-                field.accept(
-                        collector, visitor.visitField(field.getModifiers(), field.getName(), field.getDescriptor())
-                );
-            } else if (declaration instanceof ASTMethod method) {
-                method.accept(
-                        collector, visitor.visitMethod(method.getModifiers(), method.getName(), method.getDescriptor())
-                );
-            } else {
-                collector.addError("Don't know how to process: " + declaration.type(), declaration.location());
-            }
-        }
-
-        visitor.visitEnd();
-    }
 }

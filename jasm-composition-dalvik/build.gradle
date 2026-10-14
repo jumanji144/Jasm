@@ -1,0 +1,23 @@
+apply plugin: 'java-library'
+apply plugin: 'java-test-fixtures'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = 'https://jitpack.io' }
+}
+
+dependencies {
+    api 'com.github.jumanji144.dex:dex-core:917f55948c'
+
+    api project(path: ':jasm-core')
+    api project(path: ':jasm-composition-analysis')
+    testFixturesApi 'com.github.jumanji144.dex:dex-core:917f55948c'
+    testFixturesImplementation(testFixtures(project(path: ':jasm-core')))
+    testFixturesImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.4'
+    testImplementation(testFixtures(project(path: ':jasm-core')))
+}
+
+test {
+    useJUnitPlatform()
+}

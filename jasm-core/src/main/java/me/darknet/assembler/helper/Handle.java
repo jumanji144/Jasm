@@ -1,7 +1,6 @@
 package me.darknet.assembler.helper;
 
 import me.darknet.assembler.ast.primitive.ASTArray;
-
 import org.jetbrains.annotations.Contract;
 
 import java.lang.invoke.MethodHandle;
@@ -11,13 +10,31 @@ import java.lang.invoke.TypeDescriptor;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Method-handle descriptor used to resolve a handle constant or shortcut.
+ *
+ * @param kind
+ * 		Operation kind represented by this handle.
+ * @param name
+ * 		Owner and member name referenced by the handle.
+ * @param descriptor
+ * 		JVM descriptor for the referenced field or method.
+ */
 public record Handle(Kind kind, String name, String descriptor) {
 
+    /**
+     * Mapping of source keywords to handle kinds, used to parse a handle from an array.
+     */
     public static Map<String, Kind> KINDS = Map.of(
             "getfield", Kind.GET_FIELD, "getstatic", Kind.GET_STATIC, "putfield", Kind.PUT_FIELD, "putstatic",
             Kind.PUT_STATIC, "invokevirtual", Kind.INVOKE_VIRTUAL, "invokestatic", Kind.INVOKE_STATIC, "invokespecial",
             Kind.INVOKE_SPECIAL, "newinvokespecial", Kind.NEW_INVOKE_SPECIAL, "invokeinterface", Kind.INVOKE_INTERFACE
     );
+
+    /**
+     * Reverse lookup for {@link #KINDS}.
+     */
+    public static Map<Kind, String> KIND_NAMES = kindNames();
 
     /**
      * Table of shortcut handles
@@ -92,6 +109,12 @@ public record Handle(Kind kind, String name, String descriptor) {
 
     static {
         HANDLE_SHORTCUTS.forEach((key, value) -> SHORTCUT_LOOKUP.put(value.name() + value.descriptor(), key));
+    }
+
+    private static Map<Kind, String> kindNames() {
+        Map<Kind, String> names = new HashMap<>();
+        KINDS.forEach((keyword, kind) -> names.put(kind, keyword));
+        return Map.copyOf(names);
     }
 
 }

@@ -4,9 +4,7 @@ import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTString;
-import me.darknet.assembler.error.ErrorCollector;
 import me.darknet.assembler.util.CollectionUtil;
-import me.darknet.assembler.visitor.ASTDeclarationVisitor;
 import me.darknet.assembler.visitor.Modifiers;
 
 import org.jetbrains.annotations.NotNull;
@@ -15,11 +13,15 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Common AST model of a class member, such as a field or method.
+ */
 public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, ASTAnnotated {
     private final @NotNull ASTIdentifier name;
     private final @NotNull ASTIdentifier descriptor;
     private final @NotNull Modifiers modifiers;
     private @Nullable ASTString signature;
+    private boolean deprecated;
 	private List<ASTAnnotation> visibleAnnotations = Collections.emptyList();
 	private List<ASTAnnotation> invisibleAnnotations = Collections.emptyList();
 	private List<ASTAnnotation> visibleTypeAnnotations = Collections.emptyList();
@@ -27,21 +29,41 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 
     public ASTMember(@NotNull ElementType type, @NotNull Modifiers modifiers, @NotNull ASTIdentifier name,
             @NotNull ASTIdentifier descriptor) {
-        super(type, CollectionUtil.merge(modifiers.modifiers(), name));
+        super(type, CollectionUtil.merge(modifiers.getModifiers(), name, descriptor));
         this.modifiers = modifiers;
         this.name = name;
         this.descriptor = descriptor;
     }
 
+	/**
+	 * @return Name identifier of the member.
+	 */
     @NotNull
     public ASTIdentifier getName() {
         return name;
     }
 
+	/**
+	 * @return Descriptor identifier of the member.
+	 */
     @NotNull
     public ASTIdentifier getDescriptor() {
         return descriptor;
     }
+
+	/**
+	 * @return {@code true} if the member is marked as deprecated, {@code false} otherwise.
+	 */
+	public boolean isDeprecated() {
+		return deprecated;
+	}
+
+	/**
+	 * @param deprecated {@code true} to mark the member as deprecated, {@code false} otherwise.
+	 */
+	public void setDeprecated(boolean deprecated) {
+		this.deprecated = deprecated;
+	}
 
     @Override
     public @NotNull Modifiers getModifiers() {
@@ -81,14 +103,16 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 
 	@Override
 	public void setVisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
-		replaceChildren(this.visibleAnnotations, annotations);
-		this.visibleAnnotations = annotations;
+		List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+		replaceChildren(this.visibleAnnotations, ownedAnnotations);
+		this.visibleAnnotations = ownedAnnotations;
 	}
 
 	@Override
 	public void setInvisibleAnnotations(@Nullable List<ASTAnnotation> annotations) {
-		replaceChildren(this.invisibleAnnotations, annotations);
-		this.invisibleAnnotations = annotations;
+		List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+		replaceChildren(this.invisibleAnnotations, ownedAnnotations);
+		this.invisibleAnnotations = ownedAnnotations;
 	}
 
 	@Override
@@ -103,41 +127,26 @@ public class ASTMember extends ASTElement implements ASTSigned, ASTAccessed, AST
 
 	@Override
 	public void setVisibleTypeAnnotations(@NotNull List<ASTAnnotation> annotations) {
-		replaceChildren(this.visibleTypeAnnotations, annotations);
-		this.visibleTypeAnnotations = annotations;
+		List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+		replaceChildren(this.visibleTypeAnnotations, ownedAnnotations);
+		this.visibleTypeAnnotations = ownedAnnotations;
 	}
 
 	@Override
 	public void setInvisibleTypeAnnotations(@NotNull List<ASTAnnotation> annotations) {
-		replaceChildren(this.invisibleTypeAnnotations, annotations);
-		this.invisibleTypeAnnotations = annotations;
+		List<ASTAnnotation> ownedAnnotations = CollectionUtil.immutableCopy(annotations);
+		replaceChildren(this.invisibleTypeAnnotations, ownedAnnotations);
+		this.invisibleTypeAnnotations = ownedAnnotations;
 	}
 
 	@Override
 	public void addVisibleTypeAnnotation(@NotNull ASTAnnotation annotation) {
-		setVisibleAnnotations(CollectionUtil.merge(visibleTypeAnnotations, annotation));
+		setVisibleTypeAnnotations(CollectionUtil.merge(visibleTypeAnnotations, annotation));
 	}
 
 	@Override
 	public void addInvisibleTypeAnnotation(@NotNull ASTAnnotation annotation) {
-		setInvisibleAnnotations(CollectionUtil.merge(invisibleTypeAnnotations, annotation));
+		setInvisibleTypeAnnotations(CollectionUtil.merge(invisibleTypeAnnotations, annotation));
 	}
 
-	protected void accept(ErrorCollector collector, ASTDeclarationVisitor visitor) {
-        if (visitor == null) {
-            collector.addError("Unable to process member", null);
-            return;
-        }
-		for (ASTAnnotation annotation : visibleAnnotations)
-			annotation.accept(collector, visitor.visitVisibleAnnotation(annotation.classType()));
-		for (ASTAnnotation annotation : invisibleAnnotations)
-			annotation.accept(collector, visitor.visitInvisibleAnnotation(annotation.classType()));
-		for (ASTAnnotation annotation : visibleTypeAnnotations)
-			annotation.accept(collector, visitor.visitVisibleTypeAnnotation(annotation.classType(), annotation.typeRef(), annotation.typePath()));
-		for (ASTAnnotation annotation : invisibleTypeAnnotations)
-			annotation.accept(collector, visitor.visitInvisibleTypeAnnotation(annotation.classType(), annotation.typeRef(), annotation.typePath()));
-
-		if (signature != null)
-            visitor.visitSignature(signature);
-    }
 }

@@ -1,0 +1,12 @@
+.super java/lang/Object
+.class public AnalysisArrays {
+    .method public static arrayLength (I)I {
+        registers: 3,
+        parameters: { length },
+        code: {
+            new-array v0 length [I
+            array-length v1 v0
+            return v1
+        }
+    }
+}

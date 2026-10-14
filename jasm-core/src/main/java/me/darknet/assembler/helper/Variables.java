@@ -22,11 +22,8 @@ import java.util.NavigableMap;
  *                   this order:
  *                   <ol>
  *                   <li>MethodParameters</li>
- *                   <li>LocalVariableTable</li>
- *                   <ol>
- *                   <li>Use the first name that has the same type and
- *                   index</li>
- *                   </ol>
+ *                   <li>LocalVariableTable
+ *                     <ul><li>Use the first name that has the same type and index</li></ul></li>
  *                   <li>Use a placeholder name p[n]</li>
  *                   </ol>
  * @param locals
@@ -95,15 +92,56 @@ public record Variables(@NotNull NavigableMap<Integer, Parameter> parameters, @N
     }
 
 
+	/**
+	 * Local variable identified by its slot, instruction range, name, and descriptor.
+	 *
+	 * @param index
+	 * 		Local-variable slot index.
+	 * @param start
+	 * 		First instruction position in this local's active range (inclusive).
+	 * @param end
+	 * 		Last instruction position in this local's active range (inclusive).
+	 * @param name
+	 * 		Source-level name of the local variable.
+	 * @param descriptor
+	 * 		JVM type descriptor of the local variable.
+	 */
 	public record Local(int index, int start, int end, String name, String descriptor) implements Variable {}
 
+    /**
+     * Method parameter identified by its local-variable index, name, and descriptor.
+     *
+     * @param index
+     * 		Local-variable index occupied by the parameter.
+     * @param name
+     * 		Parameter name.
+     * @param descriptor
+     * 		Descriptor of the parameter's type.
+     */
     public record Parameter(int index, String name, String descriptor) implements Variable {}
 
+    /**
+     * A local variable or method parameter with an index, name, and type descriptor.
+     */
     public interface Variable {
+        /**
+         * @return Slot index used by the variable.
+         */
         int index();
+
+	    /**
+	     * @return The variable's name.
+	     */
         @NotNull String name();
+
+	    /**
+	     * @return The variable's type descriptor.
+	     */
         @NotNull String descriptor();
 
+        /**
+         * @return {@code true} if the variable's descriptor is a primitive type. {@code false} otherwise.
+         */
         default boolean isPrimitive() {
             return descriptor().length() == 1;
         }
