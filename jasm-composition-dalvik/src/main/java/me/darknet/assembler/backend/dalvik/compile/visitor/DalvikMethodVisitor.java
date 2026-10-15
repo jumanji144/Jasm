@@ -266,7 +266,7 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
                 lineNumbers.add(new DebugInformation.LineNumber(label, label.lineNumber()));
         if (lineNumbers.isEmpty() && parameterNames.isEmpty())
             return null;
-        return new DebugInformation(lineNumbers, List.copyOf(parameterNames), List.of());
+        return new DebugInformation(lineNumbers, List.of(), List.copyOf(parameterNames), List.of());
     }
 
     /**
