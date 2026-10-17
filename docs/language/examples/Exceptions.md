@@ -53,7 +53,7 @@ public class ExceptionPatterns {
         exceptions: { { A, B, C, java/lang/NumberFormatException } },
         code: {
         A: 
-            invoke-static { v2 } java/lang/Integer.parseInt (Ljava/lang/String;)I
+            invoke-static { text } java/lang/Integer.parseInt (Ljava/lang/String;)I
             move-result exception
         B: 
             return exception

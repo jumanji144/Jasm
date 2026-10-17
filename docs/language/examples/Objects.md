@@ -103,7 +103,7 @@ public class Account {
         A: 
             invoke-direct { v0 } java/lang/Object.<init> ()V
         B: 
-            iput v1 v0 Account.balance I
+            iput openingBalance v0 Account.balance I
         C: 
             return-void 
         D: 
@@ -116,9 +116,9 @@ public class Account {
         code: {
         A: 
             new-instance account LAccount;
-            invoke-direct { account, v2 } Account.<init> (I)V
+            invoke-direct { account, openingBalance } Account.<init> (I)V
         B: 
-            invoke-virtual { account, v3 } Account.deposit (I)I
+            invoke-virtual { account, amount } Account.deposit (I)I
         C: 
             iget v1 account Account.balance I
             return v1
@@ -132,7 +132,7 @@ public class Account {
         code: {
         A: 
             iget v0 v1 Account.balance I
-            add-int v0 v0 v2
+            add-int v0 v0 amount
             iput v0 v1 Account.balance I
         B: 
             iget v0 v1 Account.balance I

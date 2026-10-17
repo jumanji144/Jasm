@@ -76,7 +76,7 @@ public class CollectionPatterns {
         A: 
             const total 0
         B: 
-            invoke-interface { v4 } java/util/List.iterator ()Ljava/util/Iterator;
+            invoke-interface { names } java/util/List.iterator ()Ljava/util/Iterator;
             move-result-object v1
         C: 
             invoke-interface { v1 } java/util/Iterator.hasNext ()Z

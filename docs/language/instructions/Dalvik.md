@@ -40,13 +40,15 @@ A parameter is also reachable by its position as `pN` (`p0`, `p1`, ...), and the
 reachable as `this`.
 
 An `invoke-*` instruction takes an array of [logical arguments](#invoke-arguments), which can also be written as
-[raw words](#raw-invoke-words). A `filled-new-array` instruction takes an array of registers, which has two shapes:
+[raw words](#raw-invoke-words). A `filled-new-array` instruction takes a list of registers, with one element for each
+entry, such as `{ v0, v1, v2 }`. Each entry names one register, and the list may name any number of them.
 
-- A list: `{ v0, v1, v2 }`, naming at most five registers
-- A range: `{ v0, v5 }`, exactly two registers giving the first and the last register of an inclusive range
+The encoding is chosen from the registers. A list of at most five registers, each within `v0` through `v15`, uses the
+non-range form, which takes any order. Any other list must name consecutive registers in the order written, and the
+range form names them, up to 255 registers. A list that is neither is a compile error. The list is never sorted,
+deduplicated, packed, or moved into other registers. An empty list `{ }` creates an empty array.
 
-The `filled-new-array/range` form requires the range shape and can name up to 255 registers, so an array of more than
-five registers has to use it.
+The `/range` spelling does not exist for `filled-new-array`, so `filled-new-array/range` is an unknown instruction.
 
 ### Invoke arguments
 
@@ -129,7 +131,7 @@ so a register beyond it is reported as exceeding that count, in addition to any 
 | Arithmetic with an eight-bit literal, such as `add-int dest src 3`                                                      | at most `v255`                  | literal from `-128` through `127`                                      |
 | Arithmetic with a sixteen-bit literal, such as `add-int dest src 300` or `rsub-int dest src 300`                        | at most `v15`                   | literal from `-32768` through `32767`; shifts have no sixteen-bit form |
 | Non-range `invoke-*` words, from the entries of its list, or a `filled-new-array` list                                 | at most `v15`                   | at most five registers or words                                        |
-| Range `invoke-*` words, which are consecutive, or a `filled-new-array/range`                                            | first and last at most `v65535` | at most 255 registers in the range                                     |
+| Range `invoke-*` words, which are consecutive, or a `filled-new-array` list                                             | first and last at most `v65535` | at most 255 registers in the range                                     |
 | Raw words of an `invoke-*`, `{ words: { ... } }`, in the non-range form                                                 | at most `v15`                   | at most five words, in any order                                       |
 | Raw words of an `invoke-*`, `{ words: { ... } }`, in the range form                                                     | first and last at most `v65535` | consecutive words in the order written, at most 255                    |
 | Destination of `const`, `const-wide`, `const-string`, `const-class`, `const-method-handle` or `const-method-type`       | at most `v255`                  | none                                                                   |
@@ -280,7 +282,6 @@ A value matching no key falls through to the instruction after the switch.
 | `new-instance dest type`                                                                              | -> `dest`                     | creates a new instance of the class `type` in `dest`                                                                                                        |
 | `new-array dest size componentType`                                                                   | `size` -> `dest`              | creates a new array of `componentType` with length `size` in `dest`                                                                                         |
 | `filled-new-array { registers } componentType`                                                        | `registers` ->                | creates an array of `componentType` filled with `registers`, whose result is read with `move-result`                                                        |
-| `filled-new-array/range { first, last } componentType`                                                | `registers` ->                | creates an array of `componentType` filled with the registers from `first` through `last`                                                                   |
 | <code>fill-array-data array [[data](#array-data): payload]</code>                                     | `array` ->                    | fills the array in `array` with the [payload](#array-data) data                                                                                             |
 | `throw src`                                                                                           | `src` ->                      | throws the exception in `src`                                                                                                                               |
 | `goto label`                                                                                          | ->                            | jumps to `label`                                                                                                                                            |

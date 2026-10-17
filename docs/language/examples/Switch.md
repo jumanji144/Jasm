@@ -170,7 +170,7 @@ public class SwitchPatterns {
         parameters: { value },
         code: {
         A: 
-            packed-switch v1 {
+            packed-switch value {
                 first: 0,
                 targets: { F, E, D, C }
             }
@@ -199,7 +199,7 @@ public class SwitchPatterns {
         parameters: { value },
         code: {
         A: 
-            sparse-switch v1 {
+            sparse-switch value {
                 -10: E,
                 5: D,
                 100: C
@@ -226,7 +226,7 @@ public class SwitchPatterns {
         parameters: { value },
         code: {
         A: 
-            invoke-virtual { v4 } java/lang/String.hashCode ()I
+            invoke-virtual { value } java/lang/String.hashCode ()I
             move-result v0
             const v1 0
             const v2 1
@@ -239,14 +239,14 @@ public class SwitchPatterns {
             goto E
         C: 
             const-string v0 "add"
-            invoke-virtual { v4, v0 } java/lang/String.equals (Ljava/lang/Object;)Z
+            invoke-virtual { value, v0 } java/lang/String.equals (Ljava/lang/Object;)Z
             move-result v0
             if-eqz v0 B
             move v0 v1
             goto F
         D: 
             const-string v0 "remove"
-            invoke-virtual { v4, v0 } java/lang/String.equals (Ljava/lang/Object;)Z
+            invoke-virtual { value, v0 } java/lang/String.equals (Ljava/lang/Object;)Z
             move-result v0
             if-eqz v0 B
             move v0 v2

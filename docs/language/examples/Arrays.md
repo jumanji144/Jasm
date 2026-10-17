@@ -96,10 +96,10 @@ public class ArrayPatterns {
         A: 
             const index 0
         B: 
-            array-length v1 v2
+            array-length v1 values
             if-ge index v1 E
         C: 
-            aput v3 v2 index
+            aput value values index
         D: 
             add-int index index 1
             goto B
@@ -118,10 +118,10 @@ public class ArrayPatterns {
         B: 
             const index 0
         C: 
-            array-length v2 v3
+            array-length v2 values
             if-ge index v2 F
         D: 
-            aget v2 v3 index
+            aget v2 values index
             add-int total total v2
         E: 
             add-int index index 1

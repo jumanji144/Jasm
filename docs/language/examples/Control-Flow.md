@@ -85,7 +85,7 @@ public class ControlFlow {
         B: 
             const value 0
         C: 
-            if-ge value v3 J
+            if-ge value limit J
         D: 
             and-int v2 value 1
             if-nez v2 F

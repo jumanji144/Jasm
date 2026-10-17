@@ -77,7 +77,7 @@ public class Lambda {
         code: {
         A: 
             sget-object v0 java/lang/System.out Ljava/io/PrintStream;
-            invoke-virtual { v0, v1 } java/io/PrintStream.println (Ljava/lang/String;)V
+            invoke-virtual { v0, text } java/io/PrintStream.println (Ljava/lang/String;)V
             return-void 
         B: 
         }
@@ -103,7 +103,7 @@ public class Lambda {
         parameters: { text, consumer },
         code: {
         A: 
-            invoke-interface { v1, v0 } java/util/function/Consumer.accept (Ljava/lang/Object;)V
+            invoke-interface { consumer, text } java/util/function/Consumer.accept (Ljava/lang/Object;)V
             return-void 
         B: 
         }
