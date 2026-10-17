@@ -40,6 +40,7 @@ public enum DalvikOperands implements Operands {
 	REGISTER_WIDE(DalvikOperands::verifyRegister, DalvikOperands::resolveRegisterWide),
 	REGISTER_ARRAY(DalvikOperands::verifyRegisterArray, DalvikOperands::resolveRegisterList),
 	REGISTER_RANGE(DalvikOperands::verifyRegisterRange, DalvikOperands::resolveRegisterRange),
+	INVOKE_REGISTERS(DalvikOperands::verifyInvokeRegisters, DalvikOperands::resolveInvokeRegisters),
 	REGISTER_OR_LITERAL(DalvikOperands::verifyRegisterOrLiteral, DalvikOperands::resolveRegisterOrLiteral),
 	INTEGER_LITERAL(DalvikOperands::verifyIntegerLiteral, DalvikOperands::resolveIntegerLiteral),
 	CLASS_TYPE(DalvikOperands::verifyClassType),
@@ -54,6 +55,7 @@ public enum DalvikOperands implements Operands {
 	private static final PayloadSchema PACKED_SWITCH_SCHEMA = packedSwitchSchema();
 	private static final PayloadSchema SPARSE_SWITCH_SCHEMA = sparseSwitchSchema();
 	private static final PayloadSchema DATA_PAYLOAD_SCHEMA = dataPayloadSchema();
+	private static final PayloadSchema REGISTER_WORDS_SCHEMA = registerWordsSchema();
 
 	/**
 	 * Most registers the non-range register-list encoding can name.
@@ -310,6 +312,42 @@ public enum DalvikOperands implements Operands {
 	}
 
 	/**
+	 * Validates the register operand of a canonical invoke, which is an ordinary list or raw register words. Raw words
+	 * are not bounded to five entries here, because a long list is encodable as a range; the encoding decides.
+	 *
+	 * @param context
+	 * 		Processor context receiving diagnostics.
+	 * @param element
+	 * 		Source element of the register operand.
+	 */
+	private static void verifyInvokeRegisters(ProcessorContext context, ASTElement element) {
+		if (element.type() == ElementType.OBJECT)
+			REGISTER_WORDS_SCHEMA.validate(context, element);
+		else
+			verifyRegisterArray(context, element);
+	}
+
+	/**
+	 * @param context
+	 * 		Processor context receiving diagnostics.
+	 * @param element
+	 * 		Verified register operand of a canonical invoke.
+	 *
+	 * @return The ordinary list, or the raw words in the order they were written.
+	 */
+	private static OperandValue resolveInvokeRegisters(ProcessorContext context, ASTElement element) {
+		if (element.type() != ElementType.OBJECT)
+			return resolveRegisterList(context, element);
+		List<ASTElement> values = registerElements(context, ((ASTObject) element).value("words"));
+		if (values == null)
+			return null;
+		List<RegisterRef> words = new ArrayList<>(values.size());
+		for (ASTElement value : values)
+			words.add((RegisterRef) resolveRegister(context, value));
+		return new RegisterWords(Collections.unmodifiableList(words));
+	}
+
+	/**
 	 * @param context
 	 * 		Processor context receiving diagnostics.
 	 * @param element
@@ -506,7 +544,30 @@ public enum DalvikOperands implements Operands {
 		}
 	}
 
+	/**
+	 * Raw register words are an escape of canonical invokes only. Any other register operand that receives the object
+	 * reports that restriction, rather than a generic shape error about the object.
+	 *
+	 * @param context
+	 * 		Processor context receiving diagnostics.
+	 * @param element
+	 * 		Source element of the register operand.
+	 *
+	 * @return {@code true} when the element is a raw words object, which has been reported.
+	 */
+	private static boolean rejectRawWords(ProcessorContext context, ASTElement element) {
+		if (element.type() != ElementType.OBJECT)
+			return false;
+		context.throwError(DiagnosticCode.OPERAND_SHAPE,
+				"Expected a register list here, but got an object: raw register words are only accepted by canonical "
+						+ "invoke mnemonics, such as invoke-static",
+				element.location());
+		return true;
+	}
+
 	private static void verifyRegisterArray(ProcessorContext context, ASTElement element) {
+		if (rejectRawWords(context, element))
+			return;
 		ASTArray array = registerArray(context, element);
 		if (array == null)
 			return;
@@ -526,6 +587,8 @@ public enum DalvikOperands implements Operands {
 	}
 
 	private static void verifyRegisterRange(ProcessorContext context, ASTElement element) {
+		if (rejectRawWords(context, element))
+			return;
 		ASTArray array = registerArray(context, element);
 		if (array == null)
 			return;
@@ -729,5 +792,13 @@ public enum DalvikOperands implements Operands {
 		return PayloadSchema.fixed("data payload",
 				PayloadSchema.Field.value("width", ElementType.NUMBER, "number"),
 				PayloadSchema.Field.arrayOf("values", "data payload values", ElementType.NUMBER, "numeric literal"));
+	}
+
+	/**
+	 * @return Declared shape of raw register words: a single {@code words} array of register identifiers.
+	 */
+	private static PayloadSchema registerWordsSchema() {
+		return PayloadSchema.fixed("register words",
+				PayloadSchema.Field.arrayOf("words", "words array", ElementType.IDENTIFIER, "register"));
 	}
 }

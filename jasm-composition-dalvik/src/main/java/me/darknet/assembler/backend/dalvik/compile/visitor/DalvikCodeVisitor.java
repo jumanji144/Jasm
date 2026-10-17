@@ -16,6 +16,7 @@ import me.darknet.assembler.backend.dalvik.instructions.IntegerLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.PackedSwitchPayload;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
+import me.darknet.assembler.backend.dalvik.instructions.RegisterWords;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
 import me.darknet.assembler.backend.dalvik.visitor.ASTDalvikInstructionVisitor;
 import me.darknet.assembler.error.Diagnostic;
@@ -106,6 +107,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	private static final int EIGHT_BITS = 8;
 	/** Width of the first-register field of a range encoding, and of the signed literal of the 22s literal form. */
 	private static final int SIXTEEN_BITS = 16;
+	/** Most register words the non-range invoke and filled-array encodings name, since the 35c format has five fields. */
+	private static final int MAX_LIST_WORDS = 5;
 
 	private final CodeBuilder codeBuilder;
 	private final DiagnosticSink sink;
@@ -437,21 +440,6 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
 	/**
 	 * @param registers
-	 * 		Resolved register operands.
-	 * @param range
-	 * 		Whether the instruction uses a range of registers.
-	 *
-	 * @return Count of words used by the instruction's register operands.
-	 */
-	private static int argumentWordCount(@NotNull List<Integer> registers, boolean range) {
-		if (range)
-			return registers.get(1) - registers.get(0) + 1;
-
-		return registers.size();
-	}
-
-	/**
-	 * @param registers
 	 * 		Resolved register operand.
 	 *
 	 * @return Slot indices in source order, with named registers allocated as a side effect.
@@ -735,16 +723,15 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	@Override
 	public void visitFilledNewArray(RegisterOperands args, ASTIdentifier type) {
 		ClassType arrayType = parseClassType(type);
-		List<Integer> registers = resolveRegisterOperands(args);
-		if (registers == null)
+		Encoding encoding = encodeRegisters(args);
+		if (encoding == null)
 			return;
-		int registerCount = argumentWordCount(registers, args.isRange());
-		updateOutRegisters(registerCount);
-		if (args.isRange()) {
-			addInstruction(new FilledNewArrayInstruction(arrayType, registerCount, registers.get(0)));
-			return;
+		updateOutRegisters(encoding.count());
+		switch (encoding) {
+			case Encoding.Ranged range ->
+					addInstruction(new FilledNewArrayInstruction(arrayType, range.count(), range.first()));
+			case Encoding.Listed listed -> addInstruction(new FilledNewArrayInstruction(arrayType, listed.words()));
 		}
-		addInstruction(new FilledNewArrayInstruction(arrayType, toIntArray(registers)));
 	}
 
 	@Override
@@ -904,19 +891,18 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	public void visitInvoke(@NotNull DalvikLowering lowering, RegisterOperands registers, MemberPath method,
 	                        ASTIdentifier descriptor) {
 		int opcode = lowering.opcode();
-		List<Integer> registerValues = resolveRegisterOperands(registers);
-		if (registerValues == null)
+		Encoding encoding = encodeRegisters(registers);
+		if (encoding == null)
 			return;
 
 		ReferenceType owner = parseReferenceType(method.owner());
 		MethodType methodType = parseMethodType(descriptor);
-		updateOutRegisters(argumentWordCount(registerValues, registers.isRange()));
-		if (registers.isRange()) {
-			addInstruction(InvokeInstruction.range(
-					opcode, owner, method.name(), methodType,
-					registerValues.get(1) - registerValues.get(0) + 1, registerValues.get(0)));
-		} else {
-			addInstruction(new InvokeInstruction(opcode, owner, method.name(), methodType, toIntArray(registerValues)));
+		updateOutRegisters(encoding.count());
+		switch (encoding) {
+			case Encoding.Ranged range -> addInstruction(InvokeInstruction.range(
+					rangeOpcode(opcode), owner, method.name(), methodType, range.count(), range.first()));
+			case Encoding.Listed listed -> addInstruction(new InvokeInstruction(
+					opcode, owner, method.name(), methodType, listed.words()));
 		}
 	}
 
@@ -925,83 +911,142 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		var bootstrapHandle = parseHandle(handle);
 		MethodType methodType = parseMethodType(type);
 		List<Constant> bootstrapArguments = parseConstants(arguments);
-		List<Integer> registerValues = resolveRegisterOperands(registers);
-		if (registerValues == null)
+		Encoding encoding = encodeRegisters(registers);
+		if (encoding == null)
 			return;
 
-		updateOutRegisters(argumentWordCount(registerValues, registers.isRange()));
-		if (registers.isRange()) {
-			addInstruction(new InvokeCustomInstruction(
-					bootstrapHandle,
-					name.literal(),
-					methodType,
-					bootstrapArguments,
-					registerValues.get(1) - registerValues.get(0) + 1,
-					registerValues.get(0)
-			));
-			return;
+		updateOutRegisters(encoding.count());
+		switch (encoding) {
+			case Encoding.Ranged range -> addInstruction(new InvokeCustomInstruction(
+					bootstrapHandle, name.literal(), methodType, bootstrapArguments, range.count(), range.first()));
+			case Encoding.Listed listed -> addInstruction(new InvokeCustomInstruction(
+					bootstrapHandle, name.literal(), methodType, bootstrapArguments, listed.words()));
 		}
-		addInstruction(new InvokeCustomInstruction(
-				bootstrapHandle,
-				name.literal(),
-				methodType,
-				bootstrapArguments,
-				toIntArray(registerValues)
-		));
 	}
 
 	@Override
 	public void visitInvokePolymorphic(RegisterOperands registers, MemberPath method, ASTIdentifier descriptor,
 	                                   ASTIdentifier proto) {
-		List<Integer> registerValues = resolveRegisterOperands(registers);
-		if (registerValues == null)
+		Encoding encoding = encodeRegisters(registers);
+		if (encoding == null)
 			return;
 
 		ReferenceType owner = parseReferenceType(method.owner());
 		MethodType methodType = parseMethodType(descriptor);
 		MethodType callSiteType = parseMethodType(proto);
-		updateOutRegisters(argumentWordCount(registerValues, registers.isRange()));
-		if (registers.isRange()) {
-			addInstruction(InvokeInstruction.polymorphicRange(
-					owner, method.name(), methodType, callSiteType,
-					registerValues.get(1) - registerValues.get(0) + 1, registerValues.get(0)));
-		} else {
-			addInstruction(InvokeInstruction.polymorphic(
-					owner, method.name(), methodType, callSiteType, toIntArray(registerValues)));
+		updateOutRegisters(encoding.count());
+		switch (encoding) {
+			case Encoding.Ranged range -> addInstruction(InvokeInstruction.polymorphicRange(
+					owner, method.name(), methodType, callSiteType, range.count(), range.first()));
+			case Encoding.Listed listed -> addInstruction(InvokeInstruction.polymorphic(
+					owner, method.name(), methodType, callSiteType, listed.words()));
 		}
 	}
 
 	/**
-	 * Allocates the slots of a register list or range and checks that they fit the fields of the encoding that
-	 * carries them.
+	 * Allocates the slots of a register operand and chooses the encoding that names them.
 	 * <p>
-	 * A named bound only gets its slot here, so the reversed-bounds check the resolver had to skip for named
-	 * registers happens now that both bounds are known.
+	 * A named bound only gets its slot here, so the reversed-bounds check the resolver had to skip for named registers
+	 * happens now that both bounds are known. Raw words take their own path, see {@link #encodeWords(RegisterWords, List)}.
 	 *
 	 * @param registers
 	 * 		Register operand of an invoke form or {@code filled-new-array}.
 	 *
-	 * @return Allocated slots in source order, or {@code null} after reporting a reversed range or a register the
-	 * encoding cannot name. The declared register count is checked separately while the slots are allocated.
+	 * @return The encoding of the operand, or {@code null} after reporting a reversed range or a register the encoding
+	 * cannot name. The declared register count is checked separately while the slots are allocated.
 	 */
-	private @Nullable List<Integer> resolveRegisterOperands(@NotNull RegisterOperands registers) {
-		List<Integer> registerValues = indexOfAll(registers);
-		List<RegisterRef> refs = registers.registers();
+	private @Nullable Encoding encodeRegisters(@NotNull RegisterOperands registers) {
+		List<Integer> slots = indexOfAll(registers);
+		if (registers instanceof RegisterWords words)
+			return encodeWords(words, slots);
 		if (registers.isRange()) {
-			int first = registerValues.get(0);
-			int last = registerValues.get(1);
+			int first = slots.get(0);
+			int last = slots.get(1);
 			if (last < first) {
 				sink.error(DiagnosticCode.OPERAND_SHAPE, "Range instruction register bounds are reversed",
 						currentInstructionAst.location());
 				return null;
 			}
-			return checkRange(refs.getFirst(), first, last) ? registerValues : null;
+			return checkRange(registers.registers().getFirst(), first, last)
+					? new Encoding.Ranged(first, last - first + 1)
+					: null;
 		}
 
 		boolean fits = true;
-		for (int i = 0; i < refs.size(); i++)
-			fits &= checkRegisterField(refs.get(i), registerValues.get(i), FOUR_BITS);
-		return fits ? registerValues : null;
+		for (int i = 0; i < slots.size(); i++)
+			fits &= checkRegisterField(registers.registers().get(i), slots.get(i), FOUR_BITS);
+		return fits ? new Encoding.Listed(toIntArray(slots)) : null;
+	}
+
+	/**
+	 * Chooses the encoding of raw register words, which are used exactly as written: they are never sorted, deduplicated,
+	 * packed, or moved. Words that are at most five in number and each fit a four-bit field take the non-range form,
+	 * which names registers in any order. Any other words must be consecutive registers in the written order, which the
+	 * range form names by its first register and count. Words with neither encoding are reported.
+	 *
+	 * @param words
+	 * 		Raw register words of the operand.
+	 * @param slots
+	 * 		Slot of each word, in written order.
+	 *
+	 * @return The chosen encoding, or {@code null} after reporting why the words cannot be encoded.
+	 */
+	private @Nullable Encoding encodeWords(@NotNull RegisterWords words, @NotNull List<Integer> slots) {
+		if (slots.size() <= MAX_LIST_WORDS && slots.stream().allMatch(slot -> fitsField(slot, FOUR_BITS)))
+			return new Encoding.Listed(toIntArray(slots));
+		if (isConsecutive(slots)) {
+			int first = slots.getFirst();
+			long last = (long) first + slots.size() - 1;
+			return checkRange(words.registers().getFirst(), first, last)
+					? new Encoding.Ranged(first, slots.size())
+					: null;
+		}
+		reportEncodingLimit(words, "Register words " + describe(slots) + " cannot be encoded by '" + mnemonic()
+				+ "': the non-range form takes at most " + MAX_LIST_WORDS + " registers v0 through v"
+				+ maxIndex(FOUR_BITS) + ", and the range form takes consecutive registers in the order written");
+		return null;
+	}
+
+	/**
+	 * @param slots
+	 * 		Slots in written order.
+	 *
+	 * @return {@code true} when each slot is the register after the one before it, so the slots form one run.
+	 */
+	private static boolean isConsecutive(@NotNull List<Integer> slots) {
+		for (int i = 1; i < slots.size(); i++) {
+			if (slots.get(i) != slots.get(i - 1) + 1)
+				return false;
+		}
+		return true;
+	}
+
+	/**
+	 * @param slots
+	 * 		Slots in written order.
+	 *
+	 * @return The slots spelled as registers, such as {@code v0, v16}.
+	 */
+	private static @NotNull String describe(@NotNull List<Integer> slots) {
+		return String.join(", ", slots.stream().map(slot -> "v" + slot).toList());
+	}
+
+	/**
+	 * @param opcode
+	 * 		Opcode of an ordinary invoke, in its list or its range spelling.
+	 *
+	 * @return The range opcode of the same family. Each family is written out, because the families are not numbered
+	 * alike, so one numeric offset would name another instruction for some of them.
+	 */
+	private static int rangeOpcode(int opcode) {
+		return switch (opcode) {
+			case INVOKE_VIRTUAL, INVOKE_VIRTUAL_RANGE -> INVOKE_VIRTUAL_RANGE;
+			case INVOKE_SUPER, INVOKE_SUPER_RANGE -> INVOKE_SUPER_RANGE;
+			case INVOKE_DIRECT, INVOKE_DIRECT_RANGE -> INVOKE_DIRECT_RANGE;
+			case INVOKE_STATIC, INVOKE_STATIC_RANGE -> INVOKE_STATIC_RANGE;
+			case INVOKE_INTERFACE, INVOKE_INTERFACE_RANGE -> INVOKE_INTERFACE_RANGE;
+			default -> throw new IllegalStateException("Opcode 0x" + Integer.toHexString(opcode) + " has no range form");
+		};
 	}
 
 	/**
@@ -1018,9 +1063,9 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @return {@code true} when the range fits its encoding, otherwise {@code false} after reporting each limit it
 	 * exceeds.
 	 */
-	private boolean checkRange(@NotNull RegisterRef first, int firstIndex, int lastIndex) {
+	private boolean checkRange(@NotNull RegisterRef first, long firstIndex, long lastIndex) {
 		// Widened, so a run whose bounds approach the int range cannot wrap into a small, plausible count.
-		long count = (long) lastIndex - firstIndex + 1;
+		long count = lastIndex - firstIndex + 1;
 		boolean fits = true;
 		if (count > maxIndex(EIGHT_BITS)) {
 			reportEncodingLimit(first, "Range of " + count + " registers does not fit the " + EIGHT_BITS
@@ -1297,5 +1342,35 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 			values[i] = registers.get(i);
 		}
 		return values;
+	}
+
+	/**
+	 * A register operand as the encoding that names it: a run of consecutive registers, or the non-range list of the
+	 * register slots themselves.
+	 */
+	private sealed interface Encoding permits Encoding.Listed, Encoding.Ranged {
+		/**
+		 * @return Number of register words the encoding holds, which is the outgoing word count of its instruction.
+		 */
+		int count();
+
+		/**
+		 * @param words
+		 * 		Slots of the registers, in encoded order.
+		 */
+		record Listed(int[] words) implements Encoding {
+			@Override
+			public int count() {
+				return words.length;
+			}
+		}
+
+		/**
+		 * @param first
+		 * 		Slot of the first register of the run.
+		 * @param count
+		 * 		Number of consecutive registers in the run.
+		 */
+		record Ranged(int first, int count) implements Encoding {}
 	}
 }

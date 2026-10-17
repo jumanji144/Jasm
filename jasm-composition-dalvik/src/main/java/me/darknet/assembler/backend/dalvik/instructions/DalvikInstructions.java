@@ -533,7 +533,7 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 
 	void registerInvokeCustom() {
 		register("invoke-custom",
-				ops(DalvikOperands.REGISTER_ARRAY, DefaultOperands.LITERAL, DefaultOperands.DESCRIPTOR, DalvikOperands.HANDLE, DalvikOperands.ARGS_ARRAY),
+				ops(DalvikOperands.INVOKE_REGISTERS, DefaultOperands.LITERAL, DefaultOperands.DESCRIPTOR, DalvikOperands.HANDLE, DalvikOperands.ARGS_ARRAY),
 				(inst, visitor) -> visitor.visitInvokeCustom(
 						inst.operand(0, RegisterOperands.class),
 						inst.argument(1, ASTIdentifier.class),
@@ -554,7 +554,7 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 
 	void registerInvokePolymorphic() {
 		register("invoke-polymorphic",
-				ops(DalvikOperands.REGISTER_ARRAY, DefaultOperands.MEMBER_PATH, DefaultOperands.METHOD_DESCRIPTOR, DefaultOperands.METHOD_DESCRIPTOR),
+				ops(DalvikOperands.INVOKE_REGISTERS, DefaultOperands.MEMBER_PATH, DefaultOperands.METHOD_DESCRIPTOR, DefaultOperands.METHOD_DESCRIPTOR),
 				(inst, visitor) -> visitor.visitInvokePolymorphic(
 						inst.operand(0, RegisterOperands.class),
 						inst.operand(1, MemberPath.class),
@@ -731,10 +731,11 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 	 * @param name
 	 * 		Registered source mnemonic.
 	 *
-	 * @return List-shaped register operand for plain mnemonics, range-shaped for {@code /range} forms.
+	 * @return Range-shaped register operand for {@code /range} forms, otherwise the canonical invoke operand that takes
+	 * an ordinary list or raw register words.
 	 */
 	private static DalvikOperands registerOperand(String name) {
-		return name.endsWith("/range") ? DalvikOperands.REGISTER_RANGE : DalvikOperands.REGISTER_ARRAY;
+		return name.endsWith("/range") ? DalvikOperands.REGISTER_RANGE : DalvikOperands.INVOKE_REGISTERS;
 	}
 
 	/**

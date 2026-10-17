@@ -46,7 +46,71 @@ has two shapes:
 - A range: `{ v0, v5 }`, exactly two registers giving the first and the last register of an inclusive range
 
 The `/range` forms require the range shape and can name up to 255 registers, so an argument list of
-more than five registers has to use them.
+more than five registers has to use them. A canonical `invoke-*` can also name its registers as [raw words](#raw-invoke-words).
+
+### Raw invoke words
+
+A canonical `invoke-*` instruction, including `invoke-custom` and `invoke-polymorphic`, accepts its registers as raw
+words, written as an object with one key:
+
+```
+invoke-static { words: { v0, v2 } } Owner.call (J)V
+```
+
+The `words` object supplies exactly the listed register words, in the order written. Use it for a call whose words
+cannot be described as logical arguments, and the disassembler uses it for such calls:
+
+- Each entry is one register word. The descriptor does not widen an entry, so `{ words: { v0, v2 } }` for `(J)V` names
+  `v0` and `v2`, not the pair `v0` and `v1`.
+- The words are not checked against the descriptor. A missing or extra word is kept as written, and so is a receiver
+  in a position the descriptor does not expect.
+- Words that are at most five in number, and each fit `v0` through `v15`, use the non-range encoding. That encoding
+  takes any order and may repeat a word.
+- Any other words must be consecutive registers in the order written, and the range encoding names them by the first
+  register and the count. Words that are neither, such as `{ words: { v0, v16 } }`, are a compile error. The words are
+  never sorted, deduplicated, packed, or moved into other registers.
+- Each word is a register, which must be within the declared register count and must fit the encoding.
+- The object is accepted only by canonical mnemonics. It is an error on `invoke-*/range` and on `filled-new-array`, and
+  an object with any key other than `words` is an error.
+
+The object keeps the register words, not the original encoding. The same words may be written with a different encoding
+from the one that was read, such as the non-range form for a short low list. The object does not switch off other
+checks, so the compiler's verification of the emitted code still applies.
+
+Ordinary lists keep their current meaning in this version: each entry of `{ v0, v1 }` is one register word, and the
+`/range` forms keep their two-endpoint spelling. This is the current contract for invokes and it changes in the invoke
+cutover.
+
+When the disassembler prints a call, it keeps the ordinary spelling for a call whose words group faithfully against the
+descriptor. Those words are a receiver first, unless the instruction is `invoke-static` or `invoke-custom`, which take no
+receiver. Then come one register for each argument, with two consecutive registers for each `long` or `double` argument,
+and no words beyond those. Any other call is printed as the raw object with the base mnemonic, such as `invoke-static`
+rather than `invoke-static/range`, and every word of a range is listed.
+
+### Register field limits
+
+Each form stores its register operands in fields of a fixed width, so every register it names must fit those fields.
+A register outside the limit of its form is a compile error, which names the register and the form. It is never
+wrapped onto another register, and a rejected compile writes no DEX output. The limit applies to the slot a named
+register is allocated to as well as to a `vN` operand. The method's declared register count is a separate limit,
+so a register beyond it is reported as exceeding that count, in addition to any field limit it also breaks.
+
+| Form                                                                                                                    | Each register                   | Other limits                                                           |
+|-------------------------------------------------------------------------------------------------------------------------|---------------------------------|------------------------------------------------------------------------|
+| Three-register arithmetic, such as `add-int dest a b`                                                                   | at most `v255`                  | none                                                                   |
+| Two-address arithmetic, such as `add-int dest dest b`, which is used only when the destination is also the first source | at most `v15`                   | none                                                                   |
+| Arithmetic with an eight-bit literal, such as `add-int dest src 3`                                                      | at most `v255`                  | literal from `-128` through `127`                                      |
+| Arithmetic with a sixteen-bit literal, such as `add-int dest src 300` or `rsub-int dest src 300`                        | at most `v15`                   | literal from `-32768` through `32767`; shifts have no sixteen-bit form |
+| Non-range `invoke-*` or `filled-new-array` list                                                                         | at most `v15`                   | at most five registers                                                 |
+| `/range` `invoke-*` or `filled-new-array/range`                                                                         | first and last at most `v65535` | at most 255 registers in the range                                     |
+| Raw words of an `invoke-*`, `{ words: { ... } }`, in the non-range form                                                 | at most `v15`                   | at most five words, in any order                                       |
+| Raw words of an `invoke-*`, `{ words: { ... } }`, in the range form                                                     | first and last at most `v65535` | consecutive words in the order written, at most 255                    |
+| Destination of `const`, `const-wide`, `const-string`, `const-class`, `const-method-handle` or `const-method-type`       | at most `v255`                  | none                                                                   |
+
+`const` picks its encoding from the destination and the value, so it is not limited to the short form. The
+four-bit form is used only for `v0` through `v15` with a value from `-8` through `7`. Other values use the 16-bit form
+when they fit 16 bits, the high-16-bit form when their low 16 bits are zero, and the 32-bit form otherwise. Every value
+keeps its exact bits, including the payload of a `NaN`.
 
 ### Literal
 
@@ -233,6 +297,7 @@ A value matching no key falls through to the instruction after the switch.
 | `int-to-byte dest src`                                                                                | `src` -> `dest`               | converts the `int` in `src` to a `byte`, sign-extending into `dest`                                                                                         |
 | `int-to-char dest src`                                                                                | `src` -> `dest`               | converts the `int` in `src` to a `char`, zero-extending into `dest`                                                                                         |
 | `int-to-short dest src`                                                                               | `src` -> `dest`               | converts the `int` in `src` to a `short`, sign-extending into `dest`                                                                                        |
+| `add-int dest a b`                                                                                    | `a`, `b` -> `dest`            | adds the `int`s `a` and `b`; `b` may be a [literal](#literal)                                                                                               |
 | `sub-int dest a b`                                                                                    | `a`, `b` -> `dest`            | subtracts the `int` `b` from `a`                                                                                                                            |
 | `mul-int dest a b`                                                                                    | `a`, `b` -> `dest`            | multiplies the `int`s `a` and `b`; `b` may be a [literal](#literal)                                                                                         |
 | `div-int dest a b`                                                                                    | `a`, `b` -> `dest`            | divides the `int` `a` by `b`; `b` may be a [literal](#literal)                                                                                              |
@@ -243,6 +308,7 @@ A value matching no key falls through to the instruction after the switch.
 | `shl-int dest a b`                                                                                    | `a`, `b` -> `dest`            | shifts the `int` `a` left by `b`; `b` may be a [literal](#literal) from `-128` through `127`                                                                |
 | `shr-int dest a b`                                                                                    | `a`, `b` -> `dest`            | shifts the `int` `a` right by `b`, sign-extending; `b` may be a [literal](#literal) from `-128` through `127`                                               |
 | `ushr-int dest a b`                                                                                   | `a`, `b` -> `dest`            | shifts the `int` `a` right by `b`, zero-extending; `b` may be a [literal](#literal) from `-128` through `127`                                               |
+| `rsub-int dest src lit`                                                                               | `src`, `lit` -> `dest`        | subtracts the `int` `src` from the [literal](#literal) `lit`                                                                                                |
 | `add-long dest a b`                                                                                   | `a`, `b` -> `dest`            | adds the `long`s `a` and `b`                                                                                                                                |
 | `sub-long dest a b`                                                                                   | `a`, `b` -> `dest`            | subtracts the `long` `b` from `a`                                                                                                                           |
 | `mul-long dest a b`                                                                                   | `a`, `b` -> `dest`            | multiplies the `long`s `a` and `b`                                                                                                                          |
@@ -264,7 +330,6 @@ A value matching no key falls through to the instruction after the switch.
 | `mul-double dest a b`                                                                                 | `a`, `b` -> `dest`            | multiplies the `double`s `a` and `b`                                                                                                                        |
 | `div-double dest a b`                                                                                 | `a`, `b` -> `dest`            | divides the `double` `a` by `b`                                                                                                                             |
 | `rem-double dest a b`                                                                                 | `a`, `b` -> `dest`            | stores the remainder of the `double` `a` divided by `b`                                                                                                     |
-| `ushr-int/lit8 dest src lit`                                                                          | `src`, `lit` -> `dest`        | shifts the `int` `src` right by the [literal](#literal) `lit`, zero-extending                                                                               |
 | `aget dest array index`                                                                               | `array`, `index` -> `dest`    | stores the `int` at `index` in the array `array` in `dest`                                                                                                  |
 | `aget-wide dest array index`                                                                          | `array`, `index` -> `dest`    | stores the wide value at `index` in the array `array` in `dest`                                                                                             |
 | `aget-object dest array index`                                                                        | `array`, `index` -> `dest`    | stores the object at `index` in the array `array` in `dest`                                                                                                 |

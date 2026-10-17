@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DalvikRegisterUsageLookupTest {
     @Test
@@ -100,6 +101,21 @@ class DalvikRegisterUsageLookupTest {
         assertEquals(1, range.readCount());
         assertEquals(0, range.writeCount());
         assertEquals(List.of("invoke-static/range"), mnemonics(range.references()));
+    }
+
+    @Test
+    void countsRawInvokeWordsIndividuallyWithoutASyntheticRangeKey() {
+        Fixture fixture = compileMethod("""
+                invoke-static { words: { v0, v2 } } LOwner;.call (J)V
+                return-void
+                """, "()V", 3);
+        List<DalvikRegisterUsage> usages = fixture.usages();
+
+        assertEquals(1, usage(usages, "v0").readCount());
+        assertEquals(List.of("invoke-static"), mnemonics(usage(usages, "v0").references()));
+        assertEquals(1, usage(usages, "v2").readCount());
+        assertEquals(List.of("invoke-static"), mnemonics(usage(usages, "v2").references()));
+        assertTrue(usages.stream().noneMatch(usage -> usage.registerName().startsWith("{")), usages.toString());
     }
 
     @Test

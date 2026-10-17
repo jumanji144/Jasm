@@ -1,12 +1,14 @@
 package me.darknet.assembler.backend.dalvik.printer;
 
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikConstantTypeResolver.ResolvedType;
+import me.darknet.assembler.backend.dalvik.instructions.DalvikInvokeLayout;
 import me.darknet.assembler.printer.*;
 
 import me.darknet.dex.file.instructions.Opcodes;
 import me.darknet.dex.tree.definitions.OpcodeNames;
 import me.darknet.dex.tree.definitions.instructions.*;
 import me.darknet.dex.tree.simulation.ExecutionEngine;
+import me.darknet.dex.tree.type.ClassType;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
@@ -243,16 +245,21 @@ public class DalvikCodePrinter implements ExecutionEngine {
 
     @Override
     public void execute(@NotNull InvokeCustomInstruction instruction) {
-        var arguments = ctx.instruction(opcode(instruction)).array();
-
-        if (instruction.isRange()) {
-            arguments.print(register(instruction.first())).arg()
-                    .print(register(instruction.last()));
+        int[] words = instruction.isRange()
+                ? rangeWords(instruction.first(), instruction.last())
+                : instruction.argumentRegisters();
+        if (printsOrdinary(instruction.isRange(), words, instruction.type().parameterTypes(), false)) {
+            var arguments = ctx.instruction(opcode(instruction)).array();
+            if (instruction.isRange()) {
+                arguments.print(register(instruction.first())).arg()
+                        .print(register(instruction.last()));
+            } else {
+                printRegisterArray(arguments, instruction.argumentRegisters());
+            }
+            arguments.end();
         } else {
-            printRegisterArray(arguments, instruction.argumentRegisters());
+            printRawWords(ctx.instruction("invoke-custom"), words);
         }
-
-        arguments.end();
 
         ctx.arg().literal(instruction.name()).arg()
                 .literal(instruction.type().descriptor()).arg();
@@ -269,17 +276,24 @@ public class DalvikCodePrinter implements ExecutionEngine {
 
     @Override
     public void execute(@NotNull InvokeInstruction instruction) {
-        var arguments = ctx.instruction(opcode(instruction))
-                .array();
-
-        if (instruction.isRange()) {
-            arguments.print(register(instruction.first())).arg()
-                    .print(register(instruction.last()));
+        int[] words = instruction.isRange()
+                ? rangeWords(instruction.first(), instruction.last())
+                : instruction.arguments();
+        // Only invoke-static takes no receiver; every other kind, including invoke-polymorphic, leads with one.
+        boolean receiver = instruction.opcode() != Opcodes.INVOKE_STATIC;
+        if (printsOrdinary(instruction.isRange(), words, instruction.type().parameterTypes(), receiver)) {
+            var arguments = ctx.instruction(opcode(instruction))
+                    .array();
+            if (instruction.isRange()) {
+                arguments.print(register(instruction.first())).arg()
+                        .print(register(instruction.last()));
+            } else {
+                printRegisterArray(arguments, instruction.arguments());
+            }
+            arguments.end();
         } else {
-            printRegisterArray(arguments, instruction.arguments());
+            printRawWords(ctx.instruction(OpcodeNames.name(instruction.opcode())), words);
         }
-
-        arguments.end();
 
         ctx.arg().literal(instruction.owner().internalName())
                 .print(".")
@@ -417,6 +431,53 @@ public class DalvikCodePrinter implements ExecutionEngine {
     @Override
     public void execute(@NotNull Instruction instruction) {
         ctx.next();
+    }
+
+    /**
+     * @return Every register from {@code first} through {@code last}, which is empty when the range holds none.
+     */
+    private static int @NotNull [] rangeWords(int first, int last) {
+        int[] words = new int[Math.max(0, last - first + 1)];
+        for (int i = 0; i < words.length; i++)
+            words[i] = first + i;
+        return words;
+    }
+
+    /**
+     * An invoke keeps its ordinary spelling only when its words group faithfully against the prototype. An ordinary
+     * range is spelled by its endpoints, which need at least one word, so an empty range is printed raw as well.
+     *
+     * @param range
+     * 		Whether the instruction is encoded as a range.
+     * @param words
+     * 		Register words of the instruction in encoded order.
+     * @param parameters
+     * 		Parameter types of the call-site prototype.
+     * @param receiver
+     * 		Whether the first word is a receiver.
+     *
+     * @return {@code true} when the invoke prints in its ordinary spelling.
+     */
+    private static boolean printsOrdinary(boolean range, int @NotNull [] words, @NotNull List<ClassType> parameters,
+                                          boolean receiver) {
+        return (!range || words.length > 0) && DalvikInvokeLayout.groupsFaithfully(parameters, receiver, words);
+    }
+
+    /**
+     * Prints register words as the raw object {@code { words: { v0, v2 } }}, which keeps every word in its written order
+     * so that reassembly reproduces the same words. The caller supplies the canonical mnemonic.
+     *
+     * @param target
+     * 		Print context positioned after the mnemonic.
+     * @param words
+     * 		Register words in encoded order.
+     */
+    private void printRawWords(@NotNull PrintContext<?> target, int @NotNull [] words) {
+        target.print("{ words: ");
+        PrintContext.ArrayPrint array = target.array();
+        printRegisterArray(array, words);
+        array.end();
+        target.print(" }");
     }
 
     private void printRegisterArray(@NotNull PrintContext.ArrayPrint arrayPrint, int @NotNull [] registers) {
