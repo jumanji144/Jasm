@@ -5,9 +5,11 @@ import me.darknet.assembler.printer.*;
 
 import me.darknet.dex.file.instructions.Opcodes;
 import me.darknet.dex.tree.definitions.OpcodeNames;
+import me.darknet.dex.tree.definitions.code.Code;
 import me.darknet.dex.tree.definitions.instructions.*;
 import me.darknet.dex.tree.simulation.ExecutionEngine;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -21,6 +23,10 @@ public class DalvikCodePrinter implements ExecutionEngine {
     private final Map<Integer, String> registers;
     private final Map<Label, String> labels;
     private final Map<Instruction, ResolvedType> constantTypes;
+    private final DisassemblyCommentSite.MethodSite methodSite;
+    private final Set<Integer> labelCommentPositions = new HashSet<>();
+    private int executableOrdinal;
+    private final int executableCount;
 
 	/**
 	 * @param ctx
@@ -36,19 +42,51 @@ public class DalvikCodePrinter implements ExecutionEngine {
                              @NotNull Map<Integer, String> registers,
                              @NotNull Map<Label, String> labels,
                              @NotNull Map<Instruction, ResolvedType> constantTypes) {
-        this.ctx = ctx;
+        this(null, ctx, registers, labels, constantTypes, null);
+    }
+
+    public DalvikCodePrinter(@Nullable Code code, @NotNull PrintContext.CodePrint ctx,
+                             @NotNull Map<Integer, String> registers,
+                             @NotNull Map<Label, String> labels,
+                             @NotNull Map<Instruction, ResolvedType> constantTypes,
+                             @Nullable DisassemblyCommentSite.MethodSite methodSite) {
+        this.methodSite = methodSite;
+        this.ctx = methodSite == null ? ctx : new CommentingCodePrint(ctx, this);
         this.registers = registers;
         this.labels = labels;
         this.constantTypes = constantTypes;
+        this.executableCount = code == null ? 0 : (int) code.getInstructions().stream()
+                .filter(instruction -> !(instruction instanceof Label)).count();
     }
 
     @Override
     public void label(@NotNull Label label) {
-        ctx.label(labels.get(label)).next();
+        String name = labels.get(label);
+        if (name != null) {
+            if (methodSite != null
+                    && executableOrdinal < executableCount
+                    && labelCommentPositions.add(executableOrdinal))
+                ctx.printDisassemblyComments(new DisassemblyCommentSite.LabelSite(methodSite, executableOrdinal));
+            ctx.label(name).next();
+        }
         if (label.lineNumber() != -1)
             ctx.instruction("line")
                     .print(String.valueOf(label.lineNumber()))
                     .next();
+    }
+
+    public void finish() {
+        if (methodSite != null)
+            ctx.printDisassemblyComments(new DisassemblyCommentSite.MethodEndSite(methodSite));
+    }
+
+    private void beforeExecutableInstruction() {
+        if (methodSite != null) {
+            if (labelCommentPositions.add(executableOrdinal))
+                ctx.printDisassemblyComments(new DisassemblyCommentSite.LabelSite(methodSite, executableOrdinal));
+            ctx.printDisassemblyComments(new DisassemblyCommentSite.InstructionSite(methodSite, executableOrdinal));
+        }
+        executableOrdinal++;
     }
 
     @Override
@@ -493,5 +531,22 @@ public class DalvikCodePrinter implements ExecutionEngine {
             case 8 -> String.format(Locale.ROOT, "0x%016X", buffer.getLong());
             default -> throw new IllegalStateException("Unexpected value: " + elementSize);
         };
+    }
+
+    private static final class CommentingCodePrint extends PrintContext.CodePrint {
+        private final DalvikCodePrinter owner;
+
+        private CommentingCodePrint(PrintContext.CodePrint parent, DalvikCodePrinter owner) {
+            super(parent);
+            unindent();
+            this.owner = owner;
+        }
+
+        @Override
+        public PrintContext.CodePrint instruction(String key) {
+            if (!"line".equals(key))
+                owner.beforeExecutableInstruction();
+            return super.instruction(key);
+        }
     }
 }

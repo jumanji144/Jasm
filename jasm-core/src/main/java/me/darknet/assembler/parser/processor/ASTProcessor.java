@@ -35,7 +35,7 @@ public class ASTProcessor {
 		ProcessorContext context = new ProcessorContext(target, registry, DiagnosticPhase.TARGET_VALIDATION, DiagnosticCode.MALFORMED_DECLARATION);
 		for (ASTElement element : ast) {
 			if (element instanceof ASTDeclaration declaration) {
-				ASTElement parsed = context.parseDeclaration(declaration);
+				ASTElement parsed = context.parseTopLevelDeclaration(declaration);
 				if (parsed != null)
 					context.add(parsed);
 			} else {

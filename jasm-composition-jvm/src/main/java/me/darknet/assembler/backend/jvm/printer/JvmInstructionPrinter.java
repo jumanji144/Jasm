@@ -6,13 +6,16 @@ import me.darknet.assembler.helper.Variables;
 import me.darknet.assembler.backend.jvm.instructions.JvmInstructions;
 import me.darknet.assembler.backend.jvm.util.VarNaming;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
 import org.objectweb.asm.util.Printer;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -25,16 +28,30 @@ public class JvmInstructionPrinter {
     protected final List<TryCatchBlockNode> tryCatchBlocks;
     protected final Map<LabelNode, String> labelNames;
     protected final Variables variables;
+    private final @Nullable DisassemblyCommentSite.MethodSite methodSite;
+    private final Set<Integer> labelCommentPositions = new HashSet<>();
+    private Map<Integer, Boolean> outputLabelsAt = Map.of();
+    private int executableOrdinal;
+    private int executableCount;
     private int currentIndex = 0;
 
     public JvmInstructionPrinter(PrintContext.CodePrint ctx,
                                  List<TryCatchBlockNode> tryCatchBlocks,
                                  Variables variables,
                                  Map<LabelNode, String> labelNames) {
+        this(ctx, tryCatchBlocks, variables, labelNames, null);
+    }
+
+    public JvmInstructionPrinter(PrintContext.CodePrint ctx,
+                                 List<TryCatchBlockNode> tryCatchBlocks,
+                                 Variables variables,
+                                 Map<LabelNode, String> labelNames,
+                                 @Nullable DisassemblyCommentSite.MethodSite methodSite) {
         this.ctx = ctx;
         this.tryCatchBlocks = tryCatchBlocks;
         this.variables = variables;
         this.labelNames = labelNames;
+        this.methodSite = methodSite;
     }
 
     public void index(int index) {
@@ -43,9 +60,15 @@ public class JvmInstructionPrinter {
 
     public void label(LabelNode label) {
         String name = labelNames.get(label);
-        if (name == null) {
+        if (name == null)
             return;
+
+        if (methodSite != null
+                && executableOrdinal < executableCount
+                && labelCommentPositions.add(executableOrdinal)) {
+            ctx.printDisassemblyComments(new DisassemblyCommentSite.LabelSite(methodSite, executableOrdinal));
         }
+
         ctx.label(name).next();
         if (ctx.debugTryCatchRanges()) {
             for (TryCatchBlockNode block : tryCatchBlocks) {
@@ -196,11 +219,37 @@ public class JvmInstructionPrinter {
     }
 
     public void print(InsnList code) {
+        Map<Integer, Boolean> labelsAt = new java.util.HashMap<>();
+        int count = 0;
+        for (int i = 0; i < code.size(); i++) {
+            AbstractInsnNode instruction = code.get(i);
+            if (instruction instanceof LabelNode label) {
+                if (labelNames.get(label) != null)
+                    labelsAt.put(count, true);
+            } else if (instruction.getOpcode() >= 0) {
+                count++;
+            }
+        }
+        outputLabelsAt = labelsAt;
+        executableCount = count;
+        executableOrdinal = 0;
+        labelCommentPositions.clear();
         for (int i = 0; i < code.size(); i++) {
             index(i);
             AbstractInsnNode instruction = code.get(i);
+            if (instruction.getOpcode() >= 0) {
+                if (methodSite != null && !outputLabelsAt.getOrDefault(executableOrdinal, false)
+                        && labelCommentPositions.add(executableOrdinal)) {
+                    ctx.printDisassemblyComments(new DisassemblyCommentSite.LabelSite(methodSite, executableOrdinal));
+                }
+                if (methodSite != null)
+                    ctx.printDisassemblyComments(new DisassemblyCommentSite.InstructionSite(methodSite, executableOrdinal));
+                executableOrdinal++;
+            }
             execute(instruction);
         }
+        if (methodSite != null)
+            ctx.printDisassemblyComments(new DisassemblyCommentSite.MethodEndSite(methodSite));
     }
 
     private static @NotNull String opcodeName(int opcode) {

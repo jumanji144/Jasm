@@ -32,6 +32,17 @@ final class ProcessingState {
         attributes.fill(source.collectAttributes());
     }
 
+    void addComments(ASTElement element) {
+        addComments(element, true);
+    }
+
+    void addComments(ASTElement element, boolean includeTrailing) {
+        attributes.leadingComments.addAll(element.leadingComments());
+        if (includeTrailing)
+            attributes.trailingComments.addAll(element.trailingComments());
+        attributes.endComments.addAll(element.endComments());
+    }
+
     ProcessorAttributes collectAttributes() {
         ProcessorAttributes snapshot = attributes;
         attributes = new ProcessorAttributes();
@@ -41,6 +52,9 @@ final class ProcessingState {
 
     ProcessorAttributes collectGenericAttributes() {
         ProcessorAttributes snapshot = new ProcessorAttributes();
+        snapshot.leadingComments.addAll(attributes.leadingComments);
+        snapshot.trailingComments.addAll(attributes.trailingComments);
+        snapshot.endComments.addAll(attributes.endComments);
         snapshot.signature = attributes.signature;
         snapshot.deprecated = attributes.deprecated;
         snapshot.deprecatedAttribute = attributes.deprecatedAttribute;

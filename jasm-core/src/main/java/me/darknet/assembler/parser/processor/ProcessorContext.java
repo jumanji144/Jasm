@@ -118,7 +118,32 @@ public class ProcessorContext extends Stateful<ProcessorFlag> {
 	 * @return Parsed declaration, or {@code null} if the declaration is invalid or if there is no handler for the declaration's keyword.
 	 */
 	ASTElement parseDeclaration(ASTDeclaration declaration) {
+		state.addComments(declaration);
+		if (declaration.keyword() != null)
+			state.addComments(declaration.keyword());
 		return registry.get(declaration).parse(this, declaration);
+	}
+
+	/**
+	 * Parse the given top-level declaration with recognized {@link DeclarationHandler}s registered in the {@link DeclarationRegistry}.
+	 * <p>
+	 * Top-level declarations are allowed to be "class" declarations, which are not allowed in nested contexts.
+	 *
+	 * @param declaration
+	 * 		Declaration to parse.
+	 *
+	 * @return Parsed declaration, or {@code null} if the declaration is invalid or if there is no handler for the declaration's keyword.
+	 */
+	ASTElement parseTopLevelDeclaration(ASTDeclaration declaration) {
+		if (!"class".equals(DeclarationRegistry.keyword(declaration)))
+			return parseDeclaration(declaration);
+		state.addComments(declaration, false);
+		if (declaration.keyword() != null)
+			state.addComments(declaration.keyword());
+		ASTElement parsed = registry.get(declaration).parse(this, declaration);
+		if (parsed != null)
+			declaration.trailingComments().forEach(parsed::addEndComment);
+		return parsed;
 	}
 
 	/**

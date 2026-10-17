@@ -1,5 +1,6 @@
 package me.darknet.assembler.parser.processor;
 
+import me.darknet.assembler.ast.MetaComment;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTNumber;
@@ -11,6 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ProcessorAttributes {
+
+    // source comments awaiting their next typed owner
+    public final List<MetaComment> leadingComments = new ArrayList<>();
+    public final List<MetaComment> trailingComments = new ArrayList<>();
+    public final List<MetaComment> endComments = new ArrayList<>();
 
     // generic attributes
     public final List<ASTAnnotation> visibleAnnotations = new ArrayList<>();
@@ -39,6 +45,9 @@ public class ProcessorAttributes {
     List<ASTElement> attributes = new ArrayList<>();
 
    public void fill(ProcessorAttributes other) {
+        leadingComments.addAll(other.leadingComments);
+        trailingComments.addAll(other.trailingComments);
+        endComments.addAll(other.endComments);
         visibleAnnotations.addAll(other.visibleAnnotations);
         invisibleAnnotations.addAll(other.invisibleAnnotations);
         visibleTypeAnnotations.addAll(other.visibleTypeAnnotations);
@@ -75,6 +84,9 @@ public class ProcessorAttributes {
     }
 
     public @NotNull ProcessorAttributes clearGenericAttributes() {
+        leadingComments.clear();
+        trailingComments.clear();
+        endComments.clear();
         signature = null;
         deprecated = false;
         deprecatedAttribute = null;
@@ -86,6 +98,10 @@ public class ProcessorAttributes {
     }
 
     public void fill(@NotNull ASTElement element) {
+        leadingComments.forEach(element::addLeadingComment);
+        trailingComments.forEach(element::addTrailingComment);
+        endComments.forEach(element::addEndComment);
+
         // Pass along a copy of the annotations so that we can clear our list reference and not affect
         // the annotated consumer.
         if (!visibleAnnotations.isEmpty() && element instanceof ASTAnnotated annotated)

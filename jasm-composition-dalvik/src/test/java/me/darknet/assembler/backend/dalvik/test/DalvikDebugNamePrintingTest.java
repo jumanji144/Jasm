@@ -82,7 +82,7 @@ class DalvikDebugNamePrintingTest {
                 0, 1
         ));
         method.getCode().addInstruction(new ReturnInstruction());
-        method.getCode().setDebugInfo(new DebugInformation(List.of(), List.of(), List.of(
+        method.getCode().setDebugInfo(new DebugInformation(List.of(), List.of(), List.of(), List.of(
                 local(0, "wideArgument"), local(1, "wideTail")
         )));
 
@@ -106,7 +106,7 @@ class DalvikDebugNamePrintingTest {
         method.getCode().addInstruction(InvokeInstruction.polymorphicRange(
                 owner, "invokeExact", declaredType, callSiteType, 3, 0));
         method.getCode().addInstruction(new ReturnInstruction());
-        method.getCode().setDebugInfo(new DebugInformation(List.of(), List.of(), List.of(
+        method.getCode().setDebugInfo(new DebugInformation(List.of(), List.of(), List.of(), List.of(
                 local(0, "receiver"), local(1, "wideHead"), local(2, "wideTail")
         )));
 
@@ -123,7 +123,7 @@ class DalvikDebugNamePrintingTest {
     @Test
     void invalidParameterDebugNameUsesAliasAndKeepsAnnotation() {
         MethodMember method = method("annotated", "(I)V", new Code(1, 0, 1));
-        method.getCode().setDebugInfo(new DebugInformation(List.of(), List.of("<unused var>"), List.of()));
+        method.getCode().setDebugInfo(new DebugInformation(List.of(), List.of(), List.of("<unused var>"), List.of()));
         method.setParameterAnnotations(List.of(List.of(new Annotation(
                 (byte) Annotation.VISIBILITY_RUNTIME,
                 new AnnotationPart(Types.instanceTypeFromInternalName("java/lang/Deprecated"), Map.of())
@@ -142,7 +142,7 @@ class DalvikDebugNamePrintingTest {
     void invalidParameterAliasCollisionKeepsUnnamedFallback() {
         MethodMember method = method("collision", "(II)V", new Code(2, 0, 2));
         method.getCode().setDebugInfo(new DebugInformation(
-                List.of(), List.of("<unused var>", "p0"), List.of()));
+                List.of(), List.of(), List.of("<unused var>", "p0"), List.of()));
 
         String printed = print(method);
         assertFalse(printed.contains("parameters:"), printed);
@@ -171,7 +171,7 @@ class DalvikDebugNamePrintingTest {
                              DebugInformation.LocalVariable... locals) {
         Code code = new Code(0, 0, registers);
         code.addInstructions(instructions);
-        code.setDebugInfo(new DebugInformation(List.of(), List.of(), List.of(locals)));
+        code.setDebugInfo(new DebugInformation(List.of(), List.of(), List.of(), List.of(locals)));
         return code;
     }
 

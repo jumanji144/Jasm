@@ -8,6 +8,7 @@ import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
@@ -25,6 +26,7 @@ public class PrintContext<T extends PrintContext<?>> {
     protected String indentStep;
     protected Writer writer;
     protected String labelPrefix;
+    protected DisassemblyCommentProvider disassemblyCommentProvider = DisassemblyCommentProvider.NONE;
     protected boolean debugTryCatchRanges;
     protected boolean ignoreExistingVariableNames;
     protected boolean forceWholeNumberRepresentation;
@@ -41,6 +43,7 @@ public class PrintContext<T extends PrintContext<?>> {
 
     public PrintContext(PrintContext<?> ctx) {
         this.debugTryCatchRanges = ctx.debugTryCatchRanges;
+        this.disassemblyCommentProvider = ctx.disassemblyCommentProvider;
         this.ignoreExistingVariableNames = ctx.ignoreExistingVariableNames;
         this.forceWholeNumberRepresentation = ctx.forceWholeNumberRepresentation;
         this.floatPrintMode = ctx.floatPrintMode;
@@ -55,6 +58,23 @@ public class PrintContext<T extends PrintContext<?>> {
 
     public void setDebugTryCatchRanges(boolean debugTryCatchRanges) {
         this.debugTryCatchRanges = debugTryCatchRanges;
+    }
+
+    public void setDisassemblyCommentProvider(@NotNull DisassemblyCommentProvider provider) {
+        this.disassemblyCommentProvider = Objects.requireNonNull(provider, "provider");
+    }
+
+    public T printDisassemblyComments(@NotNull DisassemblyCommentSite site) {
+        List<String> comments = Objects.requireNonNull(
+                disassemblyCommentProvider.commentsFor(Objects.requireNonNull(site, "site")),
+                "comment provider result");
+        for (String comment : comments) {
+            Objects.requireNonNull(comment, "comment body");
+            String[] lines = comment.split("\\n", -1);
+            for (String line : lines)
+                begin().append("//").append(line).line();
+        }
+        return (T) this;
     }
 
     public void setLabelPrefix(String labelPrefix) {

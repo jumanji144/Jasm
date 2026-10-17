@@ -70,7 +70,19 @@ final class FieldDeclarationParser {
 			return null;
 
 		Modifiers modifiers = ModifierParser.parseModifiers(context, nameIndex, declaration);
-		return new ASTField(modifiers, name, desc, value).accept(context.state().collectGenericAttributes());
+		ASTField field = new ASTField(modifiers, name, desc, value);
+		if (last instanceof ASTObject object) {
+			copyComments(object, field);
+			for (var pair : object.values().pairs())
+				copyComments(pair.first(), field);
+		}
+		return field.accept(context.state().collectGenericAttributes());
+	}
+
+	private static void copyComments(ASTElement source, ASTElement target) {
+		source.leadingComments().forEach(target::addLeadingComment);
+		source.trailingComments().forEach(target::addTrailingComment);
+		source.endComments().forEach(target::addEndComment);
 	}
 
 	private static ASTElement normalizeFieldValue(ASTElement value) {

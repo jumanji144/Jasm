@@ -11,14 +11,23 @@ import org.objectweb.asm.tree.FieldNode;
 public class JvmFieldPrinter implements FieldPrinter {
     protected final FieldNode field;
     protected final JvmMemberPrinter memberPrinter;
+    private final @Nullable String ownerInternalName;
 
     public JvmFieldPrinter(FieldNode field) {
+        this(field, null);
+    }
+
+    public JvmFieldPrinter(FieldNode field, String ownerInternalName) {
         this.field = field;
+        this.ownerInternalName = ownerInternalName;
         this.memberPrinter = new JvmMemberPrinter(field, JvmMemberPrinter.Type.FIELD);
     }
 
     @Override
     public void print(PrintContext<?> ctx) {
+        if (ownerInternalName != null)
+            ctx.printDisassemblyComments(new DisassemblyCommentSite.FieldSite(ownerInternalName, field.name, field.desc));
+
         memberPrinter.printAttributes(ctx);
         memberPrinter.printDeclaration(ctx)
                 .literal(field.name)

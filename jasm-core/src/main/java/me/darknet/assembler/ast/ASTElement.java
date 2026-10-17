@@ -29,6 +29,12 @@ public class ASTElement {
     protected ASTElement parent;
     protected Token value;
     protected Range cachedRange;
+    private final List<MetaComment> leadingComments = new ArrayList<>();
+    private final List<MetaComment> trailingComments = new ArrayList<>();
+    private final List<MetaComment> endComments = new ArrayList<>();
+    private final List<MetaComment> leadingCommentsView = Collections.unmodifiableList(leadingComments);
+    private final List<MetaComment> trailingCommentsView = Collections.unmodifiableList(trailingComments);
+    private final List<MetaComment> endCommentsView = Collections.unmodifiableList(endComments);
 
     public ASTElement(ElementType type) {
         this(type, Collections.emptyList());
@@ -190,6 +196,30 @@ public class ASTElement {
 
     public @NotNull List<ASTElement> children() {
         return childrenView;
+    }
+
+    public @NotNull List<MetaComment> leadingComments() {
+        return leadingCommentsView;
+    }
+
+    public @NotNull List<MetaComment> trailingComments() {
+        return trailingCommentsView;
+    }
+
+    public @NotNull List<MetaComment> endComments() {
+        return endCommentsView;
+    }
+
+    public void addLeadingComment(@NotNull MetaComment comment) {
+        leadingComments.add(Objects.requireNonNull(comment, "comment"));
+    }
+
+    public void addTrailingComment(@NotNull MetaComment comment) {
+        trailingComments.add(Objects.requireNonNull(comment, "comment"));
+    }
+
+    public void addEndComment(@NotNull MetaComment comment) {
+        endComments.add(Objects.requireNonNull(comment, "comment"));
     }
 
     public @Nullable Location location() {

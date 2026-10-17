@@ -848,7 +848,7 @@ class DalvikCompilerTest {
                 """);
         var method = definition.getMethod("named", "()V");
         var code = method.getCode();
-        code.setDebugInfo(new me.darknet.dex.tree.definitions.debug.DebugInformation(List.of(), List.of(), List.of(
+        code.setDebugInfo(new me.darknet.dex.tree.definitions.debug.DebugInformation(List.of(), List.of(), List.of(), List.of(
                 local(0, "first"),
                 local(0, "renamed"),
                 local(1, "second")
@@ -881,7 +881,7 @@ class DalvikCompilerTest {
                 }
                 """);
         definition.getMethod("moved", "()V").getCode().setDebugInfo(
-                new me.darknet.dex.tree.definitions.debug.DebugInformation(List.of(), List.of(), List.of(
+                new me.darknet.dex.tree.definitions.debug.DebugInformation(List.of(), List.of(), List.of(), List.of(
                         local(0, "zero"), local(1, "one")
                 )));
         String printed = printDefinition(definition);
@@ -909,7 +909,7 @@ class DalvikCompilerTest {
         var method = collision.getMethod("collision", "(I)V");
         for (String name : List.of("v0", "p0")) {
             method.getCode().setDebugInfo(new me.darknet.dex.tree.definitions.debug.DebugInformation(
-                    List.of(), List.of(), List.of(local(0, name))));
+                    List.of(), List.of(), List.of(), List.of(local(0, name))));
             String printed = printDefinition(collision);
             assertTrue(printed.contains("const v0 "), printed);
             assertFalse(printed.contains("const p0 "), printed);
@@ -929,7 +929,7 @@ class DalvikCompilerTest {
                 }
                 """);
         duplicate.getMethod("duplicate", "()V").getCode().setDebugInfo(
-                new me.darknet.dex.tree.definitions.debug.DebugInformation(List.of(), List.of(), List.of(
+                new me.darknet.dex.tree.definitions.debug.DebugInformation(List.of(), List.of(), List.of(), List.of(
                         local(0, "same"), local(1, "same")
                 )));
         String printed = printDefinition(duplicate);

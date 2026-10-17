@@ -1,5 +1,6 @@
 package me.darknet.assembler.parser;
 
+import me.darknet.assembler.ast.MetaComment;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.ElementType;
 import me.darknet.assembler.ast.primitive.*;
@@ -32,16 +33,90 @@ public class DeclarationParser {
 	 * @return the parsed declarations and syntax diagnostics
 	 */
     public Outcome<List<@Nullable ASTElement>> parseDeclarations(Collection<Token> tokens) {
-        List<Token> filtered = filterComments(tokens);
-        if (filtered.isEmpty())
+        if (tokens.isEmpty())
             return Outcome.success(List.of());
-        this.ctx = new ParserContext(this, filtered);
+        this.ctx = new ParserContext(this, new ArrayList<>(tokens));
         List<@Nullable ASTElement> declarations = new ArrayList<>();
-        while (!this.ctx.done())
-            declarations.add(parseDeclaration());
+        List<MetaComment> pending = new ArrayList<>();
+        ASTElement previous = null;
+        while (!this.ctx.done()) {
+            collectTrivia(previous, pending);
+            if (this.ctx.done())
+                break;
+            ASTElement declaration = parseDeclaration();
+            declarations.add(declaration);
+            if (declaration != null) {
+                applyPendingLeading(declaration, pending);
+                previous = declaration;
+            }
+        }
+        attachEnd(previous, pending);
         return Outcome.of(declarations, ctx.diagnostics.diagnostics());
     }
 
+    private void collectTrivia(@Nullable ASTElement previous, List<MetaComment> pending) {
+        routeTrivia(ctx.takeComments(), previous, pending);
+    }
+
+    private static void attachEnd(@Nullable ASTElement element, List<MetaComment> pending) {
+        if (element != null)
+            pending.forEach(element::addEndComment);
+    }
+
+    private static void attachEndComments(ASTElement element, List<MetaComment> comments) {
+        comments.forEach(element::addEndComment);
+    }
+
+    private void routeTrivia(List<Token> comments, @Nullable ASTElement previous,
+                             List<MetaComment> pending) {
+        Location previousLocation = ctx.latestSyntaxLocation();
+        if (previousLocation == null && previous != null)
+            previousLocation = previous.location();
+        for (Token comment : comments) {
+            MetaComment trivia = new MetaComment(comment);
+            if (previousLocation != null && previousLocation.line() == trivia.location().line()) {
+                if (previous != null)
+                    previous.addTrailingComment(trivia);
+                else
+                    pending.add(trivia);
+            } else {
+                pending.add(trivia);
+            }
+        }
+    }
+
+    private static void applyPendingLeading(ASTElement element, List<MetaComment> pending) {
+        pending.forEach(element::addLeadingComment);
+        pending.clear();
+    }
+
+    private static void applyPendingEnd(ASTElement element, List<MetaComment> pending) {
+        attachEndComments(element, pending);
+        pending.clear();
+    }
+
+    private static boolean isComment(Token token) {
+        return token.type() == TokenType.COMMENT;
+    }
+
+    private boolean declarationBoundary(State state, @Nullable Token peek) {
+        if (peek == null || peek.content().startsWith("."))
+            return true;
+        if (state == State.IN_NESTED_DECLARATION_OR_ARRAY)
+            return peek.content().equals("}") || peek.content().equals(",");
+        if (state == State.IN_NESTED_DECLARATION)
+            return peek.content().equals("}");
+        if (state == State.IN_ARRAY)
+            return peek.content().equals(",") || peek.content().equals("}");
+        if (state == State.IN_OBJECT) {
+            if (peek.content().equals("}") || peek.content().equals(","))
+                return true;
+            Token next = ctx.peek(1);
+            return next != null && next.content().equals(":");
+        }
+        return false;
+    }
+    
 	/**
 	 * Parse any supported element from the given tokens, preserving partial AST recovery.
 	 *
@@ -51,23 +126,25 @@ public class DeclarationParser {
 	 * @return the parsed elements and syntax diagnostics
 	 */
     public Outcome<List<@Nullable ASTElement>> parseAny(Collection<Token> tokens) {
-        List<Token> filtered = filterComments(tokens);
-        if (filtered.isEmpty())
+        if (tokens.isEmpty())
             return Outcome.success(List.of());
-        this.ctx = new ParserContext(this, filtered);
+        this.ctx = new ParserContext(this, new ArrayList<>(tokens));
         List<@Nullable ASTElement> result = new ArrayList<>();
-        while (!this.ctx.done())
-            result.add(parse());
-        return Outcome.of(result, ctx.diagnostics.diagnostics());
-    }
-
-    private List<Token> filterComments(Collection<Token> tokens) {
-        List<Token> filtered = new ArrayList<>(tokens.size());
-        for (Token token : tokens) {
-            if (token.type() != TokenType.COMMENT)
-                filtered.add(token);
+        List<MetaComment> pending = new ArrayList<>();
+        ASTElement previous = null;
+        while (!this.ctx.done()) {
+            collectTrivia(previous, pending);
+            if (this.ctx.done())
+                break;
+            ASTElement element = parse();
+            result.add(element);
+            if (element != null) {
+                applyPendingLeading(element, pending);
+                previous = element;
+            }
         }
-        return filtered;
+        attachEnd(previous, pending);
+        return Outcome.of(result, ctx.diagnostics.diagnostics());
     }
 
     private @Nullable ASTElement parseOperator(Token token) {
@@ -151,33 +228,38 @@ public class DeclarationParser {
 
     private ASTEmpty parseEmpty() {
         Token begin = ctx.take("{");
+        List<MetaComment> endComments = ctx.takeComments().stream().map(MetaComment::new).toList();
         ctx.take("}");
-        return new ASTEmpty(begin);
+        ASTEmpty empty = new ASTEmpty(begin);
+        attachEndComments(empty, endComments);
+        return empty;
     }
 
     private @Nullable ASTArray parseArray() {
         if (ctx.take("{") == null)
             return null;
-        List<ASTElement> elements = new ArrayList<>();
-        return parseHalfArray(elements);
+        return parseHalfArray(new ArrayList<>(), new ArrayList<>());
     }
 
-    private @Nullable ASTArray parseHalfArray(List<ASTElement> elements) {
+    private @Nullable ASTArray parseHalfArray(List<ASTElement> elements, List<MetaComment> pending) {
         ctx.enterState(State.IN_ARRAY);
+        ASTElement previous = elements.isEmpty() ? null : elements.getLast();
         while (true) {
+            routeTrivia(ctx.takeComments(), previous, pending);
             Token peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError(", or {");
                 return null;
             }
-            if (peek.content().equals("}")) {
+            if (peek.content().equals("}"))
                 break;
-            }
             ASTElement element = parse();
-            if (element == null) {
+            if (element == null)
                 return null;
-            }
+            applyPendingLeading(element, pending);
             elements.add(element);
+            previous = element;
+            routeTrivia(ctx.takeComments(), previous, pending);
             peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError(", or }");
@@ -191,7 +273,9 @@ public class DeclarationParser {
         if (ctx.take("}") == null)
             return null;
         ctx.leaveState(State.IN_ARRAY);
-        return new ASTArray(elements);
+        ASTArray array = new ASTArray(elements);
+        applyPendingEnd(array, pending);
+        return array;
     }
 
     private @Nullable ASTObject parseObject() {
@@ -203,26 +287,34 @@ public class DeclarationParser {
             if (ctx.take("{") == null)
                 return null;
             ElementMap<ASTIdentifier, ASTElement> elements = new ElementMap<>();
+            List<MetaComment> pending = new ArrayList<>();
+            ASTElement previous = null;
             while (true) {
+                routeTrivia(ctx.takeComments(), previous, pending);
                 Token peek = ctx.peek();
                 if (peek == null) {
                     ctx.throwEofError("identifier or }");
                     return null;
                 }
-                if (peek.content().equals("}")) {
+                if (peek.content().equals("}"))
                     break;
-                }
                 ASTIdentifier identifier = ctx.literal();
                 if (identifier == null)
                     return null;
+                applyPendingLeading(identifier, pending);
+                routeTrivia(ctx.takeComments(), identifier, pending);
                 if (ctx.take(":") == null)
                     return null;
+                routeTrivia(ctx.takeComments(), identifier, pending);
                 ASTElement element = parse();
                 if (element == null) {
                     ctx.throwExpectedError("element", peek.content());
                     return null;
                 }
+                applyPendingLeading(element, pending);
                 elements.put(identifier, element);
+                previous = element;
+                routeTrivia(ctx.takeComments(), previous, pending);
                 peek = ctx.peek();
                 if (peek == null) {
                     ctx.throwEofError(", or }");
@@ -236,7 +328,9 @@ public class DeclarationParser {
             if (ctx.take("}") == null)
                 return null;
             ctx.leaveState(State.IN_OBJECT);
-            return new ASTObject(elements);
+            ASTObject object = new ASTObject(elements);
+            applyPendingEnd(object, pending);
+            return object;
         } finally {
             ctx.leaveObject();
         }
@@ -251,12 +345,14 @@ public class DeclarationParser {
         ctx.enterDeclaration(identifier.content());
         try {
             State state = ctx.getState();
-            Token peek = ctx.peek();
-            if (peek == null) {
-                return new ASTDeclaration(identifier, List.of());
-            }
             List<ASTElement> elements = new ArrayList<>();
-            while (!peek.content().startsWith(".")) {
+            List<MetaComment> pending = new ArrayList<>();
+            ASTElement previous = identifier;
+            while (true) {
+                Token peek = ctx.peek();
+                if (declarationBoundary(state, peek))
+                    break;
+                routeTrivia(ctx.takeComments(), previous, pending);
                 ctx.enterDeclarationElement();
                 ASTElement element;
                 try {
@@ -264,37 +360,11 @@ public class DeclarationParser {
                 } finally {
                     ctx.leaveDeclarationElement();
                 }
-                if (element == null) {
+                if (element == null)
                     return null;
-                }
+                applyPendingLeading(element, pending);
                 elements.add(element);
-                peek = ctx.peek();
-                if (peek == null)
-                    break; // declarations are the top level elements, so we can just stop here
-                if (state == State.IN_NESTED_DECLARATION_OR_ARRAY) {
-                    if (peek.content().equals("}") || peek.content().equals(",")) {
-                        break;
-                    }
-                }
-                if ((state == State.IN_NESTED_DECLARATION) && peek.content().equals("}")) {
-                    break;
-                } else if (state == State.IN_OBJECT) {
-                    // detection is a bit hacky, but it works
-                    // check if over next token is a : or next token is a }
-                    if (peek.content().equals("}") || peek.content().equals(",")) {
-                        break;
-                    }
-                    Token next = ctx.peek(1);
-                    if (next == null) {
-                        ctx.throwEofError("end of declaration");
-                        return null;
-                    }
-                    if (next.content().equals(":")) {
-                        break;
-                    }
-                } else if ((state == State.IN_ARRAY) && (peek.content().equals(",") || peek.content().equals("}"))) { // arrays are a bit easier
-                    break;
-                }
+                previous = element;
             }
             return new ASTDeclaration(identifier, elements);
         } finally {
@@ -306,9 +376,12 @@ public class DeclarationParser {
         if (ctx.take("{") == null)
             return null;
         ctx.enterState(State.IN_NESTED_DECLARATION_OR_ARRAY);
+        List<MetaComment> pending = new ArrayList<>();
+        routeTrivia(ctx.takeComments(), null, pending);
         ASTElement element = parse();
         if (element == null)
             return null;
+        applyPendingLeading(element, pending);
         Token peek = ctx.peek();
         if (peek == null) {
             ctx.throwEofError(", or } or element");
@@ -317,46 +390,55 @@ public class DeclarationParser {
         List<ASTElement> elements = new ArrayList<>();
         elements.add(element);
         if (peek.content().equals("}")) {
+            routeTrivia(ctx.takeComments(), element, pending);
             ctx.take("}");
             ctx.leaveState(State.IN_NESTED_DECLARATION_OR_ARRAY);
-            return new ASTDeclaration(null, elements);
+            ASTDeclaration declaration = new ASTDeclaration(null, elements);
+            applyPendingEnd(declaration, pending);
+            return declaration;
         }
         if (peek.content().equals(",")) {
+            routeTrivia(ctx.takeComments(), element, pending);
             ctx.take(",");
             ctx.leaveState(State.IN_NESTED_DECLARATION_OR_ARRAY);
-            return parseHalfArray(elements);
+            return parseHalfArray(elements, pending);
         }
         ctx.leaveState(State.IN_NESTED_DECLARATION_OR_ARRAY);
-        return parseHalfNestedDeclaration(elements);
+        return parseHalfNestedDeclaration(elements, pending);
     }
 
     private @Nullable ASTDeclaration parseNestedDeclaration() {
         if (ctx.take("{") == null)
             return null;
-        return parseHalfNestedDeclaration(new ArrayList<>());
+        return parseHalfNestedDeclaration(new ArrayList<>(), new ArrayList<>());
     }
 
-    private @Nullable ASTDeclaration parseHalfNestedDeclaration(List<ASTElement> elements) {
+    private @Nullable ASTDeclaration parseHalfNestedDeclaration(List<ASTElement> elements,
+                                                                 List<MetaComment> pending) {
         ctx.enterState(State.IN_NESTED_DECLARATION);
+        ASTElement previous = elements.isEmpty() ? null : elements.getLast();
         while (true) {
+            routeTrivia(ctx.takeComments(), previous, pending);
             Token peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError("} or declaration");
                 return null;
             }
-            if (peek.content().equals("}")) {
+            if (peek.content().equals("}"))
                 break;
-            }
             ASTDeclaration declaration = parseDeclaration();
-            if (declaration == null) {
+            if (declaration == null)
                 return null;
-            }
+            applyPendingLeading(declaration, pending);
             elements.add(declaration);
+            previous = declaration;
         }
         if (ctx.take("}") == null)
             return null;
         ctx.leaveState();
-        return new ASTDeclaration(null, elements);
+        ASTDeclaration body = new ASTDeclaration(null, elements);
+        applyPendingEnd(body, pending);
+        return body;
     }
 
     private @Nullable ASTCode parseCode() {
@@ -364,24 +446,30 @@ public class DeclarationParser {
         if (ctx.take("{") == null)
             return null;
         List<ASTInstruction> instructions = new ArrayList<>();
+        List<MetaComment> pending = new ArrayList<>();
+        ASTElement previous = null;
         while (true) {
+            routeTrivia(ctx.takeComments(), previous, pending);
             Token peek = ctx.peek();
             if (peek == null) {
                 ctx.throwEofError("} or instruction");
                 return null;
             }
-            if (peek.content().equals("}")) {
+            if (peek.content().equals("}"))
                 break;
-            }
             ASTInstruction instruction = parseInstruction();
             if (instruction == null)
                 return null;
+            applyPendingLeading(instruction, pending);
             instructions.add(instruction);
+            previous = instruction;
         }
         if (ctx.take("}") == null)
             return null;
         ctx.leaveState(State.IN_CODE);
-        return new ASTCode(instructions);
+        ASTCode code = new ASTCode(instructions);
+        applyPendingEnd(code, pending);
+        return code;
     }
 
     private @Nullable ASTInstruction parseInstruction() {
@@ -394,28 +482,28 @@ public class DeclarationParser {
             return null;
         }
         Token peek = ctx.peek();
-        if (peek == null) {
+        if (peek == null && ctx.peekRaw() == null) {
             ctx.throwEofError("instruction argument or label");
             return null;
         }
-        if (peek.type() == TokenType.OPERATOR && peek.content().equals(":")) {
+        if (peek != null && peek.type() == TokenType.OPERATOR && peek.content().equals(":")) {
             ctx.leaveState(State.IN_INSTRUCTION);
+            ASTLabel label = new ASTLabel(new ASTIdentifier(instruction));
+            List<MetaComment> pending = new ArrayList<>();
+            routeTrivia(ctx.takeComments(), label, pending);
+            applyPendingLeading(label, pending);
             ctx.take(":");
-            return new ASTLabel(new ASTIdentifier(instruction));
+            return label;
         }
         ASTIdentifier identifier = new ASTIdentifier(instruction);
         List<ASTElement> arguments = new ArrayList<>();
-        // parse until peek is eof or on a different line
-        while (peek.location().line() == instruction.location().line()) {
+        Token raw = ctx.peekRaw();
+        while (raw != null && !isComment(raw) && raw.location().line() == instruction.location().line()) {
             ASTElement argument = parse();
-            if (argument == null) {
+            if (argument == null)
                 return null;
-            }
             arguments.add(argument);
-            peek = ctx.peek();
-            if (peek == null) {
-                break;
-            }
+            raw = ctx.peekRaw();
         }
         ctx.leaveState(State.IN_INSTRUCTION);
         return new ASTInstruction(identifier, arguments);
@@ -442,6 +530,7 @@ public class DeclarationParser {
         private final LinkedList<State> declarationElementStates = new LinkedList<>();
         private int idx = 0;
         private Token latest;
+        private Token latestSyntax;
 
         private ParserContext(DeclarationParser parser, List<Token> tokens) {
             this.parser = parser;
@@ -491,7 +580,24 @@ public class DeclarationParser {
 
         private Token next() {
             latest = tokens.get(idx++);
+            if (latest.type() != TokenType.COMMENT)
+                latestSyntax = latest;
             return latest;
+        }
+
+        private @Nullable Location latestSyntaxLocation() {
+            return latestSyntax == null ? null : latestSyntax.location();
+        }
+
+        private Token peekRaw() {
+            return idx < tokens.size() ? tokens.get(idx) : null;
+        }
+
+        private List<Token> takeComments() {
+            List<Token> comments = new ArrayList<>();
+            while (peekRaw() != null && peekRaw().type() == TokenType.COMMENT)
+                comments.add(next());
+            return comments;
         }
 
         private Token peek() {
@@ -499,11 +605,28 @@ public class DeclarationParser {
         }
 
         private Token peek(int offset) {
-            int listIdx = idx + offset;
-            if (listIdx < 0 || listIdx >= tokens.size()) {
+            if (offset < 0) {
+                int listIdx = idx - 1;
+                int remaining = -offset;
+                while (listIdx >= 0) {
+                    Token token = tokens.get(listIdx--);
+                    if (token.type() == TokenType.COMMENT)
+                        continue;
+                    if (--remaining == 0)
+                        return token;
+                }
                 return null;
             }
-            return tokens.get(listIdx);
+            int listIdx = idx;
+            int remaining = offset;
+            while (listIdx < tokens.size()) {
+                Token token = tokens.get(listIdx++);
+                if (token.type() == TokenType.COMMENT)
+                    continue;
+                if (remaining-- == 0)
+                    return token;
+            }
+            return null;
         }
 
         private Token take(String exact) {

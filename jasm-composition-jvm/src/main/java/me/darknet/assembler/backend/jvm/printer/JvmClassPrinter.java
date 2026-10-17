@@ -35,6 +35,8 @@ public class JvmClassPrinter implements ClassPrinter {
 
     @Override
     public void print(PrintContext<?> ctx) {
+        ctx.printDisassemblyComments(new DisassemblyCommentSite.ClassSite(view.name));
+
         int version = view.version - 44;
         if (version >= 1)
             ctx.begin().element(".version").literal(version).end();
@@ -100,7 +102,7 @@ public class JvmClassPrinter implements ClassPrinter {
 
         var obj = memberPrinter.printDeclaration(ctx).literal(view.name).print(" ").declObject().newline();
         for (FieldNode field : view.fields) {
-            new JvmFieldPrinter(field).print(obj);
+            new JvmFieldPrinter(field, view.name).print(obj);
             obj.next();
         }
         obj.line();
@@ -108,6 +110,7 @@ public class JvmClassPrinter implements ClassPrinter {
             new JvmMethodPrinter(method, Type.getObjectType(view.name)).print(obj);
             obj.doubleNext();
         }
+        obj.printDisassemblyComments(new DisassemblyCommentSite.ClassEndSite(view.name));
         obj.end();
     }
 
@@ -140,7 +143,7 @@ public class JvmClassPrinter implements ClassPrinter {
     public FieldPrinter field(String name, String descriptor) {
         for (FieldNode field : view.fields) {
             if (field.name.equals(name) && field.desc.equals(descriptor)) {
-                return new JvmFieldPrinter(field);
+                return new JvmFieldPrinter(field, view.name);
             }
         }
         return null;

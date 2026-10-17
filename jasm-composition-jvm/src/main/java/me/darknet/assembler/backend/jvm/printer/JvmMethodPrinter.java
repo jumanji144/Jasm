@@ -50,9 +50,14 @@ public class JvmMethodPrinter implements MethodPrinter {
 
 	@Override
 	public void print(PrintContext<?> ctx) {
+		DisassemblyCommentSite.MethodSite methodSite = new DisassemblyCommentSite.MethodSite(ownerType.getInternalName(), method.name, method.desc);
+		ctx.printDisassemblyComments(methodSite);
+
 		memberPrinter.printAttributes(ctx);
+
 		var obj = memberPrinter.printDeclaration(ctx).literal(method.name).print(" ")
 				.literal(method.desc).print(" ").object();
+
 		Variables variables = buildVariables(ctx);
 		MethodVariableLayout variableLayout = MethodVariableLayout.fromMethod(ownerType, printableMethod);
 		boolean hasPrior = !variables.parameters().isEmpty();
@@ -124,6 +129,7 @@ public class JvmMethodPrinter implements MethodPrinter {
 			hasPrior = true;
 		}
 
+		boolean printedMethodEnd = false;
 		if ((method.access & (Opcodes.ACC_ABSTRACT | Opcodes.ACC_NATIVE)) == 0) {
 			if (hasPrior)
 				obj.next();
@@ -147,10 +153,15 @@ public class JvmMethodPrinter implements MethodPrinter {
 			// Print instructions
 			if (printableMethod.instructions != null) {
 				var code = obj.value("code").code();
-				new JvmInstructionPrinter(code, printableMethod.tryCatchBlocks, variables, labelNames).print(printableMethod.instructions);
+				new JvmInstructionPrinter(code, printableMethod.tryCatchBlocks, variables, labelNames, methodSite)
+						.print(printableMethod.instructions);
+				printedMethodEnd = true;
 				code.end();
 			}
 		}
+
+		if (!printedMethodEnd)
+			obj.printDisassemblyComments(new DisassemblyCommentSite.MethodEndSite(methodSite));
 
 		obj.end();
 	}

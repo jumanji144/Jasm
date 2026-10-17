@@ -7,6 +7,7 @@ import me.darknet.assembler.parser.TokenType;
 import me.darknet.assembler.parser.Tokenizer;
 import me.darknet.assembler.printer.AnnotationPrinter;
 import me.darknet.assembler.printer.MethodPrinter;
+import me.darknet.assembler.printer.DisassemblyCommentSite;
 import me.darknet.assembler.printer.PrintContext;
 import me.darknet.dex.file.instructions.Opcodes;
 import me.darknet.dex.tree.definitions.MethodMember;
@@ -71,13 +72,19 @@ public class DalvikMethodPrinter implements MethodPrinter {
 	private static final Tokenizer TOKENIZER = new Tokenizer();
 	private final MethodMember definition;
 	private final DalvikMemberPrinter memberPrinter;
+	private final @Nullable String ownerInternalName;
 
 	/**
 	 * @param definition
 	 * 		The method definition to print.
 	 */
 	public DalvikMethodPrinter(MethodMember definition) {
+		this(definition, null);
+	}
+
+	public DalvikMethodPrinter(MethodMember definition, String ownerInternalName) {
 		this.definition = definition;
+		this.ownerInternalName = ownerInternalName;
 		this.memberPrinter = new DalvikMemberPrinter(definition, definition, DalvikMemberPrinter.Type.METHOD);
 	}
 
@@ -96,19 +103,14 @@ public class DalvikMethodPrinter implements MethodPrinter {
 		return memberPrinter.printAnnotation(index);
 	}
 
-	private static String getLabelName(int index) {
-		StringBuilder label = new StringBuilder();
-
-		while (index >= 0) {
-			label.insert(0, (char) ('A' + index % 26));
-			index = (index / 26) - 1;
-		}
-
-		return label.toString();
-	}
-
 	@Override
 	public void print(PrintContext<?> ctx) {
+		DisassemblyCommentSite.MethodSite methodSite = ownerInternalName == null ? null
+				: new DisassemblyCommentSite.MethodSite(ownerInternalName, definition.getName(),
+						definition.getType().descriptor());
+		if (methodSite != null)
+			ctx.printDisassemblyComments(methodSite);
+
 		memberPrinter.printAttributes(ctx);
 		if (definition.getSignature() != null) {
 			ctx.begin().element(".signature").string(definition.getSignature()).next();
@@ -218,13 +220,16 @@ public class DalvikMethodPrinter implements MethodPrinter {
 			if (hasPrior) obj.next();
 			var codeObj = obj.value("code").code();
 			Map<Integer, String> registers = getRegisterNames(code, allParametersNamed ? parameterNames : List.of());
-			DalvikCodePrinter printer = new DalvikCodePrinter(codeObj, registers, labelNames,
-					DalvikConstantTypeResolver.resolve(definition, code));
+			DalvikCodePrinter printer = new DalvikCodePrinter(code, codeObj, registers, labelNames,
+					DalvikConstantTypeResolver.resolve(definition, code), methodSite);
 			StraightForwardSimulation simulation = new StraightForwardSimulation();
 			simulation.execute(printer, code);
+			printer.finish();
 			codeObj.end();
 		}
 
+		if (code == null && methodSite != null)
+			obj.printDisassemblyComments(new DisassemblyCommentSite.MethodEndSite(methodSite));
 		obj.end();
 	}
 
@@ -293,6 +298,23 @@ public class DalvikMethodPrinter implements MethodPrinter {
 			}
 		}
 		return names;
+	}
+
+	/**
+	 * @param index
+	 * 		The zero-based index to convert.
+	 *
+	 * @return The corresponding label name.
+	 */
+	private static @NotNull String getLabelName(int index) {
+		StringBuilder label = new StringBuilder();
+
+		while (index >= 0) {
+			label.insert(0, (char) ('A' + index % 26));
+			index = (index / 26) - 1;
+		}
+
+		return label.toString();
 	}
 
 	/**

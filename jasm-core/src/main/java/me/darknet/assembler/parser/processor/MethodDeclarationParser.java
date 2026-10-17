@@ -111,7 +111,16 @@ final class MethodDeclarationParser {
 				code,
 				methodAttributes
 		);
+		copyComments(body, method);
+		for (var pair : body.values().pairs())
+			copyComments(pair.first(), method);
 		return method.accept(context.state().collectGenericAttributes());
+	}
+
+	private static void copyComments(ASTElement source, ASTElement target) {
+		source.leadingComments().forEach(target::addLeadingComment);
+		source.trailingComments().forEach(target::addTrailingComment);
+		source.endComments().forEach(target::addEndComment);
 	}
 
 	private static ElementMap<ASTIdentifier, @Nullable ASTElement> parseMethodAttributes(ProcessorContext context, ASTDeclaration declaration, ASTObject body) {

@@ -34,7 +34,7 @@ public class DalvikClassPrinter implements ClassPrinter {
     public @Nullable MethodPrinter method(String name, String descriptor) {
         MethodMember method = definition.getMethod(name, descriptor);
         if (method != null) {
-            return new DalvikMethodPrinter(method);
+            return new DalvikMethodPrinter(method, definition.getType().internalName());
         }
         return null;
     }
@@ -43,7 +43,7 @@ public class DalvikClassPrinter implements ClassPrinter {
     public @Nullable FieldPrinter field(String name, String descriptor) {
         FieldMember field = definition.getField(name, descriptor);
         if (field != null) {
-            return new DalvikFieldPrinter(field);
+            return new DalvikFieldPrinter(field, definition.getType().internalName());
         }
         return null;
     }
@@ -65,6 +65,9 @@ public class DalvikClassPrinter implements ClassPrinter {
 
     @Override
     public void print(PrintContext<?> ctx) {
+        String owner = definition.getType().internalName();
+        ctx.printDisassemblyComments(new DisassemblyCommentSite.ClassSite(owner));
+
         memberPrinter.printAttributes(ctx);
         if (definition.getSignature() != null) {
             ctx.begin().element(".signature").string(definition.getSignature()).next();
@@ -96,19 +99,20 @@ public class DalvikClassPrinter implements ClassPrinter {
             ctx.begin().element(".implements").literal(anInterface.internalName()).end();
         }
         var obj = memberPrinter.printDeclaration(ctx)
-                .literal(definition.getType().internalName()).print(" ").declObject()
+                .literal(owner).print(" ").declObject()
                 .newline();
         for (var field : definition.getFields().values()) {
-            var printer = new DalvikFieldPrinter(field);
+            var printer = new DalvikFieldPrinter(field, owner);
             printer.print(obj);
             obj.next();
         }
         obj.line();
         for (var method : definition.getMethods().values()) {
-            var printer = new DalvikMethodPrinter(method);
+            var printer = new DalvikMethodPrinter(method, owner);
             printer.print(obj);
             obj.doubleNext();
         }
+        obj.printDisassemblyComments(new DisassemblyCommentSite.ClassEndSite(owner));
         obj.end();
     }
 

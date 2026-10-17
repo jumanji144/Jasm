@@ -13,9 +13,15 @@ public class DalvikFieldPrinter implements FieldPrinter {
 
     private final FieldMember definition;
     private final DalvikMemberPrinter memberPrinter;
+    private final String ownerInternalName;
 
     public DalvikFieldPrinter(FieldMember definition) {
+        this(definition, null);
+    }
+
+    public DalvikFieldPrinter(FieldMember definition, String ownerInternalName) {
         this.definition = definition;
+        this.ownerInternalName = ownerInternalName;
         this.memberPrinter = new DalvikMemberPrinter(definition, definition, DalvikMemberPrinter.Type.FIELD);
     }
 
@@ -36,6 +42,9 @@ public class DalvikFieldPrinter implements FieldPrinter {
 
     @Override
     public void print(PrintContext<?> ctx) {
+        if (ownerInternalName != null)
+            ctx.printDisassemblyComments(new DisassemblyCommentSite.FieldSite(
+                    ownerInternalName, definition.getName(), definition.getType().descriptor()));
         memberPrinter.printAttributes(ctx);
         if (definition.getSignature() != null) {
             ctx.begin().element(".signature").string(definition.getSignature()).next();

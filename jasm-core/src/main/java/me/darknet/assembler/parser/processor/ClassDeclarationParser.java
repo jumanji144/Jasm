@@ -78,7 +78,10 @@ final class ClassDeclarationParser {
                 "type-annotation"
         );
 
-        return new ASTClass(modifiers, name, classBody)
-                .accept(context.state().collectAttributes());
+        ASTClass clazz = new ASTClass(modifiers, name, classBody);
+        body.leadingComments().forEach(clazz::addLeadingComment);
+        body.trailingComments().forEach(clazz::addTrailingComment);
+        body.endComments().forEach(clazz::addEndComment);
+        return clazz.accept(context.state().collectAttributes());
     }
 }
