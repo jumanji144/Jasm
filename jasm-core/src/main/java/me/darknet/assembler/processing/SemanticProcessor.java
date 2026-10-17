@@ -169,6 +169,12 @@ public final class SemanticProcessor {
             }
             if (validation.hasErrors())
                 break;
+
+            // An operand that depends on a sibling is completed only now that every operand has resolved, so
+            // lowering sees the refined values and not the position-only ones.
+            operands = definition.refine(validation, source, operands);
+            if (validation.hasErrors())
+                break;
             entries.add(new ProcessedInstruction(source, definition, operands));
         }
 

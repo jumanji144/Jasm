@@ -270,7 +270,7 @@ class DalvikCompilerTest {
                         parameters: { wide },
                         code: {
                             line 12
-                            invoke-static/range { v2, v3 } java/lang/Math.abs (J)J
+                            invoke-static { v2 } java/lang/Math.abs (J)J
                             move-result-wide v0
                             line 13
                             return-wide v0
@@ -639,7 +639,7 @@ class DalvikCompilerTest {
                     .method public static custom (I)V {
                         registers: 3,
                         code: {
-                            invoke-custom/range { v0, v2 } callsite (III)V ConstantBootstraps.nullConstant { "demo", Ljava/lang/String;, .member java/lang/System out Ljava/io/PrintStream; }
+                            invoke-custom { v0, v1, v2 } callsite (III)V ConstantBootstraps.nullConstant { "demo", Ljava/lang/String;, .member java/lang/System out Ljava/io/PrintStream; }
                             return-void
                         }
                     }
@@ -656,7 +656,7 @@ class DalvikCompilerTest {
             printer.print(ctx);
 
             String printed = TestUtils.normalize(ctx.toString());
-            assertTrue(printed.contains("invoke-custom/range"), printed);
+            assertTrue(printed.contains("invoke-custom { v0, v1, v2 } callsite (III)V"), printed);
             assertTrue(printed.contains("callsite (III)V"), printed);
             assertTrue(printed.contains("ConstantBootstraps.nullConstant"), printed);
             TestUtils.assertParsesDalvik(printed);
@@ -672,16 +672,16 @@ class DalvikCompilerTest {
                         registers: 3,
                         parameters: { receiver },
                         code: {
-                            invoke-polymorphic { receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
+                            invoke-polymorphic { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
                             move-result v0
                             return v0
                         }
                     }
-                    .method public static polyRange (Ljava/lang/Object;)I {
+                    .method public static polyList (Ljava/lang/Object;)I {
                         registers: 3,
                         parameters: { receiver },
                         code: {
-                            invoke-polymorphic/range { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
+                            invoke-polymorphic { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
                             move-result v0
                             return v0
                         }
@@ -690,9 +690,9 @@ class DalvikCompilerTest {
                 """, TestUtils.options(), result -> {
             ClassDefinition definition = result.representation().definition();
             var listMethod = definition.getMethod("poly", "(Ljava/lang/Object;)I");
-            var rangeMethod = definition.getMethod("polyRange", "(Ljava/lang/Object;)I");
-            assertNotNull(listMethod, "Expected the list-form method");
-            assertNotNull(rangeMethod, "Expected the range-form method");
+            var secondListMethod = definition.getMethod("polyList", "(Ljava/lang/Object;)I");
+            assertNotNull(listMethod, "Expected the first list-form method");
+            assertNotNull(secondListMethod, "Expected the second list-form method");
 
             var listInvoke = (me.darknet.dex.tree.definitions.instructions.InvokeInstruction)
                     listMethod.getCode().getInstructions().getFirst();
@@ -701,13 +701,12 @@ class DalvikCompilerTest {
             assertEquals("(Ljava/lang/Object;)I", listInvoke.type().descriptor());
             assertEquals(4, listInvoke.unitSize());
 
-            var rangeInvoke = (me.darknet.dex.tree.definitions.instructions.InvokeInstruction)
-                    rangeMethod.getCode().getInstructions().getFirst();
-            assertEquals(Opcodes.INVOKE_POLYMORPHIC, rangeInvoke.opcode(),
-                    "The model uses the base opcode for either register encoding form");
-            assertEquals("([Ljava/lang/Object;)Ljava/lang/Object;", rangeInvoke.methodType().descriptor());
-            assertEquals("(Ljava/lang/Object;)I", rangeInvoke.type().descriptor());
-            assertEquals(4, rangeInvoke.unitSize());
+            var secondListInvoke = (me.darknet.dex.tree.definitions.instructions.InvokeInstruction)
+                    secondListMethod.getCode().getInstructions().getFirst();
+            assertEquals(Opcodes.INVOKE_POLYMORPHIC, secondListInvoke.opcode());
+            assertEquals("([Ljava/lang/Object;)Ljava/lang/Object;", secondListInvoke.methodType().descriptor());
+            assertEquals("(Ljava/lang/Object;)I", secondListInvoke.type().descriptor());
+            assertEquals(4, secondListInvoke.unitSize());
         });
     }
 
@@ -738,7 +737,7 @@ class DalvikCompilerTest {
                         registers: 3,
                         parameters: { receiver },
                         code: {
-                            invoke-polymorphic { receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
+                            invoke-polymorphic { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
                             move-result v0
                             return v0
                         }
@@ -749,9 +748,8 @@ class DalvikCompilerTest {
             PrintContext<?> ctx = new PrintContext<>(PrintContext.TAB_INDENT);
             new DalvikClassPrinter(result.representation().definition()).print(ctx);
             String printed = TestUtils.normalize(ctx.toString());
-            assertTrue(printed.contains("invoke-polymorphic"), printed);
-            assertTrue(printed.contains("([Ljava/lang/Object;)Ljava/lang/Object;"), printed);
-            assertTrue(printed.contains("(Ljava/lang/Object;)I"), printed);
+            // Parameters keep their register names in the body until readable names are printed, so the receiver is v2.
+            assertTrue(printed.contains("invoke-polymorphic { v2, v2 } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I"), printed);
             TestUtils.assertParsesDalvik(printed);
         });
     }

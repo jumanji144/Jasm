@@ -27,6 +27,8 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -377,13 +379,13 @@ class DalvikEncodingBoundaryTest {
     }
 
     @Test
-    void rangeInvokeKeepsAHighRegister() throws IOException {
+    void aHighRegisterInAShortListIsEncodedAsARange() throws IOException {
         List<InvokeInstruction> invokes = decoded(decodedInstructions(example("""
                 .method public static highRange (I)V {
                     registers: 17,
                     parameters: { value },
                     code: {
-                        invoke-static/range { v16, v16 } demo/Target.one (I)V
+                        invoke-static { v16 } demo/Target.one (I)V
                         return-void
                     }
                 }
@@ -396,16 +398,16 @@ class DalvikEncodingBoundaryTest {
     }
 
     @Test
-    void rangeInvokeAcceptsTwoHundredFiftyFiveWords() throws IOException {
+    void aRangeOfTwoHundredFiftyFiveWordsIsAccepted() throws IOException {
         List<InvokeInstruction> invokes = decoded(decodedInstructions(example("""
                 .method public static widest ()V {
                     registers: 256,
                     code: {
-                        invoke-static/range { v0, v254 } demo/Target.many ()V
+                        invoke-static { words: { %s } } demo/Target.many ()V
                         return-void
                     }
                 }
-                """), "widest", "()V"), InvokeInstruction.class);
+                """.formatted(consecutiveWords(255))), "widest", "()V"), InvokeInstruction.class);
 
         assertEquals(1, invokes.size());
         assertTrue(invokes.getFirst().isRange());
@@ -551,33 +553,55 @@ class DalvikEncodingBoundaryTest {
     }
 
     @Test
-    void nonRangeInvokesRejectAHighRegister() {
-        var invoke = compileRejected(example("""
-                .method public static single (I)V {
+    void listsWhoseExpandedWordsHaveNoEncodingAreRejectedWithoutOutput() {
+        // A high register makes its list need a range, and a range needs consecutive words. Neither list is at most five
+        // low registers, and neither is one consecutive run in the order written.
+        var mixedHigh = compileRejected(example("""
+                .method public static mixed (I)V {
                     registers: 17,
                     parameters: { value },
                     code: {
-                        invoke-static { v16 } demo/Target.one (I)V
+                        const v0 7
+                        invoke-static { v16, v0 } demo/Target.two (II)V
                         return-void
                     }
                 }
                 """));
-        var polymorphic = compileRejected(example("""
+        var polymorphicHigh = compileRejected(example("""
                 .method public static poly (I)V {
                     registers: 17,
                     parameters: { value },
                     code: {
-                        invoke-polymorphic { v16 } java/lang/invoke/MethodHandle.invokeExact (I)V (I)V
+                        const v0 7
+                        invoke-polymorphic { v16, v0 } java/lang/invoke/MethodHandle.invokeExact (I)V (I)V
                         return-void
                     }
                 }
                 """));
 
-        for (var rejected : List.of(invoke, polymorphic)) {
+        for (var rejected : List.of(mixedHigh, polymorphicHigh)) {
             List<Diagnostic> limits = errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT);
             assertEquals(1, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
             assertTrue(limits.getFirst().message().contains("v16"), limits.getFirst().message());
         }
+    }
+
+    @Test
+    void aSixEntryListWithGapsNeedsPackingAndIsRejectedWithoutOutput() {
+        // Six registers do not fit the non-range form, and they are not one run, so no encoding names them.
+        var rejected = compileRejected(example("""
+                .method public static gaps ()V {
+                    registers: 11,
+                    code: {
+                        invoke-static { v0, v2, v4, v6, v8, v10 } demo/Target.six (IIIIII)V
+                        return-void
+                    }
+                }
+                """));
+
+        List<Diagnostic> limits = errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT);
+        assertEquals(1, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
+        assertTrue(limits.getFirst().message().contains("cannot be encoded"), limits.getFirst().message());
     }
 
     @Test
@@ -600,15 +624,16 @@ class DalvikEncodingBoundaryTest {
 
     @Test
     void rangeCountAboveTwoHundredFiftyFiveIsRejected() {
+        // A call with no parameters names its registers as raw words, so the count limit is reached with 256 words.
         var rejected = compileRejected(example("""
                 .method public static tooWide ()V {
                     registers: 256,
                     code: {
-                        invoke-static/range { v0, v255 } demo/Target.many ()V
+                        invoke-static { words: { %s } } demo/Target.many ()V
                         return-void
                     }
                 }
-                """));
+                """.formatted(consecutiveWords(256))));
 
         List<Diagnostic> limits = errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT);
         assertEquals(1, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
@@ -620,7 +645,7 @@ class DalvikEncodingBoundaryTest {
         var rejected = compileRejected(example("""
                 .method public static past ()V {
                     code: {
-                        invoke-static/range { v65535, v65536 } demo/Target.run ()V
+                        invoke-static { words: { v65535, v65536 } } demo/Target.run ()V
                         return-void
                     }
                 }
@@ -637,7 +662,7 @@ class DalvikEncodingBoundaryTest {
                 .method public static run ()V {
                     registers: 4,
                     code: {
-                        invoke-static/range { v0, v7 } demo/Target.run (IIIIIIII)V
+                        invoke-static { v0, v1, v2, v3, v4, v5, v6, v7 } demo/Target.run (IIIIIIII)V
                         return-void
                     }
                 }
@@ -720,6 +745,13 @@ class DalvikEncodingBoundaryTest {
 
     private static String example(String methods) {
         return ".super java/lang/Object\n.class public Example {\n" + methods + "}\n";
+    }
+
+    /**
+     * @return {@code count} register names with consecutive indices from {@code v0}, spelled for a raw word list.
+     */
+    private static String consecutiveWords(int count) {
+        return IntStream.range(0, count).mapToObj(index -> "v" + index).collect(Collectors.joining(", "));
     }
 
     private static List<Instruction> decodedInstructions(String source, String name, String descriptor)

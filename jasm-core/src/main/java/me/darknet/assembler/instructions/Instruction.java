@@ -7,6 +7,7 @@ import me.darknet.assembler.visitor.ASTInstructionVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
@@ -22,6 +23,7 @@ public class Instruction<V extends ASTInstructionVisitor> {
     private final String name;
     private final BiConsumer<SemanticInstruction, V> semanticTranslator;
     private final InstructionMetadata metadata;
+    private final @Nullable OperandRefiner refiner;
 
     /**
      * Creates an instruction with target-neutral metadata and a semantic translator.
@@ -31,10 +33,37 @@ public class Instruction<V extends ASTInstructionVisitor> {
             Operand[] operands,
             BiConsumer<SemanticInstruction, V> translator,
             InstructionMetadata metadata) {
+        this(name, operands, translator, metadata, null);
+    }
+
+    /**
+     * Creates an instruction whose resolved operands are completed by {@code refiner}, when one is given.
+     *
+     * @param refiner
+     * 		Refiner for operands whose meaning depends on a sibling operand, or {@code null} when every operand
+     * 		resolves on its own.
+     */
+    public Instruction(
+            String name,
+            Operand[] operands,
+            BiConsumer<SemanticInstruction, V> translator,
+            InstructionMetadata metadata,
+            @Nullable OperandRefiner refiner) {
         this.name = Objects.requireNonNull(name, "name");
         this.operands = Objects.requireNonNull(operands, "operands").clone();
         this.semanticTranslator = Objects.requireNonNull(translator, "translator");
         this.metadata = Objects.requireNonNull(metadata, "metadata");
+        this.refiner = refiner;
+    }
+
+    /**
+     * Completes the resolved operands of one source instruction once every operand has resolved.
+     *
+     * @return The operands to lower, index-aligned with the input. A definition without a refiner returns its input.
+     */
+    public @NotNull List<ValidatedOperand> refine(@NotNull ProcessorContext context, @NotNull ASTInstruction source,
+                                                  @NotNull List<ValidatedOperand> operands) {
+        return refiner == null ? operands : refiner.refine(context, source, operands);
     }
 
     /**

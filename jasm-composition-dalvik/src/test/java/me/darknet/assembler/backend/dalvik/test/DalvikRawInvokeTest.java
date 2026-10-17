@@ -180,7 +180,7 @@ class DalvikRawInvokeTest {
                     registers: 3,
                     parameters: { wide, count },
                     code: {
-                        invoke-static { v0, v1 } demo/Target.call (J)V
+                        invoke-static { v0 } demo/Target.call (J)V
                         return-void
                     }
                 }
@@ -360,11 +360,11 @@ class DalvikRawInvokeTest {
 
     @Test
     void theReceiverAndTheWideTailAreCountedAtThePrintedBoundary() throws IOException {
-        // An instance invoke leads with its receiver, so (J)V takes three words there and two for a static call. Only the
-        // exact count prints in the ordinary spelling, and the count is judged from the decoded words, not the source.
-        assertFalse(printedCall("invoke-virtual { v0, v1, v2 } demo/Target.call (J)V").contains("words:"));
-        assertTrue(printedCall("invoke-virtual { v0, v1 } demo/Target.call (J)V").contains("words:"));
-        assertTrue(printedCall("invoke-static { v0 } demo/Target.call (J)V").contains("words:"));
+        // An instance invoke leads with its receiver, so (J)V takes three words there and two for a static call. The words
+        // are written raw, so the printer's judgment of the decoded words is what is observed.
+        assertFalse(printedCall("invoke-virtual { words: { v0, v1, v2 } } demo/Target.call (J)V").contains("words:"));
+        assertTrue(printedCall("invoke-virtual { words: { v0, v1 } } demo/Target.call (J)V").contains("words:"));
+        assertTrue(printedCall("invoke-static { words: { v0 } } demo/Target.call (J)V").contains("words:"));
     }
 
     @Test
@@ -405,9 +405,7 @@ class DalvikRawInvokeTest {
 
     @Test
     void rawWordsOnAFormThatDoesNotAcceptThemNameTheRestriction() {
-        for (String instruction : List.of(
-                "invoke-static/range { words: { v0, v1 } } demo/Target.call (II)V",
-                "filled-new-array { words: { v0, v1 } } [I")) {
+        for (String instruction : List.of("filled-new-array { words: { v0, v1 } } [I")) {
             List<Diagnostic> errors = rejectionErrors(example("""
                     .method public static raw (II)V {
                         registers: 2,

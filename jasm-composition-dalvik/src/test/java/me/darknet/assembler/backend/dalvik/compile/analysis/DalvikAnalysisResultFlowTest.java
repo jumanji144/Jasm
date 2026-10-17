@@ -79,7 +79,7 @@ class DalvikAnalysisResultFlowTest {
 				        registers: 2,
 				        parameters: { receiver },
 				        code: {
-				            invoke-polymorphic { receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
+				            invoke-polymorphic { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
 				            move-result v0
 				            return v0
 				        }

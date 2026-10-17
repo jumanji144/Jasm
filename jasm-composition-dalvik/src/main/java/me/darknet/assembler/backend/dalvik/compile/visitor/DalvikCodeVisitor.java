@@ -16,7 +16,6 @@ import me.darknet.assembler.backend.dalvik.instructions.IntegerLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.PackedSwitchPayload;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
-import me.darknet.assembler.backend.dalvik.instructions.RegisterWords;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
 import me.darknet.assembler.backend.dalvik.visitor.ASTDalvikInstructionVisitor;
 import me.darknet.assembler.error.Diagnostic;
@@ -118,6 +117,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	private final List<ASTInstruction> emittedSources = new ArrayList<>();
 	private final Map<String, Integer> registerMap = new HashMap<>();
 	private final Set<Integer> usedRegisters = new HashSet<>();
+	/** Local slots bound to a wide named value, whose high word is reserved by that binding. */
+	private final Set<Integer> wideBases = new HashSet<>();
 	private final Map<String, Label> labels = new HashMap<>();
 	private final Map<Label, Integer> labelOrder = new IdentityHashMap<>();
 	private final List<TryCatch> tryCatches = new ArrayList<>();
@@ -174,23 +175,143 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @return Slot index of the register, allocating a slot for a named register the first time it is used.
 	 */
 	private int indexOf(@NotNull RegisterRef ref) {
-		Integer index = ref.index();
-		if (index == null) {
-			index = getRegisterIndex(ref.name());
-		} else {
-			ensureRegisterAllowed(index);
-			usedRegisters.add(index);
-			registerCount = Math.max(registerCount, index + 1);
-		}
+		boolean wide = ref.width() == OperandRole.WidthPolicy.WIDE;
+		Integer numeric = ref.index();
+		if (numeric == null)
+			return wide ? getWideRegisterIndex(ref.name()) : getRegisterIndex(ref.name());
 
+		ensureRegisterAllowed(numeric);
+		usedRegisters.add(numeric);
+		registerCount = Math.max(registerCount, numeric + 1);
 		// A wide value occupies the slot after its own, so the last declared slot cannot hold one.
-		if (ref.width() == OperandRole.WidthPolicy.WIDE) {
-			ensureRegisterAllowed(index + 1);
-			usedRegisters.add(index + 1);
-			registerCount = Math.max(registerCount, index + 2);
+		if (wide)
+			reserveHighWord(numeric + 1);
+		return numeric;
+	}
+
+	/**
+	 * Slot of a named wide value. A name already bound keeps its slot and claims the slot after it. An unbound name takes
+	 * the first two adjacent free slots below the parameter base, so a later local or explicit register cannot take its
+	 * high word.
+	 *
+	 * @param registerName
+	 * 		Name of the wide value.
+	 *
+	 * @return Slot index of the first word of the value.
+	 */
+	private int getWideRegisterIndex(String registerName) {
+		Integer existing = registerMap.get(registerName);
+		if (existing != null) {
+			claimNamedHighWord(registerName, existing);
+			return existing;
 		}
 
+		int ceiling = localCeiling();
+		int index = nextLocalRegister;
+		while (index + 1 < ceiling && (usedRegisters.contains(index) || usedRegisters.contains(index + 1)))
+			index++;
+		if (index + 1 >= ceiling) {
+			reportNoFreePair(registerName, ceiling);
+			return index;
+		}
+
+		registerMap.put(registerName, index);
+		usedRegisters.add(index);
+		usedRegisters.add(index + 1);
+		wideBases.add(index);
+		nextLocalRegister = index + 1;
+		registerCount = Math.max(registerCount, index + 2);
 		return index;
+	}
+
+	/**
+	 * Claims the high word of a named wide value whose name is already bound to {@code index}. A binding that is already
+	 * wide holds its high word, and so does a parameter, whose high word is one of the incoming parameters. Any other high
+	 * word must be a free local slot, so a local never shares its register with the word after it.
+	 *
+	 * @param registerName
+	 * 		Name of the wide value.
+	 * @param index
+	 * 		Slot the name is bound to.
+	 */
+	private void claimNamedHighWord(String registerName, int index) {
+		int high = index + 1;
+		if (wideBases.contains(index) || isParameterSlot(index)) {
+			reserveHighWord(high);
+			return;
+		}
+		if (high >= localCeiling()) {
+			reportWideHighWord(registerName, index, "lies outside the registers that locals may use");
+			return;
+		}
+		if (usedRegisters.contains(high)) {
+			reportWideHighWord(registerName, index, "is already in use");
+			return;
+		}
+		wideBases.add(index);
+		reserveHighWord(high);
+	}
+
+	/**
+	 * Reserves the high word of a wide value. It is an ordinary register of the method, so it must be within the declared
+	 * count like any other.
+	 *
+	 * @param high
+	 * 		Slot of the high word.
+	 */
+	private void reserveHighWord(int high) {
+		ensureRegisterAllowed(high);
+		usedRegisters.add(high);
+		registerCount = Math.max(registerCount, high + 1);
+	}
+
+	/**
+	 * @param index
+	 * 		Slot to test.
+	 *
+	 * @return {@code true} when the slot is a parameter, which lies at or above the parameter base.
+	 */
+	private boolean isParameterSlot(int index) {
+		return parameterBase >= 0 && index >= parameterBase;
+	}
+
+	/**
+	 * Reports a wide named register whose high word cannot be reserved for it.
+	 *
+	 * @param registerName
+	 * 		Name of the wide value.
+	 * @param index
+	 * 		Slot of the first word.
+	 * @param reason
+	 * 		Why the high word cannot be reserved, which completes a sentence about it.
+	 */
+	private void reportWideHighWord(String registerName, int index, String reason) {
+		sink.add(new Diagnostic(Severity.ERROR, DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.REGISTER_LIMIT,
+				"Wide register '" + registerName + "' (v" + index + ") needs v" + (index + 1)
+						+ " for its high word, which " + reason,
+				currentInstructionAst == null ? null : currentInstructionAst.location(),
+				registerDeclaration == null ? List.of() : List.of(registerDeclaration)));
+		reportedRegisterLimit = true;
+	}
+
+	/**
+	 * Reports that a wide named register has no two adjacent free slots below the parameter base.
+	 *
+	 * @param registerName
+	 * 		Name of the wide value.
+	 * @param ceiling
+	 * 		Highest slot a local may use, exclusive.
+	 */
+	private void reportNoFreePair(String registerName, int ceiling) {
+		String detail = ceiling < 2
+				? "fewer than two registers lie below the parameter base"
+				: "no two adjacent registers below the parameter base are free";
+		sink.add(new Diagnostic(Severity.ERROR, DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.REGISTER_LIMIT,
+				"No register pair available for wide '" + registerName + "': " + detail
+						+ ", so a larger register count is required",
+				currentInstructionAst == null ? null : currentInstructionAst.location(),
+				registerDeclaration == null ? List.of() : List.of(registerDeclaration)));
+		reportedRegisterLimit = true;
 	}
 
 	/**
@@ -891,7 +1012,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	public void visitInvoke(@NotNull DalvikLowering lowering, RegisterOperands registers, MemberPath method,
 	                        ASTIdentifier descriptor) {
 		int opcode = lowering.opcode();
-		Encoding encoding = encodeRegisters(registers);
+		Encoding encoding = encodeInvokeRegisters(registers);
 		if (encoding == null)
 			return;
 
@@ -911,7 +1032,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		var bootstrapHandle = parseHandle(handle);
 		MethodType methodType = parseMethodType(type);
 		List<Constant> bootstrapArguments = parseConstants(arguments);
-		Encoding encoding = encodeRegisters(registers);
+		Encoding encoding = encodeInvokeRegisters(registers);
 		if (encoding == null)
 			return;
 
@@ -927,7 +1048,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	@Override
 	public void visitInvokePolymorphic(RegisterOperands registers, MemberPath method, ASTIdentifier descriptor,
 	                                   ASTIdentifier proto) {
-		Encoding encoding = encodeRegisters(registers);
+		Encoding encoding = encodeInvokeRegisters(registers);
 		if (encoding == null)
 			return;
 
@@ -947,18 +1068,16 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * Allocates the slots of a register operand and chooses the encoding that names them.
 	 * <p>
 	 * A named bound only gets its slot here, so the reversed-bounds check the resolver had to skip for named registers
-	 * happens now that both bounds are known. Raw words take their own path, see {@link #encodeWords(RegisterWords, List)}.
+	 * happens now that both bounds are known. Invoke registers take their own path, see {@link #encodeInvokeRegisters}.
 	 *
 	 * @param registers
-	 * 		Register operand of an invoke form or {@code filled-new-array}.
+	 * 		Register operand of {@code filled-new-array}.
 	 *
 	 * @return The encoding of the operand, or {@code null} after reporting a reversed range or a register the encoding
 	 * cannot name. The declared register count is checked separately while the slots are allocated.
 	 */
 	private @Nullable Encoding encodeRegisters(@NotNull RegisterOperands registers) {
 		List<Integer> slots = indexOfAll(registers);
-		if (registers instanceof RegisterWords words)
-			return encodeWords(words, slots);
 		if (registers.isRange()) {
 			int first = slots.get(0);
 			int last = slots.get(1);
@@ -979,29 +1098,60 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	/**
-	 * Chooses the encoding of raw register words, which are used exactly as written: they are never sorted, deduplicated,
-	 * packed, or moved. Words that are at most five in number and each fit a four-bit field take the non-range form,
-	 * which names registers in any order. Any other words must be consecutive registers in the written order, which the
-	 * range form names by its first register and count. Words with neither encoding are reported.
+	 * Expands the entries of an invoke into the register words they occupy, in source order, and chooses the encoding that
+	 * names those words. A wide entry occupies its register and the one after it, so the words are counted here, once the
+	 * descriptor has widened the entries. Raw words are one word per entry. The words are never sorted, deduplicated,
+	 * packed, or moved.
 	 *
-	 * @param words
-	 * 		Raw register words of the operand.
+	 * @param registers
+	 * 		Register operand of an invoke, which is a list or raw words and never a range.
+	 *
+	 * @return The chosen encoding, or {@code null} after reporting why the words cannot be encoded.
+	 */
+	private @Nullable Encoding encodeInvokeRegisters(@NotNull RegisterOperands registers) {
+		if (registers.isRange())
+			throw new IllegalStateException("Invoke registers are not spelled as a range");
+
+		List<RegisterRef> owners = new ArrayList<>(registers.registers().size());
+		List<Integer> slots = new ArrayList<>(registers.registers().size());
+		for (RegisterRef ref : registers.registers()) {
+			int slot = indexOf(ref);
+			owners.add(ref);
+			slots.add(slot);
+			if (ref.width() == OperandRole.WidthPolicy.WIDE) {
+				owners.add(ref);
+				slots.add(slot + 1);
+			}
+		}
+		return selectInvokeEncoding(registers, owners, slots);
+	}
+
+	/**
+	 * Chooses the encoding of expanded invoke words. Words that are at most five in number and each fit a four-bit field
+	 * take the non-range form, which names registers in any order. Any other words must be consecutive registers in the
+	 * written order, which the range form names by its first register and count. Words with neither encoding are reported.
+	 *
+	 * @param registers
+	 * 		Operand the words came from, which locates a diagnostic about the whole list.
+	 * @param owners
+	 * 		Register operand each word belongs to, in written order. A high word belongs to the operand it extends.
 	 * @param slots
 	 * 		Slot of each word, in written order.
 	 *
 	 * @return The chosen encoding, or {@code null} after reporting why the words cannot be encoded.
 	 */
-	private @Nullable Encoding encodeWords(@NotNull RegisterWords words, @NotNull List<Integer> slots) {
+	private @Nullable Encoding selectInvokeEncoding(@NotNull RegisterOperands registers,
+	                                               @NotNull List<RegisterRef> owners, @NotNull List<Integer> slots) {
 		if (slots.size() <= MAX_LIST_WORDS && slots.stream().allMatch(slot -> fitsField(slot, FOUR_BITS)))
 			return new Encoding.Listed(toIntArray(slots));
 		if (isConsecutive(slots)) {
 			int first = slots.getFirst();
 			long last = (long) first + slots.size() - 1;
-			return checkRange(words.registers().getFirst(), first, last)
+			return checkRange(owners.getFirst(), first, last)
 					? new Encoding.Ranged(first, slots.size())
 					: null;
 		}
-		reportEncodingLimit(words, "Register words " + describe(slots) + " cannot be encoded by '" + mnemonic()
+		reportEncodingLimit(registers, "Register words " + describe(slots) + " cannot be encoded by '" + mnemonic()
 				+ "': the non-range form takes at most " + MAX_LIST_WORDS + " registers v0 through v"
 				+ maxIndex(FOUR_BITS) + ", and the range form takes consecutive registers in the order written");
 		return null;
@@ -1033,18 +1183,19 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
 	/**
 	 * @param opcode
-	 * 		Opcode of an ordinary invoke, in its list or its range spelling.
+	 * 		Opcode of an ordinary invoke list.
 	 *
-	 * @return The range opcode of the same family. Each family is written out, because the families are not numbered
-	 * alike, so one numeric offset would name another instruction for some of them.
+	 * @return The range opcode of the same family, which the encoding names when the words need a range. Each family is
+	 * written out, because the families are not numbered alike, so one numeric offset would name another instruction for
+	 * some of them.
 	 */
 	private static int rangeOpcode(int opcode) {
 		return switch (opcode) {
-			case INVOKE_VIRTUAL, INVOKE_VIRTUAL_RANGE -> INVOKE_VIRTUAL_RANGE;
-			case INVOKE_SUPER, INVOKE_SUPER_RANGE -> INVOKE_SUPER_RANGE;
-			case INVOKE_DIRECT, INVOKE_DIRECT_RANGE -> INVOKE_DIRECT_RANGE;
-			case INVOKE_STATIC, INVOKE_STATIC_RANGE -> INVOKE_STATIC_RANGE;
-			case INVOKE_INTERFACE, INVOKE_INTERFACE_RANGE -> INVOKE_INTERFACE_RANGE;
+			case INVOKE_VIRTUAL -> INVOKE_VIRTUAL_RANGE;
+			case INVOKE_SUPER -> INVOKE_SUPER_RANGE;
+			case INVOKE_DIRECT -> INVOKE_DIRECT_RANGE;
+			case INVOKE_STATIC -> INVOKE_STATIC_RANGE;
+			case INVOKE_INTERFACE -> INVOKE_INTERFACE_RANGE;
 			default -> throw new IllegalStateException("Opcode 0x" + Integer.toHexString(opcode) + " has no range form");
 		};
 	}

@@ -65,8 +65,25 @@ public abstract class Instructions<V extends ASTInstructionVisitor> {
 			Operand[] operands,
 			BiConsumer<SemanticInstruction, V> translator,
 			InstructionMetadata metadata) {
+		register(name, operands, translator, metadata, null);
+	}
+
+	/**
+	 * Registers a semantic instruction whose resolved operands are completed by {@code refiner} before lowering.
+	 *
+	 * @throws UnsupportedOperationException
+	 * 		if this registry has been frozen.
+	 * @throws IllegalArgumentException
+	 * 		if another instruction already owns {@code name}.
+	 */
+	protected final void register(
+			String name,
+			Operand[] operands,
+			BiConsumer<SemanticInstruction, V> translator,
+			InstructionMetadata metadata,
+			@Nullable OperandRefiner refiner) {
 		ensureCanRegister(name);
-		instructions.put(name, new Instruction<>(name, operands, translator, metadata));
+		instructions.put(name, new Instruction<>(name, operands, translator, metadata, refiner));
 	}
 
 	private void ensureCanRegister(String name) {

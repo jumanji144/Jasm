@@ -29,9 +29,9 @@ public class DalvikInstructionMetadataTest {
             assertEquals(2, DalvikInstructions.INSTANCE.get(name).memberReferenceOperandIndex(), name);
         for (String name : List.of("sget", "sget-wide", "sput", "sput-object"))
             assertEquals(1, DalvikInstructions.INSTANCE.get(name).memberReferenceOperandIndex(), name);
-        for (String name : List.of("invoke-virtual", "invoke-static/range", "invoke-interface"))
+        for (String name : List.of("invoke-virtual", "invoke-static", "invoke-interface"))
             assertEquals(1, DalvikInstructions.INSTANCE.get(name).memberReferenceOperandIndex(), name);
-        for (String name : List.of("invoke-polymorphic", "invoke-polymorphic/range"))
+        for (String name : List.of("invoke-polymorphic"))
             assertEquals(1, DalvikInstructions.INSTANCE.get(name).memberReferenceOperandIndex(), name);
 
         // invoke-custom dispatches through a bootstrap handle and filled-new-array allocates an array

@@ -1097,7 +1097,7 @@ class DalvikAnalysisValueTest {
 				        DoublePath:
 			            const-wide v2 1.0
 			        Join:
-			            invoke-static { v2, v3 } ValueAnalysisIncompatibleWideCategory.consume (J)V
+			            invoke-static { v2 } ValueAnalysisIncompatibleWideCategory.consume (J)V
 			            return-void
 				        }
 				    }

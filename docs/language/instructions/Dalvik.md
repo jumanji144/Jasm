@@ -39,14 +39,44 @@ A method with parameters must declare its register count, which also decides whe
 A parameter is also reachable by its position as `pN` (`p0`, `p1`, ...), and the receiver of an instance method is
 reachable as `this`.
 
-Instructions that take a variable number of registers (`invoke-*`, `filled-new-array`) spell them as an array, which
-has two shapes:
+An `invoke-*` instruction takes an array of [logical arguments](#invoke-arguments), which can also be written as
+[raw words](#raw-invoke-words). A `filled-new-array` instruction takes an array of registers, which has two shapes:
 
 - A list: `{ v0, v1, v2 }`, naming at most five registers
 - A range: `{ v0, v5 }`, exactly two registers giving the first and the last register of an inclusive range
 
-The `/range` forms require the range shape and can name up to 255 registers, so an argument list of
-more than five registers has to use them. A canonical `invoke-*` can also name its registers as [raw words](#raw-invoke-words).
+The `filled-new-array/range` form requires the range shape and can name up to 255 registers, so an array of more than
+five registers has to use it.
+
+### Invoke arguments
+
+An ordinary `invoke-*` instruction, `invoke-custom`, and `invoke-polymorphic` take a list with one entry for each logical
+argument:
+
+```
+invoke-static { wideValue, count } Owner.call (JI)V
+invoke-virtual { receiver, wideValue } Owner.call (J)V
+invoke-static { v0, v1, v2, v3, v4, v5 } Owner.call (IIIIII)V
+```
+
+- The descriptor decides the entries. `invoke-static` and `invoke-custom` take one entry for each parameter of their
+  descriptor. An instance `invoke-*` and `invoke-polymorphic` take the receiver first, then one entry for each parameter.
+  The descriptor is the method descriptor of an ordinary invoke, the call-site descriptor of `invoke-custom` (its
+  bootstrap handle is not an argument), and the call-site descriptor of `invoke-polymorphic`, not the declared prototype
+  of the referenced method.
+- A `long` or `double` argument takes one entry, the register that holds its first word. Its second word is the next
+  register, which is never written in the source.
+- An entry names any register of the method. A list is not limited to five entries, because the compiler expands the
+  entries into register words and then chooses the encoding. Words that are at most five in number, each within `v0`
+  through `v15`, use the non-range form, which takes any order. Otherwise the words must be consecutive registers in the
+  order written, and the range form names them. Words that are neither are a compile error. The words are never sorted,
+  deduplicated, packed, or moved into other registers.
+- The number of entries must match the descriptor. A missing or extra entry is a compile error, and so is an instance
+  list without its receiver. A list that does not match is never read as raw words.
+- An empty list is valid for a call with no entries, such as `invoke-static { } Owner.call ()V`.
+
+The `/range` spellings of the invoke instructions do not exist, so `invoke-static/range` is an unknown instruction. The
+encoding is always chosen from the words.
 
 ### Raw invoke words
 
@@ -70,22 +100,19 @@ cannot be described as logical arguments, and the disassembler uses it for such 
   register and the count. Words that are neither, such as `{ words: { v0, v16 } }`, are a compile error. The words are
   never sorted, deduplicated, packed, or moved into other registers.
 - Each word is a register, which must be within the declared register count and must fit the encoding.
-- The object is accepted only by canonical mnemonics. It is an error on `invoke-*/range` and on `filled-new-array`, and
-  an object with any key other than `words` is an error.
+- The object is accepted only by canonical invoke mnemonics. It is an error on `filled-new-array`, and an object with any
+  key other than `words` is an error.
 
 The object keeps the register words, not the original encoding. The same words may be written with a different encoding
 from the one that was read, such as the non-range form for a short low list. The object does not switch off other
 checks, so the compiler's verification of the emitted code still applies.
 
-Ordinary lists keep their current meaning in this version: each entry of `{ v0, v1 }` is one register word, and the
-`/range` forms keep their two-endpoint spelling. This is the current contract for invokes and it changes in the invoke
-cutover.
-
-When the disassembler prints a call, it keeps the ordinary spelling for a call whose words group faithfully against the
-descriptor. Those words are a receiver first, unless the instruction is `invoke-static` or `invoke-custom`, which take no
-receiver. Then come one register for each argument, with two consecutive registers for each `long` or `double` argument,
-and no words beyond those. Any other call is printed as the raw object with the base mnemonic, such as `invoke-static`
-rather than `invoke-static/range`, and every word of a range is listed.
+When the disassembler prints a call, it lists its logical arguments: the receiver first when there is one, then the
+register that holds the first word of each argument. A `long` or `double` argument is listed once, because its second
+word is implied. A call whose words do not group faithfully against its descriptor, such as a missing or extra word, or
+a `long` or `double` whose second word is not the next register, is printed as the raw object under the canonical
+mnemonic, such as `invoke-static { words: { v0, v2 } }`, and every word is listed. Compiling the printed text gives the
+same words. The encoding may change, so a range whose words fit the non-range form is written in that form.
 
 ### Register field limits
 
@@ -101,8 +128,8 @@ so a register beyond it is reported as exceeding that count, in addition to any 
 | Two-address arithmetic, such as `add-int dest dest b`, which is used only when the destination is also the first source | at most `v15`                   | none                                                                   |
 | Arithmetic with an eight-bit literal, such as `add-int dest src 3`                                                      | at most `v255`                  | literal from `-128` through `127`                                      |
 | Arithmetic with a sixteen-bit literal, such as `add-int dest src 300` or `rsub-int dest src 300`                        | at most `v15`                   | literal from `-32768` through `32767`; shifts have no sixteen-bit form |
-| Non-range `invoke-*` or `filled-new-array` list                                                                         | at most `v15`                   | at most five registers                                                 |
-| `/range` `invoke-*` or `filled-new-array/range`                                                                         | first and last at most `v65535` | at most 255 registers in the range                                     |
+| Non-range `invoke-*` words, from the entries of its list, or a `filled-new-array` list                                 | at most `v15`                   | at most five registers or words                                        |
+| Range `invoke-*` words, which are consecutive, or a `filled-new-array/range`                                            | first and last at most `v65535` | at most 255 registers in the range                                     |
 | Raw words of an `invoke-*`, `{ words: { ... } }`, in the non-range form                                                 | at most `v15`                   | at most five words, in any order                                       |
 | Raw words of an `invoke-*`, `{ words: { ... } }`, in the range form                                                     | first and last at most `v65535` | consecutive words in the order written, at most 255                    |
 | Destination of `const`, `const-wide`, `const-string`, `const-class`, `const-method-handle` or `const-method-type`       | at most `v255`                  | none                                                                   |
@@ -156,14 +183,14 @@ A handle is a way to describe how the runtime obtains a `java/lang/invoke/Method
 The vocabulary is the same as the JVM's, and each kind describes the same operation as one of the instruction forms
 below, so it is encoded as the dex kind that matches:
 
-- `invokevirtual` (equivalent to: `invoke-virtual { registers } owner.name methodDescriptor`)
-- `invokestatic` (equivalent to: `invoke-static { registers } owner.name methodDescriptor`)
-- `invokespecial` (equivalent to: `invoke-direct { registers } owner.name methodDescriptor`, which is the dex `invoke-direct` kind)
+- `invokevirtual` (equivalent to: `invoke-virtual { receiver, arguments } owner.name methodDescriptor`)
+- `invokestatic` (equivalent to: `invoke-static { arguments } owner.name methodDescriptor`)
+- `invokespecial` (equivalent to: `invoke-direct { receiver, arguments } owner.name methodDescriptor`, which is the dex `invoke-direct` kind)
 - `getfield` (equivalent to: `iget dest instance owner.name fieldDescriptor`)
 - `putfield` (equivalent to: `iput src instance owner.name fieldDescriptor`)
 - `getstatic` (equivalent to: `sget dest owner.name fieldDescriptor`)
 - `putstatic` (equivalent to: `sput src owner.name fieldDescriptor`)
-- `invokeinterface` (equivalent to: `invoke-interface { registers } owner.name methodDescriptor`)
+- `invokeinterface` (equivalent to: `invoke-interface { receiver, arguments } owner.name methodDescriptor`)
 - `newinvokespecial` (equivalent to: `new-instance dest LSample;` followed by `invoke-direct { dest } LSample;.<init> methodDescriptor`, which is the dex constructor kind and how a handle to `<init>` is written)
 
 A field kind names the field itself and not the width of its value, so a wide field uses the same kind and is read or
@@ -372,18 +399,11 @@ A value matching no key falls through to the instruction after the switch.
 | `sput-byte src owner.name fieldDescriptor`                                                            | `src` ->                      | stores the `byte` `src` in the static field `owner.name`                                                                                                    |
 | `sput-char src owner.name fieldDescriptor`                                                            | `src` ->                      | stores the `char` `src` in the static field `owner.name`                                                                                                    |
 | `sput-short src owner.name fieldDescriptor`                                                           | `src` ->                      | stores the `short` `src` in the static field `owner.name`                                                                                                   |
-| `invoke-virtual { registers } owner.name methodDescriptor`                                            | `registers` ->                | calls the virtual method `owner.name`, whose result is read with `move-result`                                                                              |
-| `invoke-super { registers } owner.name methodDescriptor`                                              | `registers` ->                | calls the super method `owner.name`                                                                                                                         |
-| `invoke-direct { registers } owner.name methodDescriptor`                                             | `registers` ->                | calls the instance method `owner.name` without virtual dispatch                                                                                             |
-| `invoke-static { registers } owner.name methodDescriptor`                                             | `registers` ->                | calls the static method `owner.name`                                                                                                                        |
-| `invoke-interface { registers } owner.name methodDescriptor`                                          | `registers` ->                | calls the interface method `owner.name`                                                                                                                     |
-| `invoke-virtual/range { first, last } owner.name methodDescriptor`                                    | `registers` ->                | calls the virtual method `owner.name` with the registers from `first` through `last`                                                                        |
-| `invoke-super/range { first, last } owner.name methodDescriptor`                                      | `registers` ->                | calls the super method `owner.name` with the registers from `first` through `last`                                                                          |
-| `invoke-direct/range { first, last } owner.name methodDescriptor`                                     | `registers` ->                | calls the instance method `owner.name` without virtual dispatch, with the registers from `first` through `last`                                             |
-| `invoke-static/range { first, last } owner.name methodDescriptor`                                     | `registers` ->                | calls the static method `owner.name` with the registers from `first` through `last`                                                                         |
-| `invoke-interface/range { first, last } owner.name methodDescriptor`                                  | `registers` ->                | calls the interface method `owner.name` with the registers from `first` through `last`                                                                      |
-| <code>invoke-custom { registers } name descriptor [h: [handle](#handle)] { constants }</code>         | `registers` ->                | calls the call site `name` of the method type `descriptor`, bootstrapped by the [handle](#handle) with `constants`, whose result is read with `move-result` |
-| <code>invoke-custom/range { first, last } name descriptor [h: [handle](#handle)] { constants }</code> | `registers` ->                | calls the call site `name` with the registers from `first` through `last`                                                                                   |
-| `invoke-polymorphic { registers } owner.name methodDescriptor callSiteDescriptor`                     | `registers` ->                | calls the polymorphic method `owner.name` as the signature `callSiteDescriptor`                                                                             |
-| `invoke-polymorphic/range { first, last } owner.name methodDescriptor callSiteDescriptor`             | `registers` ->                | calls the polymorphic method `owner.name` as the signature `callSiteDescriptor`, with the registers from `first` through `last`                             |
+| `invoke-virtual { receiver, arguments } owner.name methodDescriptor`                                  | `registers` ->                | calls the virtual method `owner.name`, whose result is read with `move-result`                                                                              |
+| `invoke-super { receiver, arguments } owner.name methodDescriptor`                                    | `registers` ->                | calls the super method `owner.name`                                                                                                                         |
+| `invoke-direct { receiver, arguments } owner.name methodDescriptor`                                   | `registers` ->                | calls the instance method `owner.name` without virtual dispatch                                                                                             |
+| `invoke-static { arguments } owner.name methodDescriptor`                                             | `registers` ->                | calls the static method `owner.name`                                                                                                                        |
+| `invoke-interface { receiver, arguments } owner.name methodDescriptor`                                | `registers` ->                | calls the interface method `owner.name`                                                                                                                     |
+| <code>invoke-custom { arguments } name descriptor [h: [handle](#handle)] { constants }</code>         | `registers` ->                | calls the call site `name` of the method type `descriptor`, bootstrapped by the [handle](#handle) with `constants`, whose result is read with `move-result` |
+| `invoke-polymorphic { receiver, arguments } owner.name methodDescriptor callSiteDescriptor`           | `registers` ->                | calls the polymorphic method `owner.name` as the signature `callSiteDescriptor`                                                                             |
 | `line number`                                                                                         | ->                            | pseudo-instruction recording `number` as the line the following instruction originates from                                                                 |

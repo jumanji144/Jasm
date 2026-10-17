@@ -148,17 +148,17 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 			Map.entry("sput-short", SPUT_SHORT)
 	);
 
+	/**
+	 * Ordinary invokes keyed by source mnemonic.
+	 *  The encoding is chosen from the expanded register words, so only the list
+	 * spelling exists here and the range encoding is never named in source.
+	 */
 	private static final Map<String, Integer> INVOKE_OPCODES = Map.ofEntries(
 			Map.entry("invoke-virtual", INVOKE_VIRTUAL),
 			Map.entry("invoke-super", INVOKE_SUPER),
 			Map.entry("invoke-direct", INVOKE_DIRECT),
 			Map.entry("invoke-static", INVOKE_STATIC),
-			Map.entry("invoke-interface", INVOKE_INTERFACE),
-			Map.entry("invoke-virtual/range", INVOKE_VIRTUAL_RANGE),
-			Map.entry("invoke-super/range", INVOKE_SUPER_RANGE),
-			Map.entry("invoke-direct/range", INVOKE_DIRECT_RANGE),
-			Map.entry("invoke-static/range", INVOKE_STATIC_RANGE),
-			Map.entry("invoke-interface/range", INVOKE_INTERFACE_RANGE)
+			Map.entry("invoke-interface", INVOKE_INTERFACE)
 	);
 
 	private static final Map<String, Integer> UNARY_OPCODES = Map.ofEntries(
@@ -521,38 +521,34 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 	}
 
 	void registerInvoke() {
+		// Only invoke-static takes no receiver every other ordinary invoke leads with one.
 		INVOKE_OPCODES.forEach((name, opcode) -> register(name,
-				ops(registerOperand(name), DefaultOperands.MEMBER_PATH, DefaultOperands.METHOD_DESCRIPTOR),
+				ops(DalvikOperands.INVOKE_REGISTERS, DefaultOperands.MEMBER_PATH, DefaultOperands.METHOD_DESCRIPTOR),
 				(inst, visitor) -> visitor.visitInvoke(
 						inst.lowering(DalvikLowering.class),
 						inst.operand(0, RegisterOperands.class),
 						inst.operand(1, MemberPath.class),
 						inst.argument(2, ASTIdentifier.class)),
-				lowering(opcode, name, INVOKE_TRAIT, List.of(new OperandRole(1, OperandRole.RoleKind.MEMBER, OperandRole.WidthPolicy.SINGLE, OperandRole.ReferencePolicy.MEMBER)))));
+				lowering(opcode, name, INVOKE_TRAIT, List.of(new OperandRole(1, OperandRole.RoleKind.MEMBER, OperandRole.WidthPolicy.SINGLE, OperandRole.ReferencePolicy.MEMBER))),
+				DalvikInvokeLayout.logicalArguments(2, opcode != INVOKE_STATIC)));
 	}
 
 	void registerInvokeCustom() {
+		// The call-site type is a method type, so it is verified as one. The bootstrap handle is not a runtime argument.
 		register("invoke-custom",
-				ops(DalvikOperands.INVOKE_REGISTERS, DefaultOperands.LITERAL, DefaultOperands.DESCRIPTOR, DalvikOperands.HANDLE, DalvikOperands.ARGS_ARRAY),
+				ops(DalvikOperands.INVOKE_REGISTERS, DefaultOperands.LITERAL, DefaultOperands.METHOD_DESCRIPTOR, DalvikOperands.HANDLE, DalvikOperands.ARGS_ARRAY),
 				(inst, visitor) -> visitor.visitInvokeCustom(
 						inst.operand(0, RegisterOperands.class),
 						inst.argument(1, ASTIdentifier.class),
 						inst.argument(2, ASTIdentifier.class),
 						inst.argument(3, ASTElement.class),
 						inst.argumentArray(4)),
-				lowering(INVOKE_CUSTOM, "invoke-custom", INVOKE_CUSTOM_TRAIT));
-		register("invoke-custom/range",
-				ops(DalvikOperands.REGISTER_RANGE, DefaultOperands.LITERAL, DefaultOperands.DESCRIPTOR, DalvikOperands.HANDLE, DalvikOperands.ARGS_ARRAY),
-				(inst, visitor) -> visitor.visitInvokeCustom(
-						inst.operand(0, RegisterOperands.class),
-						inst.argument(1, ASTIdentifier.class),
-						inst.argument(2, ASTIdentifier.class),
-						inst.argument(3, ASTElement.class),
-						inst.argumentArray(4)),
-				lowering(INVOKE_CUSTOM_RANGE, "invoke-custom/range", INVOKE_CUSTOM_TRAIT));
+				lowering(INVOKE_CUSTOM, "invoke-custom", INVOKE_CUSTOM_TRAIT),
+				DalvikInvokeLayout.logicalArguments(2, false));
 	}
 
 	void registerInvokePolymorphic() {
+		// The receiver leads, then the call-site parameters. The referenced prototype at operand 2 is never grouped.
 		register("invoke-polymorphic",
 				ops(DalvikOperands.INVOKE_REGISTERS, DefaultOperands.MEMBER_PATH, DefaultOperands.METHOD_DESCRIPTOR, DefaultOperands.METHOD_DESCRIPTOR),
 				(inst, visitor) -> visitor.visitInvokePolymorphic(
@@ -562,18 +558,8 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 						inst.argument(3, ASTIdentifier.class)),
 				metadata(EnumSet.copyOf(INVOKE_TRAIT),
 						List.of(new OperandRole(1, OperandRole.RoleKind.MEMBER, OperandRole.WidthPolicy.SINGLE, OperandRole.ReferencePolicy.MEMBER)),
-						null, "invoke-polymorphic", new DalvikLowering(INVOKE_POLYMORPHIC)));
-		register("invoke-polymorphic/range",
-				ops(DalvikOperands.REGISTER_RANGE, DefaultOperands.MEMBER_PATH, DefaultOperands.METHOD_DESCRIPTOR, DefaultOperands.METHOD_DESCRIPTOR),
-				(inst, visitor) -> visitor.visitInvokePolymorphic(
-						inst.operand(0, RegisterOperands.class),
-						inst.operand(1, MemberPath.class),
-						inst.argument(2, ASTIdentifier.class),
-						inst.argument(3, ASTIdentifier.class)),
-				metadata(EnumSet.copyOf(INVOKE_TRAIT),
-						List.of(new OperandRole(1, OperandRole.RoleKind.MEMBER, OperandRole.WidthPolicy.SINGLE,
-								OperandRole.ReferencePolicy.MEMBER)), null, "invoke-polymorphic/range",
-						new DalvikLowering(INVOKE_POLYMORPHIC_RANGE)));
+						null, "invoke-polymorphic", new DalvikLowering(INVOKE_POLYMORPHIC)),
+				DalvikInvokeLayout.logicalArguments(3, true));
 	}
 
 	void registerUnaryOperation() {
@@ -725,17 +711,6 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 	 */
 	private static boolean isLongShift(String name) {
 		return name.equals("shl-long") || name.equals("shr-long") || name.equals("ushr-long");
-	}
-
-	/**
-	 * @param name
-	 * 		Registered source mnemonic.
-	 *
-	 * @return Range-shaped register operand for {@code /range} forms, otherwise the canonical invoke operand that takes
-	 * an ordinary list or raw register words.
-	 */
-	private static DalvikOperands registerOperand(String name) {
-		return name.endsWith("/range") ? DalvikOperands.REGISTER_RANGE : DalvikOperands.INVOKE_REGISTERS;
 	}
 
 	/**

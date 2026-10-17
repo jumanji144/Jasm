@@ -61,7 +61,7 @@ public enum DalvikOperands implements Operands {
 	 * Most registers the non-range register-list encoding can name.
 	 * <p>
 	 * The 35c format carries a four-bit argument count and exactly five register fields, so the format is
-	 * defined only for a count of zero to five. A longer argument list is what the {@code /range} form is
+	 * defined only for a count of zero to five. A longer array of registers is what the {@code /range} form is
 	 * for, so this is a limit of the encoding rather than of a particular instruction.
 	 */
 	private static final int MAX_REGISTER_ARRAY = 5;
@@ -312,8 +312,9 @@ public enum DalvikOperands implements Operands {
 	}
 
 	/**
-	 * Validates the register operand of a canonical invoke, which is an ordinary list or raw register words. Raw words
-	 * are not bounded to five entries here, because a long list is encodable as a range; the encoding decides.
+	 * Validates the register operand of a canonical invoke, which is an ordinary list of logical arguments or raw register
+	 * words. A list is not bounded to five entries here: its entries are expanded into words once the descriptor widens
+	 * them, and the encoding then decides whether those words fit a non-range or a range form.
 	 *
 	 * @param context
 	 * 		Processor context receiving diagnostics.
@@ -321,10 +322,13 @@ public enum DalvikOperands implements Operands {
 	 * 		Source element of the register operand.
 	 */
 	private static void verifyInvokeRegisters(ProcessorContext context, ASTElement element) {
-		if (element.type() == ElementType.OBJECT)
+		if (element.type() == ElementType.OBJECT) {
 			REGISTER_WORDS_SCHEMA.validate(context, element);
-		else
-			verifyRegisterArray(context, element);
+			return;
+		}
+		ASTArray array = registerArray(context, element);
+		if (array != null)
+			verifyRegisterElements(context, array);
 	}
 
 	/**

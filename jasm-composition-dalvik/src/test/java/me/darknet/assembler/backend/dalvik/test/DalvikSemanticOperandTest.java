@@ -5,7 +5,6 @@ import me.darknet.assembler.backend.dalvik.DalvikTargetContext;
 import me.darknet.assembler.backend.dalvik.instructions.ArrayData;
 import me.darknet.assembler.backend.dalvik.instructions.PackedSwitchPayload;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
-import me.darknet.assembler.backend.dalvik.instructions.RegisterRange;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
 import me.darknet.assembler.instructions.MemberPath;
@@ -20,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -50,21 +50,19 @@ class DalvikSemanticOperandTest {
 	}
 
 	@Test
-	void resolvesRegisterRangeAndMemberPath() {
+	void resolvesRegisterListAndMemberPath() {
 		ProcessedInstruction instruction = firstInstruction("""
 				.method public static test ()V {
 				  code: {
-				    invoke-static/range { v2, v3 } java/lang/Math.abs (J)J
+				    invoke-static { v2 } java/lang/Math.abs (J)J
 				    return-void
 				  }
 				}
 				""");
 
 		RegisterOperands registers = instruction.operand(0, RegisterOperands.class);
-		assertTrue(registers.isRange());
-		RegisterRange range = (RegisterRange) registers;
-		assertEquals(new RegisterRef("v2", 2, OperandRole.WidthPolicy.SINGLE), range.first());
-		assertEquals(new RegisterRef("v3", 3, OperandRole.WidthPolicy.SINGLE), range.last());
+		assertFalse(registers.isRange());
+		assertEquals(List.of(new RegisterRef("v2", 2, OperandRole.WidthPolicy.WIDE)), registers.registers());
 
 		MemberPath path = instruction.operand(1, MemberPath.class);
 		assertEquals("java/lang/Math", path.owner());
@@ -202,21 +200,11 @@ class DalvikSemanticOperandTest {
 				.method public static test ()V {
 				  registers: 4,
 				  code: {
-				    invoke-static/range { } java/lang/Math.abs (J)J
+				    invoke-static { } java/lang/Math.abs (J)J
 				    return-void
 				  }
 				}
-				""", "Range instructions require first and last register bounds");
-
-		assertDiagnostic("""
-				.method public static test ()V {
-				  registers: 4,
-				  code: {
-				    invoke-static/range { v1, v0 } java/lang/Math.abs (J)J
-				    return-void
-				  }
-				}
-				""", "Range instruction register bounds are reversed");
+				""", "invoke-static takes 1 argument");
 
 		assertDiagnostic("""
 				.method public static test ()V {

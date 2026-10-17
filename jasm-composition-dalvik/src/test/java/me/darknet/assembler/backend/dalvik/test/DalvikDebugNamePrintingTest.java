@@ -89,14 +89,12 @@ class DalvikDebugNamePrintingTest {
         String printed = print(method);
         assertFalse(printed.contains("wideArgument"), printed);
         assertFalse(printed.contains("wideTail"), printed);
-        assertTrue(printed.contains("invoke-static"), printed);
-        assertTrue(printed.contains("v0"), printed);
-        assertTrue(printed.contains("v1"), printed);
+        assertTrue(printed.contains("invoke-static { v0 } java/lang/Math.abs (J)J"), printed);
         compile(printed);
     }
 
     @Test
-    void widePolymorphicArgumentsStayNumericInListAndRangeForms() {
+    void widePolymorphicArgumentsStayNumericInBothEncodings() {
         MethodMember method = method("polymorphic", "()V", new Code(0, 3, 3));
         var owner = Types.instanceTypeFromInternalName("java/lang/invoke/MethodHandle");
         var declaredType = Types.methodTypeFromDescriptor("([Ljava/lang/Object;)Ljava/lang/Object;");
@@ -113,10 +111,7 @@ class DalvikDebugNamePrintingTest {
         String printed = print(method);
         assertFalse(printed.contains("wideHead"), printed);
         assertFalse(printed.contains("wideTail"), printed);
-        assertTrue(printed.contains("invoke-polymorphic"), printed);
-        assertTrue(printed.contains("receiver"), printed);
-        assertTrue(printed.contains("v1"), printed);
-        assertTrue(printed.contains("v2"), printed);
+        assertTrue(printed.contains("invoke-polymorphic { receiver, v1 } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (J)I"), printed);
         compile(printed);
     }
 

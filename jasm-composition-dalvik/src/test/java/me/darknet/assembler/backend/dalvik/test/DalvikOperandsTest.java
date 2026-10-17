@@ -79,7 +79,9 @@ class DalvikOperandsTest {
 	}
 
 	@Test
-	void registerListsAndRangesEnforceEncodingCounts() {
+	void ordinaryListsCountLogicalArgumentsAgainstTheirDescriptor() {
+		// One entry names one argument, so a list may be longer than five words. Whether its words fit an encoding is
+		// decided once they are expanded, which is a backend concern and is covered by the encoding boundary tests.
 		assertDalvikOk("""
 				.method public static test ()V {
 				  code: {
@@ -88,24 +90,40 @@ class DalvikOperandsTest {
 				  }
 				}
 				""");
-
-		assertErrorContains("""
+		assertDalvikOk("""
 				.method public static test ()V {
 				  code: {
 				    invoke-static { v0, v1, v2, v3, v4, v5 } java/lang/Math.abs (IIIIII)V
 				    return-void
 				  }
 				}
-				""", "at most 5 registers but got 6");
+				""");
 
+		// A wide argument is one entry, so (JJ)V takes two entries and not the four words they occupy.
 		assertErrorContains("""
 				.method public static test ()V {
 				  code: {
-				    invoke-static/range { v0, v2, v3 } java/lang/Math.abs (III)V
+				    invoke-static { v0, v1, v2, v3, v4 } java/lang/Math.abs (JJ)V
 				    return-void
 				  }
 				}
-				""", "Range instructions require first and last register bounds");
+				""", "invoke-static takes 2 arguments for (JJ)V");
+	}
+
+	@Test
+	void retiredInvokeRangeSpellingsAreUnknownInstructions() {
+		// Ranges are chosen from the words, so the invoke /range mnemonics no longer exist in source.
+		for (String mnemonic : List.of("invoke-static/range", "invoke-virtual/range", "invoke-direct/range",
+				"invoke-super/range", "invoke-interface/range", "invoke-custom/range", "invoke-polymorphic/range")) {
+			assertErrorContains("""
+					.method public static test ()V {
+					  code: {
+					    %s { v0, v1 } demo/Target.call (II)V
+					    return-void
+					  }
+					}
+					""".formatted(mnemonic), "Unknown instruction: " + mnemonic);
+		}
 	}
 
 	@Test
@@ -148,7 +166,7 @@ class DalvikOperandsTest {
 				.method public static custom (I)V {
 				  registers: 3,
 				  code: {
-				    invoke-custom/range { v0, v2 } callsite (III)V ConstantBootstraps.nullConstant { java/lang/System, Ljava/lang/String;, [I, (I)V, null, true }
+				    invoke-custom { v0, v1, v2 } callsite (III)V ConstantBootstraps.nullConstant { java/lang/System, Ljava/lang/String;, [I, (I)V, null, true }
 				    return-void
 				  }
 				}
@@ -158,7 +176,7 @@ class DalvikOperandsTest {
 				.method public static custom (I)V {
 				  registers: 3,
 				  code: {
-				    invoke-custom/range { v0, v2 } callsite (III)V ConstantBootstraps.nullConstant { %s }
+				    invoke-custom { v0, v1, v2 } callsite (III)V ConstantBootstraps.nullConstant { %s }
 				    return-void
 				  }
 				}
@@ -177,7 +195,7 @@ class DalvikOperandsTest {
 				.method public static custom (I)V {
 				  registers: 3,
 				  code: {
-				    invoke-custom/range { v0, v2 } callsite (III)V ConstantBootstraps.nullConstant { Lowner/Type }
+				    invoke-custom { v0, v1, v2 } callsite (III)V ConstantBootstraps.nullConstant { Lowner/Type }
 				    return-void
 				  }
 				}

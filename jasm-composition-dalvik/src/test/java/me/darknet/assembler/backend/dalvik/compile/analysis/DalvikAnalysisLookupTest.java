@@ -299,7 +299,7 @@ class DalvikAnalysisLookupTest {
 				        code: {
 				            const v0 5
 				            const-wide v1 9
-				            invoke-static { v0, v1, v2 } sample/Owner.combine (IJ)I
+				            invoke-static { v0, v1 } sample/Owner.combine (IJ)I
 				            move-result v3
 				            return v3
 				        }
@@ -309,7 +309,7 @@ class DalvikAnalysisLookupTest {
 				        code: {
 				            const v0 5
 				            const-wide v1 9
-				            invoke-static/range { v0, v2 } sample/Owner.combine (IJ)I
+				            invoke-static { v0, v1 } sample/Owner.combine (IJ)I
 				            move-result v3
 				            return v3
 				        }
@@ -360,7 +360,7 @@ class DalvikAnalysisLookupTest {
 				        registers: 4,
 				        parameters: { input, wide },
 				        code: {
-				            invoke-static { input, wide, v2 } sample/Owner.combine (IJ)I
+				            invoke-static { input, wide } sample/Owner.combine (IJ)I
 				            move-result v3
 				            return v3
 				        }

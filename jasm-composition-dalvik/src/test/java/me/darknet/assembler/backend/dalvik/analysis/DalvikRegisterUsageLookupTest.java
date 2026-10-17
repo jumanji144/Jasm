@@ -85,22 +85,19 @@ class DalvikRegisterUsageLookupTest {
     }
 
     @Test
-    void countsInvokeListsAndRangesAsTheirSourceOperands() {
+    void countsInvokeListsAsTheirSourceOperands() {
         Fixture fixture = compileMethod("""
                 invoke-static {v0, v1} LOwner;.call (II)V
-                invoke-static/range {v1, v2} LOwner;.call (II)V
+                invoke-static {v1, v2} LOwner;.call (II)V
                 return-void
                 """, "()V", 3);
         List<DalvikRegisterUsage> usages = fixture.usages();
 
         assertEquals(1, usage(usages, "v0").readCount());
-        assertEquals(1, usage(usages, "v1").readCount());
-        assertEquals(List.of("invoke-static"), mnemonics(usage(usages, "v1").references()));
-
-        DalvikRegisterUsage range = usage(usages, "{v1, v2}");
-        assertEquals(1, range.readCount());
-        assertEquals(0, range.writeCount());
-        assertEquals(List.of("invoke-static/range"), mnemonics(range.references()));
+        assertEquals(2, usage(usages, "v1").readCount());
+        assertEquals(List.of("invoke-static", "invoke-static"), mnemonics(usage(usages, "v1").references()));
+        assertEquals(1, usage(usages, "v2").readCount());
+        assertEquals(List.of("invoke-static"), mnemonics(usage(usages, "v2").references()));
     }
 
     @Test
