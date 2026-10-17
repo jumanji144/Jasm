@@ -379,6 +379,31 @@ class DalvikLogicalInvokeTest {
         return compiled.get();
     }
 
+    @Test
+    void namedWideLocalsPassedInOrderFormOneRangeOfAdjacentPairs() throws IOException {
+        // Each named long takes the next free pair, so the three longs in order are six consecutive words, which the
+        // non-range form cannot name, and the call takes the range form without moving any of them.
+        List<Instruction> instructions = decodedInstructions(example("""
+                .method public static pairs ()V {
+                    registers: 6,
+                    code: {
+                        const-wide first 1L
+                        const-wide second 2L
+                        const-wide third 3L
+                        invoke-static { first, second, third } demo/Target.three (JJJ)V
+                        return-void
+                    }
+                }
+                """), "pairs", "()V");
+
+        assertEquals(List.of(0, 2, 4), decoded(instructions, ConstWideInstruction.class).stream()
+                .map(ConstWideInstruction::register).toList());
+        InvokeInstruction invoke = invokes(instructions).getFirst();
+        assertTrue(invoke.isRange());
+        assertEquals(0, invoke.first());
+        assertEquals(5, invoke.last());
+    }
+
     private static ClassDefinition dexRoundTrip(ClassDefinition definition) throws IOException {
         byte[] bytes = DalvikDexIO.write(new DexFile(35, List.of(definition)));
         return DalvikDexIO.read(bytes).definitions().getFirst();

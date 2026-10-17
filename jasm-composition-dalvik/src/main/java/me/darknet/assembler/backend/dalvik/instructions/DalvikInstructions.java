@@ -710,16 +710,6 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 
 	/**
 	 * @param name
-	 * 		Registered source mnemonic of a single register operand.
-	 *
-	 * @return Wide register operand for forms that consume two register words, otherwise a single-word register operand.
-	 */
-	private static DalvikOperands registerFor(String name) {
-		return isWideRegisterForm(name) ? DalvikOperands.REGISTER_WIDE : DalvikOperands.REGISTER;
-	}
-
-	/**
-	 * @param name
 	 * 		Registered source mnemonic.
 	 *
 	 * @return {@code true} when every register operand of {@code name} holds a wide value.

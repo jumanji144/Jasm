@@ -57,7 +57,8 @@ Dalvik overlays must be standalone DEX files containing exactly one class.
 ## Decompile
 
 `decompile` renders a class file, JAR, DEX file or APK as JASM. 
-A single class is printed to standard output unless `--output` is supplied. 
+A single class is printed to standard output unless `--output` is supplied, in which case it is written to that file. 
+A DEX or APK that holds one class is handled the same way, and an existing output directory receives the class as `<name>.jasm` instead. 
 For an archive with multiple classes, use `--class` to select one class or provide an output directory to emit every class as a `.jasm` file. 
 Class names may use dotted (`example.Foo`) or internal (`example/Foo`) form.
 

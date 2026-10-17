@@ -11,6 +11,13 @@ import picocli.CommandLine;
  */
 public class JasmCli {
 	public static void main(String[] args) {
+		System.exit(createCommandLine().execute(args));
+	}
+
+	/**
+	 * @return Command line for the Jasm commands, which reports a failed command as exit status 1.
+	 */
+	static CommandLine createCommandLine() {
 		CommandLine commandLine = new CommandLine(new MainCommand());
 		commandLine.setCaseInsensitiveEnumValuesAllowed(true);
 		commandLine.setExecutionExceptionHandler((e, cmd, parseResult) -> {
@@ -21,6 +28,6 @@ public class JasmCli {
 			}
 			return 1;
 		});
-		System.exit(commandLine.execute(args));
+		return commandLine;
 	}
 }
