@@ -24,6 +24,7 @@ import me.darknet.assembler.error.Severity;
 import me.darknet.assembler.instructions.MemberPath;
 import me.darknet.assembler.instructions.OperandRole;
 import me.darknet.assembler.instructions.SemanticInstruction;
+import me.darknet.assembler.instructions.ValidatedOperand;
 import me.darknet.assembler.util.Location;
 import me.darknet.dex.file.instructions.Opcodes;
 import me.darknet.dex.tree.definitions.code.CodeBuilder;
@@ -96,6 +97,13 @@ import java.util.Set;
  * Visits Dalvik instruction syntax and emits dex code through a {@link CodeBuilder}.
  */
 public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
+	/** Width of the register fields of the 12x, 22s, and 35c encodings, which name registers {@code v0} to {@code v15}. */
+	private static final int FOUR_BITS = 4;
+	/** Width of the register fields of the 21c, 22b, and 23x encodings, and of the count of a range. */
+	private static final int EIGHT_BITS = 8;
+	/** Width of the first-register field of a range encoding. */
+	private static final int SIXTEEN_BITS = 16;
+
 	private final CodeBuilder codeBuilder;
 	private final DiagnosticSink sink;
 	private SemanticInstruction currentInstructionAst;
@@ -606,7 +614,10 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
 	@Override
 	public void visitConst(@NotNull DalvikLowering lowering, RegisterRef to, ASTElement value) {
+		// Every constant form names its destination in an eight-bit field, so a higher register has no encoding.
 		int toIndex = indexOf(to);
+		if (!checkRegisterField(to, toIndex, EIGHT_BITS))
+			return;
 		switch (lowering.opcode()) {
 			case CONST, CONST_WIDE -> {
 				boolean wide = lowering.opcode() == CONST_WIDE;
@@ -628,16 +639,16 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 							int intBits = constValue.isWide()
 									? Float.floatToRawIntBits((float) constValue.asDouble())
 									: Float.floatToRawIntBits(constValue.asFloat());
-							addInstruction(new ConstInstruction(toIndex, intBits));
+							addConst(toIndex, intBits);
 						} else {
-							addInstruction(new ConstInstruction(toIndex, constValue.asInt()));
+							addConst(toIndex, constValue.asInt());
 						}
 					}
 				} else if (value instanceof ASTIdentifier identifier) {
 					if (wide) {
 						addInstruction(new ConstWideInstruction(toIndex, parseSpecialWideNumber(identifier.literal())));
 					} else {
-						addInstruction(new ConstInstruction(toIndex, parseSpecialNumber(identifier.literal())));
+						addConst(toIndex, parseSpecialNumber(identifier.literal()));
 					}
 				}
 			}
@@ -721,7 +732,9 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	@Override
 	public void visitFilledNewArray(RegisterOperands args, ASTIdentifier type) {
 		ClassType arrayType = parseClassType(type);
-		List<Integer> registers = indexOfAll(args);
+		List<Integer> registers = resolveRegisterOperands(args);
+		if (registers == null)
+			return;
 		int registerCount = argumentWordCount(registers, args.isRange());
 		updateOutRegisters(registerCount);
 		if (args.isRange()) {
@@ -789,32 +802,29 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 
 	@Override
 	public void visitBinaryOperation(@NotNull DalvikLowering lowering, RegisterRef to, RegisterRef from1, RegisterRef from2) {
-		addInstruction(new BinaryInstruction(
-				lowering.opcode(),
-				indexOf(to),
-				indexOf(from1),
-				indexOf(from2)
-		));
+		int[] registers = encodedIndices(EIGHT_BITS, to, from1, from2);
+		if (registers == null)
+			return;
+		addInstruction(new BinaryInstruction(lowering.opcode(), registers[0], registers[1], registers[2]));
 	}
 
 	@Override
 	public void visitBinary2AddrOperation(@NotNull DalvikLowering lowering, RegisterRef a, RegisterRef b) {
-		addInstruction(new Binary2AddrInstruction(
-				lowering.opcode(),
-				indexOf(a),
-				indexOf(b)
-		));
+		int[] registers = encodedIndices(FOUR_BITS, a, b);
+		if (registers == null)
+			return;
+		addInstruction(new Binary2AddrInstruction(lowering.opcode(), registers[0], registers[1]));
 	}
 
 	@Override
 	public void visitBinaryLiteralOperation(@NotNull DalvikLowering lowering, RegisterRef to, RegisterRef from,
 	                                        SignedLiteral constant) {
-		addInstruction(new BinaryLiteralInstruction(
-				lowering.opcode(),
-				indexOf(to),
-				indexOf(from),
-				constant.value()
-		));
+		// The literal's declared width is the form the instruction uses, and that form sets the register fields too:
+		// the /lit8 form has eight-bit registers, while the /lit16 and rsub-int forms have four-bit registers.
+		int[] registers = encodedIndices(constant.bits() == 8 ? EIGHT_BITS : FOUR_BITS, to, from);
+		if (registers == null)
+			return;
+		addInstruction(new BinaryLiteralInstruction(lowering.opcode(), registers[0], registers[1], constant.value()));
 	}
 
 	@Override
@@ -875,7 +885,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	public void visitInvoke(@NotNull DalvikLowering lowering, RegisterOperands registers, MemberPath method,
 	                        ASTIdentifier descriptor) {
 		int opcode = lowering.opcode();
-		List<Integer> registerValues = resolveInvokeRegisters(registers);
+		List<Integer> registerValues = resolveRegisterOperands(registers);
 		if (registerValues == null)
 			return;
 
@@ -896,7 +906,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		var bootstrapHandle = parseHandle(handle);
 		MethodType methodType = parseMethodType(type);
 		List<Constant> bootstrapArguments = parseConstants(arguments);
-		List<Integer> registerValues = resolveInvokeRegisters(registers);
+		List<Integer> registerValues = resolveRegisterOperands(registers);
 		if (registerValues == null)
 			return;
 
@@ -924,7 +934,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	@Override
 	public void visitInvokePolymorphic(RegisterOperands registers, MemberPath method, ASTIdentifier descriptor,
 	                                   ASTIdentifier proto) {
-		List<Integer> registerValues = resolveInvokeRegisters(registers);
+		List<Integer> registerValues = resolveRegisterOperands(registers);
 		if (registerValues == null)
 			return;
 
@@ -943,21 +953,193 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	/**
-	 * @param registers
-	 * 		Register operand of an invoke form.
-	 *
-	 * @return Allocated slots in source order, or {@code null} after reporting a reversed range. A named
-	 * bound only gets its slot here, so the reversed-bounds check the resolver had to skip for named
+	 * Allocates the slots of a register list or range and checks that they fit the fields of the encoding that
+	 * carries them.
+	 * <p>
+	 * A named bound only gets its slot here, so the reversed-bounds check the resolver had to skip for named
 	 * registers happens now that both bounds are known.
+	 *
+	 * @param registers
+	 * 		Register operand of an invoke form or {@code filled-new-array}.
+	 *
+	 * @return Allocated slots in source order, or {@code null} after reporting a reversed range or a register the
+	 * encoding cannot name. The declared register count is checked separately while the slots are allocated.
 	 */
-	private @Nullable List<Integer> resolveInvokeRegisters(@NotNull RegisterOperands registers) {
+	private @Nullable List<Integer> resolveRegisterOperands(@NotNull RegisterOperands registers) {
 		List<Integer> registerValues = indexOfAll(registers);
-		if (registers.isRange() && registerValues.get(1) < registerValues.get(0)) {
-			sink.error(DiagnosticCode.OPERAND_SHAPE, "Range instruction register bounds are reversed",
-					currentInstructionAst.location());
-			return null;
+		List<RegisterRef> refs = registers.registers();
+		if (registers.isRange()) {
+			int first = registerValues.get(0);
+			int last = registerValues.get(1);
+			if (last < first) {
+				sink.error(DiagnosticCode.OPERAND_SHAPE, "Range instruction register bounds are reversed",
+						currentInstructionAst.location());
+				return null;
+			}
+			return checkRange(refs.getFirst(), first, last) ? registerValues : null;
 		}
-		return registerValues;
+
+		boolean fits = true;
+		for (int i = 0; i < refs.size(); i++)
+			fits &= checkRegisterField(refs.get(i), registerValues.get(i), FOUR_BITS);
+		return fits ? registerValues : null;
+	}
+
+	/**
+	 * Checks that a range can be named by its encoding: its count must fit the eight-bit count field, and it must end
+	 * inside the register space the sixteen-bit first-register field can reach.
+	 *
+	 * @param first
+	 * 		Operand holding the first register of the range, which locates the diagnostics.
+	 * @param firstIndex
+	 * 		Slot of the first register.
+	 * @param lastIndex
+	 * 		Slot of the last register, which is not below {@code firstIndex}.
+	 *
+	 * @return {@code true} when the range fits its encoding, otherwise {@code false} after reporting each limit it
+	 * exceeds.
+	 */
+	private boolean checkRange(@NotNull RegisterRef first, int firstIndex, int lastIndex) {
+		// Widened, so a run whose bounds approach the int range cannot wrap into a small, plausible count.
+		long count = (long) lastIndex - firstIndex + 1;
+		boolean fits = true;
+		if (count > maxIndex(EIGHT_BITS)) {
+			reportEncodingLimit(first, "Range of " + count + " registers does not fit the " + EIGHT_BITS
+					+ "-bit count field of '" + mnemonic() + "', which takes at most " + maxIndex(EIGHT_BITS)
+					+ " registers");
+			fits = false;
+		}
+		if (lastIndex > maxIndex(SIXTEEN_BITS)) {
+			reportEncodingLimit(first, "Range from v" + firstIndex + " to v" + lastIndex + " extends past v"
+					+ maxIndex(SIXTEEN_BITS) + ", the highest register the " + SIXTEEN_BITS + "-bit range field of '"
+					+ mnemonic() + "' can name");
+			fits = false;
+		}
+		return fits;
+	}
+
+	/**
+	 * Allocates the slots of single register operands in source order, checking each against the register field of
+	 * the encoding that carries it.
+	 *
+	 * @param bits
+	 * 		Width of the register fields.
+	 * @param refs
+	 * 		Register operands in the order the encoding lists them.
+	 *
+	 * @return Slots in the same order, or {@code null} after reporting every operand whose slot does not fit.
+	 */
+	private int @Nullable [] encodedIndices(int bits, @NotNull RegisterRef... refs) {
+		int[] indices = new int[refs.length];
+		boolean fits = true;
+		for (int i = 0; i < refs.length; i++) {
+			indices[i] = indexOf(refs[i]);
+			fits &= checkRegisterField(refs[i], indices[i], bits);
+		}
+		return fits ? indices : null;
+	}
+
+	/**
+	 * @param ref
+	 * 		Register operand the slot was allocated for.
+	 * @param index
+	 * 		Slot the operand resolved to.
+	 * @param bits
+	 * 		Width of the register field the instruction carries the slot in.
+	 *
+	 * @return {@code true} when the slot fits the field, otherwise {@code false} after reporting it.
+	 */
+	private boolean checkRegisterField(@NotNull RegisterRef ref, int index, int bits) {
+		if (index >= 0 && index <= maxIndex(bits))
+			return true;
+
+		String subject = ref.index() == null
+				? "Register '" + ref.name() + "' (v" + index + ")"
+				: "Register v" + index;
+		reportEncodingLimit(ref, subject + " does not fit the " + bits + "-bit register field of '" + mnemonic()
+				+ "', which names registers v0 through v" + maxIndex(bits));
+		return false;
+	}
+
+	/**
+	 * Reports an operand its instruction's encoding cannot carry. This is not the declared register count being
+	 * exceeded, which {@link #ensureRegisterAllowed(int)} reports, so the two limits can be told apart.
+	 *
+	 * @param operand
+	 * 		Register operand that cannot be encoded.
+	 * @param message
+	 * 		Description of the limit that was exceeded.
+	 */
+	private void reportEncodingLimit(@NotNull RegisterRef operand, @NotNull String message) {
+		sink.add(new Diagnostic(Severity.ERROR, DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.TARGET_LIMIT,
+				message, operandLocation(operand), List.of()));
+	}
+
+	/**
+	 * @param operand
+	 * 		Register operand of the instruction being emitted, which may be one register of a list or range.
+	 *
+	 * @return Location of the source operand holding the register, or of the instruction when no operand holds it.
+	 */
+	private @Nullable Location operandLocation(@NotNull RegisterRef operand) {
+		if (currentInstructionAst == null)
+			return null;
+		for (ValidatedOperand validated : currentInstructionAst.operands()) {
+			if (validated.value() == operand
+					|| (validated.value() instanceof RegisterOperands operands
+					&& operands.registers().stream().anyMatch(register -> register == operand)))
+				return validated.source().location();
+		}
+		return currentInstructionAst.location();
+	}
+
+	/**
+	 * @return Source spelling of the instruction being emitted, such as {@code add-int/lit16}.
+	 */
+	private @NotNull String mnemonic() {
+		return currentInstructionAst == null ? "instruction" : currentInstructionAst.source().identifier().literal();
+	}
+
+	/**
+	 * @param bits
+	 * 		Width of a register field.
+	 *
+	 * @return Highest slot a field of that width can hold.
+	 */
+	private static int maxIndex(int bits) {
+		return (1 << bits) - 1;
+	}
+
+	/**
+	 * Adds a {@code const} whose form holds the value and can name the destination.
+	 *
+	 * @param register
+	 * 		Destination slot, which the caller has already checked against the eight-bit destination field.
+	 * @param value
+	 * 		Bits of the constant, kept exactly as written.
+	 */
+	private void addConst(int register, int value) {
+		addInstruction(new ConstInstruction(constOpcode(register, value), register, value));
+	}
+
+	/**
+	 * @param register
+	 * 		Destination slot, which the caller has already checked against the eight-bit destination field.
+	 * @param value
+	 * 		Bits of the constant.
+	 *
+	 * @return The narrowest {@code const} form that holds the value and can name the destination. The four-bit
+	 * destination of {@code const/4} limits it to {@code v0} through {@code v15}, so a small value in a higher register
+	 * takes the sixteen-bit form instead.
+	 */
+	private static int constOpcode(int register, int value) {
+		if (register <= maxIndex(FOUR_BITS) && value >= -8 && value <= 7) // 4 bit signed const
+			return CONST_4;
+		if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE) // 16 bit signed const
+			return CONST_16;
+		if ((value & 0xFFFF) == 0) // bits are only set in the high 16 bits
+			return CONST_HIGH16;
+		return CONST;
 	}
 
 	@Override
