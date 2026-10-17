@@ -24,9 +24,25 @@ public class DalvikClassPrinter implements ClassPrinter {
 
     private final ClassDefinition definition;
     private final DalvikMemberPrinter memberPrinter;
+    private final boolean numericRegisters;
 
+    /**
+     * @param definition
+     * 		The class to print, with the source names of its parameters and locals.
+     */
     public DalvikClassPrinter(ClassDefinition definition) {
+        this(definition, false);
+    }
+
+    /**
+     * @param definition
+     * 		The class to print.
+     * @param numericRegisters
+     * 		{@code true} to print every slot as {@code vN} and to omit the source names of parameters and locals.
+     */
+    public DalvikClassPrinter(ClassDefinition definition, boolean numericRegisters) {
         this.definition = definition;
+        this.numericRegisters = numericRegisters;
         this.memberPrinter = new DalvikMemberPrinter(definition, definition, DalvikMemberPrinter.Type.CLASS);
     }
 
@@ -34,7 +50,7 @@ public class DalvikClassPrinter implements ClassPrinter {
     public @Nullable MethodPrinter method(String name, String descriptor) {
         MethodMember method = definition.getMethod(name, descriptor);
         if (method != null) {
-            return new DalvikMethodPrinter(method);
+            return new DalvikMethodPrinter(method, numericRegisters);
         }
         return null;
     }
@@ -105,7 +121,7 @@ public class DalvikClassPrinter implements ClassPrinter {
         }
         obj.line();
         for (var method : definition.getMethods().values()) {
-            var printer = new DalvikMethodPrinter(method);
+            var printer = new DalvikMethodPrinter(method, numericRegisters);
             printer.print(obj);
             obj.doubleNext();
         }

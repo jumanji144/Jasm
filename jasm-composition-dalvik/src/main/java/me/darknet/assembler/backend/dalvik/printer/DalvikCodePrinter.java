@@ -428,7 +428,7 @@ public class DalvikCodePrinter implements ExecutionEngine {
     /**
      * @return Every register from {@code first} through {@code last}, which is empty when the range holds none.
      */
-    private static int @NotNull [] rangeWords(int first, int last) {
+    static int @NotNull [] rangeWords(int first, int last) {
         int[] words = new int[Math.max(0, last - first + 1)];
         for (int i = 0; i < words.length; i++)
             words[i] = first + i;

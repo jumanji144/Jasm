@@ -54,6 +54,12 @@ public class DecompileCommand implements Callable<Integer> {
     )
     private String floatRepresentation;
 
+    @CommandLine.Option(
+            names = {"--numeric-registers"},
+            description = "Dalvik only: print every register as vN and omit parameter and local names"
+    )
+    private boolean numericRegisters;
+
     @Override
     public Integer call() {
         CliRuntime runtime = new CliRuntime(commandSpec.commandLine());
@@ -70,7 +76,8 @@ public class DecompileCommand implements Callable<Integer> {
                 output,
                 indent,
                 className,
-                floatMode
+                floatMode,
+                numericRegisters
         );
         try {
             return target.decompile(request);

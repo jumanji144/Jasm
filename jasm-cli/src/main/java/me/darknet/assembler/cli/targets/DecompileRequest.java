@@ -21,10 +21,13 @@ import java.util.Optional;
  * 		The optional class name to decompile (if applicable).
  * @param floatPrintMode
  * 		The float print mode for formatting floating-point numbers.
+ * @param numericRegisters
+ * 		{@code true} to print every Dalvik register as {@code vN} and omit parameter and local names.
  */
 public record DecompileRequest(@NotNull CliRuntime runtime,
                                @NotNull File source,
                                @NotNull Optional<File> output,
                                @NotNull String indent,
                                @NotNull Optional<String> className,
-                               @NotNull PrintContext.FloatPrintMode floatPrintMode) {}
+                               @NotNull PrintContext.FloatPrintMode floatPrintMode,
+                               boolean numericRegisters) {}

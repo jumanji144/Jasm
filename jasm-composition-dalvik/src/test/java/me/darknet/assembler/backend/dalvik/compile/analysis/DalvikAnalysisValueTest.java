@@ -932,7 +932,7 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisUnknownOperand {
 				    .method public static unknownOperand (I)I {
-				        registers: 2,
+				        registers: 3,
 				        parameters: { input },
 				        code: {
 				            const v0 8
@@ -1155,11 +1155,11 @@ class DalvikAnalysisValueTest {
 				            move-result-object v2
 				            check-cast v2 Lsample/Item;
 				            iget-object v3 v2 sample/Item.category Ljava/lang/Object;
-				            if-ne v3 v5 Skip
+				            if-ne v3 category Skip
 				            iget v3 v2 sample/Item.index I
-				            if-ne v3 v6 Skip
+				            if-ne v3 index Skip
 				            iget-object v3 v2 sample/Item.name Ljava/lang/String;
-				            invoke-virtual { v4, v3 } sample/State.hasItem (Ljava/lang/String;)Z
+				            invoke-virtual { state, v3 } sample/State.hasItem (Ljava/lang/String;)Z
 				            move-result v3
 				            if-eqz v3 Skip
 				            add-int v0 v0 1
@@ -1381,7 +1381,7 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisUnknownArraySize {
 				    .method public static unknownSize (I)V {
-				        registers: 3,
+				        registers: 4,
 				        parameters: { size },
 				        code: {
 				            new-array v0 size [J
@@ -1485,7 +1485,7 @@ class DalvikAnalysisValueTest {
 				        End:
 				            return-void
 				        Handler:
-				            move-exception v1
+				            move-exception values
 				            return-void
 				        }
 				    }

@@ -54,7 +54,7 @@ class DalvikDebugNamePrintingTest {
     }
 
     @Test
-    void firstDebugNameWinsAndWideNamesStayNumeric() {
+    void firstDebugNameWinsAndWideValueIsNamedByItsLowWord() {
         MethodMember method = method("locals", "()V", code(4,
                 List.of(new ConstInstruction(0, 1),
                         new ConstWideInstruction(1, 0L),
@@ -64,15 +64,29 @@ class DalvikDebugNamePrintingTest {
                 local(1, "wide"), local(3, "narrow")));
 
         String printed = print(method);
-        assertTrue(printed.contains("const first"), printed);
-        assertFalse(printed.contains("renamed"), printed);
-        assertFalse(printed.contains(" wide"), printed);
-        assertTrue(printed.contains("const narrow"), printed);
+        assertEquals(List.of("const first #0x00000001", "const-wide wide #0x0000000000000000",
+                "const narrow #0x00000002", "return-wide wide"), bodyLines(printed), printed);
         compile(printed);
     }
 
     @Test
-    void wideInvokeArgumentNamesStayNumeric() {
+    void numericHighWordKeepsAWideLocalNumericBecauseItsNameWouldMove() {
+        // The compiler reserves v1 for the numeric write before it allocates names, so the wide local would not
+        // return to v0 when the body is compiled again. Its name therefore stays off the body.
+        MethodMember method = method("highWord", "()V", code(3,
+                List.of(new ConstWideInstruction(0, 0L),
+                        new ConstInstruction(1, 7),
+                        new ReturnInstruction()),
+                local(0, "wide")));
+
+        String printed = print(method);
+        assertEquals(List.of("const-wide v0 #0x0000000000000000", "const v1 #0x00000007", "return-void"),
+                bodyLines(printed), printed);
+        compile(printed);
+    }
+
+    @Test
+    void wideArgumentIsNamedByItsLowWordAndItsTailStaysImplicit() {
         MethodMember method = method("invoke", "()V", new Code(0, 2, 2));
         method.getCode().addInstruction(new InvokeInstruction(
                 Opcodes.INVOKE_STATIC,
@@ -87,14 +101,13 @@ class DalvikDebugNamePrintingTest {
         )));
 
         String printed = print(method);
-        assertFalse(printed.contains("wideArgument"), printed);
-        assertFalse(printed.contains("wideTail"), printed);
-        assertTrue(printed.contains("invoke-static { v0 } java/lang/Math.abs (J)J"), printed);
+        assertEquals(List.of("invoke-static { wideArgument } java/lang/Math.abs (J)J", "return-void"),
+                bodyLines(printed), printed);
         compile(printed);
     }
 
     @Test
-    void widePolymorphicArgumentsStayNumericInBothEncodings() {
+    void widePolymorphicArgumentsNameTheirLowWordInBothEncodings() {
         MethodMember method = method("polymorphic", "()V", new Code(0, 3, 3));
         var owner = Types.instanceTypeFromInternalName("java/lang/invoke/MethodHandle");
         var declaredType = Types.methodTypeFromDescriptor("([Ljava/lang/Object;)Ljava/lang/Object;");
@@ -109,10 +122,19 @@ class DalvikDebugNamePrintingTest {
         )));
 
         String printed = print(method);
-        assertFalse(printed.contains("wideHead"), printed);
-        assertFalse(printed.contains("wideTail"), printed);
-        assertTrue(printed.contains("invoke-polymorphic { receiver, v1 } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (J)I"), printed);
+        String call = "invoke-polymorphic { receiver, wideHead } java/lang/invoke/MethodHandle.invokeExact "
+                + "([Ljava/lang/Object;)Ljava/lang/Object; (J)I";
+        assertEquals(List.of(call, call, "return-void"), bodyLines(printed), printed);
         compile(printed);
+    }
+
+    /**
+     * @return The trimmed lines between the {@code code: {} opening and its closing brace, with blank lines removed.
+     */
+    private static List<String> bodyLines(String printed) {
+        List<String> lines = printed.lines().map(String::trim).toList();
+        List<String> afterOpening = lines.subList(lines.indexOf("code: {") + 1, lines.size());
+        return afterOpening.subList(0, afterOpening.indexOf("}")).stream().filter(line -> !line.isEmpty()).toList();
     }
 
     @Test

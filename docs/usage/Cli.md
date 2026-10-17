@@ -62,7 +62,7 @@ For an archive with multiple classes, use `--class` to select one class or provi
 Class names may use dotted (`example.Foo`) or internal (`example/Foo`) form.
 
 ```text
-jasm decompile [-hV] [-c=name] [--float-format=mode] [-i=<indent>] [-o=<output>] [-t=target] file
+jasm decompile [-hV] [-c=name] [--float-format=mode] [--numeric-registers] [-i=<indent>] [-o=<output>] [-t=target] file
   -t, --target <target>                 Target override for this command
   -o, --output <file-or-directory>      Output file or directory
   -c, --class <name>                    Select a class from an archive or DEX/APK

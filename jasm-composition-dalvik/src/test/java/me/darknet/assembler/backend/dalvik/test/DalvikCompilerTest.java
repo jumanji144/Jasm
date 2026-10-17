@@ -748,8 +748,7 @@ class DalvikCompilerTest {
             PrintContext<?> ctx = new PrintContext<>(PrintContext.TAB_INDENT);
             new DalvikClassPrinter(result.representation().definition()).print(ctx);
             String printed = TestUtils.normalize(ctx.toString());
-            // Parameters keep their register names in the body until readable names are printed, so the receiver is v2.
-            assertTrue(printed.contains("invoke-polymorphic { v2, v2 } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I"), printed);
+            assertTrue(printed.contains("invoke-polymorphic { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I"), printed);
             TestUtils.assertParsesDalvik(printed);
         });
     }
@@ -890,7 +889,7 @@ class DalvikCompilerTest {
         assertEquals(code.getRegisters(), reread.getRegisters());
         assertEquals(code.getIn(), reread.getIn());
         assertEquals(code.getOut(), reread.getOut());
-        assertEquals(code.getInstructions(), reread.getInstructions());
+        assertEquals(executableInstructions(code), executableInstructions(reread));
     }
 
     @Test
@@ -1012,6 +1011,16 @@ class DalvikCompilerTest {
                 """);
         partial.getMethod("partial", "(II)V").setParameterNames(List.of("left"));
         assertFalse(printDefinition(partial).contains("parameters:"));
+    }
+
+    /**
+     * @return The instructions of the code without its labels, since labels mark positions and execute nothing.
+     */
+    private static List<me.darknet.dex.tree.definitions.instructions.Instruction> executableInstructions(
+            me.darknet.dex.tree.definitions.code.Code code) {
+        return code.getInstructions().stream()
+                .filter(instruction -> !(instruction instanceof me.darknet.dex.tree.definitions.instructions.Label))
+                .toList();
     }
 
     private static me.darknet.dex.tree.definitions.debug.DebugInformation.LocalVariable local(int register, String name) {

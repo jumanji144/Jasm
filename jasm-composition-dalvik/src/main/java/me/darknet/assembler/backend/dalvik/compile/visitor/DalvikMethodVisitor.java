@@ -190,6 +190,8 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     public void visitEnd() {
         member.setParameterNames(parameterNames);
         if (codeVisitor != null) {
+            int parameterBase = declaredRegisterCount == null ? -1 : declaredRegisterCount - incomingRegisterCount;
+            codeVisitor.reportNumericReferences(declaredParameterSlots(parameterBase), wideParameterSlots(parameterBase));
             int totalRegisters = Math.max(incomingRegisterCount, codeVisitor.getRegisterCount());
             if (declaredRegisterCount != null && totalRegisters > declaredRegisterCount) {
                 // The visitor has already reported the register limit problem, so this method does not need to.
@@ -204,7 +206,7 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
                     .registers(declaredRegisterCount == null ? totalRegisters : declaredRegisterCount)
                     .build();
             codeVisitor.getTryCatches().forEach(code::addTryCatch);
-            DebugInformation debugInfo = debugInformation(code);
+            DebugInformation debugInfo = debugInformation(code, localVariables(code));
             if (debugInfo != null)
                 code.setDebugInfo(debugInfo);
             member.setCode(code);
@@ -254,19 +256,103 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     }
 
     /**
+     * @param parameterBase
+     *         Base register index for the first parameter, or {@code -1} when the method declared no register count.
+     *
+     * @return Declared parameter names keyed by the slot of each parameter's first word. The receiver and unnamed
+     * parameters are absent.
+     */
+    private @NotNull Map<Integer, String> declaredParameterSlots(int parameterBase) {
+        Map<Integer, String> slots = new HashMap<>();
+        if (parameterBase < 0)
+            return slots;
+        int register = parameterBase;
+        if ((member.getAccess() & DalvikModifiers.ACC_STATIC) == 0)
+            register++;
+        for (int index = 0; index < member.getType().parameterTypes().size(); index++) {
+            String name = index < parameterNames.size() ? parameterNames.get(index) : null;
+            if (name != null)
+                slots.put(register, name);
+            register += registerWords(member.getType().parameterTypes().get(index).descriptor());
+        }
+        return slots;
+    }
+
+    /**
+     * @param parameterBase
+     *         Base register index for the first parameter, or {@code -1} when the method declared no register count.
+     *
+     * @return Slots of the wide parameters, whose high word follows the slot of the parameter.
+     */
+    private @NotNull Set<Integer> wideParameterSlots(int parameterBase) {
+        Set<Integer> slots = new HashSet<>();
+        if (parameterBase < 0)
+            return slots;
+        int register = parameterBase;
+        if ((member.getAccess() & DalvikModifiers.ACC_STATIC) == 0)
+            register++;
+        for (ClassType parameter : member.getType().parameterTypes()) {
+            if (registerWords(parameter.descriptor()) == 2)
+                slots.add(register);
+            register += registerWords(parameter.descriptor());
+        }
+        return slots;
+    }
+
+    /**
      * @param code
      *         Code to build debug information for.
+     * @param locals
+     *         Named locals of the code, each covering the whole method.
      *
      * @return Debug information for the code, or {@code null} if no debug information is available.
      */
-    private @Nullable DebugInformation debugInformation(@NotNull Code code) {
+    private @Nullable DebugInformation debugInformation(@NotNull Code code,
+                                                        @NotNull List<DebugInformation.LocalVariable> locals) {
         List<DebugInformation.LineNumber> lineNumbers = new ArrayList<>();
         for (Instruction instruction : code.getInstructions())
             if (instruction instanceof Label label && label.lineNumber() != Label.UNASSIGNED)
                 lineNumbers.add(new DebugInformation.LineNumber(label, label.lineNumber()));
-        if (lineNumbers.isEmpty() && parameterNames.isEmpty())
+        if (lineNumbers.isEmpty() && parameterNames.isEmpty() && locals.isEmpty())
             return null;
-        return new DebugInformation(lineNumbers, List.of(), List.copyOf(parameterNames), List.of());
+        return new DebugInformation(lineNumbers, List.of(), List.copyOf(parameterNames), locals);
+    }
+
+    /**
+     * Describes every named local over the whole method, from its entry to its exit, with no type. The range is bounded by
+     * two labels. Each is the code's first or last label when one already sits there, and otherwise a label added at that
+     * end, so the encoder places the entry at the start of the method and the exit at its end.
+     *
+     * @param code
+     *         Code whose named locals are described. Its instruction list gains a label at an end that has none.
+     *
+     * @return One local per named slot, in ascending slot order, or none when the method has no named local.
+     */
+    private @NotNull List<DebugInformation.LocalVariable> localVariables(@NotNull Code code) {
+        Map<Integer, String> names = codeVisitor.localNames();
+        if (names.isEmpty())
+            return List.of();
+
+        List<Instruction> instructions = code.getInstructions();
+        Label entry;
+        if (instructions.getFirst() instanceof Label first) {
+            entry = first;
+        } else {
+            entry = new Label();
+            instructions.addFirst(entry);
+        }
+        Label exit;
+        if (instructions.getLast() instanceof Label last) {
+            exit = last;
+        } else {
+            exit = new Label();
+            instructions.add(exit);
+        }
+
+        List<DebugInformation.LocalVariable> locals = new ArrayList<>(names.size());
+        for (Map.Entry<Integer, String> local : names.entrySet())
+            locals.add(new DebugInformation.LocalVariable(local.getKey(), local.getValue(), null, null, entry, exit));
+        return locals;
     }
 
     /**

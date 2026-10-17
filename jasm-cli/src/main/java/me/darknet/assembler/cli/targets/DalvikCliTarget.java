@@ -100,7 +100,8 @@ public final class DalvikCliTarget implements CliTarget {
 					.filter(candidate -> candidate.getType().internalName().equals(requestedName))
 					.findFirst()
 					.orElseThrow(() -> runtime.failure("Class not found: " + request.className().get()));
-			String text = render(new DalvikClassPrinter(definition), request.indent(), request.floatPrintMode());
+			String text = render(new DalvikClassPrinter(definition, request.numericRegisters()), request.indent(),
+					request.floatPrintMode());
 			if (request.output().isPresent()) {
 				try {
 					CliUtils.writeText(request.output().get().toPath(), text);
@@ -118,7 +119,8 @@ public final class DalvikCliTarget implements CliTarget {
 			if (definitions.size() != 1) {
 				throw runtime.failure("Output folder or target class name is required for decompiling DEX/APK files");
 			}
-			runtime.stdout(render(new DalvikClassPrinter(definitions.getFirst()), request.indent(), request.floatPrintMode()));
+			runtime.stdout(render(new DalvikClassPrinter(definitions.getFirst(), request.numericRegisters()),
+					request.indent(), request.floatPrintMode()));
 			return 0;
 		}
 
@@ -132,7 +134,8 @@ public final class DalvikCliTarget implements CliTarget {
 				throw runtime.failure(exception.getMessage(), exception);
 			}
 			if (rendered.putIfAbsent(relative,
-					render(new DalvikClassPrinter(definition), request.indent(), request.floatPrintMode())) != null) {
+					render(new DalvikClassPrinter(definition, request.numericRegisters()), request.indent(),
+							request.floatPrintMode())) != null) {
 				throw runtime.failure("Duplicate class output path: " + relative);
 			}
 		}

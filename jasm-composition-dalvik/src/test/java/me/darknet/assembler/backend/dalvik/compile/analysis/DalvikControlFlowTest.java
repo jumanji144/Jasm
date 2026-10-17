@@ -252,7 +252,7 @@ class DalvikControlFlowTest {
                 .super java/lang/Object
                 .class public ExceptionalEdges {
                     .method public static guarded ([I)V {
-                        registers: 2,
+                        registers: 3,
                         parameters: { values },
                         exceptions: {
                             { Start, End, RuntimeHandler, java/lang/RuntimeException },

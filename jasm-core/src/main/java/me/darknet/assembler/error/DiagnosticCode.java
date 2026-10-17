@@ -140,5 +140,11 @@ public enum DiagnosticCode {
 	/**
 	 * Verification of the emitted representation produced a warning.
 	 */
-	VERIFICATION_WARNING
+	VERIFICATION_WARNING,
+
+	/**
+	 * A numeric register reference names a slot that the source also names, such as a declared parameter, a local, or the
+	 * high word of either. The reference still compiles, so the warning never blocks output.
+	 */
+	NUMERIC_REFERENCE_TO_NAMED_SLOT
 }

@@ -95,6 +95,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Visits Dalvik instruction syntax and emits dex code through a {@link CodeBuilder}.
@@ -119,6 +120,10 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	private final Set<Integer> usedRegisters = new HashSet<>();
 	/** Local slots bound to a wide named value, whose high word is reserved by that binding. */
 	private final Set<Integer> wideBases = new HashSet<>();
+	/** Names of the locals allocated by this visitor, keyed by slot. A wide local is keyed by its low word. */
+	private final Map<Integer, String> localNames = new HashMap<>();
+	/** Numeric operands in source order, which name a slot by its number rather than by a name. */
+	private final List<NumericReference> numericReferences = new ArrayList<>();
 	private final Map<String, Label> labels = new HashMap<>();
 	private final Map<Label, Integer> labelOrder = new IdentityHashMap<>();
 	private final List<TryCatch> tryCatches = new ArrayList<>();
@@ -180,6 +185,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		if (numeric == null)
 			return wide ? getWideRegisterIndex(ref.name()) : getRegisterIndex(ref.name());
 
+		numericReferences.add(new NumericReference(numeric, wide,
+				currentInstructionAst == null ? null : currentInstructionAst.location()));
 		ensureRegisterAllowed(numeric);
 		usedRegisters.add(numeric);
 		registerCount = Math.max(registerCount, numeric + 1);
@@ -216,6 +223,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		}
 
 		registerMap.put(registerName, index);
+		localNames.put(index, registerName);
 		usedRegisters.add(index);
 		usedRegisters.add(index + 1);
 		wideBases.add(index);
@@ -342,6 +350,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		}
 
 		registerMap.put(registerName, index);
+		localNames.put(index, registerName);
 		usedRegisters.add(index);
 		nextLocalRegister = index + 1;
 		registerCount = Math.max(registerCount, index + 1);
@@ -412,6 +421,111 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	public boolean hasReportedRegisterLimit() {
 		return reportedRegisterLimit;
 	}
+
+	/**
+	 * @return Names of the locals this visitor allocated, keyed by slot in ascending order. A wide local is keyed by its
+	 * low word.
+	 */
+	public @NotNull Map<Integer, String> localNames() {
+		return new TreeMap<>(localNames);
+	}
+
+	/**
+	 * Reports each numeric operand that names a slot the source also names: a declared parameter, a local, or the high word
+	 * of either. Every name is known only once the method is complete, because a wide value may be named after a numeric
+	 * reference to its high word, so the check runs at the end of the method. The warning never blocks output.
+	 *
+	 * @param parameterSlots
+	 * 		Declared parameter names keyed by the slot of each parameter's first word.
+	 * @param wideParameterSlots
+	 * 		Slots of the declared wide parameters, whose high word follows them.
+	 */
+	public void reportNumericReferences(@NotNull Map<Integer, String> parameterSlots,
+	                                    @NotNull Set<Integer> wideParameterSlots) {
+		for (NumericReference reference : numericReferences) {
+			NamedSlot direct = namedSlot(reference.register(), parameterSlots, wideParameterSlots);
+			if (direct != null) {
+				sink.warning(DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.NUMERIC_REFERENCE_TO_NAMED_SLOT,
+						directMessage(reference.register(), direct), reference.location());
+			} else if (reference.wide()) {
+				// A wide numeric operand also occupies the slot after it, so that slot can be named even when it is not written.
+				NamedSlot covered = namedSlot(reference.register() + 1, parameterSlots, wideParameterSlots);
+				if (covered != null)
+					sink.warning(DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.NUMERIC_REFERENCE_TO_NAMED_SLOT,
+							coveredMessage(reference.register(), covered), reference.location());
+			}
+		}
+	}
+
+	/**
+	 * @param slot
+	 * 		Slot the numeric operand names.
+	 * @param parameterSlots
+	 * 		Declared parameter names keyed by the slot of each parameter's first word.
+	 * @param wideParameterSlots
+	 * 		Slots of the declared wide parameters, whose high word follows them.
+	 *
+	 * @return The source name that claims the slot, or {@code null} when no source name claims it.
+	 */
+	private @Nullable NamedSlot namedSlot(int slot, @NotNull Map<Integer, String> parameterSlots,
+	                                      @NotNull Set<Integer> wideParameterSlots) {
+		String parameter = parameterSlots.get(slot);
+		if (parameter != null)
+			return new NamedSlot(parameter, false, true);
+		if (wideParameterSlots.contains(slot - 1) && parameterSlots.containsKey(slot - 1))
+			return new NamedSlot(parameterSlots.get(slot - 1), true, true);
+		String local = localNames.get(slot);
+		if (local != null)
+			return new NamedSlot(local, false, false);
+		if (wideBases.contains(slot - 1) && localNames.containsKey(slot - 1))
+			return new NamedSlot(localNames.get(slot - 1), true, false);
+		return null;
+	}
+
+	/**
+	 * @return Warning for a numeric operand that names the slot itself.
+	 */
+	private static @NotNull String directMessage(int slot, @NotNull NamedSlot named) {
+		String kind = named.parameter() ? "parameter" : "local";
+		if (named.highWord())
+			return "Numeric register v" + slot + " is the high word of wide " + kind + " '" + named.name() + "'";
+		return "Numeric register v" + slot + " is the slot of " + kind + " '" + named.name()
+				+ "'; write '" + named.name() + "' instead";
+	}
+
+	/**
+	 * @return Warning for a wide numeric operand whose second word lands on a named slot.
+	 */
+	private static @NotNull String coveredMessage(int slot, @NotNull NamedSlot named) {
+		String kind = named.parameter() ? "parameter" : "local";
+		String role = named.highWord() ? "the high word of wide " + kind : "the slot of " + kind;
+		return "Numeric wide register v" + slot + " covers v" + (slot + 1) + ", which is " + role
+				+ " '" + named.name() + "'";
+	}
+
+	/**
+	 * A source name that claims a slot.
+	 *
+	 * @param name
+	 * 		Source name of the parameter or local.
+	 * @param highWord
+	 * 		{@code true} when the slot is the high word of the wide value named by the slot before it.
+	 * @param parameter
+	 * 		{@code true} when the name is a declared parameter, and {@code false} when it is a local.
+	 */
+	private record NamedSlot(String name, boolean highWord, boolean parameter) {}
+
+	/**
+	 * A numeric operand of the body.
+	 *
+	 * @param register
+	 * 		Slot the operand names by number.
+	 * @param wide
+	 * 		{@code true} when the operand is wide, so the slot after {@code register} is part of it too.
+	 * @param location
+	 * 		Location of the instruction that holds the operand, or {@code null} when it has none.
+	 */
+	private record NumericReference(int register, boolean wide, @Nullable Location location) {}
 
 	/**
 	 * @return Highest slot index used by the method.

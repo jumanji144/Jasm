@@ -361,8 +361,8 @@ class DalvikAnalysisLookupTest {
 				        parameters: { input, wide },
 				        code: {
 				            invoke-static { input, wide } sample/Owner.combine (IJ)I
-				            move-result v3
-				            return v3
+				            move-result v0
+				            return v0
 				        }
 				    }
 				}
