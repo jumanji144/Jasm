@@ -679,10 +679,10 @@ class DalvikAnalysisValueTest {
 				        registers: 4,
 				        code: {
 				            const v0 4
-				            mul-int/lit8 v1 v0 3
-				            rsub-int/lit8 v2 v1 20
+				            mul-int v1 v0 3
+				            rsub-int v2 v1 20
 				            const v3 2
-				            div-int/2addr v2 v3
+				            div-int v2 v2 v3
 				            return v2
 				        }
 				    }
@@ -691,6 +691,32 @@ class DalvikAnalysisValueTest {
 
 		assertEquals(new Value.KnownIntValue(4), terminal(compilation.results("literals", "()I"),
 				compilation.method("literals", "()I")).value());
+	}
+
+	@Test
+	void reverseSubtractionSubtractsTheRegisterFromTheLiteral() {
+		// rsub-int takes the source from the literal, in both literal widths and for a negative literal.
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public ValueAnalysisReverseSubtraction {
+				    .method public static reverse ()I {
+				        registers: 5,
+				        code: {
+				            const v0 3
+				            rsub-int v1 v0 10
+				            rsub-int v2 v0 -5
+				            rsub-int v4 v0 300
+				            add-int v3 v1 v2
+				            add-int v3 v3 v4
+				            return v3
+				        }
+				    }
+				}
+				""");
+
+		// 10 - 3 = 7, -5 - 3 = -8, and 300 - 3 = 297, so the sum is 296.
+		assertEquals(new Value.KnownIntValue(296), terminal(compilation.results("reverse", "()I"),
+				compilation.method("reverse", "()I")).value());
 	}
 
 	@Test
@@ -1136,7 +1162,7 @@ class DalvikAnalysisValueTest {
 				            invoke-virtual { v4, v3 } sample/State.hasItem (Ljava/lang/String;)Z
 				            move-result v3
 				            if-eqz v3 Skip
-				            add-int/lit8 v0 v0 1
+				            add-int v0 v0 1
 				        Skip:
 				            goto Loop
 				        End:
@@ -1187,7 +1213,7 @@ class DalvikAnalysisValueTest {
 				        code: {
 				            const v0 0
 				        Loop:
-				            add-int/lit8 v0 v0 1
+				            add-int v0 v0 1
 				            if-ltz v0 Loop
 				            return v0
 				        }
@@ -1311,7 +1337,7 @@ class DalvikAnalysisValueTest {
 				            const v3 0
 				            aget-wide v4 v0 v3
 				        Next:
-				            add-int/lit8 v1 v1 1
+				            add-int v1 v1 1
 				            goto Head
 				        Exit:
 				            return-void

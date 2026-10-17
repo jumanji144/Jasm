@@ -68,7 +68,9 @@ public class DalvikCodePrinter implements ExecutionEngine {
 
     @Override
     public void execute(@NotNull Binary2AddrInstruction instruction) {
+        // The destination is also the first source, so it is written in both positions of the ordinary form.
         ctx.instruction(opcode(instruction))
+                .print(register(instruction.a())).arg()
                 .print(register(instruction.a())).arg()
                 .print(register(instruction.b()));
     }
@@ -472,12 +474,13 @@ public class DalvikCodePrinter implements ExecutionEngine {
             case "const-wide-16", "const-wide-32", "const-wide-high16" -> "const-wide";
             case "goto-16", "goto-32" -> "goto";
             default -> {
+                // The operands select the encoding of an arithmetic instruction, so its encoded form is not printed.
                 if (name.endsWith("-2addr"))
-                    yield name.substring(0, name.length() - "-2addr".length()) + "/2addr";
+                    yield name.substring(0, name.length() - "-2addr".length());
                 if (name.endsWith("-lit8"))
-                    yield name.substring(0, name.length() - "-lit8".length()) + "/lit8";
+                    yield name.substring(0, name.length() - "-lit8".length());
                 if (name.endsWith("-lit16"))
-                    yield name.substring(0, name.length() - "-lit16".length()) + "/lit16";
+                    yield name.substring(0, name.length() - "-lit16".length());
                 yield name.endsWith("-range")
                         ? name.substring(0, name.length() - "-range".length()) + "/range"
                         : name;

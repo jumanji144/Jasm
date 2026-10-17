@@ -86,14 +86,10 @@ public class DalvikInstructionMetadataTest {
         for (String name : List.of("add-long", "sub-long", "mul-long", "div-long", "rem-long", "and-long",
                 "or-long", "xor-long", "add-double", "sub-double", "mul-double", "div-double", "rem-double"))
             assertEquals(List.of(0, 1, 2), widePositions(name), name);
-        for (String name : List.of("add-long/2addr", "rem-long/2addr", "add-double/2addr", "rem-double/2addr"))
-            assertEquals(List.of(0, 1), widePositions(name), name);
 
         // A long shift's distance is an int, so only the destination and value are wide.
         for (String name : List.of("shl-long", "shr-long", "ushr-long"))
             assertEquals(List.of(0, 1), widePositions(name), name);
-        for (String name : List.of("shl-long/2addr", "shr-long/2addr", "ushr-long/2addr"))
-            assertEquals(List.of(0), widePositions(name), name);
 
         // The compared values are wide but the result is an int.
         for (String name : List.of("cmp-long", "cmpl-double", "cmpg-double"))
@@ -132,8 +128,8 @@ public class DalvikInstructionMetadataTest {
 
     @Test
     void narrowFormsDeclareNoWideOperand() {
-        // The literal forms are integer-only, so neither their roles nor their schemas are wide.
-        for (String name : List.of("add-int/lit8", "rsub-int", "shl-int/lit8", "add-int"))
+        // Integer arithmetic is narrow throughout, including the operations that take a literal, so no role is wide.
+        for (String name : List.of("add-int", "sub-int", "shl-int", "rsub-int"))
             assertEquals(List.of(), widePositions(name), name);
         assertFalse(DalvikInstructions.INSTANCE.get("add-int").metadata().roles().stream()
                 .anyMatch(role -> role.width() == OperandRole.WidthPolicy.WIDE));

@@ -6,13 +6,14 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.specific.ASTMethod;
+import me.darknet.assembler.backend.dalvik.instructions.ArithmeticLowering;
 import me.darknet.assembler.backend.dalvik.instructions.ArrayData;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikLowering;
+import me.darknet.assembler.backend.dalvik.instructions.IntegerLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.PackedSwitchPayload;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRange;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
-import me.darknet.assembler.backend.dalvik.instructions.SignedLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
 import me.darknet.assembler.backend.dalvik.visitor.ASTDalvikInstructionVisitor;
 import me.darknet.assembler.instructions.MemberPath;
@@ -301,21 +302,17 @@ public final class DalvikRegisterUsageLookup {
         }
 
         @Override
-        public void visitBinaryOperation(DalvikLowering lowering, RegisterRef to, RegisterRef from1, RegisterRef from2) {
+        public void visitBinaryOperation(ArithmeticLowering lowering, RegisterRef to, RegisterRef from1, RegisterRef from2) {
+            // An in-place operation names one register as both destination and first source, so that
+            // register is counted as read and written.
             read(from1);
             read(from2);
             write(to);
         }
 
         @Override
-        public void visitBinary2AddrOperation(DalvikLowering lowering, RegisterRef a, RegisterRef b) {
-            readWrite(a);
-            read(b);
-        }
-
-        @Override
-        public void visitBinaryLiteralOperation(DalvikLowering lowering, RegisterRef to, RegisterRef from,
-                                                SignedLiteral constant) {
+        public void visitBinaryLiteralOperation(ArithmeticLowering lowering, RegisterRef to, RegisterRef from,
+                                                IntegerLiteral literal) {
             read(from);
             write(to);
         }

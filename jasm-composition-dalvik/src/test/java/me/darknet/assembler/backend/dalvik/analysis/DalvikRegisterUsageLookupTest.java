@@ -32,7 +32,7 @@ class DalvikRegisterUsageLookupTest {
         Fixture fixture = compileMethod("""
                 const v0 7
                 move v1 v0
-                add-int/2addr v1 v0
+                add-int v1 v1 v0
                 return v1
                 """, "()I", 2);
         List<DalvikRegisterUsage> usages = fixture.usages();
@@ -40,13 +40,13 @@ class DalvikRegisterUsageLookupTest {
         DalvikRegisterUsage v0 = usage(usages, "v0");
         assertEquals(2, v0.readCount());
         assertEquals(1, v0.writeCount());
-        assertEquals(List.of("const", "move", "add-int/2addr"), mnemonics(v0.references()));
+        assertEquals(List.of("const", "move", "add-int"), mnemonics(v0.references()));
 
         DalvikRegisterUsage v1 = usage(usages, "v1");
         assertEquals(2, v1.readCount());
         assertEquals(2, v1.writeCount());
-        assertEquals(List.of("move", "add-int/2addr", "return"), mnemonics(v1.references()));
-        assertEquals(1, v1.references().stream().filter(instruction -> mnemonic(instruction).equals("add-int/2addr")).count());
+        assertEquals(List.of("move", "add-int", "return"), mnemonics(v1.references()));
+        assertEquals(1, v1.references().stream().filter(instruction -> mnemonic(instruction).equals("add-int")).count());
     }
 
     @Test

@@ -90,7 +90,7 @@ public class CollectionPatterns {
         E: 
             invoke-virtual { name } java/lang/String.length ()I
             move-result v3
-            add-int/2addr total v3
+            add-int total total v3
         F: 
             goto C
         G: 

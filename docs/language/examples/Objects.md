@@ -132,7 +132,7 @@ public class Account {
         code: {
         A: 
             iget v0 v1 Account.balance I
-            add-int/2addr v0 v2
+            add-int v0 v0 v2
             iput v0 v1 Account.balance I
         B: 
             iget v0 v1 Account.balance I

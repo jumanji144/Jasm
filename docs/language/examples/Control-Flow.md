@@ -87,7 +87,7 @@ public class ControlFlow {
         C: 
             if-ge value v3 J
         D: 
-            and-int/lit8 v2 value 1
+            and-int v2 value 1
             if-nez v2 F
         E: 
             goto I
@@ -98,9 +98,9 @@ public class ControlFlow {
             goto J
         H: 
             mul-int v2 value value
-            add-int/2addr sum v2
+            add-int sum sum v2
         I: 
-            add-int/lit8 value value 1
+            add-int value value 1
             goto C
         J: 
             return sum

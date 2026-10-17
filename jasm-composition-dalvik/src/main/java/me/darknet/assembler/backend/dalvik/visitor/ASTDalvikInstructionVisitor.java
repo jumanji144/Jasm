@@ -3,12 +3,13 @@ package me.darknet.assembler.backend.dalvik.visitor;
 import me.darknet.assembler.ast.ASTElement;
 import me.darknet.assembler.ast.primitive.ASTArray;
 import me.darknet.assembler.ast.primitive.ASTIdentifier;
+import me.darknet.assembler.backend.dalvik.instructions.ArithmeticLowering;
 import me.darknet.assembler.backend.dalvik.instructions.ArrayData;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikLowering;
+import me.darknet.assembler.backend.dalvik.instructions.IntegerLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.PackedSwitchPayload;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
-import me.darknet.assembler.backend.dalvik.instructions.SignedLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
 import me.darknet.assembler.instructions.MemberPath;
 import me.darknet.assembler.visitor.ASTInstructionVisitor;
@@ -251,10 +252,11 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	void visitIfZero(@NotNull DalvikLowering lowering, RegisterRef a, ASTIdentifier label);
 
 	/**
-	 * Visits a three-register binary operation.
+	 * Visits an arithmetic operation whose second source is a register. The encoding is chosen once registers are
+	 * assigned, so this may be emitted as a two-address form when the destination is the first source.
 	 *
 	 * @param lowering
-	 * 		Declared dex opcode and encoding form of the matched instruction.
+	 * 		Encodings of the matched operation.
 	 * @param to
 	 * 		The destination register.
 	 * @param from1
@@ -262,34 +264,23 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	 * @param from2
 	 * 		The second source register.
 	 */
-	void visitBinaryOperation(@NotNull DalvikLowering lowering, RegisterRef to, RegisterRef from1, RegisterRef from2);
+	void visitBinaryOperation(@NotNull ArithmeticLowering lowering, RegisterRef to, RegisterRef from1, RegisterRef from2);
 
 	/**
-	 * Visits a two-address binary operation.
+	 * Visits an arithmetic operation whose second source is an integer literal. The literal form is chosen once
+	 * registers are assigned.
 	 *
 	 * @param lowering
-	 * 		Declared dex opcode and encoding form of the matched instruction.
-	 * @param a
-	 * 		The destination and first source register.
-	 * @param b
-	 * 		The second source register.
-	 */
-	void visitBinary2AddrOperation(@NotNull DalvikLowering lowering, RegisterRef a, RegisterRef b);
-
-	/**
-	 * Visits a binary operation with an integer literal.
-	 *
-	 * @param lowering
-	 * 		Declared dex opcode and encoding form of the matched instruction.
+	 * 		Encodings of the matched operation.
 	 * @param to
 	 * 		The destination register.
 	 * @param from
 	 * 		The source register.
-	 * @param constant
-	 * 		The signed operation literal and the width its operand schema accepted.
+	 * @param literal
+	 * 		The exact integer operand.
 	 */
-	void visitBinaryLiteralOperation(@NotNull DalvikLowering lowering, RegisterRef to, RegisterRef from,
-	                                 SignedLiteral constant);
+	void visitBinaryLiteralOperation(@NotNull ArithmeticLowering lowering, RegisterRef to, RegisterRef from,
+	                                 IntegerLiteral literal);
 
 	/**
 	 * Visits an array operation instruction, which performs an operation on an array.

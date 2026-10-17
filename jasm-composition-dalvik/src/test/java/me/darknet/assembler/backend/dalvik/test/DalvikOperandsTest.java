@@ -231,45 +231,108 @@ class DalvikOperandsTest {
 	}
 
 	@Test
-	void binaryLiteralOperationsDeclareTheirSignedRange() {
-		// The operand schema owns the range, so an out-of-range literal is rejected while parsing
-		// rather than at emission.
-		assertErrorContains("""
-				.method public static test ()V {
-				  code: {
-				    add-int/lit8 v0 v1 128
-				    return-void
-				  }
-				}
-				""", "literal in the signed range -128 to 127");
-
+	void arithmeticSecondSourceIsARegisterOrAnIntegerLiteral() {
+		// An identifier names a register and a number is its value, so each is accepted where the other is not.
 		assertDalvikOk("""
 				.method public static test ()V {
 				  code: {
-				    add-int/lit8 v0 v1 127
+				    add-int v0 v1 v2
+				    add-int v0 v1 3
+				    add-int v0 v1 -3
+				    add-int v0 v1 2147483647
+				    add-int v0 v1 -2147483648
 				    return-void
 				  }
 				}
 				""");
 
-		// The 16-bit forms accept the wider range under the same message shape, and both bounds hold.
+		// The value must be an int. A wider integer is refused rather than wrapped, and a floating-point number is refused
+		// rather than truncated to an integer.
 		assertErrorContains("""
 				.method public static test ()V {
 				  code: {
-				    add-int/lit16 v0 v1 32768
+				    add-int v0 v1 2147483648
 				    return-void
 				  }
 				}
-				""", "literal in the signed range -32768 to 32767");
+				""", "integer literal from -2147483648 through 2147483647");
 
+		assertErrorContains("""
+				.method public static test ()V {
+				  code: {
+				    add-int v0 v1 1.5
+				    return-void
+				  }
+				}
+				""", "integer literal");
+
+		assertErrorContains("""
+				.method public static test ()V {
+				  code: {
+				    add-int v0 v1 "three"
+				    return-void
+				  }
+				}
+				""", "register or integer literal");
+	}
+
+	@Test
+	void registerOnlyPositionsRefuseNumbers() {
+		// A number in a register position is refused, so no slot is ever allocated under a name such as "3".
+		assertErrorContains("""
+				.method public static test ()V {
+				  code: {
+				    sub-int v0 v1 3
+				    return-void
+				  }
+				}
+				""", "Expected register");
+
+		assertErrorContains("""
+				.method public static test ()V {
+				  code: {
+				    move 3 v0
+				    return-void
+				  }
+				}
+				""", "Expected register");
+	}
+
+	@Test
+	void reverseSubtractionTakesOnlyAnIntegerLiteral() {
 		assertDalvikOk("""
 				.method public static test ()V {
 				  code: {
-				    rsub-int v0 v1 -32768
+				    rsub-int v0 v1 -5
+				    rsub-int v0 v1 -2147483648
 				    return-void
 				  }
 				}
 				""");
+
+		assertErrorContains("""
+				.method public static test ()V {
+				  code: {
+				    rsub-int v0 v1 v2
+				    return-void
+				  }
+				}
+				""", "Expected integer literal");
+	}
+
+	@Test
+	void retiredArithmeticSpellingsAreUnknownInstructions() {
+		// The literal and two-address spellings were replaced by the ordinary mnemonics, which select the encoding.
+		for (String mnemonic : List.of("add-int/lit8", "add-int/lit16", "rsub-int/lit8", "add-int/2addr")) {
+			assertErrorContains("""
+					.method public static test ()V {
+					  code: {
+					    %s v0 v1 3
+					    return-void
+					  }
+					}
+					""".formatted(mnemonic), "Unknown instruction: " + mnemonic);
+		}
 	}
 
 	@Test

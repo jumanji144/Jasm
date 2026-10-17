@@ -24,9 +24,9 @@ class DalvikConstantTypePrintingTest {
 				.method public static tap (J)J {
 				    registers: 4,
 				    code: {
-				        const-wide v0 1L
-				        add-long/2addr v0 v2
-				        return-wide v0
+                        const-wide v0 1L
+                        add-long v0 v0 v2
+                        return-wide v0
 				    }
 				}
 				""");

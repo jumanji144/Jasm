@@ -15,8 +15,12 @@ import me.darknet.assembler.test.DiagnosticAssertions;
 import me.darknet.dex.file.instructions.Opcodes;
 import me.darknet.dex.tree.DexFile;
 import me.darknet.dex.tree.definitions.ClassDefinition;
+import me.darknet.dex.tree.definitions.instructions.Binary2AddrInstruction;
+import me.darknet.dex.tree.definitions.instructions.BinaryInstruction;
+import me.darknet.dex.tree.definitions.instructions.BinaryLiteralInstruction;
 import me.darknet.dex.tree.definitions.instructions.ConstMethodHandleInstruction;
 import me.darknet.dex.tree.definitions.instructions.ConstMethodTypeInstruction;
+import me.darknet.dex.tree.definitions.instructions.Instruction;
 import me.darknet.dex.tree.definitions.constant.NullConstant;
 import me.darknet.dex.tree.definitions.instructions.FillArrayDataInstruction;
 import me.darknet.dex.tree.definitions.MemberIdentifier;
@@ -33,6 +37,25 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DalvikCompilerTest {
+
+    /** Each arithmetic line selects a different encoding: ordinary, in-place, eight-bit literal, sixteen-bit literal, and reverse subtraction. */
+    private static final String ARITHMETIC_VARIANTS_SOURCE = """
+            .super java/lang/Object
+            .class public Example {
+                .method public static binary ()V {
+                    code: {
+                        const v0 1
+                        const v1 2
+                        add-int v2 v0 v1
+                        add-int v2 v2 v1
+                        add-int v2 v1 3
+                        add-int v2 v1 300
+                        rsub-int v2 v1 300
+                        return-void
+                    }
+                }
+            }
+            """;
 
     @Test
     void compilesClassToDalvikRepresentation() {
@@ -145,43 +168,50 @@ class DalvikCompilerTest {
 
     @Test
     void compilesBinaryOperationVariants() {
-        TestUtils.processDalvik("""
-                .super java/lang/Object
-                .class public Example {
-                    .method public static binary ()V {
-                        code: {
-                            const v0 1
-                            const v1 2
-                            add-int v2 v0 v1
-                            add-int/2addr v2 v1
-                            add-int/lit8 v2 v1 3
-                            add-int/lit16 v2 v1 300
-                            rsub-int v2 v1 300
-                            return-void
-                        }
-                    }
-                }
-                """, TestUtils.options(), result -> {
+        TestUtils.processDalvik(ARITHMETIC_VARIANTS_SOURCE, TestUtils.options(), result -> {
             var instructions = ((DalvikClassRepresentation) result.representation()).definition()
                     .getMethod("binary", "()V").getCode().getInstructions();
-            assertTrue(instructions.stream().anyMatch(instruction -> instruction.opcode() == Opcodes.ADD_INT));
-            assertTrue(instructions.stream().anyMatch(instruction -> instruction.opcode() == Opcodes.ADD_INT_2ADDR));
-            assertTrue(instructions.stream().anyMatch(instruction -> instruction.opcode() == Opcodes.ADD_INT_LIT8));
-            assertTrue(instructions.stream().anyMatch(instruction -> instruction.opcode() == Opcodes.ADD_INT_LIT16));
-            assertTrue(instructions.stream().anyMatch(instruction -> instruction.opcode() == Opcodes.RSUB_INT));
 
-            DalvikClassPrinter printer = new DalvikClassPrinter(
-                    ((DalvikClassRepresentation) result.representation()).definition()
-            );
+            // Each source line selects one encoding from its operands: the ordinary form, the two-address form for an
+            // in-place destination, the eight-bit literal, the sixteen-bit literal, and the sixteen-bit reverse subtraction.
+            assertEquals(List.of(Opcodes.ADD_INT, Opcodes.ADD_INT_2ADDR, Opcodes.ADD_INT_LIT8,
+                    Opcodes.ADD_INT_LIT16, Opcodes.RSUB_INT), arithmeticOpcodes(instructions));
+        });
+    }
+
+    @Test
+    void printedArithmeticRecompilesToTheSameEncodings() {
+        TestUtils.processDalvik(ARITHMETIC_VARIANTS_SOURCE, TestUtils.options(), result -> {
+            ClassDefinition definition = ((DalvikClassRepresentation) result.representation()).definition();
+            List<Integer> encodings = arithmeticOpcodes(definition.getMethod("binary", "()V").getCode().getInstructions());
+
+            DalvikClassPrinter printer = new DalvikClassPrinter(definition);
             PrintContext<?> context = new PrintContext<>("\t");
             printer.print(context);
             String printed = TestUtils.normalize(context.toString());
-            assertTrue(printed.contains("add-int/2addr"), printed);
-            assertTrue(printed.contains("add-int/lit8"), printed);
-            assertTrue(printed.contains("add-int/lit16"), printed);
-            assertTrue(printed.contains("rsub-int"), printed);
-            TestUtils.assertParsesDalvik(printed);
+
+            // The printed ordinary mnemonics are recompiled, and the operands must select the same encodings again.
+            TestUtils.processDalvik(printed, TestUtils.options(), recompiled -> {
+                ClassDefinition reread = ((DalvikClassRepresentation) recompiled.representation()).definition();
+                assertEquals(encodings, arithmeticOpcodes(reread.getMethod("binary", "()V").getCode().getInstructions()),
+                        printed);
+            });
         });
+    }
+
+    /**
+     * @param instructions
+     * 		Instructions of a compiled method.
+     *
+     * @return Opcodes of the arithmetic instructions in emitted order, which record the encoding each source line selected.
+     */
+    private static List<Integer> arithmeticOpcodes(List<Instruction> instructions) {
+        return instructions.stream()
+                .filter(instruction -> instruction instanceof BinaryInstruction
+                        || instruction instanceof Binary2AddrInstruction
+                        || instruction instanceof BinaryLiteralInstruction)
+                .map(Instruction::opcode)
+                .toList();
     }
 
     @Test

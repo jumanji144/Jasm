@@ -13,7 +13,6 @@ import me.darknet.assembler.descriptor.DescriptorForm;
 import me.darknet.assembler.descriptor.PrimitiveType;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.helper.Handle;
-import me.darknet.assembler.instructions.DefaultOperands;
 import me.darknet.assembler.instructions.HandleOperands;
 import me.darknet.assembler.instructions.Operand;
 import me.darknet.assembler.instructions.OperandRole;
@@ -37,12 +36,12 @@ import java.util.Map;
  */
 public enum DalvikOperands implements Operands {
 	CONSTANT(DalvikOperands::verifyConstant),
-	REGISTER(DefaultOperands.LITERAL.getOperand().verifier(), DalvikOperands::resolveRegister),
-	REGISTER_WIDE(DefaultOperands.LITERAL.getOperand().verifier(), DalvikOperands::resolveRegisterWide),
+	REGISTER(DalvikOperands::verifyRegister, DalvikOperands::resolveRegister),
+	REGISTER_WIDE(DalvikOperands::verifyRegister, DalvikOperands::resolveRegisterWide),
 	REGISTER_ARRAY(DalvikOperands::verifyRegisterArray, DalvikOperands::resolveRegisterList),
 	REGISTER_RANGE(DalvikOperands::verifyRegisterRange, DalvikOperands::resolveRegisterRange),
-	LITERAL_8(DalvikOperands::verifyLiteral8, DalvikOperands::resolveLiteral8),
-	LITERAL_16(DalvikOperands::verifyLiteral16, DalvikOperands::resolveLiteral16),
+	REGISTER_OR_LITERAL(DalvikOperands::verifyRegisterOrLiteral, DalvikOperands::resolveRegisterOrLiteral),
+	INTEGER_LITERAL(DalvikOperands::verifyIntegerLiteral, DalvikOperands::resolveIntegerLiteral),
 	CLASS_TYPE(DalvikOperands::verifyClassType),
 	METHOD_TYPE(DalvikOperands::verifyMethodType),
 	FILLED_NEW_ARRAY_TYPE(DalvikOperands::verifyFilledNewArrayType),
@@ -128,47 +127,98 @@ public enum DalvikOperands implements Operands {
 	}
 
 	/**
-	 * @param context
-	 * 		Processor context receiving diagnostics.
-	 * @param element
-	 * 		Verified literal element.
-	 */
-	private static void verifyLiteral8(ProcessorContext context, ASTElement element) {
-		verifySignedLiteral(context, element, Byte.MIN_VALUE, Byte.MAX_VALUE, "-128 to 127");
-	}
-
-	/**
-	 * @param context
-	 * 		Processor context receiving diagnostics.
-	 * @param element
-	 * 		Verified literal element.
-	 */
-	private static void verifyLiteral16(ProcessorContext context, ASTElement element) {
-		verifySignedLiteral(context, element, Short.MIN_VALUE, Short.MAX_VALUE, "-32768 to 32767");
-	}
-
-	/**
-	 * @param context
-	 * 		Processor context receiving diagnostics.
-	 * @param element
-	 * 		Verified 8-bit literal element.
+	 * A register is written as an identifier. A number is a value, so it is never accepted as a register name.
 	 *
-	 * @return Literal carrying its 8-bit encoding width.
+	 * @param context
+	 * 		Processor context receiving diagnostics.
+	 * @param element
+	 * 		Source element of a register operand.
 	 */
-	private static OperandValue resolveLiteral8(ProcessorContext context, ASTElement element) {
-		return new SignedLiteral((int) ((ASTNumber) element).asLong(), 8);
+	private static void verifyRegister(ProcessorContext context, ASTElement element) {
+		if (element.type() != ElementType.IDENTIFIER)
+			context.throwUnexpectedElementError("register", element);
+	}
+
+	/**
+	 * An arithmetic source is either a register or an integer literal. The two are told apart by their spelling:
+	 * an identifier is a register and a number is its value.
+	 *
+	 * @param context
+	 * 		Processor context receiving diagnostics.
+	 * @param element
+	 * 		Source element of the operand.
+	 */
+	private static void verifyRegisterOrLiteral(ProcessorContext context, ASTElement element) {
+		if (element.type() == ElementType.IDENTIFIER)
+			return;
+		if (context.isNotType(element, ElementType.NUMBER, "register or integer literal"))
+			return;
+		verifyIntegerLiteral(context, element);
 	}
 
 	/**
 	 * @param context
 	 * 		Processor context receiving diagnostics.
 	 * @param element
-	 * 		Verified 16-bit literal element.
-	 *
-	 * @return Literal carrying its 16-bit encoding width.
+	 * 		Source element of an integer literal operand.
 	 */
-	private static OperandValue resolveLiteral16(ProcessorContext context, ASTElement element) {
-		return new SignedLiteral((int) ((ASTNumber) element).asLong(), 16);
+	private static void verifyIntegerLiteral(ProcessorContext context, ASTElement element) {
+		if (context.isNotType(element, ElementType.NUMBER, "integer literal"))
+			return;
+		ASTNumber number = (ASTNumber) element;
+		if (number.isFloatingPoint()) {
+			context.throwUnexpectedElementError("integer literal", number);
+			return;
+		}
+		if (integerValue(number) == null)
+			context.throwUnexpectedElementError("integer literal from " + Integer.MIN_VALUE + " through "
+					+ Integer.MAX_VALUE, number);
+	}
+
+	/**
+	 * @param context
+	 * 		Processor context receiving diagnostics.
+	 * @param element
+	 * 		Verified register or integer literal.
+	 *
+	 * @return Integer literal for a number, otherwise the named or numbered register.
+	 */
+	private static OperandValue resolveRegisterOrLiteral(ProcessorContext context, ASTElement element) {
+		return element.type() == ElementType.NUMBER
+				? resolveIntegerLiteral(context, element)
+				: resolveRegister(context, element);
+	}
+
+	/**
+	 * @param context
+	 * 		Processor context receiving diagnostics.
+	 * @param element
+	 * 		Verified integer literal.
+	 *
+	 * @return Literal holding the exact value of the source.
+	 */
+	private static OperandValue resolveIntegerLiteral(ProcessorContext context, ASTElement element) {
+		// The verifier has already placed the value in the int range, so the narrowing cannot change it.
+		return new IntegerLiteral((int) ((ASTNumber) element).asLong());
+	}
+
+	/**
+	 * @param number
+	 * 		Numeric source element.
+	 *
+	 * @return The value when it is an integer within the range of an {@code int}, otherwise {@code null}. A
+	 * floating-point number is refused rather than truncated to an integer.
+	 */
+	private static @Nullable Integer integerValue(ASTNumber number) {
+		if (number.isFloatingPoint())
+			return null;
+		try {
+			long value = number.asLong();
+			return value < Integer.MIN_VALUE || value > Integer.MAX_VALUE ? null : (int) value;
+		} catch (NumberFormatException exception) {
+			// The spelling does not parse at any width that holds its value.
+			return null;
+		}
 	}
 
 	/**
@@ -207,40 +257,6 @@ public enum DalvikOperands implements Operands {
 				continue;
 			DalvikOperands.verifyConstant(context, value);
 		}
-	}
-
-	/**
-	 * @param context
-	 * 		Processor context receiving diagnostics.
-	 * @param element
-	 * 		Verified literal element.
-	 * @param minimum
-	 * 		Lowest value the encoding can carry.
-	 * @param maximum
-	 * 		Highest value the encoding can carry.
-	 * @param range
-	 * 		Human-readable range used in the diagnostic.
-	 */
-	private static void verifySignedLiteral(ProcessorContext context, ASTElement element,
-	                                        long minimum, long maximum, String range) {
-		if (context.isNotType(element, ElementType.NUMBER, "integer literal"))
-			return;
-		ASTNumber number = (ASTNumber) element;
-		if (number.isFloatingPoint()) {
-			context.throwUnexpectedElementError("integer literal", number);
-			return;
-		}
-
-		long value;
-		try {
-			value = number.asLong();
-		} catch (NumberFormatException exception) {
-			// A literal too large for a long cannot be encoded at any width.
-			context.throwUnexpectedElementError("literal in the signed range " + range, number);
-			return;
-		}
-		if (value < minimum || value > maximum)
-			context.throwUnexpectedElementError("literal in the signed range " + range, number);
 	}
 
 	/**

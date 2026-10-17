@@ -101,7 +101,7 @@ public class ArrayPatterns {
         C: 
             aput v3 v2 index
         D: 
-            add-int/lit8 index index 1
+            add-int index index 1
             goto B
         E: 
             return-void 
@@ -122,9 +122,9 @@ public class ArrayPatterns {
             if-ge index v2 F
         D: 
             aget v2 v3 index
-            add-int/2addr total v2
+            add-int total total v2
         E: 
-            add-int/lit8 index index 1
+            add-int index index 1
             goto C
         F: 
             return total

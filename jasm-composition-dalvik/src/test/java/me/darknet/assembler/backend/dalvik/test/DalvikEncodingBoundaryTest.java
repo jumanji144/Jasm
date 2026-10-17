@@ -104,8 +104,8 @@ class DalvikEncodingBoundaryTest {
                     registers: 18,
                     parameters: { a, b },
                     code: {
-                        add-int/lit8 v16 v17 3
-                        rsub-int/lit8 v17 v16 -5
+                        add-int v16 v17 3
+                        rsub-int v17 v16 -5
                         return v16
                     }
                 }
@@ -123,7 +123,7 @@ class DalvikEncodingBoundaryTest {
                     registers: 16,
                     parameters: { a, b },
                     code: {
-                        add-int/lit16 v14 v15 300
+                        add-int v14 v15 300
                         rsub-int v15 v14 -32768
                         return v14
                     }
@@ -142,8 +142,8 @@ class DalvikEncodingBoundaryTest {
                     registers: 16,
                     parameters: { a, b },
                     code: {
-                        add-int/2addr v14 v15
-                        add-int/2addr v15 v15
+                        add-int v14 v14 v15
+                        add-int v15 v15 v15
                         return v14
                     }
                 }
@@ -175,6 +175,187 @@ class DalvikEncodingBoundaryTest {
         assertEquals(255, operations.getFirst().dest());
         assertEquals(254, operations.getFirst().a());
         assertEquals(255, operations.getFirst().b());
+    }
+
+    @Test
+    void literalAtTheEightBitBoundariesSelectsTheEightBitForm() throws IOException {
+        List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
+                .method public static bounds ()V {
+                    registers: 256,
+                    code: {
+                        add-int v255 v0 127
+                        add-int v0 v255 -128
+                        return-void
+                    }
+                }
+                """), "bounds", "()V"), BinaryLiteralInstruction.class);
+
+        assertEquals(2, operations.size());
+        assertLiteral(operations.get(0), Opcodes.ADD_INT_LIT8, 255, 0, 127);
+        assertLiteral(operations.get(1), Opcodes.ADD_INT_LIT8, 0, 255, -128);
+    }
+
+    @Test
+    void literalJustOutsideTheEightBitRangeSelectsTheSixteenBitForm() throws IOException {
+        List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
+                .method public static bounds ()V {
+                    registers: 16,
+                    code: {
+                        add-int v0 v15 128
+                        add-int v14 v1 -129
+                        add-int v14 v15 32767
+                        add-int v15 v14 -32768
+                        return-void
+                    }
+                }
+                """), "bounds", "()V"), BinaryLiteralInstruction.class);
+
+        assertEquals(4, operations.size());
+        assertLiteral(operations.get(0), Opcodes.ADD_INT_LIT16, 0, 15, 128);
+        assertLiteral(operations.get(1), Opcodes.ADD_INT_LIT16, 14, 1, -129);
+        assertLiteral(operations.get(2), Opcodes.ADD_INT_LIT16, 14, 15, 32767);
+        assertLiteral(operations.get(3), Opcodes.ADD_INT_LIT16, 15, 14, -32768);
+    }
+
+    @Test
+    void literalEightAddsOnAHighRegister() throws IOException {
+        List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
+                .method public static high ()I {
+                    registers: 202,
+                    code: {
+                        add-int v200 v100 5
+                        return v200
+                    }
+                }
+                """), "high", "()I"), BinaryLiteralInstruction.class);
+
+        assertEquals(1, operations.size());
+        assertLiteral(operations.getFirst(), Opcodes.ADD_INT_LIT8, 200, 100, 5);
+    }
+
+    @Test
+    void shiftLiteralsSelectTheEightBitForm() throws IOException {
+        List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
+                .method public static shifts (I)I {
+                    registers: 18,
+                    parameters: { value },
+                    code: {
+                        shl-int v16 value 5
+                        ushr-int v17 v16 -1
+                        return v17
+                    }
+                }
+                """), "shifts", "(I)I"), BinaryLiteralInstruction.class);
+
+        assertEquals(2, operations.size());
+        assertLiteral(operations.get(0), Opcodes.SHL_INT_LIT8, 16, 17, 5);
+        assertLiteral(operations.get(1), Opcodes.USHR_INT_LIT8, 17, 16, -1);
+    }
+
+    @Test
+    void reverseSubtractionSelectsItsFormFromTheLiteral() throws IOException {
+        List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
+                .method public static reverse (I)I {
+                    registers: 3,
+                    parameters: { value },
+                    code: {
+                        rsub-int v1 value -5
+                        rsub-int v0 value 300
+                        return v0
+                    }
+                }
+                """), "reverse", "(I)I"), BinaryLiteralInstruction.class);
+
+        assertEquals(2, operations.size());
+        assertLiteral(operations.get(0), Opcodes.RSUB_INT_LIT8, 1, 2, -5);
+        assertLiteral(operations.get(1), Opcodes.RSUB_INT, 0, 2, 300);
+    }
+
+    @Test
+    void twoAddressFormIsChosenOnlyWhenTheDestinationIsTheFirstSource() throws IOException {
+        List<Instruction> instructions = decodedInstructions(example("""
+                .method public static inPlace ()I {
+                    registers: 17,
+                    code: {
+                        add-int v0 v0 v1
+                        add-int v0 v0 v16
+                        add-int v16 v16 v1
+                        return v0
+                    }
+                }
+                """), "inPlace", "()I");
+
+        List<Binary2AddrInstruction> compact = decoded(instructions, Binary2AddrInstruction.class);
+        assertEquals(1, compact.size());
+        assertEquals(Opcodes.ADD_INT_2ADDR, compact.getFirst().opcode());
+        assertEquals(0, compact.getFirst().a());
+        assertEquals(1, compact.getFirst().b());
+
+        List<BinaryInstruction> ordinary = decoded(instructions, BinaryInstruction.class);
+        assertEquals(2, ordinary.size());
+        assertEquals(0, ordinary.get(0).dest());
+        assertEquals(0, ordinary.get(0).a());
+        assertEquals(16, ordinary.get(0).b());
+        assertEquals(16, ordinary.get(1).dest());
+        assertEquals(16, ordinary.get(1).a());
+        assertEquals(1, ordinary.get(1).b());
+    }
+
+    @Test
+    void aliasedDestinationIsComparedBySlotAndSubtractionKeepsItsOrder() throws IOException {
+        // p0 and a name the same slot, so the in-place add takes the compact form. The subtraction's destination is
+        // its second source, which must stay in the written position rather than be swapped into a compact form.
+        List<Instruction> instructions = decodedInstructions(example("""
+                .method public static alias (II)I {
+                    registers: 2,
+                    parameters: { a, b },
+                    code: {
+                        add-int p0 a b
+                        sub-int p1 a b
+                        return p0
+                    }
+                }
+                """), "alias", "(II)I");
+
+        List<Binary2AddrInstruction> compact = decoded(instructions, Binary2AddrInstruction.class);
+        assertEquals(1, compact.size());
+        assertEquals(Opcodes.ADD_INT_2ADDR, compact.getFirst().opcode());
+        assertEquals(0, compact.getFirst().a());
+        assertEquals(1, compact.getFirst().b());
+
+        List<BinaryInstruction> ordinary = decoded(instructions, BinaryInstruction.class);
+        assertEquals(1, ordinary.size());
+        assertEquals(Opcodes.SUB_INT, ordinary.getFirst().opcode());
+        assertEquals(1, ordinary.getFirst().dest());
+        assertEquals(0, ordinary.getFirst().a());
+        assertEquals(1, ordinary.getFirst().b());
+    }
+
+    @Test
+    void wideInPlaceArithmeticUsesThePairSlotWhenItFits() throws IOException {
+        List<Instruction> instructions = decodedInstructions(example("""
+                .method public static wide ()J {
+                    registers: 256,
+                    code: {
+                        add-long v0 v0 v2
+                        add-long v254 v254 v0
+                        return-wide v0
+                    }
+                }
+                """), "wide", "()J");
+
+        List<Binary2AddrInstruction> compact = decoded(instructions, Binary2AddrInstruction.class);
+        assertEquals(1, compact.size());
+        assertEquals(Opcodes.ADD_LONG_2ADDR, compact.getFirst().opcode());
+        assertEquals(0, compact.getFirst().a());
+        assertEquals(2, compact.getFirst().b());
+
+        List<BinaryInstruction> ordinary = decoded(instructions, BinaryInstruction.class);
+        assertEquals(1, ordinary.size());
+        assertEquals(Opcodes.ADD_LONG, ordinary.getFirst().opcode());
+        assertEquals(254, ordinary.getFirst().dest());
+        assertEquals(254, ordinary.getFirst().a());
+        assertEquals(0, ordinary.getFirst().b());
     }
 
     @Test
@@ -293,30 +474,32 @@ class DalvikEncodingBoundaryTest {
     }
 
     @Test
-    void literal16RejectsEveryOperandAboveV15() {
+    void literalNeedingTheSixteenBitFormRejectsRegistersAboveV15() {
+        // The literal fits no eight-bit form and the sixteen-bit form cannot name v16 or v17, so one diagnostic names
+        // the literal and both registers instead of reporting each register as though it alone were the problem.
         var rejected = compileRejected(example("""
                 .method public static wide ()V {
                     registers: 18,
                     code: {
-                        add-int/lit16 v16 v17 300
+                        add-int v16 v17 300
                         return-void
                     }
                 }
                 """));
 
         List<Diagnostic> limits = errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT);
-        assertEquals(2, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
-        assertTrue(limits.stream().anyMatch(limit -> limit.message().contains("v16")), limits.toString());
-        assertTrue(limits.stream().anyMatch(limit -> limit.message().contains("v17")), limits.toString());
+        assertEquals(1, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
+        assertTrue(limits.getFirst().message().contains("literal 300"), limits.getFirst().message());
+        assertTrue(limits.getFirst().message().contains("v16 and v17"), limits.getFirst().message());
     }
 
     @Test
-    void literal8RejectsADestinationAboveV255() {
+    void literalRejectsADestinationAboveV255() {
         var rejected = compileRejected(example("""
                 .method public static wide ()V {
                     registers: 257,
                     code: {
-                        add-int/lit8 v256 v255 1
+                        add-int v256 v255 1
                         return-void
                     }
                 }
@@ -328,21 +511,25 @@ class DalvikEncodingBoundaryTest {
     }
 
     @Test
-    void twoAddressRejectsARegisterAboveV15() {
-        var rejected = compileRejected(example("""
-                .method public static twoAddress (II)V {
+    void inPlaceArithmeticAboveV15UsesTheOrdinaryForm() throws IOException {
+        // The source register v16 is above the two-address field, so the same in-place operation takes the ordinary
+        // form, which keeps the destination and both sources at their written positions.
+        List<BinaryInstruction> operations = decoded(decodedInstructions(example("""
+                .method public static ordinary (II)V {
                     registers: 17,
                     parameters: { a, b },
                     code: {
-                        add-int/2addr v15 v16
+                        add-int v15 v15 v16
                         return-void
                     }
                 }
-                """));
+                """), "ordinary", "(II)V"), BinaryInstruction.class);
 
-        List<Diagnostic> limits = errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT);
-        assertEquals(1, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
-        assertTrue(limits.getFirst().message().contains("v16"), limits.getFirst().message());
+        assertEquals(1, operations.size());
+        assertEquals(Opcodes.ADD_INT, operations.getFirst().opcode());
+        assertEquals(15, operations.getFirst().dest());
+        assertEquals(15, operations.getFirst().a());
+        assertEquals(16, operations.getFirst().b());
     }
 
     @Test
@@ -468,7 +655,7 @@ class DalvikEncodingBoundaryTest {
                 .method public static declared ()V {
                     registers: 8,
                     code: {
-                        add-int/lit16 v9 v1 5
+                        add-int v9 v1 300
                         return-void
                     }
                 }
@@ -477,7 +664,7 @@ class DalvikEncodingBoundaryTest {
                 .method public static encoded ()V {
                     registers: 20,
                     code: {
-                        add-int/lit16 v16 v1 5
+                        add-int v16 v1 300
                         return-void
                     }
                 }
@@ -491,6 +678,26 @@ class DalvikEncodingBoundaryTest {
                 DiagnosticAssertions.formatErrors(beyondEncoding.errors()));
         assertEquals(1, errorsWithCode(beyondEncoding, DiagnosticCode.TARGET_LIMIT).size(),
                 DiagnosticAssertions.formatErrors(beyondEncoding.errors()));
+    }
+
+    @Test
+    void literalWithNoSingleEncodingIsRejectedForEachFormOfTheLimit() {
+        // A literal beyond the sixteen-bit range, a shift literal beyond the eight-bit range, and a reverse subtraction
+        // whose sixteen-bit form cannot name v200 each have no single instruction, so each reports one encoding limit.
+        for (String operation : List.of("add-int v0 v1 32768", "shl-int v0 v1 300", "rsub-int v200 v100 300")) {
+            var rejected = compileRejected(example("""
+                    .method public static limit ()V {
+                        registers: 256,
+                        code: {
+                            %s
+                            return-void
+                        }
+                    }
+                    """.formatted(operation)));
+
+            List<Diagnostic> limits = errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT);
+            assertEquals(1, limits.size(), operation + "\n" + DiagnosticAssertions.formatErrors(rejected.errors()));
+        }
     }
 
     @Test

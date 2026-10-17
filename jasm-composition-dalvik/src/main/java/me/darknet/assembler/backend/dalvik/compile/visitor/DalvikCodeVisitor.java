@@ -7,13 +7,15 @@ import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.backend.dalvik.compile.DalvikConstantMapper;
+import me.darknet.assembler.backend.dalvik.instructions.ArithmeticLowering;
+import static me.darknet.assembler.backend.dalvik.instructions.ArithmeticLowering.NONE;
 import me.darknet.assembler.backend.dalvik.instructions.ArrayData;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikArrayLiterals;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikLowering;
+import me.darknet.assembler.backend.dalvik.instructions.IntegerLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.PackedSwitchPayload;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
-import me.darknet.assembler.backend.dalvik.instructions.SignedLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
 import me.darknet.assembler.backend.dalvik.visitor.ASTDalvikInstructionVisitor;
 import me.darknet.assembler.error.Diagnostic;
@@ -23,6 +25,7 @@ import me.darknet.assembler.error.DiagnosticSink;
 import me.darknet.assembler.error.Severity;
 import me.darknet.assembler.instructions.MemberPath;
 import me.darknet.assembler.instructions.OperandRole;
+import me.darknet.assembler.instructions.OperandValue;
 import me.darknet.assembler.instructions.SemanticInstruction;
 import me.darknet.assembler.instructions.ValidatedOperand;
 import me.darknet.assembler.util.Location;
@@ -101,7 +104,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	private static final int FOUR_BITS = 4;
 	/** Width of the register fields of the 21c, 22b, and 23x encodings, and of the count of a range. */
 	private static final int EIGHT_BITS = 8;
-	/** Width of the first-register field of a range encoding. */
+	/** Width of the first-register field of a range encoding, and of the signed literal of the 22s literal form. */
 	private static final int SIXTEEN_BITS = 16;
 
 	private final CodeBuilder codeBuilder;
@@ -801,30 +804,46 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitBinaryOperation(@NotNull DalvikLowering lowering, RegisterRef to, RegisterRef from1, RegisterRef from2) {
-		int[] registers = encodedIndices(EIGHT_BITS, to, from1, from2);
-		if (registers == null)
+	public void visitBinaryOperation(@NotNull ArithmeticLowering lowering, RegisterRef to, RegisterRef from1,
+	                                 RegisterRef from2) {
+		// Every operand gets its slot before an encoding is chosen, so aliasing is decided by the resolved slots.
+		int toIndex = indexOf(to);
+		int fromIndex = indexOf(from1);
+		int otherIndex = indexOf(from2);
+
+		// The two-address form writes its first source, so it can stand in only when the destination is that slot.
+		// Slots are compared rather than names, so a parameter and a local that share a slot still qualify.
+		if (toIndex == fromIndex && lowering.twoAddress() != NONE
+				&& fitsField(toIndex, FOUR_BITS) && fitsField(otherIndex, FOUR_BITS)) {
+			addInstruction(new Binary2AddrInstruction(lowering.twoAddress(), toIndex, otherIndex));
 			return;
-		addInstruction(new BinaryInstruction(lowering.opcode(), registers[0], registers[1], registers[2]));
+		}
+
+		// The ordinary form keeps the operands in their written order, and each of its three fields holds eight bits.
+		boolean fits = checkRegisterField(to, toIndex, EIGHT_BITS);
+		fits &= checkRegisterField(from1, fromIndex, EIGHT_BITS);
+		fits &= checkRegisterField(from2, otherIndex, EIGHT_BITS);
+		if (fits)
+			addInstruction(new BinaryInstruction(lowering.register(), toIndex, fromIndex, otherIndex));
 	}
 
 	@Override
-	public void visitBinary2AddrOperation(@NotNull DalvikLowering lowering, RegisterRef a, RegisterRef b) {
-		int[] registers = encodedIndices(FOUR_BITS, a, b);
-		if (registers == null)
-			return;
-		addInstruction(new Binary2AddrInstruction(lowering.opcode(), registers[0], registers[1]));
-	}
+	public void visitBinaryLiteralOperation(@NotNull ArithmeticLowering lowering, RegisterRef to, RegisterRef from,
+	                                        IntegerLiteral literal) {
+		int toIndex = indexOf(to);
+		int fromIndex = indexOf(from);
+		int value = literal.value();
 
-	@Override
-	public void visitBinaryLiteralOperation(@NotNull DalvikLowering lowering, RegisterRef to, RegisterRef from,
-	                                        SignedLiteral constant) {
-		// The literal's declared width is the form the instruction uses, and that form sets the register fields too:
-		// the /lit8 form has eight-bit registers, while the /lit16 and rsub-int forms have four-bit registers.
-		int[] registers = encodedIndices(constant.bits() == 8 ? EIGHT_BITS : FOUR_BITS, to, from);
-		if (registers == null)
-			return;
-		addInstruction(new BinaryLiteralInstruction(lowering.opcode(), registers[0], registers[1], constant.value()));
+		// The eight-bit form is preferred, since its registers reach further. The sixteen-bit form is the fallback.
+		if (lowering.literal8() != NONE && fitsSigned(value, EIGHT_BITS)
+				&& fitsField(toIndex, EIGHT_BITS) && fitsField(fromIndex, EIGHT_BITS)) {
+			addInstruction(new BinaryLiteralInstruction(lowering.literal8(), toIndex, fromIndex, value));
+		} else if (lowering.literal16() != NONE && fitsSigned(value, SIXTEEN_BITS)
+				&& fitsField(toIndex, FOUR_BITS) && fitsField(fromIndex, FOUR_BITS)) {
+			addInstruction(new BinaryLiteralInstruction(lowering.literal16(), toIndex, fromIndex, value));
+		} else {
+			reportNoLiteralEncoding(lowering, literal, toIndex, fromIndex);
+		}
 	}
 
 	@Override
@@ -1019,24 +1038,69 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	/**
-	 * Allocates the slots of single register operands in source order, checking each against the register field of
-	 * the encoding that carries it.
+	 * Reports a literal that no single encoding of its operation can carry with these registers. The message names the
+	 * ranges each form takes, so the author can change the literal or the registers without choosing a form.
 	 *
-	 * @param bits
-	 * 		Width of the register fields.
-	 * @param refs
-	 * 		Register operands in the order the encoding lists them.
-	 *
-	 * @return Slots in the same order, or {@code null} after reporting every operand whose slot does not fit.
+	 * @param lowering
+	 * 		Encodings of the operation.
+	 * @param literal
+	 * 		Literal operand that no encoding holds.
+	 * @param toIndex
+	 * 		Slot of the destination.
+	 * @param fromIndex
+	 * 		Slot of the source.
 	 */
-	private int @Nullable [] encodedIndices(int bits, @NotNull RegisterRef... refs) {
-		int[] indices = new int[refs.length];
-		boolean fits = true;
-		for (int i = 0; i < refs.length; i++) {
-			indices[i] = indexOf(refs[i]);
-			fits &= checkRegisterField(refs[i], indices[i], bits);
-		}
-		return fits ? indices : null;
+	private void reportNoLiteralEncoding(@NotNull ArithmeticLowering lowering, @NotNull IntegerLiteral literal,
+	                                     int toIndex, int fromIndex) {
+		List<String> forms = new ArrayList<>(2);
+		if (lowering.literal8() != NONE)
+			forms.add(literalForm(EIGHT_BITS, EIGHT_BITS));
+		if (lowering.literal16() != NONE)
+			forms.add(literalForm(SIXTEEN_BITS, FOUR_BITS));
+		sink.add(new Diagnostic(Severity.ERROR, DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.TARGET_LIMIT,
+				"No single '" + mnemonic() + "' instruction takes literal " + literal.value()
+						+ " with registers v" + toIndex + " and v" + fromIndex + ": it takes "
+						+ String.join(", or ", forms),
+				operandLocation(literal), List.of()));
+	}
+
+	/**
+	 * @param literalBits
+	 * 		Width of the signed literal field of a form.
+	 * @param registerBits
+	 * 		Width of the register fields of the same form.
+	 *
+	 * @return Description of the literal range and the register range that one form accepts.
+	 */
+	private static @NotNull String literalForm(int literalBits, int registerBits) {
+		int half = 1 << (literalBits - 1);
+		return "a literal from " + -half + " through " + (half - 1) + " with registers v0 through v"
+				+ maxIndex(registerBits);
+	}
+
+	/**
+	 * @param value
+	 * 		Literal value.
+	 * @param bits
+	 * 		Width of the signed field.
+	 *
+	 * @return {@code true} when {@code value} fits a two's-complement field of that width.
+	 */
+	private static boolean fitsSigned(int value, int bits) {
+		int half = 1 << (bits - 1);
+		return value >= -half && value < half;
+	}
+
+	/**
+	 * @param index
+	 * 		Slot to test.
+	 * @param bits
+	 * 		Width of the register field.
+	 *
+	 * @return {@code true} when {@code index} is a slot the field can hold.
+	 */
+	private static boolean fitsField(int index, int bits) {
+		return index >= 0 && index <= maxIndex(bits);
 	}
 
 	/**
@@ -1050,7 +1114,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @return {@code true} when the slot fits the field, otherwise {@code false} after reporting it.
 	 */
 	private boolean checkRegisterField(@NotNull RegisterRef ref, int index, int bits) {
-		if (index >= 0 && index <= maxIndex(bits))
+		if (fitsField(index, bits))
 			return true;
 
 		String subject = ref.index() == null
@@ -1066,22 +1130,22 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * exceeded, which {@link #ensureRegisterAllowed(int)} reports, so the two limits can be told apart.
 	 *
 	 * @param operand
-	 * 		Register operand that cannot be encoded.
+	 * 		Register or literal operand that cannot be encoded.
 	 * @param message
 	 * 		Description of the limit that was exceeded.
 	 */
-	private void reportEncodingLimit(@NotNull RegisterRef operand, @NotNull String message) {
+	private void reportEncodingLimit(@NotNull OperandValue operand, @NotNull String message) {
 		sink.add(new Diagnostic(Severity.ERROR, DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.TARGET_LIMIT,
 				message, operandLocation(operand), List.of()));
 	}
 
 	/**
 	 * @param operand
-	 * 		Register operand of the instruction being emitted, which may be one register of a list or range.
+	 * 		Operand value of the instruction being emitted. A register may be one of a list or range.
 	 *
-	 * @return Location of the source operand holding the register, or of the instruction when no operand holds it.
+	 * @return Location of the source operand holding the value, or of the instruction when no operand holds it.
 	 */
-	private @Nullable Location operandLocation(@NotNull RegisterRef operand) {
+	private @Nullable Location operandLocation(@NotNull OperandValue operand) {
 		if (currentInstructionAst == null)
 			return null;
 		for (ValidatedOperand validated : currentInstructionAst.operands()) {
@@ -1094,7 +1158,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	/**
-	 * @return Source spelling of the instruction being emitted, such as {@code add-int/lit16}.
+	 * @return Source spelling of the instruction being emitted, such as {@code add-int}.
 	 */
 	private @NotNull String mnemonic() {
 		return currentInstructionAst == null ? "instruction" : currentInstructionAst.source().identifier().literal();

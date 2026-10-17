@@ -7,11 +7,13 @@ import me.darknet.assembler.backend.dalvik.visitor.ASTDalvikInstructionVisitor;
 import me.darknet.assembler.instructions.DefaultOperands;
 import me.darknet.assembler.instructions.InstructionMetadata;
 import me.darknet.assembler.instructions.InstructionTrait;
+import static me.darknet.assembler.backend.dalvik.instructions.ArithmeticLowering.NONE;
 import static me.darknet.assembler.instructions.InstructionTrait.*;
 import me.darknet.assembler.instructions.Instructions;
 import me.darknet.assembler.instructions.MemberPath;
 import me.darknet.assembler.instructions.OperandRole;
 import me.darknet.assembler.instructions.Operands;
+import me.darknet.assembler.instructions.SemanticInstruction;
 import me.darknet.assembler.instructions.SwitchShape;
 import me.darknet.dex.file.instructions.Opcodes;
 
@@ -28,105 +30,45 @@ import java.util.Set;
  * opcode it encodes as, so the code visitor never has to rediscover a family from mnemonic text.
  */
 public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor> implements Opcodes {
-	private static final Map<String, Integer> BINARY_OPCODES = Map.ofEntries(
-			Map.entry("add-int", ADD_INT),
-			Map.entry("sub-int", SUB_INT),
-			Map.entry("mul-int", MUL_INT),
-			Map.entry("div-int", DIV_INT),
-			Map.entry("rem-int", REM_INT),
-			Map.entry("and-int", AND_INT),
-			Map.entry("or-int", OR_INT),
-			Map.entry("xor-int", XOR_INT),
-			Map.entry("shl-int", SHL_INT),
-			Map.entry("shr-int", SHR_INT),
-			//
-			Map.entry("ushr-int", USHR_INT),
-			Map.entry("add-long", ADD_LONG),
-			Map.entry("sub-long", SUB_LONG),
-			Map.entry("mul-long", MUL_LONG),
-			Map.entry("div-long", DIV_LONG),
-			Map.entry("rem-long", REM_LONG),
-			Map.entry("and-long", AND_LONG),
-			Map.entry("or-long", OR_LONG),
-			Map.entry("xor-long", XOR_LONG),
-			Map.entry("shl-long", SHL_LONG),
-			Map.entry("shr-long", SHR_LONG),
-			Map.entry("ushr-long", USHR_LONG),
-			//
-			Map.entry("add-float", ADD_FLOAT),
-			Map.entry("sub-float", SUB_FLOAT),
-			Map.entry("mul-float", MUL_FLOAT),
-			Map.entry("div-float", DIV_FLOAT),
-			Map.entry("rem-float", REM_FLOAT),
-			//
-			Map.entry("add-double", ADD_DOUBLE),
-			Map.entry("sub-double", SUB_DOUBLE),
-			Map.entry("mul-double", MUL_DOUBLE),
-			Map.entry("div-double", DIV_DOUBLE),
-			Map.entry("rem-double", REM_DOUBLE)
-	);
-
-	private static final Map<String, Integer> BINARY_2ADDR_OPCODES = Map.ofEntries(
-			Map.entry("add-int/2addr", ADD_INT_2ADDR),
-			Map.entry("sub-int/2addr", SUB_INT_2ADDR),
-			Map.entry("mul-int/2addr", MUL_INT_2ADDR),
-			Map.entry("div-int/2addr", DIV_INT_2ADDR),
-			Map.entry("rem-int/2addr", REM_INT_2ADDR),
-			Map.entry("and-int/2addr", AND_INT_2ADDR),
-			Map.entry("or-int/2addr", OR_INT_2ADDR),
-			Map.entry("xor-int/2addr", XOR_INT_2ADDR),
-			Map.entry("shl-int/2addr", SHL_INT_2ADDR),
-			Map.entry("shr-int/2addr", SHR_INT_2ADDR),
-			Map.entry("ushr-int/2addr", USHR_INT_2ADDR),
-			//
-			Map.entry("add-long/2addr", ADD_LONG_2ADDR),
-			Map.entry("sub-long/2addr", SUB_LONG_2ADDR),
-			Map.entry("mul-long/2addr", MUL_LONG_2ADDR),
-			Map.entry("div-long/2addr", DIV_LONG_2ADDR),
-			Map.entry("rem-long/2addr", REM_LONG_2ADDR),
-			Map.entry("and-long/2addr", AND_LONG_2ADDR),
-			Map.entry("or-long/2addr", OR_LONG_2ADDR),
-			Map.entry("xor-long/2addr", XOR_LONG_2ADDR),
-			Map.entry("shl-long/2addr", SHL_LONG_2ADDR),
-			Map.entry("shr-long/2addr", SHR_LONG_2ADDR),
-			Map.entry("ushr-long/2addr", USHR_LONG_2ADDR),
-			//
-			Map.entry("add-float/2addr", ADD_FLOAT_2ADDR),
-			Map.entry("sub-float/2addr", SUB_FLOAT_2ADDR),
-			Map.entry("mul-float/2addr", MUL_FLOAT_2ADDR),
-			Map.entry("div-float/2addr", DIV_FLOAT_2ADDR),
-			Map.entry("rem-float/2addr", REM_FLOAT_2ADDR),
-			//
-			Map.entry("add-double/2addr", ADD_DOUBLE_2ADDR),
-			Map.entry("sub-double/2addr", SUB_DOUBLE_2ADDR),
-			Map.entry("mul-double/2addr", MUL_DOUBLE_2ADDR),
-			Map.entry("div-double/2addr", DIV_DOUBLE_2ADDR),
-			Map.entry("rem-double/2addr", REM_DOUBLE_2ADDR)
-	);
-
-	private static final Map<String, Integer> BINARY_LITERAL_16_OPCODES = Map.ofEntries(
-			Map.entry("add-int/lit16", ADD_INT_LIT16),
-			Map.entry("mul-int/lit16", MUL_INT_LIT16),
-			Map.entry("div-int/lit16", DIV_INT_LIT16),
-			Map.entry("rem-int/lit16", REM_INT_LIT16),
-			Map.entry("and-int/lit16", AND_INT_LIT16),
-			Map.entry("or-int/lit16", OR_INT_LIT16),
-			Map.entry("xor-int/lit16", XOR_INT_LIT16),
-			Map.entry("rsub-int", RSUB_INT)
-	);
-
-	private static final Map<String, Integer> BINARY_LITERAL_8_OPCODES = Map.ofEntries(
-			Map.entry("add-int/lit8", ADD_INT_LIT8),
-			Map.entry("rsub-int/lit8", RSUB_INT_LIT8),
-			Map.entry("mul-int/lit8", MUL_INT_LIT8),
-			Map.entry("div-int/lit8", DIV_INT_LIT8),
-			Map.entry("rem-int/lit8", REM_INT_LIT8),
-			Map.entry("and-int/lit8", AND_INT_LIT8),
-			Map.entry("or-int/lit8", OR_INT_LIT8),
-			Map.entry("xor-int/lit8", XOR_INT_LIT8),
-			Map.entry("shl-int/lit8", SHL_INT_LIT8),
-			Map.entry("shr-int/lit8", SHR_INT_LIT8),
-			Map.entry("ushr-int/lit8", USHR_INT_LIT8)
+	/**
+	 * Canonical arithmetic keyed by source mnemonic. Each entry lists every encoding the operation has, and the emitter
+	 * chooses among them once registers are assigned. The mnemonic names the operation only.
+	 */
+	private static final Map<String, ArithmeticLowering> ARITHMETIC_OPERATIONS = Map.ofEntries(
+			Map.entry("add-int", new ArithmeticLowering(ADD_INT, ADD_INT_2ADDR, ADD_INT_LIT8, ADD_INT_LIT16)),
+			Map.entry("sub-int", new ArithmeticLowering(SUB_INT, SUB_INT_2ADDR, NONE, NONE)),
+			Map.entry("mul-int", new ArithmeticLowering(MUL_INT, MUL_INT_2ADDR, MUL_INT_LIT8, MUL_INT_LIT16)),
+			Map.entry("div-int", new ArithmeticLowering(DIV_INT, DIV_INT_2ADDR, DIV_INT_LIT8, DIV_INT_LIT16)),
+			Map.entry("rem-int", new ArithmeticLowering(REM_INT, REM_INT_2ADDR, REM_INT_LIT8, REM_INT_LIT16)),
+			Map.entry("and-int", new ArithmeticLowering(AND_INT, AND_INT_2ADDR, AND_INT_LIT8, AND_INT_LIT16)),
+			Map.entry("or-int", new ArithmeticLowering(OR_INT, OR_INT_2ADDR, OR_INT_LIT8, OR_INT_LIT16)),
+			Map.entry("xor-int", new ArithmeticLowering(XOR_INT, XOR_INT_2ADDR, XOR_INT_LIT8, XOR_INT_LIT16)),
+			Map.entry("shl-int", new ArithmeticLowering(SHL_INT, SHL_INT_2ADDR, SHL_INT_LIT8, NONE)),
+			Map.entry("shr-int", new ArithmeticLowering(SHR_INT, SHR_INT_2ADDR, SHR_INT_LIT8, NONE)),
+			Map.entry("ushr-int", new ArithmeticLowering(USHR_INT, USHR_INT_2ADDR, USHR_INT_LIT8, NONE)),
+			// Reverse subtraction has no register form: it subtracts the source from the literal.
+			Map.entry("rsub-int", new ArithmeticLowering(NONE, NONE, RSUB_INT_LIT8, RSUB_INT)),
+			Map.entry("add-long", new ArithmeticLowering(ADD_LONG, ADD_LONG_2ADDR, NONE, NONE)),
+			Map.entry("sub-long", new ArithmeticLowering(SUB_LONG, SUB_LONG_2ADDR, NONE, NONE)),
+			Map.entry("mul-long", new ArithmeticLowering(MUL_LONG, MUL_LONG_2ADDR, NONE, NONE)),
+			Map.entry("div-long", new ArithmeticLowering(DIV_LONG, DIV_LONG_2ADDR, NONE, NONE)),
+			Map.entry("rem-long", new ArithmeticLowering(REM_LONG, REM_LONG_2ADDR, NONE, NONE)),
+			Map.entry("and-long", new ArithmeticLowering(AND_LONG, AND_LONG_2ADDR, NONE, NONE)),
+			Map.entry("or-long", new ArithmeticLowering(OR_LONG, OR_LONG_2ADDR, NONE, NONE)),
+			Map.entry("xor-long", new ArithmeticLowering(XOR_LONG, XOR_LONG_2ADDR, NONE, NONE)),
+			Map.entry("shl-long", new ArithmeticLowering(SHL_LONG, SHL_LONG_2ADDR, NONE, NONE)),
+			Map.entry("shr-long", new ArithmeticLowering(SHR_LONG, SHR_LONG_2ADDR, NONE, NONE)),
+			Map.entry("ushr-long", new ArithmeticLowering(USHR_LONG, USHR_LONG_2ADDR, NONE, NONE)),
+			Map.entry("add-float", new ArithmeticLowering(ADD_FLOAT, ADD_FLOAT_2ADDR, NONE, NONE)),
+			Map.entry("sub-float", new ArithmeticLowering(SUB_FLOAT, SUB_FLOAT_2ADDR, NONE, NONE)),
+			Map.entry("mul-float", new ArithmeticLowering(MUL_FLOAT, MUL_FLOAT_2ADDR, NONE, NONE)),
+			Map.entry("div-float", new ArithmeticLowering(DIV_FLOAT, DIV_FLOAT_2ADDR, NONE, NONE)),
+			Map.entry("rem-float", new ArithmeticLowering(REM_FLOAT, REM_FLOAT_2ADDR, NONE, NONE)),
+			Map.entry("add-double", new ArithmeticLowering(ADD_DOUBLE, ADD_DOUBLE_2ADDR, NONE, NONE)),
+			Map.entry("sub-double", new ArithmeticLowering(SUB_DOUBLE, SUB_DOUBLE_2ADDR, NONE, NONE)),
+			Map.entry("mul-double", new ArithmeticLowering(MUL_DOUBLE, MUL_DOUBLE_2ADDR, NONE, NONE)),
+			Map.entry("div-double", new ArithmeticLowering(DIV_DOUBLE, DIV_DOUBLE_2ADDR, NONE, NONE)),
+			Map.entry("rem-double", new ArithmeticLowering(REM_DOUBLE, REM_DOUBLE_2ADDR, NONE, NONE))
 	);
 
 	private static final Map<String, Integer> COMPARE_OPCODES = Map.ofEntries(
@@ -420,9 +362,7 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 						new DalvikLowering(SPARSE_SWITCH)));
 
 		registerCmp();
-		registerBinaryOperation();
-		registerBinary2AddrOperation();
-		registerBinaryLiteralOperation();
+		registerArithmeticOperation();
 		registerIf();
 		registerIfZero();
 		registerArrayOperation();
@@ -438,47 +378,66 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 				sourceMetadata(EnumSet.of(PSEUDO, DEBUG_METADATA), List.of(), null, "line"));
 	}
 
-	void registerBinaryOperation() {
-		BINARY_OPCODES.forEach((name, opcode) -> {
+	void registerArithmeticOperation() {
+		ARITHMETIC_OPERATIONS.forEach((name, lowering) -> {
 			int[] wide = binaryOperationWidths(name);
 			register(name,
-					ops(registerOperands(3, wide)),
-					(inst, visitor) -> visitor.visitBinaryOperation(
-							inst.lowering(DalvikLowering.class),
-							inst.operand(0, RegisterRef.class),
-							inst.operand(1, RegisterRef.class),
-							inst.operand(2, RegisterRef.class)),
-					lowering(opcode, name, READ_WRITE_FT, wideRegisters(wide)));
+					ops(arithmeticOperands(lowering, wide)),
+					DalvikInstructions::translateArithmetic,
+					arithmeticMetadata(name, lowering, wide));
 		});
 	}
 
-	void registerBinary2AddrOperation() {
-		BINARY_2ADDR_OPCODES.forEach((name, opcode) -> {
-			int[] wide = binary2AddrOperationWidths(name);
-			register(name,
-					ops(registerOperands(2, wide)),
-					(inst, visitor) -> visitor.visitBinary2AddrOperation(
-							inst.lowering(DalvikLowering.class),
-							inst.operand(0, RegisterRef.class), inst.operand(1, RegisterRef.class)),
-					lowering(opcode, name, READ_WRITE_FT, wideRegisters(wide)));
-		});
+	/**
+	 * Translates a canonical arithmetic instruction. Its schema has already made the third operand a register or an
+	 * integer literal, so that operand's value decides which visitor method receives the instruction. The emitter
+	 * selects the encoding afterwards, so the source never names one.
+	 *
+	 * @param inst
+	 * 		Validated arithmetic instruction.
+	 * @param visitor
+	 * 		Visitor receiving the operation.
+	 */
+	private static void translateArithmetic(SemanticInstruction inst, ASTDalvikInstructionVisitor visitor) {
+		ArithmeticLowering lowering = inst.lowering(ArithmeticLowering.class);
+		RegisterRef to = inst.operand(0, RegisterRef.class);
+		RegisterRef from = inst.operand(1, RegisterRef.class);
+		if (inst.operand(2) instanceof IntegerLiteral literal)
+			visitor.visitBinaryLiteralOperation(lowering, to, from, literal);
+		else
+			visitor.visitBinaryOperation(lowering, to, from, inst.operand(2, RegisterRef.class));
 	}
 
-	void registerBinaryLiteralOperation() {
-		BINARY_LITERAL_16_OPCODES.forEach((name, opcode) -> register(name,
-				ops(DalvikOperands.REGISTER, DalvikOperands.REGISTER, DalvikOperands.LITERAL_16),
-				(inst, visitor) -> visitor.visitBinaryLiteralOperation(
-						inst.lowering(DalvikLowering.class),
-						inst.operand(0, RegisterRef.class), inst.operand(1, RegisterRef.class),
-						inst.operand(2, SignedLiteral.class)),
-				lowering(opcode, name, READ_WRITE_FT)));
-		BINARY_LITERAL_8_OPCODES.forEach((name, opcode) -> register(name,
-				ops(DalvikOperands.REGISTER, DalvikOperands.REGISTER, DalvikOperands.LITERAL_8),
-				(inst, visitor) -> visitor.visitBinaryLiteralOperation(
-						inst.lowering(DalvikLowering.class),
-						inst.operand(0, RegisterRef.class), inst.operand(1, RegisterRef.class),
-						inst.operand(2, SignedLiteral.class)),
-				lowering(opcode, name, READ_WRITE_FT)));
+	/**
+	 * @param lowering
+	 * 		Encodings of the operation, which decide what its second source may be.
+	 * @param wide
+	 * 		Positions holding a wide value.
+	 *
+	 * @return Operand schema of the operation. Reverse subtraction takes an integer literal in its last position, a
+	 * literal-capable operation takes a register or an integer literal, and every other position is a register.
+	 */
+	private static DalvikOperands[] arithmeticOperands(ArithmeticLowering lowering, int... wide) {
+		DalvikOperands[] operands = registerOperands(3, wide);
+		if (lowering.register() == NONE)
+			operands[2] = DalvikOperands.INTEGER_LITERAL;
+		else if (lowering.literal8() != NONE || lowering.literal16() != NONE)
+			operands[2] = DalvikOperands.REGISTER_OR_LITERAL;
+		return operands;
+	}
+
+	/**
+	 * @param name
+	 * 		Registered source mnemonic.
+	 * @param lowering
+	 * 		Encodings of the operation.
+	 * @param wide
+	 * 		Positions holding a wide value.
+	 *
+	 * @return Metadata for the operation, which reads and writes its registers and falls through.
+	 */
+	private InstructionMetadata arithmeticMetadata(String name, ArithmeticLowering lowering, int[] wide) {
+		return metadata(EnumSet.copyOf(READ_WRITE_FT), wideRegisters(wide), null, name, lowering);
 	}
 
 	void registerCmp() {
@@ -760,27 +719,12 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 	 * @param name
 	 * 		Registered source mnemonic.
 	 *
-	 * @return Positions holding a wide value for a two-operand {@code /2addr} operation. The destination
-	 * is always wide on a long or double form; the second operand is wide too unless the form is a
-	 * long shift, whose distance is a narrow int.
-	 */
-	private static int[] binary2AddrOperationWidths(String name) {
-		if (isLongShift(name))
-			return new int[]{0};
-		return isWideRegisterForm(name) ? new int[]{0, 1} : new int[0];
-	}
-
-	/**
-	 * @param name
-	 * 		Registered source mnemonic.
-	 *
 	 * @return {@code true} when {@code name} shifts a long by an int distance. The distance is a single
 	 * narrow register even though the name ends in {@code -long}, which is why the operand width
 	 * cannot be derived from the suffix alone.
 	 */
 	private static boolean isLongShift(String name) {
-		String base = name.endsWith("/2addr") ? name.substring(0, name.length() - "/2addr".length()) : name;
-		return base.equals("shl-long") || base.equals("shr-long") || base.equals("ushr-long");
+		return name.equals("shl-long") || name.equals("shr-long") || name.equals("ushr-long");
 	}
 
 	/**
@@ -814,8 +758,6 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 		// are the remaining single-register operand instructions whose value spans two words.
 		return name.endsWith("-long")
 				|| name.endsWith("-double")
-				|| name.endsWith("-long/2addr")
-				|| name.endsWith("-double/2addr")
 				|| name.equals("move-wide")
 				|| name.equals("move-result-wide")
 				|| name.equals("return-wide")
