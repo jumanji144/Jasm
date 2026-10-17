@@ -8,6 +8,7 @@ import me.darknet.assembler.backend.dalvik.instructions.ArrayData;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikLowering;
 import me.darknet.assembler.backend.dalvik.instructions.IntegerLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.PackedSwitchPayload;
+import me.darknet.assembler.backend.dalvik.instructions.RegisterList;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
@@ -163,7 +164,7 @@ public interface ASTDalvikInstructionVisitor extends ASTInstructionVisitor {
 	 * @param type
 	 * 		The type of the array.
 	 */
-	void visitFilledNewArray(RegisterOperands args, ASTIdentifier type);
+	void visitFilledNewArray(RegisterList args, ASTIdentifier type);
 
 	/**
 	 * Visits a {@code fill-array-data} instruction, which fills an array with data.

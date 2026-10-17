@@ -211,9 +211,8 @@ public final class FixtureTarget implements AssemblyTarget {
                     List.of(new OperandRole(2, OperandRole.RoleKind.TYPE, OperandRole.WidthPolicy.SINGLE, OperandRole.ReferencePolicy.TYPE)), null, "instance-of");
             registerFlexible("new-array", 3, EnumSet.of(InstructionTrait.TYPE_REFERENCE),
                     List.of(new OperandRole(2, OperandRole.RoleKind.TYPE, OperandRole.WidthPolicy.SINGLE, OperandRole.ReferencePolicy.TYPE)), null, "new-array");
-            for (String name : List.of("filled-new-array", "filled-new-array/range"))
-                registerFlexible(name, 2, EnumSet.of(InstructionTrait.TYPE_REFERENCE),
-                        List.of(new OperandRole(1, OperandRole.RoleKind.TYPE, OperandRole.WidthPolicy.SINGLE, OperandRole.ReferencePolicy.TYPE)), null, name);
+            registerFlexible("filled-new-array", 2, EnumSet.of(InstructionTrait.TYPE_REFERENCE),
+                    List.of(new OperandRole(1, OperandRole.RoleKind.TYPE, OperandRole.WidthPolicy.SINGLE, OperandRole.ReferencePolicy.TYPE)), null, "filled-new-array");
         }
 
         /**

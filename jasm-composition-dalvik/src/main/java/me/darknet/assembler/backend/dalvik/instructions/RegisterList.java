@@ -10,9 +10,4 @@ import java.util.List;
  * @param registers
  * 		Registers in source order.
  */
-public record RegisterList(@NotNull List<RegisterRef> registers) implements RegisterOperands {
-    @Override
-    public boolean isRange() {
-        return false;
-    }
-}
+public record RegisterList(@NotNull List<RegisterRef> registers) implements RegisterOperands {}

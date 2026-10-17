@@ -218,9 +218,6 @@ final class DalvikRegisterNames {
 			if (register < 0 || register >= registerCount)
 				return Map.of();
 			if (names.containsKey(register)) {
-				// A register range must not name a local, since the compiler never reserves its middle members by name.
-				if (use.inRange())
-					return Map.of();
 				Boolean previous = wideNames.putIfAbsent(register, use.wide());
 				if (previous != null && previous.booleanValue() != use.wide())
 					return Map.of();
@@ -284,75 +281,65 @@ final class DalvikRegisterNames {
 			case ArrayInstruction array -> {
 				// The compiler resolves operands in the order the source writes them, which is value, array, then index.
 				boolean wide = array.opcode() == Opcodes.AGET_WIDE || array.opcode() == Opcodes.APUT_WIDE;
-				uses.add(new Use(array.value(), wide, false));
-				uses.add(new Use(array.array(), false, false));
-				uses.add(new Use(array.index(), false, false));
+				uses.add(new Use(array.value(), wide));
+				uses.add(new Use(array.array(), false));
+				uses.add(new Use(array.index(), false));
 			}
 			case ArrayLengthInstruction arrayLength -> {
-				uses.add(new Use(arrayLength.dest(), false, false));
-				uses.add(new Use(arrayLength.array(), false, false));
+				uses.add(new Use(arrayLength.dest(), false));
+				uses.add(new Use(arrayLength.array(), false));
 			}
 			case Binary2AddrInstruction binary -> {
 				boolean[] wide = twoAddressWidths(binary.opcode());
 				// The printed form repeats the destination as the first source, which the compiler resolves in turn.
-				uses.add(new Use(binary.a(), wide[0], false));
-				uses.add(new Use(binary.a(), wide[0], false));
-				uses.add(new Use(binary.b(), wide[1], false));
+				uses.add(new Use(binary.a(), wide[0]));
+				uses.add(new Use(binary.a(), wide[0]));
+				uses.add(new Use(binary.b(), wide[1]));
 			}
 			case BinaryInstruction binary -> {
 				boolean[] wide = threeAddressWidths(binary.opcode());
-				uses.add(new Use(binary.dest(), wide[0], false));
-				uses.add(new Use(binary.a(), wide[1], false));
-				uses.add(new Use(binary.b(), wide[2], false));
+				uses.add(new Use(binary.dest(), wide[0]));
+				uses.add(new Use(binary.a(), wide[1]));
+				uses.add(new Use(binary.b(), wide[2]));
 			}
 			case BinaryLiteralInstruction binary -> {
-				uses.add(new Use(binary.dest(), false, false));
-				uses.add(new Use(binary.src(), false, false));
+				uses.add(new Use(binary.dest(), false));
+				uses.add(new Use(binary.src(), false));
 			}
 			case BranchInstruction branch -> {
-				uses.add(new Use(branch.a(), false, false));
-				uses.add(new Use(branch.b(), false, false));
+				uses.add(new Use(branch.a(), false));
+				uses.add(new Use(branch.b(), false));
 			}
-			case BranchZeroInstruction branch -> uses.add(new Use(branch.a(), false, false));
-			case CheckCastInstruction checkCast -> uses.add(new Use(checkCast.register(), false, false));
+			case BranchZeroInstruction branch -> uses.add(new Use(branch.a(), false));
+			case CheckCastInstruction checkCast -> uses.add(new Use(checkCast.register(), false));
 			case CompareInstruction compare -> {
 				boolean wide = compare.opcode() == Opcodes.CMP_LONG
 						|| compare.opcode() == Opcodes.CMPL_DOUBLE
 						|| compare.opcode() == Opcodes.CMPG_DOUBLE;
-				uses.add(new Use(compare.dest(), false, false));
-				uses.add(new Use(compare.a(), wide, false));
-				uses.add(new Use(compare.b(), wide, false));
+				uses.add(new Use(compare.dest(), false));
+				uses.add(new Use(compare.a(), wide));
+				uses.add(new Use(compare.b(), wide));
 			}
-			case ConstInstruction constant -> uses.add(new Use(constant.register(), false, false));
-			case ConstTypeInstruction constant -> uses.add(new Use(constant.register(), false, false));
-			case ConstWideInstruction constant -> uses.add(new Use(constant.register(), true, false));
-			case ConstStringInstruction constant -> uses.add(new Use(constant.register(), false, false));
-			case ConstMethodHandleInstruction constant -> uses.add(new Use(constant.destination(), false, false));
-			case ConstMethodTypeInstruction constant -> uses.add(new Use(constant.destination(), false, false));
-			case FillArrayDataInstruction fillArrayData -> uses.add(new Use(fillArrayData.array(), false, false));
+			case ConstInstruction constant -> uses.add(new Use(constant.register(), false));
+			case ConstTypeInstruction constant -> uses.add(new Use(constant.register(), false));
+			case ConstWideInstruction constant -> uses.add(new Use(constant.register(), true));
+			case ConstStringInstruction constant -> uses.add(new Use(constant.register(), false));
+			case ConstMethodHandleInstruction constant -> uses.add(new Use(constant.destination(), false));
+			case ConstMethodTypeInstruction constant -> uses.add(new Use(constant.destination(), false));
+			case FillArrayDataInstruction fillArrayData -> uses.add(new Use(fillArrayData.array(), false));
 			case FilledNewArrayInstruction filledNewArray -> {
 				if (isWideArrayComponent(filledNewArray.componentType().descriptor()))
 					return false;
-				if (filledNewArray.isRange()) {
-					if (filledNewArray.last() < filledNewArray.first())
-						return false;
-					for (int register : DalvikCodePrinter.rangeWords(filledNewArray.first(), filledNewArray.last()))
-						uses.add(new Use(register, false, true));
-				} else {
-					int[] registers = filledNewArray.registers();
-					if (registers == null)
-						return false;
-					for (int register : registers)
-						uses.add(new Use(register, false, false));
-				}
+				for (int register : DalvikCodePrinter.filledArrayWords(filledNewArray))
+					uses.add(new Use(register, false));
 			}
 			case InstanceFieldInstruction field -> {
-				uses.add(new Use(field.value(), isWideType(field.type().descriptor()), false));
-				uses.add(new Use(field.instance(), false, false));
+				uses.add(new Use(field.value(), isWideType(field.type().descriptor())));
+				uses.add(new Use(field.instance(), false));
 			}
 			case InstanceOfInstruction instanceOf -> {
-				uses.add(new Use(instanceOf.destination(), false, false));
-				uses.add(new Use(instanceOf.register(), false, false));
+				uses.add(new Use(instanceOf.destination(), false));
+				uses.add(new Use(instanceOf.register(), false));
 			}
 			case InvokeCustomInstruction invoke -> {
 				int[] words = invoke.isRange()
@@ -371,40 +358,40 @@ final class DalvikRegisterNames {
 					return false;
 				addInvokeUses(uses, invoke.type().parameterTypes(), invoke.opcode() != Opcodes.INVOKE_STATIC, words);
 			}
-			case MonitorInstruction monitor -> uses.add(new Use(monitor.register(), false, false));
-			case MoveExceptionInstruction moveException -> uses.add(new Use(moveException.register(), false, false));
+			case MonitorInstruction monitor -> uses.add(new Use(monitor.register(), false));
+			case MoveExceptionInstruction moveException -> uses.add(new Use(moveException.register(), false));
 			case MoveInstruction move -> {
-				uses.add(new Use(move.to(), false, false));
-				uses.add(new Use(move.from(), false, false));
+				uses.add(new Use(move.to(), false));
+				uses.add(new Use(move.from(), false));
 			}
 			case MoveObjectInstruction move -> {
-				uses.add(new Use(move.to(), false, false));
-				uses.add(new Use(move.from(), false, false));
+				uses.add(new Use(move.to(), false));
+				uses.add(new Use(move.from(), false));
 			}
 			case MoveResultInstruction moveResult ->
-					uses.add(new Use(moveResult.to(), moveResult.opcode() == Opcodes.MOVE_RESULT_WIDE, false));
+					uses.add(new Use(moveResult.to(), moveResult.opcode() == Opcodes.MOVE_RESULT_WIDE));
 			case MoveWideInstruction move -> {
-				uses.add(new Use(move.to(), true, false));
-				uses.add(new Use(move.from(), true, false));
+				uses.add(new Use(move.to(), true));
+				uses.add(new Use(move.from(), true));
 			}
 			case NewArrayInstruction newArray -> {
-				uses.add(new Use(newArray.dest(), false, false));
-				uses.add(new Use(newArray.sizeRegister(), false, false));
+				uses.add(new Use(newArray.dest(), false));
+				uses.add(new Use(newArray.sizeRegister(), false));
 			}
-			case NewInstanceInstruction newInstance -> uses.add(new Use(newInstance.dest(), false, false));
-			case PackedSwitchInstruction packedSwitch -> uses.add(new Use(packedSwitch.register(), false, false));
+			case NewInstanceInstruction newInstance -> uses.add(new Use(newInstance.dest(), false));
+			case PackedSwitchInstruction packedSwitch -> uses.add(new Use(packedSwitch.register(), false));
 			case ReturnInstruction returnInstruction -> {
 				if (returnInstruction.opcode() != Opcodes.RETURN_VOID)
 					uses.add(new Use(returnInstruction.register(),
-							returnInstruction.opcode() == Opcodes.RETURN_WIDE, false));
+							returnInstruction.opcode() == Opcodes.RETURN_WIDE));
 			}
-			case SparseSwitchInstruction sparseSwitch -> uses.add(new Use(sparseSwitch.register(), false, false));
-			case StaticFieldInstruction field -> uses.add(new Use(field.value(), isWideType(field.type().descriptor()), false));
-			case ThrowInstruction throwInstruction -> uses.add(new Use(throwInstruction.value(), false, false));
+			case SparseSwitchInstruction sparseSwitch -> uses.add(new Use(sparseSwitch.register(), false));
+			case StaticFieldInstruction field -> uses.add(new Use(field.value(), isWideType(field.type().descriptor())));
+			case ThrowInstruction throwInstruction -> uses.add(new Use(throwInstruction.value(), false));
 			case UnaryInstruction unary -> {
 				boolean[] wide = unaryWidths(unary.opcode());
-				uses.add(new Use(unary.dest(), wide[0], false));
-				uses.add(new Use(unary.source(), wide[1], false));
+				uses.add(new Use(unary.dest(), wide[0]));
+				uses.add(new Use(unary.source(), wide[1]));
 			}
 			default -> {
 				return false;
@@ -431,16 +418,16 @@ final class DalvikRegisterNames {
 	                                  int @NotNull [] words) {
 		if (!DalvikInvokeLayout.groupsFaithfully(parameters, receiver, words)) {
 			for (int word : words)
-				uses.add(new Use(word, false, false));
+				uses.add(new Use(word, false));
 			return;
 		}
 
 		int[] logical = DalvikInvokeLayout.logicalRegisters(parameters, receiver, words);
 		int entry = 0;
 		if (receiver)
-			uses.add(new Use(logical[entry++], false, false));
+			uses.add(new Use(logical[entry++], false));
 		for (ClassType parameter : parameters)
-			uses.add(new Use(logical[entry++], isWideType(parameter.descriptor()), false));
+			uses.add(new Use(logical[entry++], isWideType(parameter.descriptor())));
 	}
 
 	/**
@@ -529,8 +516,6 @@ final class DalvikRegisterNames {
 	 * 		Slot the operand names.
 	 * @param wide
 	 * 		{@code true} when the operand is a wide value, which also occupies the slot after it.
-	 * @param inRange
-	 * 		{@code true} when the operand is a member of a register range, which the range reserves as a whole.
 	 */
-	private record Use(int register, boolean wide, boolean inRange) {}
+	private record Use(int register, boolean wide) {}
 }

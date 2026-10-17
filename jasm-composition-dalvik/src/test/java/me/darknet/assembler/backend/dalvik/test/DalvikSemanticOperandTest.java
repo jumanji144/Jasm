@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -61,7 +60,6 @@ class DalvikSemanticOperandTest {
 				""");
 
 		RegisterOperands registers = instruction.operand(0, RegisterOperands.class);
-		assertFalse(registers.isRange());
 		assertEquals(List.of(new RegisterRef("v2", 2, OperandRole.WidthPolicy.WIDE)), registers.registers());
 
 		MemberPath path = instruction.operand(1, MemberPath.class);

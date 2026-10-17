@@ -68,11 +68,11 @@ public class SemanticProcessorTest {
     }
 
     @Test
-    void recordsDalvikTypeRoleAtActualRangeOperand() {
+    void recordsDalvikTypeRoleAfterTheRegisterList() {
         ValidatedUnit unit = processDalvik("""
                 .method demo ()V {
                   code: {
-                    filled-new-array/range { v0, v1 } [I
+                    filled-new-array { v0, v1 } [I
                     return-void
                   }
                 }
@@ -81,7 +81,7 @@ public class SemanticProcessorTest {
                 ProcessedInstruction.class,
                 unit.methods().values().iterator().next().code().getFirst()
         );
-        assertSame(FixtureTarget.DALVIK.context().instructions().get("filled-new-array/range"), instruction.definition());
+        assertSame(FixtureTarget.DALVIK.context().instructions().get("filled-new-array"), instruction.definition());
         assertIndexAligned(instruction);
 
         // Index 0 is the register array and declares no role, so the type role lives at index 1.

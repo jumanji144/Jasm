@@ -19,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 public class DalvikInstructionMetadataTest {
     @Test
-    void filledNewArrayRangeUsesTypeOperandOne() {
-        assertTrue(DalvikInstructions.INSTANCE.get("filled-new-array/range").typeReferenceOperandIndex() == 1);
+    void filledNewArrayUsesTypeOperandOne() {
+        assertTrue(DalvikInstructions.INSTANCE.get("filled-new-array").typeReferenceOperandIndex() == 1);
     }
 
     @Test

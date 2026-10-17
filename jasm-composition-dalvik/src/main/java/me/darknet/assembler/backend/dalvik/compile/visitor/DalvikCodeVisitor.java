@@ -14,6 +14,7 @@ import me.darknet.assembler.backend.dalvik.instructions.DalvikArrayLiterals;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikLowering;
 import me.darknet.assembler.backend.dalvik.instructions.IntegerLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.PackedSwitchPayload;
+import me.darknet.assembler.backend.dalvik.instructions.RegisterList;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
@@ -956,9 +957,9 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	@Override
-	public void visitFilledNewArray(RegisterOperands args, ASTIdentifier type) {
+	public void visitFilledNewArray(RegisterList elements, ASTIdentifier type) {
 		ClassType arrayType = parseClassType(type);
-		Encoding encoding = encodeRegisters(args);
+		Encoding encoding = encodeFilledArray(elements);
 		if (encoding == null)
 			return;
 		updateOutRegisters(encoding.count());
@@ -1179,36 +1180,21 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	/**
-	 * Allocates the slots of a register operand and chooses the encoding that names them.
-	 * <p>
-	 * A named bound only gets its slot here, so the reversed-bounds check the resolver had to skip for named registers
-	 * happens now that both bounds are known. Invoke registers take their own path, see {@link #encodeInvokeRegisters}.
+	 * Allocates the slots of a {@code filled-new-array} list and chooses the encoding that names them. Each element names one
+	 * word, and the elements are resolved in source order before any encoding is chosen. The pinned codec builds its list
+	 * form only from at least one register, so an empty list takes the range form with a count of zero.
 	 *
-	 * @param registers
-	 * 		Register operand of {@code filled-new-array}.
+	 * @param elements
+	 * 		Register list of the instruction.
 	 *
-	 * @return The encoding of the operand, or {@code null} after reporting a reversed range or a register the encoding
-	 * cannot name. The declared register count is checked separately while the slots are allocated.
+	 * @return The encoding of the list, or {@code null} after reporting a list that neither encoding can name. The declared
+	 * register count is checked separately while the slots are allocated.
 	 */
-	private @Nullable Encoding encodeRegisters(@NotNull RegisterOperands registers) {
-		List<Integer> slots = indexOfAll(registers);
-		if (registers.isRange()) {
-			int first = slots.get(0);
-			int last = slots.get(1);
-			if (last < first) {
-				sink.error(DiagnosticCode.OPERAND_SHAPE, "Range instruction register bounds are reversed",
-						currentInstructionAst.location());
-				return null;
-			}
-			return checkRange(registers.registers().getFirst(), first, last)
-					? new Encoding.Ranged(first, last - first + 1)
-					: null;
-		}
-
-		boolean fits = true;
-		for (int i = 0; i < slots.size(); i++)
-			fits &= checkRegisterField(registers.registers().get(i), slots.get(i), FOUR_BITS);
-		return fits ? new Encoding.Listed(toIntArray(slots)) : null;
+	private @Nullable Encoding encodeFilledArray(@NotNull RegisterList elements) {
+		List<Integer> slots = indexOfAll(elements);
+		if (slots.isEmpty())
+			return new Encoding.Ranged(0, 0);
+		return selectWordEncoding(elements, elements.registers(), slots);
 	}
 
 	/**
@@ -1223,9 +1209,6 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @return The chosen encoding, or {@code null} after reporting why the words cannot be encoded.
 	 */
 	private @Nullable Encoding encodeInvokeRegisters(@NotNull RegisterOperands registers) {
-		if (registers.isRange())
-			throw new IllegalStateException("Invoke registers are not spelled as a range");
-
 		List<RegisterRef> owners = new ArrayList<>(registers.registers().size());
 		List<Integer> slots = new ArrayList<>(registers.registers().size());
 		for (RegisterRef ref : registers.registers()) {
@@ -1237,15 +1220,16 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 				slots.add(slot + 1);
 			}
 		}
-		return selectInvokeEncoding(registers, owners, slots);
+		return selectWordEncoding(registers, owners, slots);
 	}
 
 	/**
-	 * Chooses the encoding of expanded invoke words. Words that are at most five in number and each fit a four-bit field
-	 * take the non-range form, which names registers in any order. Any other words must be consecutive registers in the
-	 * written order, which the range form names by its first register and count. Words with neither encoding are reported.
+	 * Chooses the encoding of resolved register words, which both invokes and {@code filled-new-array} lists use. Words that
+	 * are at most five in number and each fit a four-bit field take the non-range form, which names registers in any order.
+	 * Any other words must be consecutive registers in the written order, which the range form names by its first register
+	 * and count. Words with neither encoding are reported.
 	 *
-	 * @param registers
+	 * @param operand
 	 * 		Operand the words came from, which locates a diagnostic about the whole list.
 	 * @param owners
 	 * 		Register operand each word belongs to, in written order. A high word belongs to the operand it extends.
@@ -1254,8 +1238,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 *
 	 * @return The chosen encoding, or {@code null} after reporting why the words cannot be encoded.
 	 */
-	private @Nullable Encoding selectInvokeEncoding(@NotNull RegisterOperands registers,
-	                                               @NotNull List<RegisterRef> owners, @NotNull List<Integer> slots) {
+	private @Nullable Encoding selectWordEncoding(@NotNull OperandValue operand,
+	                                              @NotNull List<RegisterRef> owners, @NotNull List<Integer> slots) {
 		if (slots.size() <= MAX_LIST_WORDS && slots.stream().allMatch(slot -> fitsField(slot, FOUR_BITS)))
 			return new Encoding.Listed(toIntArray(slots));
 		if (isConsecutive(slots)) {
@@ -1265,7 +1249,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 					? new Encoding.Ranged(first, slots.size())
 					: null;
 		}
-		reportEncodingLimit(registers, "Register words " + describe(slots) + " cannot be encoded by '" + mnemonic()
+		reportEncodingLimit(operand, "Registers " + describe(slots) + " cannot be encoded by '" + mnemonic()
 				+ "': the non-range form takes at most " + MAX_LIST_WORDS + " registers v0 through v"
 				+ maxIndex(FOUR_BITS) + ", and the range form takes consecutive registers in the order written");
 		return null;

@@ -13,7 +13,6 @@ import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisEngine
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisResults;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikMethodData;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
-import me.darknet.assembler.backend.dalvik.instructions.RegisterRange;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
 import me.darknet.assembler.compiler.InheritanceChecker;
 import me.darknet.assembler.error.DiagnosticCode;
@@ -384,40 +383,12 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
                 if (operand.value() instanceof RegisterRef register) {
                     reserveExplicitRegister(registers, register);
                 } else if (operand.value() instanceof RegisterOperands operands) {
-                    if (operands instanceof RegisterRange(RegisterRef first, RegisterRef last)
-                            && first.index() != null && last.index() != null) {
-                        reserveExplicitRange(registers, first.index(), last.index());
-                    } else {
-                        for (RegisterRef register : operands.registers())
-                            reserveExplicitRegister(registers, register);
-                    }
+                    for (RegisterRef register : operands.registers())
+                        reserveExplicitRegister(registers, register);
                 }
             }
         }
         return Set.copyOf(registers);
-    }
-
-    /**
-     * Reserves a range of registers in the given set, ensuring that the first index is less than or equal to the last index.
-     *
-     * @param registers
-     *         Set of register indices to reserve.
-     * @param first
-     *         First register index in the range.
-     * @param last
-     *         Last register index in the range.
-     */
-    private static void reserveExplicitRange(@NotNull Set<Integer> registers, int first, int last) {
-        if (first > last) {
-            int swap = first;
-            first = last;
-            last = swap;
-        }
-        for (int index = first; index <= last; index++) {
-            registers.add(index);
-            if (index == Integer.MAX_VALUE)
-                break;
-        }
     }
 
     /**

@@ -339,6 +339,19 @@ class DalvikOperandsTest {
 	}
 
 	@Test
+	void retiredFilledArrayRangeSpellingIsAnUnknownInstruction() {
+		// The range form is chosen from the registers, so filled-new-array takes one spelling for every length.
+		assertErrorContains("""
+				.method public static test ()V {
+				  code: {
+				    filled-new-array/range { v0, v1 } [I
+				    return-void
+				  }
+				}
+				""", "Unknown instruction: filled-new-array/range");
+	}
+
+	@Test
 	void retiredArithmeticSpellingsAreUnknownInstructions() {
 		// The literal and two-address spellings were replaced by the ordinary mnemonics, which select the encoding.
 		for (String mnemonic : List.of("add-int/lit8", "add-int/lit16", "rsub-int/lit8", "add-int/2addr")) {
@@ -358,7 +371,7 @@ class DalvikOperandsTest {
 		// The dex specification requires the contents to be single-word: "no arrays of long or double,
 		// but reference types are acceptable". A long or double element needs two registers, which the
 		// register fields cannot express, so the type is rejected instead of encoding overlapping
-		// elements. Both the list and the range form share the rule.
+		// elements. The rule does not depend on how many registers the list names.
 		assertErrorContains("""
 				.method public static test ()V {
 				  code: {
@@ -377,11 +390,11 @@ class DalvikOperandsTest {
 				}
 				""", "contents must be single-word");
 
-		// The range form is spelled as its first and last register, and shares the rule.
+		// A longer list is subject to the same rule.
 		assertErrorContains("""
 				.method public static test ()V {
 				  code: {
-				    filled-new-array/range { v0, v3 } [J
+				    filled-new-array { v0, v1, v2, v3 } [J
 				    return-void
 				  }
 				}
@@ -390,7 +403,7 @@ class DalvikOperandsTest {
 		assertErrorContains("""
 				.method public static test ()V {
 				  code: {
-				    filled-new-array/range { v0, v3 } [D
+				    filled-new-array { v0, v1, v2, v3 } [D
 				    return-void
 				  }
 				}
@@ -412,11 +425,11 @@ class DalvikOperandsTest {
 					}
 					""".formatted(type));
 
-			// The range form shares the same accepted domain.
+			// A longer list shares the same accepted domain.
 			assertDalvikOk("""
 					.method public static test ()V {
 					  code: {
-					    filled-new-array/range { v0, v3 } %s
+					    filled-new-array { v0, v1, v2, v3 } %s
 					    return-void
 					  }
 					}

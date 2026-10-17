@@ -187,13 +187,13 @@ class DalvikAnalysisResultFlowTest {
 				            return-object v2
 				        }
 				    }
-				    .method public static range ()[I {
+				    .method public static run ()[I {
 				        registers: 4,
 				        code: {
 				            const v1 1
 				            const v2 2
 				            const v3 3
-				            filled-new-array/range { v1, v3 } [I
+				            filled-new-array { v1, v2, v3 } [I
 				            move-result-object v0
 				            return-object v0
 				        }
@@ -201,7 +201,34 @@ class DalvikAnalysisResultFlowTest {
 				}
 				""");
 		assertFilledResult(compilation, "list", "()[Ljava/lang/String;", new ArrayDescriptor(new ClassDescriptor("java/lang/String")), 2, 2);
-		assertFilledResult(compilation, "range", "()[I", new ArrayDescriptor(PrimitiveType.INT), 3, 0);
+		assertFilledResult(compilation, "run", "()[I", new ArrayDescriptor(PrimitiveType.INT), 3, 0);
+	}
+
+	@Test
+	void anEmptyFilledArrayReadsNoRegisterSoOnlyLaterReadsStayLive() {
+		Compilation compilation = compile("""
+				.super java/lang/Object
+				.class public EmptyFilled {
+				    .method public static empty ()I {
+				        registers: 3,
+				        code: {
+				            const v0 1
+				            filled-new-array { } [I
+				            move-result-object v1
+				            return v0
+				        }
+				    }
+				}
+				""");
+		MethodMember method = compilation.method("empty", "()I");
+		DalvikAnalysisResults results = compilation.results("empty", "()I");
+		FilledNewArrayInstruction producer = instruction(method.getCode(), FilledNewArrayInstruction.class);
+		DalvikControlFlowGraph graph = DalvikControlFlowGraphBuilder.build(method.getCode(), results.getInstructionToSource());
+		DalvikRegisterLiveness.Lookup liveRegisters = DalvikRegisterLiveness.lookup(method.getCode(), graph);
+		int index = results.getInstructionIndex(producer);
+
+		assertTrue(liveRegisters.contains(index, 0), "v0 is returned after the empty array, so it stays live across it");
+		assertFalse(liveRegisters.contains(index, 2), "an empty array reads no register, so an unread register is not live");
 	}
 
 	@Test

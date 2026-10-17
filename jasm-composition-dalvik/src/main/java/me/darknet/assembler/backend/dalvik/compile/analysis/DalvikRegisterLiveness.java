@@ -221,9 +221,12 @@ final class DalvikRegisterLiveness {
 		} else if (instruction instanceof FillArrayDataInstruction fillArrayData) {
 			read(uses, fillArrayData.array(), false, registerCount);
 		} else if (instruction instanceof FilledNewArrayInstruction filledArray) {
-			if (filledArray.isRange())
-				readRange(uses, filledArray.first(), filledArray.last(), registerCount);
-			else if (filledArray.registers() != null)
+			// A zero-count range names no register. Its reversed bounds would read as an invalid range, which marks every
+			// register live, so no read is recorded for it.
+			if (filledArray.isRange()) {
+				if (filledArray.last() >= filledArray.first())
+					readRange(uses, filledArray.first(), filledArray.last(), registerCount);
+			} else if (filledArray.registers() != null)
 				for (int register : filledArray.registers())
 					read(uses, register, false, registerCount);
 			else

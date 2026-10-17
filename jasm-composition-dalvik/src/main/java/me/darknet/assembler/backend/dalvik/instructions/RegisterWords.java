@@ -14,9 +14,4 @@ import java.util.List;
  * @param registers
  * 		Register words in source order.
  */
-public record RegisterWords(@NotNull List<RegisterRef> registers) implements RegisterOperands {
-    @Override
-    public boolean isRange() {
-        return false;
-    }
-}
+public record RegisterWords(@NotNull List<RegisterRef> registers) implements RegisterOperands {}

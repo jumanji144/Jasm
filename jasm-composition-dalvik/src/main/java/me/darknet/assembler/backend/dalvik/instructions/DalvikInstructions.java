@@ -331,15 +331,10 @@ public class DalvikInstructions extends Instructions<ASTDalvikInstructionVisitor
 						List.of(new OperandRole(2, OperandRole.RoleKind.TYPE, OperandRole.WidthPolicy.SINGLE, OperandRole.ReferencePolicy.TYPE)), null, "new-array",
 						new DalvikLowering(NEW_ARRAY)));
 		register("filled-new-array", ops(DalvikOperands.REGISTER_ARRAY, DalvikOperands.FILLED_NEW_ARRAY_TYPE),
-				(inst, visitor) -> visitor.visitFilledNewArray(inst.operand(0, RegisterOperands.class), inst.argument(1, ASTIdentifier.class)),
+				(inst, visitor) -> visitor.visitFilledNewArray(inst.operand(0, RegisterList.class), inst.argument(1, ASTIdentifier.class)),
 				metadata(EnumSet.of(TYPE_REFERENCE, REGISTER_READ, REGISTER_WRITE, FALLTHROUGH),
 						List.of(new OperandRole(1, OperandRole.RoleKind.TYPE, OperandRole.WidthPolicy.SINGLE, OperandRole.ReferencePolicy.TYPE)), null, "filled-new-array",
 						new DalvikLowering(FILLED_NEW_ARRAY)));
-		register("filled-new-array/range", ops(DalvikOperands.REGISTER_RANGE, DalvikOperands.FILLED_NEW_ARRAY_TYPE),
-				(inst, visitor) -> visitor.visitFilledNewArray(inst.operand(0, RegisterOperands.class), inst.argument(1, ASTIdentifier.class)),
-				metadata(EnumSet.of(TYPE_REFERENCE, REGISTER_READ, REGISTER_WRITE, FALLTHROUGH),
-						List.of(new OperandRole(1, OperandRole.RoleKind.TYPE, OperandRole.WidthPolicy.SINGLE, OperandRole.ReferencePolicy.TYPE)), null, "filled-new-array/range",
-						new DalvikLowering(FILLED_NEW_ARRAY_RANGE)));
 		register("fill-array-data", ops(DalvikOperands.REGISTER, DalvikOperands.DATA_ARRAY),
 				(inst, visitor) -> visitor.visitFillArrayData(inst.operand(0, RegisterRef.class), inst.operand(1, ArrayData.class)),
 				lowering(FILL_ARRAY_DATA, "fill-array-data", READ_FT, PAYLOAD));

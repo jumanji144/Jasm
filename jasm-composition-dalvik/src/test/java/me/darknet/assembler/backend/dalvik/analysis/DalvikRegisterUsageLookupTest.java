@@ -51,6 +51,28 @@ class DalvikRegisterUsageLookupTest {
     }
 
     @Test
+    void aFilledArrayListRecordsEachElementAsItsOwnRead() {
+        Fixture fixture = compileMethod("""
+                const v0 1
+                const v1 2
+                const v2 3
+                filled-new-array { v0, v1, v2 } [I
+                move-result-object v3
+                return-object v3
+                """, "()[I", 4);
+        List<DalvikRegisterUsage> usages = fixture.usages();
+
+        // Each listed register is its own usage, so no synthetic key stands for the list.
+        assertEquals(4, usages.size());
+        for (String register : List.of("v0", "v1", "v2")) {
+            DalvikRegisterUsage usage = usage(usages, register);
+            assertEquals(1, usage.readCount(), register);
+            assertEquals(1, usage.writeCount(), register);
+            assertEquals(List.of("const", "filled-new-array"), mnemonics(usage.references()), register);
+        }
+    }
+
+    @Test
     void resolvesEquivalentMethodFromAnotherParseBySignature() {
         String code = """
                 const v0 7

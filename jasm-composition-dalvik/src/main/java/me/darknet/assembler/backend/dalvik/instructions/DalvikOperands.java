@@ -39,7 +39,6 @@ public enum DalvikOperands implements Operands {
 	REGISTER(DalvikOperands::verifyRegister, DalvikOperands::resolveRegister),
 	REGISTER_WIDE(DalvikOperands::verifyRegister, DalvikOperands::resolveRegisterWide),
 	REGISTER_ARRAY(DalvikOperands::verifyRegisterArray, DalvikOperands::resolveRegisterList),
-	REGISTER_RANGE(DalvikOperands::verifyRegisterRange, DalvikOperands::resolveRegisterRange),
 	INVOKE_REGISTERS(DalvikOperands::verifyInvokeRegisters, DalvikOperands::resolveInvokeRegisters),
 	REGISTER_OR_LITERAL(DalvikOperands::verifyRegisterOrLiteral, DalvikOperands::resolveRegisterOrLiteral),
 	INTEGER_LITERAL(DalvikOperands::verifyIntegerLiteral, DalvikOperands::resolveIntegerLiteral),
@@ -56,15 +55,6 @@ public enum DalvikOperands implements Operands {
 	private static final PayloadSchema SPARSE_SWITCH_SCHEMA = sparseSwitchSchema();
 	private static final PayloadSchema DATA_PAYLOAD_SCHEMA = dataPayloadSchema();
 	private static final PayloadSchema REGISTER_WORDS_SCHEMA = registerWordsSchema();
-
-	/**
-	 * Most registers the non-range register-list encoding can name.
-	 * <p>
-	 * The 35c format carries a four-bit argument count and exactly five register fields, so the format is
-	 * defined only for a count of zero to five. A longer array of registers is what the {@code /range} form is
-	 * for, so this is a limit of the encoding rather than of a particular instruction.
-	 */
-	private static final int MAX_REGISTER_ARRAY = 5;
 
 	private final Operand operand;
 
@@ -280,38 +270,6 @@ public enum DalvikOperands implements Operands {
 	}
 
 	/**
-	 * @param context
-	 * 		Processor context receiving diagnostics.
-	 * @param element
-	 * 		Verified two-entry register range.
-	 *
-	 * @return Range of the first and last register, or {@code null} after reporting reversed bounds.
-	 */
-	private static OperandValue resolveRegisterRange(ProcessorContext context, ASTElement element) {
-		List<ASTElement> values = registerElements(context, element);
-		if (values == null)
-			return null;
-
-		// The verifier rejects any other arity, so reading both bounds is only reachable at size two.
-		if (values.size() != 2)
-			throw new IllegalStateException("Range instructions require first and last register bounds");
-
-		RegisterRef first = (RegisterRef) resolveRegister(context, values.get(0));
-		RegisterRef last = (RegisterRef) resolveRegister(context, values.get(1));
-
-		// When both bounds are numeric the order is checkable here; named bounds only get their slots
-		// during emission, so the deferred check lives in the code visitor. The instruction is the only
-		// location reported: a range is written on one line, so pointing at the individual bounds would add
-		// two positions inside the expression the reader is already looking at.
-		if (first.index() != null && last.index() != null && last.index() < first.index()) {
-			context.throwError(DiagnosticCode.OPERAND_SHAPE, "Range instruction register bounds are reversed",
-					element.location());
-			return null;
-		}
-		return new RegisterRange(first, last);
-	}
-
-	/**
 	 * Validates the register operand of a canonical invoke, which is an ordinary list of logical arguments or raw register
 	 * words. A list is not bounded to five entries here: its entries are expanded into words once the descriptor widens
 	 * them, and the encoding then decides whether those words fit a non-range or a range form.
@@ -486,7 +444,7 @@ public enum DalvikOperands implements Operands {
 	 * @param context
 	 * 		Processor context receiving diagnostics.
 	 * @param element
-	 * 		Verified register array or range element.
+	 * 		Verified register array.
 	 *
 	 * @return Register elements, or {@code null} after reporting a diagnostic. Holes the verifier
 	 * already reported are skipped.
@@ -569,37 +527,21 @@ public enum DalvikOperands implements Operands {
 		return true;
 	}
 
+	/**
+	 * Validates the register list of {@code filled-new-array}. The list is not bounded in length here: the code visitor
+	 * chooses a non-range or a range form for the registers it resolves to, and reports the ones neither form can name.
+	 *
+	 * @param context
+	 * 		Processor context receiving diagnostics.
+	 * @param element
+	 * 		Source element of the register list.
+	 */
 	private static void verifyRegisterArray(ProcessorContext context, ASTElement element) {
 		if (rejectRawWords(context, element))
 			return;
 		ASTArray array = registerArray(context, element);
-		if (array == null)
-			return;
-		verifyRegisterElements(context, array);
-
-		// The non-range register-list encoding has one register field per argument and a four-bit count, so
-		// the format itself is only defined for at most five arguments. Android's verifier rejects a longer
-		// list, and the writer here would run off the end of those five fields, so the limit belongs at
-		// processing where the user can be told what to write instead.
-		int count = array.values().size();
-		if (count > MAX_REGISTER_ARRAY) {
-			context.throwError(DiagnosticCode.OPERAND_SHAPE,
-					"This form takes at most " + MAX_REGISTER_ARRAY + " registers but got " + count
-							+ "; use the /range form for a longer argument list",
-					element.location());
-		}
-	}
-
-	private static void verifyRegisterRange(ProcessorContext context, ASTElement element) {
-		if (rejectRawWords(context, element))
-			return;
-		ASTArray array = registerArray(context, element);
-		if (array == null)
-			return;
-		verifyRegisterElements(context, array);
-		// The resolver indexes both bounds, so arity has to be rejected before it runs.
-		if (array.values().size() != 2)
-			context.throwError("Range instructions require first and last register bounds", element.location());
+		if (array != null)
+			verifyRegisterElements(context, array);
 	}
 
 	/**

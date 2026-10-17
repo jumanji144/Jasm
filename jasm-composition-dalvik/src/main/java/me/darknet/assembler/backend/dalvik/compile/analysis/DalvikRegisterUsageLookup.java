@@ -11,8 +11,8 @@ import me.darknet.assembler.backend.dalvik.instructions.ArrayData;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikLowering;
 import me.darknet.assembler.backend.dalvik.instructions.IntegerLiteral;
 import me.darknet.assembler.backend.dalvik.instructions.PackedSwitchPayload;
+import me.darknet.assembler.backend.dalvik.instructions.RegisterList;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
-import me.darknet.assembler.backend.dalvik.instructions.RegisterRange;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
 import me.darknet.assembler.backend.dalvik.instructions.SparseSwitchPayload;
 import me.darknet.assembler.backend.dalvik.visitor.ASTDalvikInstructionVisitor;
@@ -152,12 +152,8 @@ public final class DalvikRegisterUsageLookup {
         }
 
         private void read(RegisterOperands operands) {
-            if (operands.isRange() && operands instanceof RegisterRange range) {
-                access("{" + range.first().name() + ", " + range.last().name() + "}", true, false);
-            } else {
-                for (RegisterRef register : operands.registers())
-                    read(register);
-            }
+            for (RegisterRef register : operands.registers())
+                read(register);
         }
 
         private void access(String name, boolean read, boolean write) {
@@ -256,7 +252,7 @@ public final class DalvikRegisterUsageLookup {
         }
 
         @Override
-        public void visitFilledNewArray(RegisterOperands args, ASTIdentifier type) {
+        public void visitFilledNewArray(RegisterList args, ASTIdentifier type) {
             read(args);
         }
 

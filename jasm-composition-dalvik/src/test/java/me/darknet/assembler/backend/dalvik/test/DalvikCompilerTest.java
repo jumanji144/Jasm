@@ -23,6 +23,7 @@ import me.darknet.dex.tree.definitions.instructions.ConstMethodTypeInstruction;
 import me.darknet.dex.tree.definitions.instructions.Instruction;
 import me.darknet.dex.tree.definitions.constant.NullConstant;
 import me.darknet.dex.tree.definitions.instructions.FillArrayDataInstruction;
+import me.darknet.dex.tree.definitions.instructions.FilledNewArrayInstruction;
 import me.darknet.dex.tree.definitions.MemberIdentifier;
 import me.darknet.dex.tree.type.InstanceType;
 import me.darknet.dex.tree.type.Types;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -590,7 +592,7 @@ class DalvikCompilerTest {
                         code: {
                         Start:
                             fill-array-data array { 1, 2, 3 }
-                            filled-new-array/range { v0, v2 } [I
+                            filled-new-array { v0, v1, v2 } [I
                             move-result-object v3
                         End:
                             return-void
@@ -625,9 +627,18 @@ class DalvikCompilerTest {
             assertTrue(printed.contains("fill-array-data"), printed);
             assertTrue(printed.contains("width: 1"), printed);
             assertTrue(printed.contains("values: { 0x01, 0x02, 0x03 }"), printed);
-            assertTrue(printed.contains("filled-new-array/range"), printed);
             assertTrue(printed.contains("[I"), printed);
             TestUtils.assertParsesDalvik(printed);
+            // The printed list compiles back to the same registers, so no element is lost on the way out.
+            TestUtils.processDalvik(printed, TestUtils.options(), recompiled -> {
+                ClassDefinition reread = ((DalvikClassRepresentation) recompiled.representation()).definition();
+                FilledNewArrayInstruction filled = reread.getMethod("arrays", "([I)V").getCode().getInstructions().stream()
+                        .filter(FilledNewArrayInstruction.class::isInstance)
+                        .map(FilledNewArrayInstruction.class::cast)
+                        .findFirst()
+                        .orElseThrow();
+                assertArrayEquals(new int[] {0, 1, 2}, filled.registers());
+            });
         });
     }
 

@@ -203,16 +203,8 @@ public class DalvikCodePrinter implements ExecutionEngine {
     public void execute(@NotNull FilledNewArrayInstruction instruction) {
         var printer = ctx.instruction(opcode(instruction)).array();
 
-        if (instruction.isRange()) {
-            printer.print(register(instruction.first())).arg()
-                    .print(register(instruction.last()));
-        } else {
-            int[] registers = instruction.registers();
-            if (registers == null) {
-                throw new IllegalStateException("Filled new-array instruction is not range-based but has no registers");
-            }
-            printRegisterArray(printer, registers);
-        }
+        // Both encodings print their registers as one explicit list, so a range shows every register it names.
+        printRegisterArray(printer, filledArrayWords(instruction));
 
         printer.end();
         ctx.arg().literal(instruction.componentType().descriptor());
@@ -436,6 +428,22 @@ public class DalvikCodePrinter implements ExecutionEngine {
     }
 
     /**
+     * @param instruction
+     * 		Filled array whose registers are wanted.
+     *
+     * @return The registers of the array in order: every register from the first through the last of a range, which is none
+     * for a zero-count range, or the registers of a list.
+     */
+    static int @NotNull [] filledArrayWords(@NotNull FilledNewArrayInstruction instruction) {
+        if (instruction.isRange())
+            return rangeWords(instruction.first(), instruction.last());
+        int[] registers = instruction.registers();
+        if (registers == null)
+            throw new IllegalStateException("Filled new-array instruction is not range-based but has no registers");
+        return registers;
+    }
+
+    /**
      * @param opcode
      * 		Opcode of an ordinary, polymorphic, or custom-free invoke, in either of its encodings.
      *
@@ -504,6 +512,7 @@ public class DalvikCodePrinter implements ExecutionEngine {
             case ConstWideInstruction ignored -> "const-wide";
             case ConstStringInstruction ignored -> "const-string";
             case GotoInstruction ignored -> "goto";
+            case FilledNewArrayInstruction ignored -> "filled-new-array";
             default -> {
                 String name = OpcodeNames.name(instruction.opcode());
                 if (name == null)
@@ -529,9 +538,7 @@ public class DalvikCodePrinter implements ExecutionEngine {
                     yield name.substring(0, name.length() - "-lit8".length());
                 if (name.endsWith("-lit16"))
                     yield name.substring(0, name.length() - "-lit16".length());
-                yield name.endsWith("-range")
-                        ? name.substring(0, name.length() - "-range".length()) + "/range"
-                        : name;
+                yield name;
             }
         };
     }

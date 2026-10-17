@@ -416,13 +416,13 @@ class DalvikEncodingBoundaryTest {
     }
 
     @Test
-    void rangeFilledArrayKeepsHighRegisters() throws IOException {
+    void aHighContiguousListIsEncodedAsARange() throws IOException {
         List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
                 .method public static arrays (II)[I {
                     registers: 18,
                     parameters: { a, b },
                     code: {
-                        filled-new-array/range { v16, v17 } [I
+                        filled-new-array { v16, v17 } [I
                         move-result-object v0
                         return-object v0
                     }
@@ -605,21 +605,76 @@ class DalvikEncodingBoundaryTest {
     }
 
     @Test
-    void nonRangeFilledArrayRejectsEveryHighElement() {
+    void aNoncontiguousHighListIsRejectedWithoutOutput() {
+        // v16 is beyond the four-bit list field, and v0 does not continue the run, so neither form names the pair.
         var rejected = compileRejected(example("""
                 .method public static arrays (II)[I {
                     registers: 18,
                     parameters: { a, b },
                     code: {
-                        filled-new-array { v16, v17 } [I
-                        move-result-object v0
-                        return-object v0
+                        filled-new-array { v16, v0 } [I
+                        move-result-object v1
+                        return-object v1
                     }
                 }
                 """));
 
         List<Diagnostic> limits = errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT);
-        assertEquals(2, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
+        assertEquals(1, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
+        assertTrue(limits.getFirst().message().contains("v16"), limits.getFirst().message());
+    }
+
+    @Test
+    void aSixEntryFilledArrayWithGapsNeedsPackingAndIsRejectedWithoutOutput() {
+        var rejected = compileRejected(example("""
+                .method public static gaps ()V {
+                    registers: 11,
+                    code: {
+                        filled-new-array { v0, v2, v4, v6, v8, v10 } [I
+                        return-void
+                    }
+                }
+                """));
+
+        List<Diagnostic> limits = errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT);
+        assertEquals(1, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
+        assertTrue(limits.getFirst().message().contains("cannot be encoded"), limits.getFirst().message());
+    }
+
+    @Test
+    void filledArrayBeyondTheDeclaredFileIsADeclaredCountProblem() {
+        var rejected = compileRejected(example("""
+                .method public static run ()V {
+                    registers: 4,
+                    code: {
+                        filled-new-array { v0, v1, v2, v3, v4, v5 } [I
+                        return-void
+                    }
+                }
+                """));
+
+        assertFalse(errorsWithCode(rejected, DiagnosticCode.REGISTER_LIMIT).isEmpty(),
+                DiagnosticAssertions.formatErrors(rejected.errors()));
+        assertTrue(errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT).isEmpty(),
+                DiagnosticAssertions.formatErrors(rejected.errors()));
+    }
+
+    @Test
+    void filledArrayRangeCountAboveTwoHundredFiftyFiveIsRejected() {
+        // Two hundred fifty-six consecutive elements need a count the eight-bit field would wrap to zero.
+        var rejected = compileRejected(example("""
+                .method public static tooWide ()V {
+                    registers: 256,
+                    code: {
+                        filled-new-array { %s } [I
+                        return-void
+                    }
+                }
+                """.formatted(consecutiveWords(256))));
+
+        List<Diagnostic> limits = errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT);
+        assertEquals(1, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
+        assertTrue(limits.getFirst().message().contains("256"), limits.getFirst().message());
     }
 
     @Test
@@ -726,21 +781,95 @@ class DalvikEncodingBoundaryTest {
     }
 
     @Test
-    void reversedNamedFilledArrayRangeIsRejected() {
-        var rejected = compileRejected(example("""
+    void aReversedNamedListIsAnOrdinaryListNotARange() throws IOException {
+        // The names are elements in the order written, so the list is v3 then v2 rather than an inclusive run.
+        List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
                 .method public static reversed (II)V {
                     registers: 4,
                     parameters: { a, b },
                     code: {
-                        filled-new-array/range { b, a } [I
+                        filled-new-array { b, a } [I
                         return-void
                     }
                 }
-                """));
+                """), "reversed", "(II)V"), FilledNewArrayInstruction.class);
 
-        List<Diagnostic> shape = errorsWithCode(rejected, DiagnosticCode.OPERAND_SHAPE);
-        assertEquals(1, shape.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
-        assertTrue(shape.getFirst().message().contains("reversed"), shape.getFirst().message());
+        assertEquals(1, arrays.size());
+        assertFalse(arrays.getFirst().isRange());
+        assertArrayEquals(new int[] {3, 2}, arrays.getFirst().registers());
+    }
+
+    @Test
+    void aSeparatedLowPairIsTwoElementsNotAnInclusiveRange() throws IOException {
+        // A two-entry list always names two elements. The non-range form takes v0 and v3 as they are.
+        List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
+                .method public static pair ()V {
+                    registers: 4,
+                    code: {
+                        filled-new-array { v0, v3 } [I
+                        return-void
+                    }
+                }
+                """), "pair", "()V"), FilledNewArrayInstruction.class);
+
+        assertEquals(1, arrays.size());
+        assertFalse(arrays.getFirst().isRange());
+        assertArrayEquals(new int[] {0, 3}, arrays.getFirst().registers());
+    }
+
+    @Test
+    void aSixEntryContiguousListIsEncodedAsARange() throws IOException {
+        // Six entries do not fit the five-word list form, so the same consecutive registers take the range form.
+        List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
+                .method public static six ()V {
+                    registers: 6,
+                    code: {
+                        filled-new-array { v0, v1, v2, v3, v4, v5 } [I
+                        return-void
+                    }
+                }
+                """), "six", "()V"), FilledNewArrayInstruction.class);
+
+        assertEquals(1, arrays.size());
+        assertTrue(arrays.getFirst().isRange());
+        assertEquals(0, arrays.getFirst().first());
+        assertEquals(5, arrays.getFirst().last());
+    }
+
+    @Test
+    void anEmptyFilledArrayIsAZeroCountRange() throws IOException {
+        // The pinned codec builds its list form only from at least one register, so an empty array takes the range form
+        // with no registers in it.
+        List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
+                .method public static empty ()V {
+                    code: {
+                        filled-new-array { } [I
+                        return-void
+                    }
+                }
+                """), "empty", "()V"), FilledNewArrayInstruction.class);
+
+        assertEquals(1, arrays.size());
+        assertTrue(arrays.getFirst().isRange());
+        assertEquals(0, arrays.getFirst().last() - arrays.getFirst().first() + 1);
+    }
+
+    @Test
+    void maximumFilledArrayRangeCountIsAccepted() throws IOException {
+        List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
+                .method public static widest ()V {
+                    registers: 255,
+                    code: {
+                        filled-new-array { %s } [I
+                        return-void
+                    }
+                }
+                """.formatted(consecutiveWords(255))), "widest", "()V"), FilledNewArrayInstruction.class);
+
+        assertEquals(1, arrays.size());
+        assertTrue(arrays.getFirst().isRange());
+        assertEquals(0, arrays.getFirst().first());
+        assertEquals(254, arrays.getFirst().last());
     }
 
     private static String example(String methods) {
