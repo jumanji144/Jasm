@@ -138,7 +138,7 @@ class DalvikDebugNamePrintingTest {
     }
 
     @Test
-    void invalidParameterDebugNameUsesAliasAndKeepsAnnotation() {
+    void unprintableParameterNameKeepsItsAnnotationUnderAnAlias() {
         MethodMember method = method("annotated", "(I)V", new Code(1, 0, 1));
         method.getCode().setDebugInfo(new DebugInformation(List.of(), List.of(), List.of("<unused var>"), List.of()));
         method.setParameterAnnotations(List.of(List.of(new Annotation(
@@ -147,16 +147,16 @@ class DalvikDebugNamePrintingTest {
         ))));
 
         String printed = print(method);
-        assertTrue(printed.contains("parameters:"), printed);
-        assertTrue(printed.contains("p0"), printed);
+        assertFalse(printed.contains("parameters:"), printed);
         assertTrue(printed.contains("parameter-annotations"), printed);
+        assertTrue(printed.contains("p0"), printed);
         assertFalse(printed.contains("<unused var>"), printed);
         ClassDefinition compiled = compile(printed);
         assertEquals(1, compiled.getMethod("annotated", "(I)V").getParameterAnnotations().get(0).size());
     }
 
     @Test
-    void invalidParameterAliasCollisionKeepsUnnamedFallback() {
+    void collidingParameterDebugNamesPrintPartlyNamed() {
         MethodMember method = method("collision", "(II)V", new Code(2, 0, 2));
         method.getCode().setDebugInfo(new DebugInformation(
                 List.of(), List.of(), List.of("<unused var>", "p0"), List.of()));
@@ -164,6 +164,68 @@ class DalvikDebugNamePrintingTest {
         String printed = print(method);
         assertFalse(printed.contains("parameters:"), printed);
         compile(printed);
+    }
+
+    @Test
+    void failedReplayKeepsTheLocalsThatReplayAloneInDebugOrder() {
+        // The body gives x slot 1 and y slot 0. Naming both fails, because the first mention of x would take slot 0.
+        // The greedy pass keeps y, which replays to its recorded slot, and leaves x numeric.
+        MethodMember method = method("greedy", "()V", code(2, List.of(
+                new ConstInstruction(1, 1),
+                new ConstInstruction(0, 2),
+                new ReturnInstruction()
+        ), local(0, "y"), local(1, "x")));
+
+        String printed = print(method);
+        assertEquals(List.of("const v1 #0x00000001", "const y #0x00000002", "return-void"), bodyLines(printed), printed);
+        List<ConstInstruction> constants = compile(printed).getMethod("greedy", "()V").getCode().getInstructions()
+                .stream()
+                .filter(ConstInstruction.class::isInstance)
+                .map(ConstInstruction.class::cast)
+                .toList();
+        assertEquals(1, constants.get(0).register(), printed);
+        assertEquals(0, constants.get(1).register(), printed);
+    }
+
+    @Test
+    void reservedLocalIsExcludedAloneAndItsSiblingKeepsItsName() {
+        // A local called this cannot print, because the receiver is this. The other local still replays to its slot.
+        Code code = new Code(1, 0, 3);
+        code.addInstructions(List.of(
+                new ConstInstruction(0, 7),
+                new ConstInstruction(1, 5),
+                new ReturnInstruction()
+        ));
+        code.setDebugInfo(new DebugInformation(List.of(), List.of(), List.of(), List.of(
+                local(0, "this"), local(1, "total")
+        )));
+        MethodMember method = new MethodMember("reserved", Types.methodTypeFromDescriptor("()V"),
+                DalvikModifiers.ACC_PUBLIC);
+        method.setCode(code);
+
+        String printed = print(method);
+        assertEquals(List.of("const v0 #0x00000007", "const total #0x00000005", "return-void"), bodyLines(printed), printed);
+        compile(printed);
+    }
+
+    @Test
+    void shadowedParameterNameKeepsItsSlotAfterARoundTrip() {
+        // Parameter 0 is named p1, which would silently name parameter 1. The write to slot 0 must print through the
+        // positional alias of parameter 0, so that the recompile writes slot 0 again.
+        MethodMember method = method("shadowed", "(II)V", new Code(2, 0, 2));
+        method.getCode().addInstruction(new ConstInstruction(0, 9));
+        method.getCode().addInstruction(new ReturnInstruction());
+        method.getCode().setDebugInfo(new DebugInformation(List.of(), List.of(), List.of("p1", "x"), List.of()));
+
+        String printed = print(method);
+        assertFalse(printed.contains("parameters:"), printed);
+        assertEquals(List.of("const p0 #0x00000009", "return-void"), bodyLines(printed), printed);
+        List<ConstInstruction> constants = compile(printed).getMethod("shadowed", "(II)V").getCode().getInstructions()
+                .stream()
+                .filter(ConstInstruction.class::isInstance)
+                .map(ConstInstruction.class::cast)
+                .toList();
+        assertEquals(0, constants.getFirst().register(), printed);
     }
 
     private static String print(MethodMember method) {

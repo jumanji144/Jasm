@@ -667,7 +667,7 @@ class DalvikCompilerTest {
             printer.print(ctx);
 
             String printed = TestUtils.normalize(ctx.toString());
-            assertTrue(printed.contains("invoke-custom { v0, v1, v2 } callsite (III)V"), printed);
+            assertTrue(printed.contains("invoke-custom { v0, v1, p0 } callsite (III)V"), printed);
             assertTrue(printed.contains("callsite (III)V"), printed);
             assertTrue(printed.contains("ConstantBootstraps.nullConstant"), printed);
             TestUtils.assertParsesDalvik(printed);
@@ -904,7 +904,7 @@ class DalvikCompilerTest {
     }
 
     @Test
-    void fallsBackWhenFirstMentionWouldMoveALocalSlot() {
+    void keepsTheLocalsThatReplayWhenAFirstMentionWouldMoveAnother() {
         ClassDefinition definition = compileDefinition("""
                 .super java/lang/Object
                 .class public Example {
@@ -924,14 +924,16 @@ class DalvikCompilerTest {
                 )));
         String printed = printDefinition(definition);
         assertTrue(printed.contains("const v1 "), printed);
-        assertTrue(printed.contains("const v0 "), printed);
-        assertFalse(printed.contains("const zero"), printed);
+        assertTrue(printed.contains("const zero "), printed);
         assertFalse(printed.contains("const one"), printed);
+        var reread = compileDefinition(printed).getMethod("moved", "()V").getCode();
+        assertEquals(executableInstructions(definition.getMethod("moved", "()V").getCode()),
+                executableInstructions(reread), printed);
         TestUtils.assertParsesDalvik(printed);
     }
 
     @Test
-    void rejectsUnsafeAndDuplicateLocalNames() {
+    void rejectsUnsafeLocalNamesAndExcludesALaterDuplicateAlone() {
         ClassDefinition collision = compileDefinition("""
                 .super java/lang/Object
                 .class public Example {
@@ -971,9 +973,10 @@ class DalvikCompilerTest {
                         local(0, "same"), local(1, "same")
                 )));
         String printed = printDefinition(duplicate);
-        assertTrue(printed.contains("const v0 "), printed);
+        assertTrue(printed.contains("const same "), printed);
         assertTrue(printed.contains("const v1 "), printed);
-        assertFalse(printed.contains("const same"), printed);
+        assertFalse(printed.contains("const v0 "), printed);
+        assertEquals(1, printed.split("const same ", -1).length - 1, printed);
     }
 
     @Test

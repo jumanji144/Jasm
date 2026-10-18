@@ -106,7 +106,7 @@ public final class DalvikCliTarget implements CliTarget {
 		}
 
 		if (selected != null) {
-			String text = render(new DalvikClassPrinter(selected, request.numericRegisters()), request.indent(),
+			String text = render(new DalvikClassPrinter(selected), request.indent(),
 					request.floatPrintMode());
 			if (request.output().isEmpty()) {
 				runtime.stdout(text);
@@ -141,7 +141,7 @@ public final class DalvikCliTarget implements CliTarget {
 				throw runtime.failure(exception.getMessage(), exception);
 			}
 			if (rendered.putIfAbsent(relative,
-					render(new DalvikClassPrinter(definition, request.numericRegisters()), request.indent(),
+					render(new DalvikClassPrinter(definition), request.indent(),
 							request.floatPrintMode())) != null) {
 				throw runtime.failure("Duplicate class output path: " + relative);
 			}

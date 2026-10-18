@@ -432,7 +432,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	/**
-	 * Reports each numeric operand that names a slot the source also names: a declared parameter, a local, or the high word
+	 * Reports each numeric operand that names a slot the source also names: the receiver, a declared parameter, a local, or the high word
 	 * of either. Every name is known only once the method is complete, because a wide value may be named after a numeric
 	 * reference to its high word, so the check runs at the end of the method. The warning never blocks output.
 	 *
@@ -440,17 +440,19 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * 		Declared parameter names keyed by the slot of each parameter's first word.
 	 * @param wideParameterSlots
 	 * 		Slots of the declared wide parameters, whose high word follows them.
+	 * @param receiverSlot
+	 * 		Slot of the receiver, which prints as {@code this}, or {@code null} for a static method.
 	 */
 	public void reportNumericReferences(@NotNull Map<Integer, String> parameterSlots,
-	                                    @NotNull Set<Integer> wideParameterSlots) {
+	                                    @NotNull Set<Integer> wideParameterSlots, @Nullable Integer receiverSlot) {
 		for (NumericReference reference : numericReferences) {
-			NamedSlot direct = namedSlot(reference.register(), parameterSlots, wideParameterSlots);
+			NamedSlot direct = namedSlot(reference.register(), parameterSlots, wideParameterSlots, receiverSlot);
 			if (direct != null) {
 				sink.warning(DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.NUMERIC_REFERENCE_TO_NAMED_SLOT,
 						directMessage(reference.register(), direct), reference.location());
 			} else if (reference.wide()) {
 				// A wide numeric operand also occupies the slot after it, so that slot can be named even when it is not written.
-				NamedSlot covered = namedSlot(reference.register() + 1, parameterSlots, wideParameterSlots);
+				NamedSlot covered = namedSlot(reference.register() + 1, parameterSlots, wideParameterSlots, receiverSlot);
 				if (covered != null)
 					sink.warning(DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.NUMERIC_REFERENCE_TO_NAMED_SLOT,
 							coveredMessage(reference.register(), covered), reference.location());
@@ -466,20 +468,25 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @param wideParameterSlots
 	 * 		Slots of the declared wide parameters, whose high word follows them.
 	 *
+	 * @param receiverSlot
+	 * 		Slot of the receiver, or {@code null} for a static method.
+	 *
 	 * @return The source name that claims the slot, or {@code null} when no source name claims it.
 	 */
 	private @Nullable NamedSlot namedSlot(int slot, @NotNull Map<Integer, String> parameterSlots,
-	                                      @NotNull Set<Integer> wideParameterSlots) {
+	                                      @NotNull Set<Integer> wideParameterSlots, @Nullable Integer receiverSlot) {
+		if (receiverSlot != null && slot == receiverSlot)
+			return new NamedSlot("this", false, NamedSlot.Role.RECEIVER);
 		String parameter = parameterSlots.get(slot);
 		if (parameter != null)
-			return new NamedSlot(parameter, false, true);
+			return new NamedSlot(parameter, false, NamedSlot.Role.PARAMETER);
 		if (wideParameterSlots.contains(slot - 1) && parameterSlots.containsKey(slot - 1))
-			return new NamedSlot(parameterSlots.get(slot - 1), true, true);
+			return new NamedSlot(parameterSlots.get(slot - 1), true, NamedSlot.Role.PARAMETER);
 		String local = localNames.get(slot);
 		if (local != null)
-			return new NamedSlot(local, false, false);
+			return new NamedSlot(local, false, NamedSlot.Role.LOCAL);
 		if (wideBases.contains(slot - 1) && localNames.containsKey(slot - 1))
-			return new NamedSlot(localNames.get(slot - 1), true, false);
+			return new NamedSlot(localNames.get(slot - 1), true, NamedSlot.Role.LOCAL);
 		return null;
 	}
 
@@ -487,7 +494,9 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @return Warning for a numeric operand that names the slot itself.
 	 */
 	private static @NotNull String directMessage(int slot, @NotNull NamedSlot named) {
-		String kind = named.parameter() ? "parameter" : "local";
+		if (named.role() == NamedSlot.Role.RECEIVER)
+			return "Numeric register v" + slot + " is the receiver; write 'this' instead";
+		String kind = named.role() == NamedSlot.Role.PARAMETER ? "parameter" : "local";
 		if (named.highWord())
 			return "Numeric register v" + slot + " is the high word of wide " + kind + " '" + named.name() + "'";
 		return "Numeric register v" + slot + " is the slot of " + kind + " '" + named.name()
@@ -498,7 +507,9 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @return Warning for a wide numeric operand whose second word lands on a named slot.
 	 */
 	private static @NotNull String coveredMessage(int slot, @NotNull NamedSlot named) {
-		String kind = named.parameter() ? "parameter" : "local";
+		if (named.role() == NamedSlot.Role.RECEIVER)
+			return "Numeric wide register v" + slot + " covers v" + (slot + 1) + ", which is the receiver";
+		String kind = named.role() == NamedSlot.Role.PARAMETER ? "parameter" : "local";
 		String role = named.highWord() ? "the high word of wide " + kind : "the slot of " + kind;
 		return "Numeric wide register v" + slot + " covers v" + (slot + 1) + ", which is " + role
 				+ " '" + named.name() + "'";
@@ -511,10 +522,13 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * 		Source name of the parameter or local.
 	 * @param highWord
 	 * 		{@code true} when the slot is the high word of the wide value named by the slot before it.
-	 * @param parameter
-	 * 		{@code true} when the name is a declared parameter, and {@code false} when it is a local.
+	 * @param role
+	 * 		Whether the name is the receiver, a declared parameter, or a local.
 	 */
-	private record NamedSlot(String name, boolean highWord, boolean parameter) {}
+	private record NamedSlot(String name, boolean highWord, Role role) {
+		/** What a name claims: the receiver, a declared parameter, or a local. */
+		enum Role { RECEIVER, PARAMETER, LOCAL }
+	}
 
 	/**
 	 * A numeric operand of the body.

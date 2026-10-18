@@ -146,5 +146,12 @@ public enum DiagnosticCode {
 	 * A numeric register reference names a slot that the source also names, such as a declared parameter, a local, or the
 	 * high word of either. The reference still compiles, so the warning never blocks output.
 	 */
-	NUMERIC_REFERENCE_TO_NAMED_SLOT
+	NUMERIC_REFERENCE_TO_NAMED_SLOT,
+
+	/**
+	 * A parameter name would silently refer to another binding of the method: a duplicate name, {@code this} in an instance
+	 * method, the positional alias {@code pN} of another parameter, or a numeric register name such as {@code v0}. The name
+	 * is rejected, so no output is written.
+	 */
+	PARAMETER_NAME_COLLISION
 }

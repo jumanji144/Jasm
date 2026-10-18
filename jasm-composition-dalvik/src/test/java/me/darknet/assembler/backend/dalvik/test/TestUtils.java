@@ -70,6 +70,23 @@ public class TestUtils {
         processDalvik(source, options, outputConsumer, null);
     }
 
+    /**
+     * Compiles Dalvik source and returns the outcome, so a test can inspect the errors and warnings that
+     * {@link #processDalvik} would fail on.
+     */
+    public static Outcome<DalvikCompileResult> compileDalvik(String source, DalvikCompilerOptions options) {
+        Outcome<List<ASTElement>> astResult =
+                AssemblyParseFixture.processDeclarations("<test>", source, DalvikTargetContext.INSTANCE);
+        if (astResult.hasErrors()) {
+            fail("Failed to parse Dalvik class\n" + DiagnosticAssertions.formatErrors(astResult.errors()));
+        }
+        var unit = DiagnosticAssertions.requireSuccess(
+                SemanticProcessor.process(astResult.requireValue(), DalvikTargetContext.INSTANCE),
+                "Failed to process Dalvik semantic unit"
+        );
+        return new DalvikCompiler().compile(unit, options);
+    }
+
     public static void processSample(byte[] dexFile, String className, ThrowingConsumer<String> outputConsumer,
                                      Consumer<List<Diagnostic>> warningConsumer) {
         try {

@@ -9,6 +9,7 @@ import me.darknet.assembler.ast.primitive.ASTIdentifier;
 import me.darknet.assembler.ast.primitive.ASTInstruction;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.backend.dalvik.DalvikModifiers;
+import me.darknet.assembler.backend.dalvik.DalvikParameterNames;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisEngine;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisResults;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikMethodData;
@@ -49,6 +50,7 @@ import java.util.Set;
  */
 public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> implements ASTMethodVisitor {
     private final List<String> parameterNames = new ArrayList<>();
+    private final List<Location> parameterLocations = new ArrayList<>();
     private final ASTMethod source;
     private final @Nullable DalvikMethodData methodData;
     private final MethodReference analysisMethod;
@@ -101,6 +103,9 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
         while (parameterNames.size() <= index)
             parameterNames.add(null);
         parameterNames.set(index, name.literal());
+        while (parameterLocations.size() <= index)
+            parameterLocations.add(null);
+        parameterLocations.set(index, name.location());
     }
 
     @Override
@@ -188,9 +193,12 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     @Override
     public void visitEnd() {
         member.setParameterNames(parameterNames);
+        boolean collided = reportParameterNameCollisions();
         if (codeVisitor != null) {
             int parameterBase = declaredRegisterCount == null ? -1 : declaredRegisterCount - incomingRegisterCount;
-            codeVisitor.reportNumericReferences(declaredParameterSlots(parameterBase), wideParameterSlots(parameterBase));
+            if (!collided)
+                codeVisitor.reportNumericReferences(declaredParameterSlots(parameterBase),
+                        wideParameterSlots(parameterBase), receiverSlot(parameterBase));
             int totalRegisters = Math.max(incomingRegisterCount, codeVisitor.getRegisterCount());
             if (declaredRegisterCount != null && totalRegisters > declaredRegisterCount) {
                 // The visitor has already reported the register limit problem, so this method does not need to.
@@ -217,6 +225,36 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
                         methodValueLookup, fieldValueLookup));
             }
         }
+    }
+
+    /**
+     * Rejects each parameter name that would silently refer to another binding. The error fails the compile, so no output
+     * is written for the method.
+     *
+     * @return {@code true} when any parameter name collides.
+     */
+    private boolean reportParameterNameCollisions() {
+        int count = member.getType().parameterTypes().size();
+        boolean instance = (member.getAccess() & DalvikModifiers.ACC_STATIC) == 0;
+        Map<Integer, String> collisions = DalvikParameterNames.collisions(parameterNames, count, instance);
+        for (Map.Entry<Integer, String> collision : collisions.entrySet()) {
+            int index = collision.getKey();
+            Location location = index < parameterLocations.size() && parameterLocations.get(index) != null
+                    ? parameterLocations.get(index)
+                    : source.location();
+            sink.error(DiagnosticCode.PARAMETER_NAME_COLLISION,
+                    "Parameter name cannot be used: " + collision.getValue(), location);
+        }
+        return !collisions.isEmpty();
+    }
+
+    /**
+     * @return Slot of the receiver, which is the first slot of the parameters, or {@code null} for a static method or a
+     * method that declares no register count.
+     */
+    private @Nullable Integer receiverSlot(int parameterBase) {
+        boolean instance = (member.getAccess() & DalvikModifiers.ACC_STATIC) == 0;
+        return instance && parameterBase >= 0 ? parameterBase : null;
     }
 
     /**

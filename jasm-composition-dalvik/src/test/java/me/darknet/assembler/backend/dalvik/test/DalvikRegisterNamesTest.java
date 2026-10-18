@@ -1,10 +1,8 @@
 package me.darknet.assembler.backend.dalvik.test;
 
 import me.darknet.assembler.backend.dalvik.DalvikClassRepresentation;
-import me.darknet.assembler.backend.dalvik.printer.DalvikClassPrinter;
 import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.error.DiagnosticCode;
-import me.darknet.assembler.printer.PrintContext;
 import me.darknet.dex.tree.DexFile;
 import me.darknet.dex.tree.definitions.ClassDefinition;
 import me.darknet.dex.tree.definitions.MethodMember;
@@ -189,10 +187,10 @@ class DalvikRegisterNamesTest {
 	}
 
 	@Test
-	void unnamedParametersKeepTheirNumericBody() throws Exception {
+	void unnamedParametersPrintAsPositionalAliases() throws Exception {
 		String printed = printDecoded(UNNAMED);
 		assertFalse(printed.contains("parameters:"), printed);
-		assertEquals(List.of("A:", "add-int v0 v1 v2", "return v0", "B:"), body(printed, "plain"), printed);
+		assertEquals(List.of("A:", "add-int v0 p0 p1", "return v0", "B:"), body(printed, "plain"), printed);
 	}
 
 	@Test
@@ -221,16 +219,23 @@ class DalvikRegisterNamesTest {
 	}
 
 	@Test
-	void numericRegistersPrintSlotNumbersAndRecompileWithoutWarnings() throws Exception {
-		DexFile file = roundTrip(compile(SUM).definitions());
-		ClassDefinition definition = file.definitions().getFirst();
-		String numeric = printNumeric(definition);
-		assertFalse(numeric.contains("parameters:"), numeric);
-		assertEquals(List.of("A:", "add-int v0 v2 v3", "return v0", "B:"), body(numeric, "sum"), numeric);
-
-		CompileResult recompiled = compile(numeric);
-		assertEquals(List.of(), recompiled.warnings(), numeric);
-		assertEquals(dumpMethods(file), dumpMethods(roundTrip(recompiled.definitions())), numeric);
+	void receiverPrintsAsThisEvenWhenAParameterIsUnnamed() throws Exception {
+		String printed = printDecoded("""
+				.super java/lang/Object
+				.class public Example {
+				    .method public count (I)I {
+				        registers: 3,
+				        code: {
+				            iget total this sample/Owner.count I
+				            add-int total total p0
+				            return total
+				        }
+				    }
+				}
+				""");
+		assertFalse(printed.contains("parameters:"), printed);
+		assertEquals(List.of("A:", "iget total this sample/Owner.count I", "add-int total total p0", "return total", "B:"),
+				body(printed, "count"), printed);
 	}
 
 	@Test
@@ -277,21 +282,24 @@ class DalvikRegisterNamesTest {
 	}
 
 	@Test
-	void numericHighWordOfWideParameterWarns() {
-		CompileResult result = compile("""
+	void numericHighWordOfWideParameterWarnsAndStillWritesDex() {
+		// The write leaves the wide value unread, so the body is valid and only the numeric high word warns.
+		var outcome = TestUtils.compileDalvik("""
 				.super java/lang/Object
 				.class public Example {
-				    .method public static high (JI)J {
+				    .method public static high (JI)V {
 				        registers: 4,
 				        parameters: { wide, count },
 				        code: {
 				            const v2 0
-				            return-wide wide
+				            return-void
 				        }
 				    }
 				}
-				""");
-		assertEquals(List.of("Numeric register v2 is the high word of wide parameter 'wide'"), messages(result.warnings()));
+				""", TestUtils.options());
+		assertFalse(outcome.hasErrors(), messages(outcome.errors()).toString());
+		assertEquals(List.of("Numeric register v2 is the high word of wide parameter 'wide'"), messages(outcome.warnings()));
+		assertTrue(outcome.value() != null);
 	}
 
 	@Test
@@ -356,6 +364,111 @@ class DalvikRegisterNamesTest {
 		assertTrue(unnamed.warnings().isEmpty(), messages(unnamed.warnings()).toString());
 	}
 
+	@Test
+	void numericReferenceToReceiverWarnsAndStillWritesDex() {
+		var outcome = TestUtils.compileDalvik("""
+				.super java/lang/Object
+				.class public Example {
+				    .method public count (I)I {
+				        registers: 3,
+				        parameters: { value },
+				        code: {
+				            iget total v1 sample/Owner.count I
+				            add-int total total value
+				            return total
+				        }
+				    }
+				}
+				""", TestUtils.options());
+		assertFalse(outcome.hasErrors(), messages(outcome.errors()).toString());
+		assertEquals(List.of("Numeric register v1 is the receiver; write 'this' instead"), messages(outcome.warnings()));
+	}
+
+	@Test
+	void duplicateParameterNameIsRejectedInSource() {
+		assertParameterNameCollision("""
+				    .method public static pick (II)V {
+				        registers: 2,
+				        parameters: { a, a },
+				        code: {
+				            return-void
+				        }
+				    }
+				""");
+	}
+
+	@Test
+	void thisParameterNameIsRejectedInAnInstanceMethod() {
+		assertParameterNameCollision("""
+				    .method public only (I)V {
+				        registers: 2,
+				        parameters: { this },
+				        code: {
+				            return-void
+				        }
+				    }
+				""");
+	}
+
+	@Test
+	void aliasOfAnotherParameterIsRejectedInSource() {
+		assertParameterNameCollision("""
+				    .method public static pick (II)V {
+				        registers: 2,
+				        parameters: { p1, x },
+				        code: {
+				            return-void
+				        }
+				    }
+				""");
+	}
+
+	@Test
+	void numericLookingParameterNameIsRejectedInSource() {
+		assertParameterNameCollision("""
+				    .method public static pick (II)V {
+				        registers: 4,
+				        parameters: { v0, b },
+				        code: {
+				            return-void
+				        }
+				    }
+				""");
+	}
+
+	@Test
+	void thisInAStaticMethodAndAliasesOfItsOwnIndexCompile() {
+		var outcome = TestUtils.compileDalvik("""
+				.super java/lang/Object
+				.class public Example {
+				    .method public static only (II)V {
+				        registers: 2,
+				        parameters: { p0, p9 },
+				        code: {
+				            return-void
+				        }
+				    }
+				    .method public static named (I)V {
+				        registers: 1,
+				        parameters: { this },
+				        code: {
+				            return-void
+				        }
+				    }
+				}
+				""", TestUtils.options());
+		assertFalse(outcome.hasErrors(), messages(outcome.errors()).toString());
+	}
+
+	private static void assertParameterNameCollision(String method) {
+		var outcome = TestUtils.compileDalvik(".super java/lang/Object\n.class public Example {\n" + method + "}\n",
+				TestUtils.options());
+		assertTrue(outcome.hasErrors(), method);
+		assertTrue(outcome.errors().stream()
+						.anyMatch(diagnostic -> diagnostic.code() == DiagnosticCode.PARAMETER_NAME_COLLISION),
+				messages(outcome.errors()).toString());
+	}
+
 	private record CompileResult(List<ClassDefinition> definitions, List<Diagnostic> warnings) {}
 
 	private static CompileResult compile(String source) {
@@ -379,11 +492,6 @@ class DalvikRegisterNamesTest {
 		return String.join("\n", DalvikDexFixture.printAll(file).values());
 	}
 
-	private static String printNumeric(ClassDefinition definition) {
-		PrintContext<?> context = new PrintContext<>("\t");
-		new DalvikClassPrinter(definition, true).print(context);
-		return context.toString();
-	}
 
 	/**
 	 * @return The trimmed body lines of the named method, which run from its {@code code: {} line to the closing brace.

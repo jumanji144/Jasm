@@ -67,9 +67,6 @@ public final class JvmCliTarget implements CliTarget {
 
 	@Override
 	public int decompile(@NotNull DecompileRequest request) throws IOException {
-		if (request.numericRegisters()) {
-			throw request.runtime().failure("--numeric-registers is only supported for the Dalvik target");
-		}
 		File source = request.source();
 		if (source.getName().toLowerCase().endsWith(".jar")) {
 			return decompileJar(request, source);

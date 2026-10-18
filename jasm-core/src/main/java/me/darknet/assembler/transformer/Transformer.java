@@ -7,6 +7,8 @@ import me.darknet.assembler.ast.specific.ASTField;
 import me.darknet.assembler.ast.specific.ASTMember;
 import me.darknet.assembler.ast.specific.ASTMethod;
 import me.darknet.assembler.ast.specific.ASTRecordComponent;
+import me.darknet.assembler.descriptor.DescriptorParser;
+import me.darknet.assembler.descriptor.DescriptorSyntaxException;
 import me.darknet.assembler.error.Diagnostic;
 import me.darknet.assembler.error.DiagnosticCode;
 import me.darknet.assembler.error.DiagnosticPhase;
@@ -275,7 +277,21 @@ public class Transformer {
             if (Objects.equals(name, method.getParameters().get(i).content()))
                 return i;
         }
+        // A positional alias pN names parameter N when no declared name matches. A key past the parameter list stays unmatched.
+        int parameterCount = parameterCount(method);
+        for (int i = 0; i < parameterCount; i++) {
+            if (name.equals("p" + i))
+                return i;
+        }
         return -1;
+    }
+
+    private static int parameterCount(ASTMethod method) {
+        try {
+            return DescriptorParser.parseMethodDescriptor(method.getDescriptor().content()).parameters().size();
+        } catch (DescriptorSyntaxException exception) {
+            return 0;
+        }
     }
 
     private static @NotNull ProcessedMethod requireProcessed(ValidatedUnit unit, ASTMethod method) {

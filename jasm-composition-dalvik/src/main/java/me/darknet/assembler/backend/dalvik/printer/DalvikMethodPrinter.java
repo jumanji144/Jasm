@@ -1,6 +1,7 @@
 package me.darknet.assembler.backend.dalvik.printer;
 
 import me.darknet.assembler.backend.dalvik.DalvikModifiers;
+import me.darknet.assembler.backend.dalvik.DalvikParameterNames;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikConstantTypeResolver;
 import me.darknet.assembler.printer.AnnotationPrinter;
 import me.darknet.assembler.printer.MethodPrinter;
@@ -15,7 +16,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,17 +24,13 @@ import java.util.Set;
 public class DalvikMethodPrinter implements MethodPrinter {
 	private final MethodMember definition;
 	private final DalvikMemberPrinter memberPrinter;
-	private final boolean numericRegisters;
 
 	/**
 	 * @param definition
-	 * 		The method definition to print.
-	 * @param numericRegisters
-	 * 		{@code true} to print every slot as {@code vN} and to omit the source names of parameters and locals.
+	 * 		The method definition to print, with the source names of its parameters and locals.
 	 */
-	public DalvikMethodPrinter(MethodMember definition, boolean numericRegisters) {
+	public DalvikMethodPrinter(MethodMember definition) {
 		this.definition = definition;
-		this.numericRegisters = numericRegisters;
 		this.memberPrinter = new DalvikMemberPrinter(definition, definition, DalvikMemberPrinter.Type.METHOD);
 	}
 
@@ -78,12 +74,11 @@ public class DalvikMethodPrinter implements MethodPrinter {
 
 		boolean hasPrior = false;
 		int parameterCount = definition.getType().parameterTypes().size();
-		// Numeric output names no parameter, so its signature and body carry no source names.
-		List<String> parameterNames = numericRegisters ? unnamed(parameterCount) : parameterNamesForPrint(code);
+		List<String> parameterNames = parameterNamesForPrint(code);
 		boolean allParametersNamed = parameterCount > 0 && allNamed(parameterNames);
-		// The body names the receiver and the parameters only when every parameter has a name. Without parameters
-		// that holds trivially, so an instance method still prints its receiver as this.
-		boolean bodyParametersNamed = !numericRegisters && allNamed(parameterNames);
+		// The body names parameters only when every parameter has a name. A partly named method prints each parameter as
+		// its positional alias, which always resolves. The receiver always prints as this.
+		List<String> bodyParameterNames = allNamed(parameterNames) ? parameterNames : positionalNames(parameterCount);
 		if (code != null) {
 			obj.value("registers").print(String.valueOf(code.getRegisters()));
 			hasPrior = true;
@@ -102,30 +97,36 @@ public class DalvikMethodPrinter implements MethodPrinter {
 			parameters.end();
 			hasPrior = true;
 
-			List<List<Annotation>> parameterAnnotations = definition.getParameterAnnotations();
-			if (parameterAnnotations.stream().anyMatch(annotations -> !annotations.isEmpty())) {
+		}
+
+		// Parameter annotations are keyed by the declared names when every parameter has one. Otherwise they are keyed by the
+		// positional alias of their parameter, which the compiler resolves while the signature declares no name for it.
+		List<List<Annotation>> parameterAnnotations = definition.getParameterAnnotations();
+		if (parameterAnnotations.stream().anyMatch(annotations -> !annotations.isEmpty())) {
+			if (hasPrior) {
 				obj.next();
-				PrintContext.ObjectPrint parameterAnnotationObject = obj.value("parameter-annotations").object();
-				int limit = Math.min(parameterAnnotations.size(), parameterCount);
-				boolean firstEntry = true;
-				for (int i = 0; i < limit; i++) {
-					List<Annotation> annotations = parameterAnnotations.get(i);
-					if (annotations.isEmpty()) {
-						continue;
-					}
-					if (!firstEntry) {
-						parameterAnnotationObject.next();
-					}
-					firstEntry = false;
-					parameterAnnotationObject.literalValue(parameterNames.get(i));
-					PrintContext.ArrayPrint annotationArray = parameterAnnotationObject.array();
-					for (Annotation annotation : annotations) {
-						new DalvikAnnotationPrinter(annotation).print(annotationArray);
-					}
-					annotationArray.end();
-				}
-				parameterAnnotationObject.end();
 			}
+			PrintContext.ObjectPrint parameterAnnotationObject = obj.value("parameter-annotations").object();
+			int limit = Math.min(parameterAnnotations.size(), parameterCount);
+			boolean firstEntry = true;
+			for (int i = 0; i < limit; i++) {
+				List<Annotation> annotations = parameterAnnotations.get(i);
+				if (annotations.isEmpty()) {
+					continue;
+				}
+				if (!firstEntry) {
+					parameterAnnotationObject.next();
+				}
+				firstEntry = false;
+				parameterAnnotationObject.literalValue(allParametersNamed ? parameterNames.get(i) : positionalAlias(i));
+				PrintContext.ArrayPrint annotationArray = parameterAnnotationObject.array();
+				for (Annotation annotation : annotations) {
+					new DalvikAnnotationPrinter(annotation).print(annotationArray);
+				}
+				annotationArray.end();
+			}
+			parameterAnnotationObject.end();
+			hasPrior = true;
 		}
 
 		if (code != null && !definition.getThrownTypes().isEmpty()) {
@@ -177,10 +178,8 @@ public class DalvikMethodPrinter implements MethodPrinter {
 		if (code != null) {
 			if (hasPrior) obj.next();
 			var codeObj = obj.value("code").code();
-			Map<Integer, String> registers = numericRegisters
-					? DalvikRegisterNames.numeric(code)
-					: DalvikRegisterNames.resolve(code, isInstance(), definition.getType().parameterTypes(),
-					bodyParametersNamed ? parameterNames : null);
+			Map<Integer, String> registers = DalvikRegisterNames.resolve(code, isInstance(),
+					definition.getType().parameterTypes(), bodyParameterNames);
 			DalvikCodePrinter printer = new DalvikCodePrinter(codeObj, registers, labelNames,
 					DalvikConstantTypeResolver.resolve(definition, code));
 			StraightForwardSimulation simulation = new StraightForwardSimulation();
@@ -235,33 +234,20 @@ public class DalvikMethodPrinter implements MethodPrinter {
 				? List.of()
 				: debug.parameterNames();
 
-		// Use member names if available, otherwise use debug names, and fallback to "pN" for unnamed parameters.
+		// Member names win over debug names. A name that cannot be printed is unnamed, so the method prints partly named.
 		List<String> names = new ArrayList<>(parameterCount);
-		Set<Integer> fallbackAliases = new HashSet<>();
 		for (int i = 0; i < parameterCount; i++) {
 			String name = i < memberNames.size() ? memberNames.get(i) : null;
 			if ((name == null || name.isEmpty()) && i < debugNames.size())
 				name = debugNames.get(i);
-			if (name == null || name.isEmpty()) {
-				names.add(null);
-			} else if (DalvikRegisterNames.isPrintableIdentifier(name)) {
-				names.add(name);
-			} else {
-				names.add("p" + i);
-				fallbackAliases.add(i);
-			}
+			boolean printable = name != null && !name.isEmpty()
+					&& DalvikRegisterNames.isPrintableIdentifier(name)
+					&& !DalvikParameterNames.isNumericRegisterName(name);
+			names.add(printable ? name : null);
 		}
-
-		// Remove fallback names that conflict with other parameter names.
-		for (int index : fallbackAliases) {
-			String alias = names.get(index);
-			for (int other = 0; other < parameterCount; other++) {
-				if (other != index && alias.equals(names.get(other))) {
-					names.set(index, null);
-					break;
-				}
-			}
-		}
+		// A name that would silently refer to another binding is unnamed as well, so no printed name ever changes a slot.
+		for (int index : DalvikParameterNames.collisions(names, parameterCount, isInstance()).keySet())
+			names.set(index, null);
 		return names;
 	}
 
@@ -269,13 +255,20 @@ public class DalvikMethodPrinter implements MethodPrinter {
 	 * @param count
 	 * 		Number of parameters.
 	 *
-	 * @return A list of {@code count} unnamed parameters.
+	 * @return The positional alias of every parameter, from {@code p0} through {@code pN-1}.
 	 */
-	private static @NotNull List<String> unnamed(int count) {
+	private static @NotNull List<String> positionalNames(int count) {
 		List<String> names = new ArrayList<>(count);
 		for (int i = 0; i < count; i++)
-			names.add(null);
+			names.add(positionalAlias(i));
 		return names;
+	}
+
+	/**
+	 * @return The positional alias of a parameter, which always names that parameter.
+	 */
+	private static @NotNull String positionalAlias(int index) {
+		return "p" + index;
 	}
 
 	/**

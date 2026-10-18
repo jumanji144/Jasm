@@ -1,5 +1,6 @@
 package me.darknet.assembler.backend.dalvik.printer;
 
+import me.darknet.assembler.backend.dalvik.DalvikParameterNames;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikInvokeLayout;
 import me.darknet.assembler.parser.Token;
 import me.darknet.assembler.parser.TokenType;
@@ -15,6 +16,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,7 +31,8 @@ import static me.darknet.assembler.descriptor.Descriptors.isWideType;
  * every slot written numerically, then gives each new name the first free slot below the parameters, in the order the
  * names first appear in the body. This class replays that allocation over the decoded instructions, in the order the
  * compiler resolves their operands, and keeps the local names only when every one of them lands on its recorded slot.
- * If any local fails the replay, every local keeps its numeric name, so a printed body never recompiles to other slots.
+ * When every pooled local replays, the method keeps all of them. Otherwise locals are added greedily in debug-entry order,
+ * and each one is kept only when the whole set still replays, so a printed body never recompiles to other slots.
  */
 final class DalvikRegisterNames {
 	private static final Tokenizer TOKENIZER = new Tokenizer();
@@ -42,7 +45,7 @@ final class DalvikRegisterNames {
 	 *
 	 * @return Every slot under its numeric name.
 	 */
-	static @NotNull Map<Integer, String> numeric(@NotNull Code code) {
+	private static @NotNull Map<Integer, String> slotNames(@NotNull Code code) {
 		Map<Integer, String> registers = new HashMap<>();
 		for (int i = 0; i < code.getRegisters(); i++)
 			registers.put(i, "v" + i);
@@ -64,15 +67,14 @@ final class DalvikRegisterNames {
 	 */
 	static @NotNull Map<Integer, String> resolve(@NotNull Code code, boolean instance,
 	                                             @NotNull List<ClassType> parameters,
-	                                             @Nullable List<String> parameterNames) {
-		Map<Integer, String> registers = numeric(code);
+	                                             @NotNull List<String> parameterNames) {
+		Map<Integer, String> registers = slotNames(code);
 		int registerCount = code.getRegisters();
 		int parameterBase = registerCount - code.getIn();
 		if (parameterBase < 0 || parameterBase > registerCount)
 			return registers;
 
-		if (parameterNames != null)
-			nameParameters(registers, instance, parameters, parameterNames, parameterBase);
+		nameParameters(registers, instance, parameters, parameterNames, parameterBase);
 		registers.putAll(localNames(code, instance, parameters, parameterNames, parameterBase, registerCount));
 		return registers;
 	}
@@ -140,18 +142,18 @@ final class DalvikRegisterNames {
 	 * @param registerCount
 	 * 		Number of registers the method declares. Debug entries for slots at or beyond it are ignored.
 	 *
-	 * @return Local names that survive the replay, keyed by slot. Empty when any local cannot be replayed.
+	 * @return Local names that survive the replay, keyed by slot. Empty when no local can be replayed.
 	 */
 	private static @NotNull Map<Integer, String> localNames(@NotNull Code code, boolean instance,
 	                                                        @NotNull List<ClassType> parameters,
-	                                                        @Nullable List<String> parameterNames,
+	                                                        @NotNull List<String> parameterNames,
 	                                                        int parameterBase, int registerCount) {
 		DebugInformation debugInfo = code.getDebugInfo();
 		if (debugInfo == null || debugInfo.locals() == null || debugInfo.locals().isEmpty())
 			return Map.of();
 
-		// The first entry for a slot names it. Only slots below the parameters are locals, since the compiler allocates them.
-		Map<Integer, String> candidates = new HashMap<>();
+		// The first entry for a slot names it, in debug-entry order. Only slots below the parameters are locals.
+		Map<Integer, String> candidates = new LinkedHashMap<>();
 		for (DebugInformation.LocalVariable local : debugInfo.locals()) {
 			if (local == null
 					|| local.register() < 0
@@ -161,28 +163,19 @@ final class DalvikRegisterNames {
 			candidates.putIfAbsent(local.register(), local.name());
 		}
 
-		// A name the body already binds would resolve to that binding, so no local may take it.
-		Set<String> reserved = new HashSet<>();
-		if (instance)
-			reserved.add("this");
-		for (int index = 0; index < parameters.size(); index++)
-			reserved.add("p" + index);
-		if (parameterNames != null)
-			reserved.addAll(parameterNames);
-
-		Map<Integer, String> usable = new HashMap<>();
-		Map<String, Integer> slotOfName = new HashMap<>();
+		// A candidate joins the pool when it can be printed and does not claim a name the body already binds. A name that an
+		// earlier candidate holds is excluded too. Each candidate is excluded alone, so one bad name never disables the others.
+		Set<String> reserved = reservedNames(instance, parameters, parameterNames);
+		Map<Integer, String> pool = new LinkedHashMap<>();
+		Set<String> claimed = new HashSet<>();
 		for (Map.Entry<Integer, String> entry : candidates.entrySet()) {
 			String name = entry.getValue();
-			if (!isPrintableIdentifier(name) || isNumericRegisterName(name))
+			if (!isPrintableIdentifier(name) || DalvikParameterNames.isNumericRegisterName(name) || reserved.contains(name))
 				continue;
-			if (reserved.contains(name))
-				return Map.of();
-			if (slotOfName.putIfAbsent(name, entry.getKey()) != null)
-				return Map.of();
-			usable.put(entry.getKey(), name);
+			if (claimed.add(name))
+				pool.put(entry.getKey(), name);
 		}
-		if (usable.isEmpty())
+		if (pool.isEmpty())
 			return Map.of();
 
 		List<Use> uses = new ArrayList<>();
@@ -190,7 +183,42 @@ final class DalvikRegisterNames {
 			if (!collectUses(instruction, uses))
 				return Map.of();
 		}
-		return allocate(uses, usable, parameterBase, registerCount);
+
+		// When every pooled local replays, the method keeps all of them, as it always has.
+		Map<Integer, String> all = allocate(uses, pool, parameterBase, registerCount);
+		if (!all.isEmpty())
+			return all;
+
+		// Otherwise add locals greedily in debug-entry order, and keep each one only when the whole set still replays.
+		Map<Integer, String> chosen = new LinkedHashMap<>();
+		for (Map.Entry<Integer, String> entry : pool.entrySet()) {
+			Map<Integer, String> trial = new LinkedHashMap<>(chosen);
+			trial.put(entry.getKey(), entry.getValue());
+			if (allocate(uses, trial, parameterBase, registerCount).containsKey(entry.getKey()))
+				chosen = trial;
+		}
+		return chosen.isEmpty() ? Map.of() : allocate(uses, chosen, parameterBase, registerCount);
+	}
+
+	/**
+	 * @param instance
+	 * 		{@code true} when the method has a receiver, which the body binds as {@code this}.
+	 * @param parameters
+	 * 		Parameter types of the method, in declaration order.
+	 * @param parameterNames
+	 * 		The name printed for every parameter, which is its source name or its positional alias.
+	 *
+	 * @return The names the body already binds. A local may not take one of them.
+	 */
+	private static @NotNull Set<String> reservedNames(boolean instance, @NotNull List<ClassType> parameters,
+	                                                  @NotNull List<String> parameterNames) {
+		Set<String> reserved = new HashSet<>();
+		if (instance)
+			reserved.add("this");
+		for (int index = 0; index < parameters.size(); index++)
+			reserved.add("p" + index);
+		reserved.addAll(parameterNames);
+		return reserved;
 	}
 
 	/**
@@ -494,20 +522,7 @@ final class DalvikRegisterNames {
 				&& isWideType(descriptor.substring(1)));
 	}
 
-	/**
-	 * @param name
-	 * 		Name to check.
-	 *
-	 * @return {@code true} if the name is a numeric register name such as {@code v0}.
-	 */
-	private static boolean isNumericRegisterName(@NotNull String name) {
-		if (name.length() < 2 || name.charAt(0) != 'v')
-			return false;
-		for (int i = 1; i < name.length(); i++)
-			if (!Character.isDigit(name.charAt(i)))
-				return false;
-		return true;
-	}
+
 
 	/**
 	 * One register operand, in the order the compiler resolves it.
