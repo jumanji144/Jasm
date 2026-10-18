@@ -178,7 +178,6 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
                 return null;
             }
             codeVisitor = new DalvikCodeVisitor(
-                    codeBuilder,
                     sink,
                     parameterRegisters(parameterBase),
                     registerLimit,
@@ -208,12 +207,24 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
                 return;
             }
 
+            // The named locals span the whole body, so the body has to start and end with a label. The labels go into a
+            // copy before the code is built, because a built Code's instruction list is read-only.
+            List<Instruction> body = new ArrayList<>(codeVisitor.body());
+            Map<Integer, String> names = codeVisitor.localNames();
+            List<DebugInformation.LocalVariable> locals = List.of();
+            if (!names.isEmpty()) {
+                Label entry = entryLabel(body);
+                Label exit = exitLabel(body);
+                locals = localVariables(names, entry, exit);
+            }
+            for (Instruction instruction : body)
+                codeBuilder.add(instruction);
             Code code = codeBuilder
                     .arguments(incomingRegisterCount, codeVisitor.getOutRegisters())
                     .registers(declaredRegisterCount == null ? totalRegisters : declaredRegisterCount)
                     .build();
             codeVisitor.getTryCatches().forEach(code::addTryCatch);
-            DebugInformation debugInfo = debugInformation(code, localVariables(code));
+            DebugInformation debugInfo = debugInformation(code, locals);
             if (debugInfo != null)
                 code.setDebugInfo(debugInfo);
             member.setCode(code);
@@ -357,39 +368,57 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
 
     /**
      * Describes every named local over the whole method, from its entry to its exit, with no type. The range is bounded by
-     * two labels. Each is the code's first or last label when one already sits there, and otherwise a label added at that
-     * end, so the encoder places the entry at the start of the method and the exit at its end.
+     * the given labels, which the encoder places at the start and end of the method.
      *
-     * @param code
-     *         Code whose named locals are described. Its instruction list gains a label at an end that has none.
+     * @param names
+     *         Names of the locals, keyed by slot.
+     * @param entry
+     *         Label at the start of the body.
+     * @param exit
+     *         Label at the end of the body.
      *
-     * @return One local per named slot, in ascending slot order, or none when the method has no named local.
+     * @return One local per named slot, in ascending slot order.
      */
-    private @NotNull List<DebugInformation.LocalVariable> localVariables(@NotNull Code code) {
-        Map<Integer, String> names = codeVisitor.localNames();
-        if (names.isEmpty())
-            return List.of();
-
-        List<Instruction> instructions = code.getInstructions();
-        Label entry;
-        if (instructions.getFirst() instanceof Label first) {
-            entry = first;
-        } else {
-            entry = new Label();
-            instructions.addFirst(entry);
-        }
-        Label exit;
-        if (instructions.getLast() instanceof Label last) {
-            exit = last;
-        } else {
-            exit = new Label();
-            instructions.add(exit);
-        }
-
+    private static @NotNull List<DebugInformation.LocalVariable> localVariables(@NotNull Map<Integer, String> names,
+                                                                              @NotNull Label entry, @NotNull Label exit) {
         List<DebugInformation.LocalVariable> locals = new ArrayList<>(names.size());
         for (Map.Entry<Integer, String> local : names.entrySet())
             locals.add(new DebugInformation.LocalVariable(local.getKey(), local.getValue(), null, null, entry, exit));
         return locals;
+    }
+
+    /**
+     * Returns the label the named locals start at: the body's first label when it has one, and otherwise a new label
+     * placed before the first instruction.
+     *
+     * @param body
+     *         Instructions and labels of the method, in code order. A new label is added to its front.
+     *
+     * @return The entry label.
+     */
+    private static @NotNull Label entryLabel(@NotNull List<Instruction> body) {
+        if (!body.isEmpty() && body.getFirst() instanceof Label first)
+            return first;
+        Label entry = new Label();
+        body.addFirst(entry);
+        return entry;
+    }
+
+    /**
+     * Returns the label the named locals end at: the body's last label when it has one, and otherwise a new label
+     * placed after the last instruction.
+     *
+     * @param body
+     *         Instructions and labels of the method, in code order. A new label is added to its end.
+     *
+     * @return The exit label.
+     */
+    private static @NotNull Label exitLabel(@NotNull List<Instruction> body) {
+        if (!body.isEmpty() && body.getLast() instanceof Label last)
+            return last;
+        Label exit = new Label();
+        body.add(exit);
+        return exit;
     }
 
     /**

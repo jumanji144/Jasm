@@ -31,7 +31,6 @@ import me.darknet.assembler.instructions.SemanticInstruction;
 import me.darknet.assembler.instructions.ValidatedOperand;
 import me.darknet.assembler.util.Location;
 import me.darknet.dex.file.instructions.Opcodes;
-import me.darknet.dex.tree.definitions.code.CodeBuilder;
 import me.darknet.dex.tree.definitions.code.Handler;
 import me.darknet.dex.tree.definitions.code.TryCatch;
 import me.darknet.dex.tree.definitions.constant.Constant;
@@ -99,7 +98,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Visits Dalvik instruction syntax and emits dex code through a {@link CodeBuilder}.
+ * Visits Dalvik instruction syntax and collects the dex instructions and labels it emits, in code order.
  */
 public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	/** Width of the register fields of the 12x, 22s, and 35c encodings, which name registers {@code v0} to {@code v15}. */
@@ -111,7 +110,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	/** Most register words the non-range invoke and filled-array encodings name, since the 35c format has five fields. */
 	private static final int MAX_LIST_WORDS = 5;
 
-	private final CodeBuilder codeBuilder;
+	/** Instructions and labels emitted so far, in code order. The method visitor builds the code from them. */
+	private final List<Instruction> body = new ArrayList<>();
 	private final DiagnosticSink sink;
 	private SemanticInstruction currentInstructionAst;
 	private final Map<Instruction, ASTInstruction> instructionToSource = new IdentityHashMap<>();
@@ -139,8 +139,6 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	private int pendingLineNumber = Label.UNASSIGNED;
 
 	/**
-	 * @param codeBuilder
-	 * 		Builder collecting the emitted dex instructions.
 	 * @param sink
 	 * 		Sink reporting instructions this backend cannot encode.
 	 * @param initialRegisterMap
@@ -154,12 +152,11 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @param explicitRegisters
 	 * 		Physical slots addressed by explicit {@code vN} operands in the whole method.
 	 */
-	public DalvikCodeVisitor(@NotNull CodeBuilder codeBuilder, @NotNull DiagnosticSink sink,
+	public DalvikCodeVisitor(@NotNull DiagnosticSink sink,
 	                         @NotNull Map<String, Integer> initialRegisterMap,
 	                         int registerLimit, int parameterBase,
 	                         @Nullable Location registerDeclaration,
 	                         @NotNull Set<Integer> explicitRegisters) {
-		this.codeBuilder = codeBuilder;
 		this.sink = sink;
 		this.registerLimit = registerLimit;
 		this.parameterBase = parameterBase;
@@ -172,6 +169,13 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		});
 		if (registerLimit >= 0)
 			registerCount = Math.max(registerCount, registerLimit);
+	}
+
+	/**
+	 * @return Instructions and labels emitted so far, in code order.
+	 */
+	public @NotNull List<Instruction> body() {
+		return body;
 	}
 
 	/**
@@ -616,12 +620,12 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		if (pendingLineNumber != Label.UNASSIGNED) {
 			Label label = new Label();
 			label.lineNumber(pendingLineNumber);
-			codeBuilder.add(label);
+			body.add(label);
 			pendingLineNumber = Label.UNASSIGNED;
 		}
 		if (currentInstructionAst == null)
 			throw new IllegalStateException("Executable instruction emitted without a source AST instruction");
-		codeBuilder.add(instruction);
+		body.add(instruction);
 		ASTInstruction source = currentInstructionAst.source();
 		instructionToSource.put(instruction, source);
 		emittedInstructions.add(instruction);
@@ -1531,7 +1535,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 			target.lineNumber(pendingLineNumber);
 			pendingLineNumber = Label.UNASSIGNED;
 		}
-		codeBuilder.add(target);
+		body.add(target);
 	}
 
 	@Override
@@ -1588,7 +1592,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		if (pendingLineNumber != Label.UNASSIGNED) {
 			Label label = new Label();
 			label.lineNumber(pendingLineNumber);
-			codeBuilder.add(label);
+			body.add(label);
 			pendingLineNumber = Label.UNASSIGNED;
 		}
 	}
