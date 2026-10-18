@@ -8,11 +8,11 @@ repositories {
 }
 
 dependencies {
-    api 'com.github.jumanji144.dex:dex-core:44b0357930'
+    api 'com.github.jumanji144.dex:dex-core:9f214f33b3'
 
     api project(path: ':jasm-core')
     api project(path: ':jasm-composition-analysis')
-    testFixturesApi 'com.github.jumanji144.dex:dex-core:44b0357930'
+    testFixturesApi 'com.github.jumanji144.dex:dex-core:9f214f33b3'
     testFixturesImplementation(testFixtures(project(path: ':jasm-core')))
     testFixturesImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.4'
     testImplementation(testFixtures(project(path: ':jasm-core')))

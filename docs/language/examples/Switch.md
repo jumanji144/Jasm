@@ -189,7 +189,6 @@ public class SwitchPatterns {
         F: 
             const v0 10
             return v0
-            nop 
         G: 
         }
     }
@@ -216,7 +215,6 @@ public class SwitchPatterns {
         E: 
             const v0 1
             return v0
-            nop 
         F: 
         }
     }
