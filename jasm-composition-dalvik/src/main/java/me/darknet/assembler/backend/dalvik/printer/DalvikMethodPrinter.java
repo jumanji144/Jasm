@@ -79,10 +79,6 @@ public class DalvikMethodPrinter implements MethodPrinter {
 		// The body names parameters only when every parameter has a name. A partly named method prints each parameter as
 		// its positional alias, which always resolves. The receiver always prints as this.
 		List<String> bodyParameterNames = allNamed(parameterNames) ? parameterNames : positionalNames(parameterCount);
-		if (code != null) {
-			obj.value("registers").print(String.valueOf(code.getRegisters()));
-			hasPrior = true;
-		}
 		if (allParametersNamed) {
 			if (hasPrior) {
 				obj.next();
@@ -130,7 +126,9 @@ public class DalvikMethodPrinter implements MethodPrinter {
 		}
 
 		if (code != null && !definition.getThrownTypes().isEmpty()) {
-			obj.next();
+			if (hasPrior) {
+				obj.next();
+			}
 			PrintContext.ArrayPrint thrownTypes = obj.value("throws").array();
 			for (int i = 0; i < definition.getThrownTypes().size(); i++) {
 				thrownTypes.literal(definition.getThrownTypes().get(i));
@@ -139,6 +137,7 @@ public class DalvikMethodPrinter implements MethodPrinter {
 				}
 			}
 			thrownTypes.end();
+			hasPrior = true;
 		}
 
 		if (definition.getDefaultValue() != null) {

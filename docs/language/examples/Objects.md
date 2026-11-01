@@ -97,7 +97,6 @@ public class Account {
     .field private balance I 
 
     .method public constructor <init> (I)V {
-        registers: 2,
         parameters: { openingBalance },
         code: {
         A: 
@@ -111,7 +110,6 @@ public class Account {
     }
 
     .method public static depositAndRead (II)I {
-        registers: 4,
         parameters: { openingBalance, amount },
         code: {
         A: 
@@ -127,7 +125,6 @@ public class Account {
     }
 
     .method public deposit (I)I {
-        registers: 3,
         parameters: { amount },
         code: {
         A: 

@@ -49,7 +49,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InvokeResultFlow {
 				    .method public static narrow (I)I {
-				        registers: 2,
 				        parameters: { input },
 				        code: {
 				            invoke-static { input } java/lang/Math.abs (I)I
@@ -59,7 +58,6 @@ class DalvikAnalysisResultFlowTest {
 				        }
 				    }
 				    .method public static objectResult (I)Ljava/lang/String; {
-				        registers: 2,
 				        parameters: { input },
 				        code: {
 				            invoke-static { input } java/lang/String.valueOf (I)Ljava/lang/String;
@@ -68,7 +66,6 @@ class DalvikAnalysisResultFlowTest {
 				        }
 				    }
 				    .method public static wideResult ()J {
-				        registers: 2,
 				        code: {
 				            invoke-static { } java/lang/System.nanoTime ()J
 				            move-result-wide v0
@@ -76,7 +73,6 @@ class DalvikAnalysisResultFlowTest {
 				        }
 				    }
 				    .method public static polymorphic (Ljava/lang/Object;)I {
-				        registers: 2,
 				        parameters: { receiver },
 				        code: {
 				            invoke-polymorphic { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
@@ -85,7 +81,6 @@ class DalvikAnalysisResultFlowTest {
 				        }
 				    }
 				    .method public static custom ()Ljava/lang/String; {
-				        registers: 1,
 				        code: {
 				            invoke-custom { } callsite ()Ljava/lang/String; ConstantBootstraps.nullConstant { }
 				            move-result-object v0
@@ -117,7 +112,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InitFlow {
 				    .method public static fail ()V {
-				        registers: 3,
 				        code: {
 				            new-instance v0 Ljava/lang/IllegalStateException;
 				            const-string v1 "x"
@@ -126,7 +120,6 @@ class DalvikAnalysisResultFlowTest {
 				        }
 				    }
 				    .method public static create ()Ljava/lang/Object; {
-				        registers: 1,
 				        code: {
 				            new-instance v0 Ljava/lang/Object;
 				            invoke-direct { v0 } java/lang/Object.<init> ()V
@@ -153,7 +146,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InitAliasFlow {
 				    .method public static aliased ()V {
-				        registers: 2,
 				        code: {
 				            new-instance v0 Ljava/lang/IllegalStateException;
 				            move-object v1 v0
@@ -178,7 +170,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public FilledArrayFlow {
 				    .method public static list ()[Ljava/lang/String; {
-				        registers: 3,
 				        code: {
 				            const-string v0 "first"
 				            const-string v1 "second"
@@ -188,7 +179,6 @@ class DalvikAnalysisResultFlowTest {
 				        }
 				    }
 				    .method public static run ()[I {
-				        registers: 4,
 				        code: {
 				            const v1 1
 				            const v2 2
@@ -210,7 +200,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public EmptyFilled {
 				    .method public static empty ()I {
-				        registers: 3,
 				        code: {
 				            const v0 1
 				            filled-new-array { } [I
@@ -237,7 +226,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InvalidResultFlow {
 				    .method public static voidClearsOldResult ()V {
-				        registers: 2,
 				        code: {
 				            invoke-static { } java/lang/System.nanoTime ()J
 				            invoke-static { } java/lang/System.gc ()V
@@ -264,7 +252,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InvalidResultFlow {
 				    .method public static orphan ()V {
-				        registers: 1,
 				        code: {
 				            move-result v0
 				            return-void
@@ -286,14 +273,12 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InvalidResultFlow {
 				    .method public static orphan ()V {
-				        registers: 1,
 				        code: {
 				            move-result v0
 				            return-void
 				        }
 				    }
 				    .method public static orphanException ()V {
-				        registers: 1,
 				        code: {
 				            move-exception v0
 				            return-void
@@ -325,7 +310,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InvalidResultFlow {
 				    .method public static wrongKind ()V {
-				        registers: 2,
 				        code: {
 				            const v1 4
 				            invoke-static { v1 } java/lang/Math.abs (I)I
@@ -350,7 +334,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InvalidResultFlow {
 				    .method public static intervening ()V {
-				        registers: 3,
 				        code: {
 				            const v2 4
 				            invoke-static { v2 } java/lang/Math.abs (I)I
@@ -378,7 +361,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InvalidResultFlow {
 				    .method public static join (I)V {
-				        registers: 2,
 				        parameters: { condition },
 				        code: {
 				            if-eqz condition Join
@@ -405,7 +387,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InvalidResultFlow {
 				    .method public static orphanException ()V {
-				        registers: 1,
 				        code: {
 				            move-exception v0
 				            return-void
@@ -427,7 +408,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public InvalidResultFlow {
 				    .method public static delayedException (I)V {
-				        registers: 3,
 				        parameters: { input },
 				        exceptions: { { Start, End, Handler, java/lang/Exception } },
 				        code: {
@@ -458,7 +438,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public ExceptionResultFlow {
 				    .method public static typed (I)V {
-				        registers: 3,
 				        parameters: { argument },
 				        exceptions: { { Start, End, Handler, java/lang/Exception } },
 				        code: {
@@ -473,7 +452,6 @@ class DalvikAnalysisResultFlowTest {
 				        }
 				    }
 				    .method public static catchAll (I)V {
-				        registers: 3,
 				        parameters: { argument },
 				        exceptions: { { Start2, End2, Handler2, * } },
 				        code: {
@@ -500,7 +478,6 @@ class DalvikAnalysisResultFlowTest {
 				.super java/lang/Object
 				.class public OverlappingExceptionFlow {
 				    .method public static nested (I)V {
-				        registers: 3,
 				        parameters: { argument },
 				        exceptions: {
 				            { OuterStart, OuterEnd, RuntimeHandler, java/lang/RuntimeException },

@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DalvikMemberReferenceTest {
 	private static final String SOURCE = """
 			.method public static sample ()V {
-			    registers: 4,
 			    code: {
 			        iget v0 v1 sample/Owner.field I
 			        sput-object v2 sample/Owner.staticField Ljava/lang/String;

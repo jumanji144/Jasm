@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Verifies the register and literal fields at the boundaries of each affected encoding. Accepted forms are observed
  * after a DEX write and read, so the decoded operands and constant bits are what is checked. A register the
- * encoding cannot name is rejected with a diagnostic that is not the declared-count diagnostic.
+ * encoding cannot name is rejected with an instruction-encoding diagnostic.
  */
 class DalvikEncodingBoundaryTest {
 
@@ -47,7 +47,6 @@ class DalvikEncodingBoundaryTest {
     void highRegisterConstKeepsDestinationAndValue() throws IOException {
         List<ConstInstruction> consts = decoded(decodedInstructions(example("""
                 .method public static consts ()V {
-                    registers: 256,
                     code: {
                         const v21 7
                         const v22 -3
@@ -67,7 +66,6 @@ class DalvikEncodingBoundaryTest {
     void lowRegisterConstKeepsTheFourBitForm() throws IOException {
         List<ConstInstruction> consts = decoded(decodedInstructions(example("""
                 .method public static consts ()V {
-                    registers: 16,
                     code: {
                         const v1 7
                         const v15 -8
@@ -85,7 +83,6 @@ class DalvikEncodingBoundaryTest {
     void highRegisterConstKeepsFloatPayloadBits() throws IOException {
         List<ConstInstruction> consts = decoded(decodedInstructions(example("""
                 .method public static floats ()V {
-                    registers: 256,
                     code: {
                         const v200 #0x7FC00001
                         const v100 #0x3F800000
@@ -103,7 +100,6 @@ class DalvikEncodingBoundaryTest {
     void literal8ArithmeticKeepsRegistersAboveV15() throws IOException {
         List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
                 .method public static literal8 (II)I {
-                    registers: 18,
                     parameters: { a, b },
                     code: {
                         add-int v16 v17 3
@@ -122,7 +118,6 @@ class DalvikEncodingBoundaryTest {
     void literal16ArithmeticKeepsTheLastFourBitRegisters() throws IOException {
         List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
                 .method public static literal16 (II)I {
-                    registers: 16,
                     parameters: { a, b },
                     code: {
                         add-int v14 v15 300
@@ -141,7 +136,6 @@ class DalvikEncodingBoundaryTest {
     void twoAddressArithmeticKeepsTheLastFourBitRegisters() throws IOException {
         List<Binary2AddrInstruction> operations = decoded(decodedInstructions(example("""
                 .method public static twoAddress (II)I {
-                    registers: 16,
                     parameters: { a, b },
                     code: {
                         add-int v14 v14 v15
@@ -163,7 +157,6 @@ class DalvikEncodingBoundaryTest {
     void threeRegisterArithmeticKeepsTheLastEightBitRegister() throws IOException {
         List<BinaryInstruction> operations = decoded(decodedInstructions(example("""
                 .method public static threeRegister (II)I {
-                    registers: 256,
                     parameters: { a, b },
                     code: {
                         add-int v255 v254 v255
@@ -183,7 +176,6 @@ class DalvikEncodingBoundaryTest {
     void literalAtTheEightBitBoundariesSelectsTheEightBitForm() throws IOException {
         List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
                 .method public static bounds ()V {
-                    registers: 256,
                     code: {
                         add-int v255 v0 127
                         add-int v0 v255 -128
@@ -201,7 +193,6 @@ class DalvikEncodingBoundaryTest {
     void literalJustOutsideTheEightBitRangeSelectsTheSixteenBitForm() throws IOException {
         List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
                 .method public static bounds ()V {
-                    registers: 16,
                     code: {
                         add-int v0 v15 128
                         add-int v14 v1 -129
@@ -223,7 +214,6 @@ class DalvikEncodingBoundaryTest {
     void literalEightAddsOnAHighRegister() throws IOException {
         List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
                 .method public static high ()I {
-                    registers: 202,
                     code: {
                         add-int v200 v100 5
                         return v200
@@ -239,7 +229,6 @@ class DalvikEncodingBoundaryTest {
     void shiftLiteralsSelectTheEightBitForm() throws IOException {
         List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
                 .method public static shifts (I)I {
-                    registers: 18,
                     parameters: { value },
                     code: {
                         shl-int v16 value 5
@@ -250,7 +239,7 @@ class DalvikEncodingBoundaryTest {
                 """), "shifts", "(I)I"), BinaryLiteralInstruction.class);
 
         assertEquals(2, operations.size());
-        assertLiteral(operations.get(0), Opcodes.SHL_INT_LIT8, 16, 17, 5);
+        assertLiteral(operations.get(0), Opcodes.SHL_INT_LIT8, 16, 18, 5);
         assertLiteral(operations.get(1), Opcodes.USHR_INT_LIT8, 17, 16, -1);
     }
 
@@ -258,7 +247,6 @@ class DalvikEncodingBoundaryTest {
     void reverseSubtractionSelectsItsFormFromTheLiteral() throws IOException {
         List<BinaryLiteralInstruction> operations = decoded(decodedInstructions(example("""
                 .method public static reverse (I)I {
-                    registers: 3,
                     parameters: { value },
                     code: {
                         rsub-int v1 value -5
@@ -277,7 +265,6 @@ class DalvikEncodingBoundaryTest {
     void twoAddressFormIsChosenOnlyWhenTheDestinationIsTheFirstSource() throws IOException {
         List<Instruction> instructions = decodedInstructions(example("""
                 .method public static inPlace ()I {
-                    registers: 17,
                     code: {
                         add-int v0 v0 v1
                         add-int v0 v0 v16
@@ -309,7 +296,6 @@ class DalvikEncodingBoundaryTest {
         // its second source, which must stay in the written position rather than be swapped into a compact form.
         List<Instruction> instructions = decodedInstructions(example("""
                 .method public static alias (II)I {
-                    registers: 2,
                     parameters: { a, b },
                     code: {
                         add-int p0 a b
@@ -337,7 +323,6 @@ class DalvikEncodingBoundaryTest {
     void wideInPlaceArithmeticUsesThePairSlotWhenItFits() throws IOException {
         List<Instruction> instructions = decodedInstructions(example("""
                 .method public static wide ()J {
-                    registers: 256,
                     code: {
                         add-long v0 v0 v2
                         add-long v254 v254 v0
@@ -364,7 +349,6 @@ class DalvikEncodingBoundaryTest {
     void nonRangeInvokeKeepsTheFiveWordBoundary() throws IOException {
         List<InvokeInstruction> invokes = decoded(decodedInstructions(example("""
                 .method public static fiveWords (IIIII)V {
-                    registers: 5,
                     parameters: { a, b, c, d, e },
                     code: {
                         invoke-static { v0, v1, v2, v3, v4 } demo/Target.five (IIIII)V
@@ -382,7 +366,6 @@ class DalvikEncodingBoundaryTest {
     void aHighRegisterInAShortListIsEncodedAsARange() throws IOException {
         List<InvokeInstruction> invokes = decoded(decodedInstructions(example("""
                 .method public static highRange (I)V {
-                    registers: 17,
                     parameters: { value },
                     code: {
                         invoke-static { v16 } demo/Target.one (I)V
@@ -401,7 +384,6 @@ class DalvikEncodingBoundaryTest {
     void aRangeOfTwoHundredFiftyFiveWordsIsAccepted() throws IOException {
         List<InvokeInstruction> invokes = decoded(decodedInstructions(example("""
                 .method public static widest ()V {
-                    registers: 256,
                     code: {
                         invoke-static { words: { %s } } demo/Target.many ()V
                         return-void
@@ -419,7 +401,6 @@ class DalvikEncodingBoundaryTest {
     void aHighContiguousListIsEncodedAsARange() throws IOException {
         List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
                 .method public static arrays (II)[I {
-                    registers: 18,
                     parameters: { a, b },
                     code: {
                         filled-new-array { v16, v17 } [I
@@ -439,7 +420,6 @@ class DalvikEncodingBoundaryTest {
     void nonRangeFilledArrayKeepsTheFiveElementBoundary() throws IOException {
         List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
                 .method public static fiveElements (IIIII)[I {
-                    registers: 5,
                     parameters: { a, b, c, d, e },
                     code: {
                         filled-new-array { v0, v1, v2, v3, v4 } [I
@@ -458,7 +438,6 @@ class DalvikEncodingBoundaryTest {
     void constDestinationAboveV255IsRejectedWithoutOutput() {
         var rejected = compileRejected(example("""
                 .method public static tooHigh ()V {
-                    registers: 258,
                     code: {
                         const v256 1
                         const-wide v256 1L
@@ -481,7 +460,6 @@ class DalvikEncodingBoundaryTest {
         // the literal and both registers instead of reporting each register as though it alone were the problem.
         var rejected = compileRejected(example("""
                 .method public static wide ()V {
-                    registers: 18,
                     code: {
                         add-int v16 v17 300
                         return-void
@@ -499,7 +477,6 @@ class DalvikEncodingBoundaryTest {
     void literalRejectsADestinationAboveV255() {
         var rejected = compileRejected(example("""
                 .method public static wide ()V {
-                    registers: 257,
                     code: {
                         add-int v256 v255 1
                         return-void
@@ -518,7 +495,6 @@ class DalvikEncodingBoundaryTest {
         // form, which keeps the destination and both sources at their written positions.
         List<BinaryInstruction> operations = decoded(decodedInstructions(example("""
                 .method public static ordinary (II)V {
-                    registers: 17,
                     parameters: { a, b },
                     code: {
                         add-int v15 v15 v16
@@ -538,7 +514,6 @@ class DalvikEncodingBoundaryTest {
     void threeRegisterArithmeticRejectsARegisterAboveV255() {
         var rejected = compileRejected(example("""
                 .method public static threeRegister (II)V {
-                    registers: 257,
                     parameters: { a, b },
                     code: {
                         add-int v0 v255 v256
@@ -558,7 +533,6 @@ class DalvikEncodingBoundaryTest {
         // low registers, and neither is one consecutive run in the order written.
         var mixedHigh = compileRejected(example("""
                 .method public static mixed (I)V {
-                    registers: 17,
                     parameters: { value },
                     code: {
                         const v0 7
@@ -569,7 +543,6 @@ class DalvikEncodingBoundaryTest {
                 """));
         var polymorphicHigh = compileRejected(example("""
                 .method public static poly (I)V {
-                    registers: 17,
                     parameters: { value },
                     code: {
                         const v0 7
@@ -591,7 +564,6 @@ class DalvikEncodingBoundaryTest {
         // Six registers do not fit the non-range form, and they are not one run, so no encoding names them.
         var rejected = compileRejected(example("""
                 .method public static gaps ()V {
-                    registers: 11,
                     code: {
                         invoke-static { v0, v2, v4, v6, v8, v10 } demo/Target.six (IIIIII)V
                         return-void
@@ -609,7 +581,6 @@ class DalvikEncodingBoundaryTest {
         // v16 is beyond the four-bit list field, and v0 does not continue the run, so neither form names the pair.
         var rejected = compileRejected(example("""
                 .method public static arrays (II)[I {
-                    registers: 18,
                     parameters: { a, b },
                     code: {
                         filled-new-array { v16, v0 } [I
@@ -628,7 +599,6 @@ class DalvikEncodingBoundaryTest {
     void aSixEntryFilledArrayWithGapsNeedsPackingAndIsRejectedWithoutOutput() {
         var rejected = compileRejected(example("""
                 .method public static gaps ()V {
-                    registers: 11,
                     code: {
                         filled-new-array { v0, v2, v4, v6, v8, v10 } [I
                         return-void
@@ -642,21 +612,20 @@ class DalvikEncodingBoundaryTest {
     }
 
     @Test
-    void filledArrayBeyondTheDeclaredFileIsADeclaredCountProblem() {
-        var rejected = compileRejected(example("""
+    void filledArrayInfersEnoughRegistersForItsRange() throws IOException {
+        List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
                 .method public static run ()V {
-                    registers: 4,
                     code: {
                         filled-new-array { v0, v1, v2, v3, v4, v5 } [I
                         return-void
                     }
                 }
-                """));
+                """), "run", "()V"), FilledNewArrayInstruction.class);
 
-        assertFalse(errorsWithCode(rejected, DiagnosticCode.REGISTER_LIMIT).isEmpty(),
-                DiagnosticAssertions.formatErrors(rejected.errors()));
-        assertTrue(errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT).isEmpty(),
-                DiagnosticAssertions.formatErrors(rejected.errors()));
+        assertEquals(1, arrays.size());
+        assertTrue(arrays.getFirst().isRange());
+        assertEquals(0, arrays.getFirst().first());
+        assertEquals(5, arrays.getFirst().last());
     }
 
     @Test
@@ -664,7 +633,6 @@ class DalvikEncodingBoundaryTest {
         // Two hundred fifty-six consecutive elements need a count the eight-bit field would wrap to zero.
         var rejected = compileRejected(example("""
                 .method public static tooWide ()V {
-                    registers: 256,
                     code: {
                         filled-new-array { %s } [I
                         return-void
@@ -682,7 +650,6 @@ class DalvikEncodingBoundaryTest {
         // A call with no parameters names its registers as raw words, so the count limit is reached with 256 words.
         var rejected = compileRejected(example("""
                 .method public static tooWide ()V {
-                    registers: 256,
                     code: {
                         invoke-static { words: { %s } } demo/Target.many ()V
                         return-void
@@ -708,41 +675,38 @@ class DalvikEncodingBoundaryTest {
 
         List<Diagnostic> limits = errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT);
         assertEquals(1, limits.size(), DiagnosticAssertions.formatErrors(rejected.errors()));
-        assertTrue(limits.getFirst().message().contains("v65536"), limits.getFirst().message());
+        assertEquals("Method requires more than 65535 Dalvik registers", limits.getFirst().message());
     }
 
     @Test
-    void rangeRunOutsideTheDeclaredFileIsADeclaredCountProblem() {
-        var rejected = compileRejected(example("""
+    void rangeRunInfersEnoughRegistersForItsArguments() throws IOException {
+        List<InvokeInstruction> invokes = decoded(decodedInstructions(example("""
                 .method public static run ()V {
-                    registers: 4,
                     code: {
                         invoke-static { v0, v1, v2, v3, v4, v5, v6, v7 } demo/Target.run (IIIIIIII)V
                         return-void
                     }
                 }
-                """));
+                """), "run", "()V"), InvokeInstruction.class);
 
-        assertFalse(errorsWithCode(rejected, DiagnosticCode.REGISTER_LIMIT).isEmpty(),
-                DiagnosticAssertions.formatErrors(rejected.errors()));
-        assertTrue(errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT).isEmpty(),
-                DiagnosticAssertions.formatErrors(rejected.errors()));
+        assertEquals(1, invokes.size());
+        assertTrue(invokes.getFirst().isRange());
+        assertEquals(0, invokes.getFirst().first());
+        assertEquals(7, invokes.getFirst().last());
     }
 
     @Test
-    void declaredCountAndEncodingLimitsAreReportedSeparately() {
-        var beyondDeclaredFile = compileRejected(example("""
-                .method public static declared ()V {
-                    registers: 8,
+    void inferredRegisterFileDoesNotRemoveInstructionFieldLimits() throws IOException {
+        List<BinaryLiteralInstruction> inferred = decoded(decodedInstructions(example("""
+                .method public static inferred ()V {
                     code: {
                         add-int v9 v1 300
                         return-void
                     }
                 }
-                """));
+                """), "inferred", "()V"), BinaryLiteralInstruction.class);
         var beyondEncoding = compileRejected(example("""
                 .method public static encoded ()V {
-                    registers: 20,
                     code: {
                         add-int v16 v1 300
                         return-void
@@ -750,10 +714,8 @@ class DalvikEncodingBoundaryTest {
                 }
                 """));
 
-        assertFalse(errorsWithCode(beyondDeclaredFile, DiagnosticCode.REGISTER_LIMIT).isEmpty(),
-                DiagnosticAssertions.formatErrors(beyondDeclaredFile.errors()));
-        assertTrue(errorsWithCode(beyondDeclaredFile, DiagnosticCode.TARGET_LIMIT).isEmpty(),
-                DiagnosticAssertions.formatErrors(beyondDeclaredFile.errors()));
+        assertEquals(1, inferred.size());
+        assertLiteral(inferred.getFirst(), Opcodes.ADD_INT_LIT16, 9, 1, 300);
         assertTrue(errorsWithCode(beyondEncoding, DiagnosticCode.REGISTER_LIMIT).isEmpty(),
                 DiagnosticAssertions.formatErrors(beyondEncoding.errors()));
         assertEquals(1, errorsWithCode(beyondEncoding, DiagnosticCode.TARGET_LIMIT).size(),
@@ -767,7 +729,6 @@ class DalvikEncodingBoundaryTest {
         for (String operation : List.of("add-int v0 v1 32768", "shl-int v0 v1 300", "rsub-int v200 v100 300")) {
             var rejected = compileRejected(example("""
                     .method public static limit ()V {
-                        registers: 256,
                         code: {
                             %s
                             return-void
@@ -782,10 +743,9 @@ class DalvikEncodingBoundaryTest {
 
     @Test
     void aReversedNamedListIsAnOrdinaryListNotARange() throws IOException {
-        // The names are elements in the order written, so the list is v3 then v2 rather than an inclusive run.
+        // The names are elements in the order written, so the list is v1 then v0 rather than an inclusive run.
         List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
                 .method public static reversed (II)V {
-                    registers: 4,
                     parameters: { a, b },
                     code: {
                         filled-new-array { b, a } [I
@@ -796,7 +756,7 @@ class DalvikEncodingBoundaryTest {
 
         assertEquals(1, arrays.size());
         assertFalse(arrays.getFirst().isRange());
-        assertArrayEquals(new int[] {3, 2}, arrays.getFirst().registers());
+        assertArrayEquals(new int[] {1, 0}, arrays.getFirst().registers());
     }
 
     @Test
@@ -804,7 +764,6 @@ class DalvikEncodingBoundaryTest {
         // A two-entry list always names two elements. The non-range form takes v0 and v3 as they are.
         List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
                 .method public static pair ()V {
-                    registers: 4,
                     code: {
                         filled-new-array { v0, v3 } [I
                         return-void
@@ -822,7 +781,6 @@ class DalvikEncodingBoundaryTest {
         // Six entries do not fit the five-word list form, so the same consecutive registers take the range form.
         List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
                 .method public static six ()V {
-                    registers: 6,
                     code: {
                         filled-new-array { v0, v1, v2, v3, v4, v5 } [I
                         return-void
@@ -858,7 +816,6 @@ class DalvikEncodingBoundaryTest {
     void maximumFilledArrayRangeCountIsAccepted() throws IOException {
         List<FilledNewArrayInstruction> arrays = decoded(decodedInstructions(example("""
                 .method public static widest ()V {
-                    registers: 255,
                     code: {
                         filled-new-array { %s } [I
                         return-void

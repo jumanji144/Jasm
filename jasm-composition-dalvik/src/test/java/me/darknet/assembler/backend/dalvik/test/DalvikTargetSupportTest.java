@@ -31,22 +31,22 @@ class DalvikTargetSupportTest {
     }
 
     @Test
-    void rejectsRegisterCountsThatCannotFitInTheDalvikMethodModel() {
+    void rejectsRegisterAttributeAsUnsupportedForm() {
         var result = AssemblyParseFixture.processDeclarations(
                 "<test>",
-                ".method public test ()V { registers: 2147483648 }",
+                ".method public test ()V { registers: 1 }",
                 DalvikTargetContext.INSTANCE
         );
 
         DiagnosticAssertions.assertHasError(
                 result,
-                DiagnosticCode.MALFORMED_DECLARATION,
-                "An out-of-range Dalvik register count should be rejected"
+                DiagnosticCode.UNSUPPORTED_FORM,
+                "The removed registers attribute should be rejected"
         );
         DiagnosticAssertions.assertPhase(
                 result.diagnostics(),
                 DiagnosticPhase.TARGET_VALIDATION,
-                "Register-count validation belongs to the target-validation phase"
+                "Unsupported method attributes are rejected during target validation"
         );
     }
 }

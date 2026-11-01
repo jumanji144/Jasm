@@ -90,14 +90,9 @@ public enum DiagnosticCode {
 	UNSUPPORTED_CAPABILITY,
 
 	/**
-	 * A register reference exceeds the register count declared for the method.
+	 * A register reference or named wide-register binding is outside the computed method register layout.
 	 */
 	REGISTER_LIMIT,
-
-	/**
-	 * The registers declared for a method do not cover its inputs.
-	 */
-	REGISTER_DECLARATION,
 
 	/**
 	 * A label was defined more than once in a method.

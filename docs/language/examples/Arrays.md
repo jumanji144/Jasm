@@ -90,7 +90,6 @@ public class ArrayPatterns {
 .super java/lang/Object
 .class public ArrayPatterns {
     .method public static fill ([II)V {
-        registers: 4,
         parameters: { values, value },
         code: {
         A: 
@@ -110,7 +109,6 @@ public class ArrayPatterns {
     }
 
     .method public static sum ([I)I {
-        registers: 4,
         parameters: { values },
         code: {
         A: 

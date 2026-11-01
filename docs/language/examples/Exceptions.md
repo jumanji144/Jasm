@@ -48,7 +48,6 @@ public class ExceptionPatterns {
 .super java/lang/Object
 .class public ExceptionPatterns {
     .method public static parseOrDefault (Ljava/lang/String;)I {
-        registers: 3,
         parameters: { text },
         exceptions: { { A, B, C, java/lang/NumberFormatException } },
         code: {

@@ -1,7 +1,6 @@
 .super java/lang/Object
 .class public AnalysisConstants {
     .method public static sum ()I {
-        registers: 3,
         code: {
             const v0 7
             const v1 5

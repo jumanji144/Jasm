@@ -114,10 +114,10 @@ class DiagnosticSinkTest {
     @Test
     void formatAddsTheCodeAndRelatedLocations() {
         Diagnostic diagnostic = new Diagnostic(Severity.ERROR, DiagnosticPhase.BACKEND_EMISSION,
-                DiagnosticCode.REGISTER_LIMIT, "Register exceeds declared register count: v2", FIRST,
+                DiagnosticCode.REGISTER_LIMIT, "Register exceeds computed register file: v2", FIRST,
                 java.util.List.of(SAME_LINE_LATER_COLUMN));
 
-        assertEquals(FIRST + ": [REGISTER_LIMIT] Register exceeds declared register count: v2"
+        assertEquals(FIRST + ": [REGISTER_LIMIT] Register exceeds computed register file: v2"
                 + " (related: " + SAME_LINE_LATER_COLUMN + ")", diagnostic.format());
 
         Diagnostic withoutRelated = Diagnostic.error(DiagnosticPhase.LEXER, DiagnosticCode.UNTERMINATED_LITERAL,

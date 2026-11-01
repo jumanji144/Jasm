@@ -164,7 +164,6 @@ class DalvikOperandsTest {
 		// out of the dex type factory during emission.
 		assertDalvikOk("""
 				.method public static custom (I)V {
-				  registers: 3,
 				  code: {
 				    invoke-custom { v0, v1, v2 } callsite (III)V ConstantBootstraps.nullConstant { java/lang/System, Ljava/lang/String;, [I, (I)V, null, true }
 				    return-void
@@ -174,7 +173,6 @@ class DalvikOperandsTest {
 
 		String template = """
 				.method public static custom (I)V {
-				  registers: 3,
 				  code: {
 				    invoke-custom { v0, v1, v2 } callsite (III)V ConstantBootstraps.nullConstant { %s }
 				    return-void
@@ -193,7 +191,6 @@ class DalvikOperandsTest {
 		// it stays legal exactly as it does for the constant mapper.
 		assertDalvikOk("""
 				.method public static custom (I)V {
-				  registers: 3,
 				  code: {
 				    invoke-custom { v0, v1, v2 } callsite (III)V ConstantBootstraps.nullConstant { Lowner/Type }
 				    return-void

@@ -47,7 +47,6 @@ class DalvikAnalysisLookupTest {
 				.super java/lang/Object
 				.class public LookupDefaults {
 				    .method public static mathAbs ()I {
-				        registers: 2,
 				        code: {
 				            const v1 -12
 				            invoke-static { v1 } java/lang/Math.abs (I)I
@@ -77,7 +76,6 @@ class DalvikAnalysisLookupTest {
 				.super java/lang/Object
 				.class public LookupDefaults {
 				    .method public static stringToString ()Ljava/lang/String; {
-				        registers: 2,
 				        code: {
 				            const-string v1 "known-string"
 				            invoke-virtual { v1 } java/lang/String.toString ()Ljava/lang/String;
@@ -105,7 +103,6 @@ class DalvikAnalysisLookupTest {
 				.super java/lang/Object
 				.class public LookupDefaults {
 				    .method public static mathPi ()D {
-				        registers: 2,
 				        code: {
 				            sget-wide v0 java/lang/Math.PI D
 				            return-wide v0
@@ -132,7 +129,6 @@ class DalvikAnalysisLookupTest {
 				.super java/lang/Object
 				.class public LookupDefaults {
 				    .method public static missingMethod ()I {
-				        registers: 2,
 				        code: {
 				            const v1 7
 				            invoke-static { v1 } sample/Owner.missing (I)I
@@ -161,7 +157,6 @@ class DalvikAnalysisLookupTest {
 				.super java/lang/Object
 				.class public LookupDefaults {
 				    .method public static missingStaticField ()J {
-				        registers: 2,
 				        code: {
 				            sget-wide v0 sample/Owner.missing J
 				            return-wide v0
@@ -188,7 +183,6 @@ class DalvikAnalysisLookupTest {
 				.super java/lang/Object
 				.class public LookupDefaults {
 				    .method public static missingInstanceField ()[Ljava/lang/String; {
-				        registers: 2,
 				        code: {
 				            const-string v0 "receiver"
 				            iget-object v1 v0 sample/Owner.missing [Ljava/lang/String;
@@ -279,7 +273,6 @@ class DalvikAnalysisLookupTest {
 				.super java/lang/Object
 				.class public LookupConfigured {
 				    .method public static overriddenAbs ()I {
-				        registers: 2,
 				        code: {
 				            const v1 -5
 				            invoke-static { v1 } java/lang/Math.abs (I)I
@@ -288,14 +281,12 @@ class DalvikAnalysisLookupTest {
 				        }
 				    }
 				    .method public static overriddenPi ()D {
-				        registers: 2,
 				        code: {
 				            sget-wide v0 java/lang/Math.PI D
 				            return-wide v0
 				        }
 				    }
 				    .method public static combineList ()I {
-				        registers: 4,
 				        code: {
 				            const v0 5
 				            const-wide v1 9
@@ -305,7 +296,6 @@ class DalvikAnalysisLookupTest {
 				        }
 				    }
 				    .method public static combineRange ()I {
-				        registers: 4,
 				        code: {
 				            const v0 5
 				            const-wide v1 9
@@ -315,7 +305,6 @@ class DalvikAnalysisLookupTest {
 				        }
 				    }
 				    .method public static concatStrings ()Ljava/lang/String; {
-				        registers: 3,
 				        code: {
 				            const-string v0 "base-"
 				            const-string v1 "suffix"
@@ -325,7 +314,6 @@ class DalvikAnalysisLookupTest {
 				        }
 				    }
 				    .method public static instanceField ()I {
-				        registers: 2,
 				        code: {
 				            const-string v0 "field-receiver"
 				            iget v1 v0 sample/Owner.answer I
@@ -333,7 +321,6 @@ class DalvikAnalysisLookupTest {
 				        }
 				    }
 				    .method public static missingMethod ()I {
-				        registers: 2,
 				        code: {
 				            const v1 7
 				            invoke-static { v1 } sample/Owner.missing (I)I
@@ -342,14 +329,12 @@ class DalvikAnalysisLookupTest {
 				        }
 				    }
 				    .method public static missingStaticField ()I {
-				        registers: 1,
 				        code: {
 				            sget v0 sample/Owner.missingStatic I
 				            return v0
 				        }
 				    }
 				    .method public static missingInstanceField ()I {
-				        registers: 2,
 				        code: {
 				            const-string v0 "field-receiver"
 				            iget v1 v0 sample/Owner.missingInstance I
@@ -357,7 +342,6 @@ class DalvikAnalysisLookupTest {
 				        }
 				    }
 				    .method public static unknownCombine (IJ)I {
-				        registers: 4,
 				        parameters: { input, wide },
 				        code: {
 				            invoke-static { input, wide } sample/Owner.combine (IJ)I

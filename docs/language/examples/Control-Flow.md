@@ -77,7 +77,6 @@ public class ControlFlow {
 .super java/lang/Object
 .class public ControlFlow {
     .method public static sumOddSquaresBelow (I)I {
-        registers: 4,
         parameters: { limit },
         code: {
         A: 

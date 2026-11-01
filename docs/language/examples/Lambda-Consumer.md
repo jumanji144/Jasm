@@ -72,7 +72,6 @@ public class Lambda {
 .super java/lang/Object
 .class public Lambda {
     .method static synthetic lambda$main$0 (Ljava/lang/String;)V {
-        registers: 2,
         parameters: { text },
         code: {
         A: 
@@ -84,7 +83,6 @@ public class Lambda {
     }
 
     .method public static main ([Ljava/lang/String;)V {
-        registers: 3,
         parameters: { args },
         code: {
         A: 
@@ -99,7 +97,6 @@ public class Lambda {
 
     .signature "(Ljava/lang/String;Ljava/util/function/Consumer<Ljava/lang/String;>;)V"
     .method private static run (Ljava/lang/String;Ljava/util/function/Consumer;)V {
-        registers: 2,
         parameters: { text, consumer },
         code: {
         A: 
@@ -119,7 +116,6 @@ D8 also emits this companion class:
 .implements java/util/function/Consumer
 .class public final synthetic Lambda$$ExternalSyntheticLambda0 {
     .method public synthetic constructor <init> ()V {
-        registers: 1,
         code: {
         A: 
             invoke-direct { v0 } java/lang/Object.<init> ()V
@@ -129,7 +125,6 @@ D8 also emits this companion class:
     }
 
     .method public final accept (Ljava/lang/Object;)V {
-        registers: 2,
         code: {
         A: 
             check-cast v1 Ljava/lang/String;

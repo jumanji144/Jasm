@@ -44,7 +44,6 @@ class DalvikAnalysisResultTest {
             .super java/lang/Object
             .class public AnalysisSourceMap {
                 .method public static value ()I {
-                    registers: 1,
                     code: {
                     Entry:
                         const v0 7
@@ -52,7 +51,6 @@ class DalvikAnalysisResultTest {
                     }
                 }
                 .method public static value (I)I {
-                    registers: 2,
                     parameters: { input },
                     code: {
                         const v0 9

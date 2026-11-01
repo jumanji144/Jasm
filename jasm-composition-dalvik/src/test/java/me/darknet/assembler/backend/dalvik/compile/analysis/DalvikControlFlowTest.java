@@ -90,13 +90,11 @@ class DalvikControlFlowTest {
                 .super java/lang/Object
                 .class public ParameterSeedFixture {
                     .method public static seed (IJDLjava/lang/String;)V {
-                        registers: 8,
                         code: {
                             return-void
                         }
                     }
                     .method public instance (J)V {
-                        registers: 4,
                         code: {
                             return-void
                         }
@@ -106,23 +104,20 @@ class DalvikControlFlowTest {
 
         DalvikAnalysisResults staticResults = compilation.results("seed", "(IJDLjava/lang/String;)V");
         DalvikRegisterState staticState = entryState(staticResults);
-        assertEquals(8, staticState.registerCount());
-        assertSame(DalvikRegisterState.Undefined.INSTANCE, staticState.slot(0));
-        assertSame(DalvikRegisterState.Undefined.INSTANCE, staticState.slot(1));
-        assertEquals(Values.valueOf(PrimitiveType.INT), head(staticState, 2).value());
-        assertEquals(Values.valueOf(PrimitiveType.LONG), head(staticState, 3).value());
+        assertEquals(6, staticState.registerCount());
+        assertEquals(Values.valueOf(PrimitiveType.INT), head(staticState, 0).value());
+        assertEquals(Values.valueOf(PrimitiveType.LONG), head(staticState, 1).value());
+        assertEquals(new DalvikRegisterState.WideTail(1), staticState.slot(2));
+        assertEquals(Values.valueOf(PrimitiveType.DOUBLE), head(staticState, 3).value());
         assertEquals(new DalvikRegisterState.WideTail(3), staticState.slot(4));
-        assertEquals(Values.valueOf(PrimitiveType.DOUBLE), head(staticState, 5).value());
-        assertEquals(new DalvikRegisterState.WideTail(5), staticState.slot(6));
-        assertEquals(Values.valueOf(new ClassDescriptor("java/lang/String")), head(staticState, 7).value());
+        assertEquals(Values.valueOf(new ClassDescriptor("java/lang/String")), head(staticState, 5).value());
 
         DalvikAnalysisResults instanceResults = compilation.results("instance", "(J)V");
         DalvikRegisterState instanceState = entryState(instanceResults);
-        assertEquals(4, instanceState.registerCount());
-        assertSame(DalvikRegisterState.Undefined.INSTANCE, instanceState.slot(0));
-        assertEquals(Values.valueOfInstance(new ClassDescriptor("ParameterSeedFixture")), head(instanceState, 1).value());
-        assertEquals(Values.valueOf(PrimitiveType.LONG), head(instanceState, 2).value());
-        assertEquals(new DalvikRegisterState.WideTail(2), instanceState.slot(3));
+        assertEquals(3, instanceState.registerCount());
+        assertEquals(Values.valueOfInstance(new ClassDescriptor("ParameterSeedFixture")), head(instanceState, 0).value());
+        assertEquals(Values.valueOf(PrimitiveType.LONG), head(instanceState, 1).value());
+        assertEquals(new DalvikRegisterState.WideTail(1), instanceState.slot(2));
     }
 
     @Test
@@ -143,7 +138,6 @@ class DalvikControlFlowTest {
                 .super java/lang/Object
                 .class public ZeroRegister {
                     .method public static zero ()V {
-                        registers: 0,
                         code: {
                             return-void
                         }
@@ -160,7 +154,6 @@ class DalvikControlFlowTest {
                 .super java/lang/Object
                 .class public DeadCode {
                     .method public static dead ()V {
-                        registers: 1,
                         code: {
                             goto Live
                             nop
@@ -187,7 +180,6 @@ class DalvikControlFlowTest {
                 .super java/lang/Object
                 .class public NormalEdges {
                     .method public static edges (I)V {
-                        registers: 1,
                         parameters: { value },
                         code: {
                             const value 0
@@ -252,7 +244,6 @@ class DalvikControlFlowTest {
                 .super java/lang/Object
                 .class public ExceptionalEdges {
                     .method public static guarded ([I)V {
-                        registers: 3,
                         parameters: { values },
                         exceptions: {
                             { Start, End, RuntimeHandler, java/lang/RuntimeException },

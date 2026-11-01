@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DalvikSwitchTargetTest {
 	private static final String SOURCE = """
 			.method public static sample ()V {
-			    registers: 2,
 			    code: {
 			        packed-switch v0 { first: 5, targets: { A, B } }
 			        sparse-switch v1 { 7: C, -1: D }

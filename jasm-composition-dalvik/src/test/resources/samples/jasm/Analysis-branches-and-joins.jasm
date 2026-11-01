@@ -1,7 +1,6 @@
 .super java/lang/Object
 .class public AnalysisBranchesAndJoins {
     .method public static select (I)I {
-        registers: 2,
         parameters: { condition },
         code: {
             if-eqz condition Alternate

@@ -133,7 +133,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static branching (Ljava/lang/Object;[I)I {
-                        registers: 5,
                         parameters: { value, array },
                         code: {
                         A:
@@ -268,7 +267,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static wide (J)J {
-                        registers: 4,
                         parameters: { wide },
                         code: {
                             line 12
@@ -286,7 +284,7 @@ class DalvikCompilerTest {
         assertNotNull(method);
         assertEquals(2, method.getCode().getIn());
         assertEquals(2, method.getCode().getOut());
-        assertEquals(4, method.getCode().getRegisters());
+        assertEquals(6, method.getCode().getRegisters());
         assertNotNull(method.getCode().getDebugInfo());
         assertEquals(List.of("wide"), method.getCode().getDebugInfo().parameterNames());
         assertEquals(2, method.getCode().getDebugInfo().lineNumbers().size());
@@ -296,7 +294,7 @@ class DalvikCompilerTest {
         var rereadMethod = reread.getMethod("wide", "(J)J");
         assertEquals(2, rereadMethod.getCode().getIn());
         assertEquals(2, rereadMethod.getCode().getOut());
-        assertEquals(4, rereadMethod.getCode().getRegisters());
+        assertEquals(6, rereadMethod.getCode().getRegisters());
         assertEquals(List.of("wide"), rereadMethod.getCode().getDebugInfo().parameterNames());
     }
 
@@ -582,7 +580,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static arrays ([I)V {
-                        registers: 5,
                         parameters: { array },
                         exceptions: {
                             { Start, End, Handler, java/lang/RuntimeException },
@@ -648,7 +645,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static custom (I)V {
-                        registers: 3,
                         code: {
                             invoke-custom { v0, v1, v2 } callsite (III)V ConstantBootstraps.nullConstant { "demo", Ljava/lang/String;, .member java/lang/System out Ljava/io/PrintStream; }
                             return-void
@@ -667,7 +663,7 @@ class DalvikCompilerTest {
             printer.print(ctx);
 
             String printed = TestUtils.normalize(ctx.toString());
-            assertTrue(printed.contains("invoke-custom { v0, v1, p0 } callsite (III)V"), printed);
+            assertTrue(printed.contains("invoke-custom { v0, v1, v2 } callsite (III)V"), printed);
             assertTrue(printed.contains("callsite (III)V"), printed);
             assertTrue(printed.contains("ConstantBootstraps.nullConstant"), printed);
             TestUtils.assertParsesDalvik(printed);
@@ -680,7 +676,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static poly (Ljava/lang/Object;)I {
-                        registers: 3,
                         parameters: { receiver },
                         code: {
                             invoke-polymorphic { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
@@ -689,7 +684,6 @@ class DalvikCompilerTest {
                         }
                     }
                     .method public static polyList (Ljava/lang/Object;)I {
-                        registers: 3,
                         parameters: { receiver },
                         code: {
                             invoke-polymorphic { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
@@ -745,7 +739,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static poly (Ljava/lang/Object;)I {
-                        registers: 3,
                         parameters: { receiver },
                         code: {
                             invoke-polymorphic { receiver, receiver } java/lang/invoke/MethodHandle.invokeExact ([Ljava/lang/Object;)Ljava/lang/Object; (Ljava/lang/Object;)I
@@ -835,7 +828,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static strictfp m ()V {
-                        registers: 0,
                         code: {
                             return-void
                         }
@@ -854,7 +846,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static m ()V {
-                        registers: 0,
                         code: {
                             invoke-custom { } callsite ()V { invokespecial, java/lang/Object.<init>, ()V } { }
                             return-void
@@ -875,7 +866,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static named ()V {
-                        registers: 2,
                         code: {
                             const v0 1
                             const v1 2
@@ -909,7 +899,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static moved ()V {
-                        registers: 2,
                         code: {
                             const v1 1
                             const v0 2
@@ -938,7 +927,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static collision (I)V {
-                        registers: 2,
                         code: {
                             const v0 1
                             return-void
@@ -959,7 +947,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static duplicate ()V {
-                        registers: 2,
                         code: {
                             const v0 1
                             const v1 2
@@ -985,7 +972,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static unknown (I)V {
-                        registers: 2,
                         code: {
                             const v0 1
                             return-void
@@ -999,7 +985,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static complete (II)V {
-                        registers: 2,
                         parameters: { left, right },
                         code: {
                             return-void
@@ -1016,7 +1001,6 @@ class DalvikCompilerTest {
                 .super java/lang/Object
                 .class public Example {
                     .method public static partial (II)V {
-                        registers: 2,
                         code: {
                             return-void
                         }

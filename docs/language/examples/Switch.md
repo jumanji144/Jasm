@@ -166,7 +166,6 @@ public class SwitchPatterns {
 .super java/lang/Object
 .class public SwitchPatterns {
     .method public static dense (I)I {
-        registers: 2,
         parameters: { value },
         code: {
         A: 
@@ -194,7 +193,6 @@ public class SwitchPatterns {
     }
 
     .method public static sparse (I)I {
-        registers: 2,
         parameters: { value },
         code: {
         A: 
@@ -220,7 +218,6 @@ public class SwitchPatterns {
     }
 
     .method public static stringCode (Ljava/lang/String;)I {
-        registers: 5,
         parameters: { value },
         code: {
         A: 

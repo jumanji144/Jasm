@@ -1,7 +1,6 @@
 .super java/lang/Object
 .class public AnalysisExceptions {
     .method public static handled ()V {
-        registers: 1,
         exceptions: {
             { Start, End, Handler, java/lang/RuntimeException }
         },

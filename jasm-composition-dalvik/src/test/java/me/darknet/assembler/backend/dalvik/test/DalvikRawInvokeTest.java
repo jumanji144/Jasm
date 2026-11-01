@@ -47,7 +47,6 @@ class DalvikRawInvokeTest {
     void repeatedWordsWithinTheNonRangeLimitKeepTheirOrderAndCount() throws IOException {
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static repeat (II)V {
-                    registers: 2,
                     parameters: { a, b },
                     code: {
                         invoke-static { words: { v1, v0, v1, v0, v1 } } demo/Target.five (IIIII)V
@@ -64,7 +63,6 @@ class DalvikRawInvokeTest {
     void sixConsecutiveWordsNameARangeFromTheirFirstRegister() throws IOException {
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static six (IIIIII)V {
-                    registers: 6,
                     parameters: { a, b, c, d, e, f },
                     code: {
                         invoke-static { words: { v0, v1, v2, v3, v4, v5 } } demo/Target.six (IIIIII)V
@@ -85,7 +83,6 @@ class DalvikRawInvokeTest {
     void aSingleHighWordNamesARangeBecauseTheNonRangeFieldCannotHoldIt() throws IOException {
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static high (I)V {
-                    registers: 17,
                     parameters: { value },
                     code: {
                         invoke-static { words: { v16 } } demo/Target.one (I)V
@@ -103,7 +100,6 @@ class DalvikRawInvokeTest {
     void aConsecutiveHighPairNamesARangeWithItsWideArgumentIntact() throws IOException {
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static highPair (J)V {
-                    registers: 18,
                     parameters: { wide },
                     code: {
                         invoke-static { words: { v16, v17 } } demo/Target.pair (J)V
@@ -136,7 +132,6 @@ class DalvikRawInvokeTest {
     void aMalformedWidePairKeepsItsWordsAndPrintsRawThenReassemblesToThem() throws IOException {
         ClassDefinition decoded = dexRoundTrip(compile(example("""
                 .method public static pair (JI)V {
-                    registers: 3,
                     parameters: { wide, count },
                     code: {
                         invoke-static { words: { v0, v2 } } demo/Target.call (J)V
@@ -157,7 +152,6 @@ class DalvikRawInvokeTest {
     void anArgumentCountMismatchPrintsRawAndReassemblesToTheSameWords() throws IOException {
         ClassDefinition decoded = dexRoundTrip(compile(example("""
                 .method public static count (JI)V {
-                    registers: 3,
                     parameters: { wide, count },
                     code: {
                         invoke-static { words: { v0, v1, v2 } } demo/Target.call (J)V
@@ -177,7 +171,6 @@ class DalvikRawInvokeTest {
     void aFaithfulWideListKeepsItsOrdinarySpellingWhoseValuesAreUnknown() throws IOException {
         ClassDefinition decoded = dexRoundTrip(compile(example("""
                 .method public static wide (JI)V {
-                    registers: 3,
                     parameters: { wide, count },
                     code: {
                         invoke-static { v0 } demo/Target.call (J)V
@@ -197,7 +190,6 @@ class DalvikRawInvokeTest {
     void customInvokeRawRangeKeepsItsCallSiteAndBootstrapThroughPrinting() throws IOException {
         ClassDefinition decoded = dexRoundTrip(compile(example("""
                 .method public static custom (JI)V {
-                    registers: 19,
                     parameters: { wide, count },
                     code: {
                         invoke-custom { words: { v16, v17, v18 } } callsite (JI)V ConstantBootstraps.nullConstant { "demo", 7 }
@@ -227,7 +219,6 @@ class DalvikRawInvokeTest {
     void polymorphicRawRangeKeepsItsDeclaredAndCallSitePrototypesThroughPrinting() throws IOException {
         ClassDefinition decoded = dexRoundTrip(compile(example("""
                 .method public static poly (Ljava/lang/Object;JJI)V {
-                    registers: 6,
                     parameters: { receiver, first, second, count },
                     code: {
                         invoke-polymorphic { words: { v0, v1, v2, v3, v4, v5 } } java/lang/invoke/MethodHandle.invoke ([Ljava/lang/Object;)V (JJI)V
@@ -256,7 +247,6 @@ class DalvikRawInvokeTest {
     void rawWordsReserveTheirSlotsSoNamedLocalsAvoidThem() throws IOException {
         List<ConstInstruction> consts = decoded(decodedInstructions(example("""
                 .method public static reserve ()V {
-                    registers: 4,
                     code: {
                         const local 1
                         invoke-static { words: { v0, v1 } } demo/Target.call (II)V
@@ -273,7 +263,6 @@ class DalvikRawInvokeTest {
     void theRangeCountBoundaryIsTwoHundredFiftyFiveWords() throws IOException {
         InvokeInstruction accepted = invokes(decodedInstructions(example("""
                 .method public static many ()V {
-                    registers: 255,
                     code: {
                         invoke-static { words: { %s } } demo/Target.many ()V
                         return-void
@@ -287,7 +276,6 @@ class DalvikRawInvokeTest {
 
         var rejected = compileRejected(example("""
                 .method public static tooMany ()V {
-                    registers: 256,
                     code: {
                         invoke-static { words: { %s } } demo/Target.many ()V
                         return-void
@@ -304,7 +292,6 @@ class DalvikRawInvokeTest {
         for (String words : List.of("v0, v16", "v17, v16", "v0, v1, v2, v3, v4, v9")) {
             var rejected = compileRejected(example("""
                     .method public static gap ()V {
-                        registers: 18,
                         code: {
                             invoke-static { words: { %s } } demo/Target.gap ()V
                             return-void
@@ -319,21 +306,17 @@ class DalvikRawInvokeTest {
     }
 
     @Test
-    void aRawWordBeyondTheDeclaredRegisterCountIsReportedAsTheCountLimit() {
-        var rejected = compileRejected(example("""
+    void aRawWordKeepsItsSlotInTheInferredRegisterFile() throws IOException {
+        List<InvokeInstruction> invokes = invokes(decodedInstructions(example("""
                 .method public static beyond ()V {
-                    registers: 4,
                     code: {
                         invoke-static { words: { v5 } } demo/Target.one ()V
                         return-void
                     }
                 }
-                """));
+                """), "beyond", "()V"));
 
-        assertFalse(errorsWithCode(rejected, DiagnosticCode.REGISTER_LIMIT).isEmpty(),
-                DiagnosticAssertions.formatErrors(rejected.errors()));
-        assertTrue(errorsWithCode(rejected, DiagnosticCode.TARGET_LIMIT).isEmpty(),
-                DiagnosticAssertions.formatErrors(rejected.errors()));
+        assertArrayEquals(new int[] {5}, invokes.getFirst().arguments());
     }
 
     @Test
@@ -345,7 +328,6 @@ class DalvikRawInvokeTest {
                 "invoke-static { words: { v0 }, extra: { v1 } } demo/Target.call (II)V")) {
             List<Diagnostic> errors = rejectionErrors(example("""
                     .method public static raw (II)V {
-                        registers: 2,
                         parameters: { a, b },
                         code: {
                             %s
@@ -371,7 +353,6 @@ class DalvikRawInvokeTest {
     void aPolymorphicRawListKeepsItsWordsAndBothPrototypes() throws IOException {
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static listed (Ljava/lang/Object;I)V {
-                    registers: 2,
                     parameters: { receiver, count },
                     code: {
                         invoke-polymorphic { words: { v1, v0 } } java/lang/invoke/MethodHandle.invokeExact ()V (I)V
@@ -390,7 +371,6 @@ class DalvikRawInvokeTest {
     void aCustomRawListKeepsItsWordOrderWithoutSorting() throws IOException {
         InvokeCustomInstruction custom = customs(decodedInstructions(example("""
                 .method public static listed (JI)V {
-                    registers: 3,
                     parameters: { wide, count },
                     code: {
                         invoke-custom { words: { v2, v0, v1 } } callsite (JI)V ConstantBootstraps.nullConstant { "demo" }
@@ -408,7 +388,6 @@ class DalvikRawInvokeTest {
         for (String instruction : List.of("filled-new-array { words: { v0, v1 } } [I")) {
             List<Diagnostic> errors = rejectionErrors(example("""
                     .method public static raw (II)V {
-                        registers: 2,
                         parameters: { a, b },
                         code: {
                             %s
@@ -468,7 +447,6 @@ class DalvikRawInvokeTest {
     private static String printedCall(String call) throws IOException {
         return printClass(dexRoundTrip(compile(example("""
                 .method public static boundary (JI)V {
-                    registers: 3,
                     parameters: { wide, count },
                     code: {
                         %s

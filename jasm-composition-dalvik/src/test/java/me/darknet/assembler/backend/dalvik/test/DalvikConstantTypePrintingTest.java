@@ -22,7 +22,6 @@ class DalvikConstantTypePrintingTest {
 	void wideConstantAddedAsLongPrintsAsLong() {
 		String printed = roundTrip("""
 				.method public static tap (J)J {
-				    registers: 4,
 				    code: {
                         const-wide v0 1L
                         add-long v0 v0 v2
@@ -38,14 +37,12 @@ class DalvikConstantTypePrintingTest {
 	void typedUseDeterminesConstantSpelling() {
 		String printed = roundTrip("""
 				.method public static intBits ()I {
-				    registers: 1,
 				    code: {
 				        const v0 1065353216
 				        return v0
 				    }
 				}
 				.method public static tinyFloat ()F {
-				    registers: 1,
 				    code: {
 				        const v0 1.4E-45F
 				        return v0
@@ -61,7 +58,6 @@ class DalvikConstantTypePrintingTest {
 	void evidenceFollowsWideMoves() {
 		String printed = roundTrip("""
 				.method public static moved ()J {
-				    registers: 4,
 				    code: {
 				        const-wide v0 4607182418800017408L
 				        move-wide v2 v0
@@ -77,7 +73,6 @@ class DalvikConstantTypePrintingTest {
 	void evidenceReachesConstantsOnEveryMergedPath() {
 		String printed = roundTrip("""
 				.method public static choose (I)J {
-				    registers: 3,
 				    code: {
 				        if-eqz v2 Other
 				        const-wide v0 4607182418800017408L
@@ -98,7 +93,6 @@ class DalvikConstantTypePrintingTest {
 	void floatArrayElementTypesStoredValue() {
 		String printed = roundTrip("""
 				.method public static floats ()[F {
-				    registers: 3,
 				    code: {
 				        const v0 2
 				        new-array v1 v0 [F
@@ -117,7 +111,6 @@ class DalvikConstantTypePrintingTest {
 	void wideArrayElementTypesStoredValue() {
 		String printed = roundTrip("""
 				.method public static longs ()[J {
-				    registers: 4,
 				    code: {
 				        const v0 1
 				        new-array v1 v0 [J
@@ -128,7 +121,6 @@ class DalvikConstantTypePrintingTest {
 				    }
 				}
 				.method public static doubles ()[D {
-				    registers: 4,
 				    code: {
 				        const v0 1
 				        new-array v1 v0 [D
@@ -148,7 +140,6 @@ class DalvikConstantTypePrintingTest {
 	void conflictingUsesPrintRawHexBits() {
 		String printed = roundTrip("""
 				.method public static mixedZero ()F {
-				    registers: 2,
 				    code: {
 				        const v0 0
 				        add-int v1 v0 v0
@@ -164,7 +155,6 @@ class DalvikConstantTypePrintingTest {
 	void unusedConstantsPrintRawHexBits() {
 		String source = """
 				.method public static unused ()V {
-				    registers: 6,
 				    code: {
 				        const v0 1.0F
 				        const v1 42

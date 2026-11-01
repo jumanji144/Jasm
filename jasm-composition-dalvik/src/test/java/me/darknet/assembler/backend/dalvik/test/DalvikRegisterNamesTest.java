@@ -38,7 +38,6 @@ class DalvikRegisterNamesTest {
 			.super java/lang/Object
 			.class public Example {
 			    .method public static sum (II)I {
-			        registers: 4,
 			        parameters: { first, second },
 			        code: {
 			            add-int total first second
@@ -52,7 +51,6 @@ class DalvikRegisterNamesTest {
 			.super java/lang/Object
 			.class public Example {
 			    .method public count (I)I {
-			        registers: 3,
 			        parameters: { value },
 			        code: {
 			            iget total this sample/Owner.count I
@@ -67,7 +65,6 @@ class DalvikRegisterNamesTest {
 			.super java/lang/Object
 			.class public Example {
 			    .method public static widen (JI)J {
-			        registers: 7,
 			        parameters: { wide, count },
 			        code: {
 			            int-to-long extra count
@@ -82,7 +79,6 @@ class DalvikRegisterNamesTest {
 			.super java/lang/Object
 			.class public Example {
 			    .method public static fetch ()V {
-			        registers: 3,
 			        code: {
 			            aget element list position
 			            return-void
@@ -95,7 +91,6 @@ class DalvikRegisterNamesTest {
 			.super java/lang/Object
 			.class public Example {
 			    .method public static plain (II)I {
-			        registers: 3,
 			        code: {
 			            add-int v0 v1 v2
 			            return v0
@@ -108,7 +103,6 @@ class DalvikRegisterNamesTest {
 			.super java/lang/Object
 			.class public Example {
 			    .method public static call (I)I {
-			        registers: 3,
 			        parameters: { value },
 			        code: {
 			            invoke-static { value } java/lang/Math.abs (I)I
@@ -123,7 +117,6 @@ class DalvikRegisterNamesTest {
 			.super java/lang/Object
 			.class public Example {
 			    .method public static loop (I)I {
-			        registers: 3,
 			        parameters: { limit },
 			        code: {
 			            const sum 0
@@ -144,7 +137,6 @@ class DalvikRegisterNamesTest {
 			.super java/lang/Object
 			.class public Example {
 			    .method public static mix (JLjava/lang/Object;)I {
-			        registers: 8,
 			        parameters: { wide, receiver },
 			        code: {
 			            invoke-static { wide } java/lang/Long.hashCode (J)I
@@ -187,10 +179,10 @@ class DalvikRegisterNamesTest {
 	}
 
 	@Test
-	void unnamedParametersPrintAsPositionalAliases() throws Exception {
+	void explicitNumericRegistersRemainLocalWithUnnamedParameters() throws Exception {
 		String printed = printDecoded(UNNAMED);
 		assertFalse(printed.contains("parameters:"), printed);
-		assertEquals(List.of("A:", "add-int v0 p0 p1", "return v0", "B:"), body(printed, "plain"), printed);
+		assertEquals(List.of("A:", "add-int v0 v1 v2", "return v0", "B:"), body(printed, "plain"), printed);
 	}
 
 	@Test
@@ -224,7 +216,6 @@ class DalvikRegisterNamesTest {
 				.super java/lang/Object
 				.class public Example {
 				    .method public count (I)I {
-				        registers: 3,
 				        code: {
 				            iget total this sample/Owner.count I
 				            add-int total total p0
@@ -239,34 +230,12 @@ class DalvikRegisterNamesTest {
 	}
 
 	@Test
-	void numericReferenceToParameterWarnsAndStillWritesDex() throws Exception {
-		CompileResult result = compile("""
-				.super java/lang/Object
-				.class public Example {
-				    .method public static sum (II)I {
-				        registers: 4,
-				        parameters: { first, second },
-				        code: {
-				            add-int total v2 second
-				            return total
-				        }
-				    }
-				}
-				""");
-		assertEquals(List.of("Numeric register v2 is the slot of parameter 'first'; write 'first' instead"),
-				messages(result.warnings()));
-		assertEquals(DiagnosticCode.NUMERIC_REFERENCE_TO_NAMED_SLOT, result.warnings().getFirst().code());
-		assertEquals(1, roundTrip(result.definitions()).definitions().size());
-	}
-
-	@Test
 	void explicitSlotIsNeverClaimedByALocalSoItDoesNotWarn() throws Exception {
 		// The compiler reserves v0 for the explicit operand before it names any local, so total takes v1 and v0 stays numeric.
 		CompileResult result = compile("""
 				.super java/lang/Object
 				.class public Example {
 				    .method public static local (I)I {
-				        registers: 3,
 				        parameters: { value },
 				        code: {
 				            const total 1
@@ -282,73 +251,11 @@ class DalvikRegisterNamesTest {
 	}
 
 	@Test
-	void numericHighWordOfWideParameterWarnsAndStillWritesDex() {
-		// The write leaves the wide value unread, so the body is valid and only the numeric high word warns.
-		var outcome = TestUtils.compileDalvik("""
-				.super java/lang/Object
-				.class public Example {
-				    .method public static high (JI)V {
-				        registers: 4,
-				        parameters: { wide, count },
-				        code: {
-				            const v2 0
-				            return-void
-				        }
-				    }
-				}
-				""", TestUtils.options());
-		assertFalse(outcome.hasErrors(), messages(outcome.errors()).toString());
-		assertEquals(List.of("Numeric register v2 is the high word of wide parameter 'wide'"), messages(outcome.warnings()));
-		assertTrue(outcome.value() != null);
-	}
-
-	@Test
-	void wideNumericOperandCoveringANamedSlotWarns() {
-		CompileResult result = compile("""
-				.super java/lang/Object
-				.class public Example {
-				    .method public static covered (I)V {
-				        registers: 4,
-				        parameters: { size },
-				        code: {
-				            new-array v0 size [J
-				            aget-wide v2 v0 size
-				            return-void
-				        }
-				    }
-				}
-				""");
-		assertEquals(List.of("Numeric wide register v2 covers v3, which is the slot of parameter 'size'"),
-				messages(result.warnings()));
-	}
-
-	@Test
-	void rawWordNamingAParameterSlotWarns() {
-		CompileResult result = compile("""
-				.super java/lang/Object
-				.class public Example {
-				    .method public static raw (II)I {
-				        registers: 4,
-				        parameters: { first, second },
-				        code: {
-				            invoke-static { words: { v2 } } java/lang/Math.abs (I)I
-				            move-result v0
-				            return v0
-				        }
-				    }
-				}
-				""");
-		assertEquals(List.of("Numeric register v2 is the slot of parameter 'first'; write 'first' instead"),
-				messages(result.warnings()));
-	}
-
-	@Test
 	void receiverParameterAliasAndUnnamedSlotsDoNotWarn() {
 		CompileResult receiver = compile("""
 				.super java/lang/Object
 				.class public Example {
 				    .method public count (I)I {
-				        registers: 3,
 				        parameters: { value },
 				        code: {
 				            iget total this sample/Owner.count I
@@ -365,30 +272,9 @@ class DalvikRegisterNamesTest {
 	}
 
 	@Test
-	void numericReferenceToReceiverWarnsAndStillWritesDex() {
-		var outcome = TestUtils.compileDalvik("""
-				.super java/lang/Object
-				.class public Example {
-				    .method public count (I)I {
-				        registers: 3,
-				        parameters: { value },
-				        code: {
-				            iget total v1 sample/Owner.count I
-				            add-int total total value
-				            return total
-				        }
-				    }
-				}
-				""", TestUtils.options());
-		assertFalse(outcome.hasErrors(), messages(outcome.errors()).toString());
-		assertEquals(List.of("Numeric register v1 is the receiver; write 'this' instead"), messages(outcome.warnings()));
-	}
-
-	@Test
 	void duplicateParameterNameIsRejectedInSource() {
 		assertParameterNameCollision("""
 				    .method public static pick (II)V {
-				        registers: 2,
 				        parameters: { a, a },
 				        code: {
 				            return-void
@@ -401,7 +287,6 @@ class DalvikRegisterNamesTest {
 	void thisParameterNameIsRejectedInAnInstanceMethod() {
 		assertParameterNameCollision("""
 				    .method public only (I)V {
-				        registers: 2,
 				        parameters: { this },
 				        code: {
 				            return-void
@@ -414,7 +299,6 @@ class DalvikRegisterNamesTest {
 	void aliasOfAnotherParameterIsRejectedInSource() {
 		assertParameterNameCollision("""
 				    .method public static pick (II)V {
-				        registers: 2,
 				        parameters: { p1, x },
 				        code: {
 				            return-void
@@ -427,7 +311,6 @@ class DalvikRegisterNamesTest {
 	void numericLookingParameterNameIsRejectedInSource() {
 		assertParameterNameCollision("""
 				    .method public static pick (II)V {
-				        registers: 4,
 				        parameters: { v0, b },
 				        code: {
 				            return-void
@@ -442,14 +325,12 @@ class DalvikRegisterNamesTest {
 				.super java/lang/Object
 				.class public Example {
 				    .method public static only (II)V {
-				        registers: 2,
 				        parameters: { p0, p9 },
 				        code: {
 				            return-void
 				        }
 				    }
 				    .method public static named (I)V {
-				        registers: 1,
 				        parameters: { this },
 				        code: {
 				            return-void

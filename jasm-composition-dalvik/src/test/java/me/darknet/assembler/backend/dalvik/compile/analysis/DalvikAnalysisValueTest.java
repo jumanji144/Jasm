@@ -48,7 +48,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisIntegerArithmetic {
 				    .method public static sum ()I {
-				        registers: 3,
 				        code: {
 				            const v0 7
 				            const v1 5
@@ -73,7 +72,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisWideFloatingArithmetic {
 				    .method public static longValue ()J {
-				        registers: 4,
 				        code: {
 				            const-wide v0 7L
 				            const-wide v2 5L
@@ -82,7 +80,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static floating ()F {
-				        registers: 3,
 				        code: {
 				            const v0 1.5f
 				            const v1 2.25f
@@ -91,7 +88,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static doubleArithmetic ()D {
-				        registers: 4,
 				        code: {
 				            const-wide v0 1.5
 				            const-wide v2 2.5
@@ -116,7 +112,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisDoubleConstant {
 				    .method public static doubleValue ()D {
-				        registers: 2,
 				        code: {
 				            const-wide v0 2.5
 				            return-wide v0
@@ -135,7 +130,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisMoves {
 				    .method public static narrowMoves ()I {
-				        registers: 3,
 				        code: {
 				            const v0 13
 				            move v1 v0
@@ -144,7 +138,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static objectZero ()Ljava/lang/Object; {
-				        registers: 2,
 				        code: {
 				            const v0 0
 				            move-object v1 v0
@@ -169,21 +162,18 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisZeroSentinels {
 				    .method public static intZero ()I {
-				        registers: 1,
 				        code: {
 				            const v0 0
 				            return v0
 				        }
 				    }
 				    .method public static wideZero ()J {
-				        registers: 2,
 				        code: {
 				            const-wide v0 0L
 				            return-wide v0
 				        }
 				    }
 				    .method public static intZeroArithmetic ()I {
-				        registers: 2,
 				        code: {
 				            const v0 0
 				            add-int v1 v0 v0
@@ -209,14 +199,12 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisRawZero {
 				    .method public static nullReference ()Ljava/lang/Object; {
-				        registers: 1,
 				        code: {
 				            const v0 #0x00000000
 				            return-object v0
 				        }
 				    }
 				    .method public static intArithmetic ()I {
-				        registers: 2,
 				        code: {
 				            const v0 #0x00000000
 				            add-int v1 v0 v0
@@ -224,7 +212,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static floatCompare ()I {
-				        registers: 3,
 				        code: {
 				            const v0 #0x00000000
 				            const v1 #0x00000000
@@ -233,7 +220,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static joinedWithObject (I)Ljava/lang/Object; {
-				        registers: 2,
 				        parameters: { flag },
 				        code: {
 				            const v0 #0x00000000
@@ -268,7 +254,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisRawZeroFloatJoin {
 				    .method public static joined (I)F {
-				        registers: 2,
 				        parameters: { flag },
 				        code: {
 				            const v0 #0x00000000
@@ -293,7 +278,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisRawWideZero {
 				    .method public static longSum ()J {
-				        registers: 4,
 				        code: {
 				            const-wide v0 #0x0000000000000000
 				            const-wide v2 1L
@@ -302,7 +286,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static doubleSum ()D {
-				        registers: 4,
 				        code: {
 				            const-wide v0 #0x0000000000000000
 				            const-wide v2 1.0
@@ -311,7 +294,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static joinedLong (I)J {
-				        registers: 3,
 				        parameters: { flag },
 				        code: {
 				            const-wide v0 #0x0000000000000000
@@ -322,7 +304,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static explicitDoubleZeroIsNotLong ()J {
-				        registers: 4,
 				        code: {
 				            const-wide v0 0.0
 				            const-wide v2 1L
@@ -359,7 +340,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisRawWideZeroMove {
 				    .method public static movedCompare ()I {
-				        registers: 6,
 				        code: {
 				            const-wide v0 #0x0000000000000000
 				            move-wide v2 v0
@@ -381,7 +361,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisArrayElements {
 				    .method public static floatElement ()I {
-				        registers: 5,
 				        code: {
 				            const v0 1
 				            new-array v1 v0 [F
@@ -392,7 +371,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static floatParameter ([F)I {
-				        registers: 4,
 				        parameters: { values },
 				        code: {
 				            const v0 0
@@ -402,7 +380,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static intElement ()I {
-				        registers: 4,
 				        code: {
 				            const v0 1
 				            new-array v1 v0 [I
@@ -430,14 +407,12 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisTypedConstants {
 				    .method public static stringValue ()Ljava/lang/String; {
-				        registers: 1,
 				        code: {
 				            const-string v0 "known"
 				            return-object v0
 				        }
 				    }
 				    .method public static classValue ()Ljava/lang/Class; {
-				        registers: 1,
 				        code: {
 				            const-class v0 Ljava/lang/String;
 				            return-object v0
@@ -459,14 +434,12 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisFloatingPayloads {
 				    .method public static floatPayload ()F {
-				        registers: 1,
 				        code: {
 				            const v0 #0x7FC01234
 				            return v0
 				        }
 				    }
 				    .method public static doublePayload ()D {
-				        registers: 2,
 				        code: {
 				            const-wide v0 #0x7FF8000000000001
 				            return-wide v0
@@ -489,7 +462,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisRawCategories {
 				    .method public static rawIntegerJoin (I)I {
-				        registers: 3,
 				        parameters: { flag },
 				        code: {
 				            const v0 #0x00000001
@@ -501,7 +473,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static rawFloatJoin (I)F {
-				        registers: 3,
 				        parameters: { flag },
 				        code: {
 				            const v0 #0x3F800000
@@ -513,7 +484,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static rawMoveJoin (I)V {
-				        registers: 3,
 				        parameters: { flag },
 				        code: {
 				            const v0 #0x00000001
@@ -525,7 +495,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static rawLongJoin (I)J {
-				        registers: 5,
 				        parameters: { flag },
 				        code: {
 				            const-wide v0 #0x0000000000000001
@@ -537,7 +506,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static rawDoubleJoin (I)D {
-				        registers: 5,
 				        parameters: { flag },
 				        code: {
 				            const-wide v0 #0x3FF0000000000000
@@ -585,7 +553,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisRawReferenceCategory {
 				    .method public static rawReferenceJoin (I)Ljava/lang/Object; {
-				        registers: 3,
 				        parameters: { flag },
 				        code: {
 				            const v0 #0x00000001
@@ -607,7 +574,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisRawCategoryReads {
 				    .method public static rawThenIntReadAsFloat (I)V {
-				        registers: 3,
 				        parameters: { flag },
 				        code: {
 				            const v0 #0x00000001
@@ -619,7 +585,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static rawThenFloatReadAsInt (I)V {
-				        registers: 3,
 				        parameters: { flag },
 				        code: {
 				            const v0 #0x3F800000
@@ -631,7 +596,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static rawThenLongReadAsDouble (I)V {
-				        registers: 5,
 				        parameters: { flag },
 				        code: {
 				            const-wide v0 #0x0000000000000001
@@ -643,7 +607,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static rawThenDoubleReadAsLong (I)V {
-				        registers: 5,
 				        parameters: { flag },
 				        code: {
 				            const-wide v0 #0x3FF0000000000000
@@ -676,7 +639,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisLiteralArithmetic {
 				    .method public static literals ()I {
-				        registers: 4,
 				        code: {
 				            const v0 4
 				            mul-int v1 v0 3
@@ -700,7 +662,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisReverseSubtraction {
 				    .method public static reverse ()I {
-				        registers: 5,
 				        code: {
 				            const v0 3
 				            rsub-int v1 v0 10
@@ -725,7 +686,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisConversion {
 				    .method public static conversion ()I {
-				        registers: 4,
 				        code: {
 				            const v0 258
 				            int-to-byte v1 v0
@@ -754,7 +714,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisNaNComparison {
 				    .method public static nanCompare ()I {
-				        registers: 4,
 				        code: {
 				            const v0 #0x7FC00001
 				            const v1 0.0f
@@ -780,7 +739,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisIntegerOverflow {
 				    .method public static overflow ()I {
-				        registers: 3,
 				        code: {
 				            const v0 2147483647
 				            const v1 1
@@ -801,7 +759,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisIntegerShift {
 				    .method public static shift ()I {
-				        registers: 3,
 				        code: {
 				            const v0 1
 				            const v1 32
@@ -822,7 +779,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisLongShift {
 				    .method public static shift ()J {
-				        registers: 5,
 				        code: {
 				            const-wide v0 1L
 				            const v2 64
@@ -843,7 +799,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisSignedZero {
 				    .method public static negativeZeroArithmetic ()F {
-				        registers: 3,
 				        code: {
 				            const v0 -0.0f
 				            const v1 -0.0f
@@ -852,7 +807,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static negativeZeroUnary ()F {
-				        registers: 2,
 				        code: {
 				            const v0 0.0f
 				            neg-float v1 v0
@@ -860,7 +814,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static negativeZeroDouble ()D {
-				        registers: 4,
 				        code: {
 				            const-wide v0 0.0
 				            neg-double v2 v0
@@ -890,7 +843,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisDivisionByZero {
 				    .method public static divisionByZero ()I {
-				        registers: 3,
 				        code: {
 				            const v0 9
 				            const v1 0
@@ -911,7 +863,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisLongComparison {
 				    .method public static compareLong ()I {
-				        registers: 5,
 				        code: {
 				            const-wide v0 -1L
 				            const-wide v2 1L
@@ -932,7 +883,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisUnknownOperand {
 				    .method public static unknownOperand (I)I {
-				        registers: 3,
 				        parameters: { input },
 				        code: {
 				            const v0 8
@@ -953,7 +903,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisOverlappingWideMove {
 				    .method public static overlappingWideMove ()J {
-				        registers: 3,
 				        code: {
 				            const-wide v0 11L
 				            move-wide v1 v0
@@ -977,7 +926,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisOverwrittenWideWords {
 				    .method public static overwriteWideWords ()V {
-				        registers: 4,
 				        code: {
 				            const-wide v0 11L
 				            const v1 6
@@ -1004,7 +952,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisSameJoin {
 				    .method public static sameJoin ()I {
-				        registers: 2,
 				        code: {
 				            const v0 0
 				            if-eqz v0 Same
@@ -1038,7 +985,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisConflictingJoin {
 				    .method public static differentJoin ()I {
-				        registers: 2,
 				        code: {
 				            const v0 0
 				            if-eqz v0 Other
@@ -1063,7 +1009,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisIncompatibleCategory {
 				    .method public static categoryJoin ()V {
-				        registers: 2,
 				        code: {
 				            const v0 0
 				            if-eqz v0 Reference
@@ -1088,7 +1033,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisIncompatibleWideCategory {
 				    .method public static wideCategoryJoin ()V {
-				        registers: 4,
 				        code: {
 				            const v0 0
 				            if-eqz v0 DoublePath
@@ -1113,7 +1057,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisAllocationJoin {
 				    .method public static allocationJoin ()V {
-				        registers: 2,
 				        code: {
 				            const v1 0
 				            if-eqz v1 Second
@@ -1140,7 +1083,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public DeadScratchRegisterMerge {
 				    .method public static countMatchingItems (Ljava/lang/Object;Ljava/lang/Object;I)I {
-				        registers: 7,
 				        parameters: { state, category, index },
 				        code: {
 				            const v0 0
@@ -1182,7 +1124,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisDifferingRaw {
 				    .method public static differingNaNPayloads ()F {
-				        registers: 2,
 				        code: {
 				            const v0 0
 				            if-eqz v0 Other
@@ -1209,7 +1150,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisLoopJoin {
 				    .method public static loop ()I {
-				        registers: 1,
 				        code: {
 				            const v0 0
 				        Loop:
@@ -1231,7 +1171,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisReferences {
 				    .method public static references ()Ljava/lang/Object; {
-				        registers: 4,
 				        code: {
 				            const v0 0
 				            check-cast v0 Ljava/lang/String;
@@ -1271,7 +1210,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisArrays {
 				    .method public static arrays ()V {
-				        registers: 9,
 				        code: {
 				            const v0 4
 				            new-array v1 v0 [I
@@ -1307,7 +1245,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisNullArrayJoin {
 				    .method public static forwardJoin (I)V {
-				        registers: 7,
 				        parameters: { flag },
 				        code: {
 				            const v0 #0x00000000
@@ -1321,7 +1258,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static loopJoin (I)V {
-				        registers: 7,
 				        parameters: { n },
 				        code: {
 				        Start:
@@ -1359,7 +1295,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisIntArrayWideRead {
 				    .method public static test ()V {
-				        registers: 6,
 				        code: {
 				            const v0 5
 				            const v3 0
@@ -1381,7 +1316,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisUnknownArraySize {
 				    .method public static unknownSize (I)V {
-				        registers: 4,
 				        parameters: { size },
 				        code: {
 				            new-array v0 size [J
@@ -1406,7 +1340,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisFields {
 				    .method public static fields ()V {
-				        registers: 5,
 				        code: {
 				            const-string v0 "receiver"
 				            sget-wide v1 sample/Owner.value J
@@ -1434,7 +1367,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisObjectReturn {
 				    .method public static objectReturn ()Ljava/lang/Object; {
-				        registers: 1,
 				        code: {
 				            const-string v0 "return"
 				            return-object v0
@@ -1453,7 +1385,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisThrowParameter {
 				    .method public static throwParameter (Ljava/lang/Throwable;)V {
-				        registers: 1,
 				        parameters: { thrown },
 				        code: {
 				            throw thrown
@@ -1474,7 +1405,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisExceptionalPreState {
 				    .method public static exceptional ([I)V {
-				        registers: 2,
 				        parameters: { values },
 				        exceptions: {
 				            { Start, End, Handler, java/lang/Exception }
@@ -1513,7 +1443,6 @@ class DalvikAnalysisValueTest {
 				.super java/lang/Object
 				.class public ValueAnalysisBoundary {
 				    .method public static invokeResult ()I {
-				        registers: 2,
 				        code: {
 				            const v1 12
 				            invoke-static { v1 } java/lang/Math.abs (I)I
@@ -1522,7 +1451,6 @@ class DalvikAnalysisValueTest {
 				        }
 				    }
 				    .method public static invalidResult ()V {
-				        registers: 2,
 				        code: {
 				            const v1 12
 				            invoke-static { v1 } java/lang/Math.abs (I)I

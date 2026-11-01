@@ -36,7 +36,6 @@ public class HelloWorld {
 .super java/lang/Object
 .class public HelloWorld {
     .method public static main ([Ljava/lang/String;)V {
-        registers: 3,
         parameters: { args },
         code: {
         A: 

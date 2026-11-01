@@ -12,7 +12,6 @@ import me.darknet.assembler.backend.dalvik.DalvikModifiers;
 import me.darknet.assembler.backend.dalvik.DalvikParameterNames;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisEngine;
 import me.darknet.assembler.backend.dalvik.compile.analysis.DalvikAnalysisResults;
-import me.darknet.assembler.backend.dalvik.instructions.DalvikMethodData;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterOperands;
 import me.darknet.assembler.backend.dalvik.instructions.RegisterRef;
 import me.darknet.assembler.compiler.InheritanceChecker;
@@ -52,7 +51,7 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     private final List<String> parameterNames = new ArrayList<>();
     private final List<Location> parameterLocations = new ArrayList<>();
     private final ASTMethod source;
-    private final @Nullable DalvikMethodData methodData;
+    private final ProcessedMethod processed;
     private final MethodReference analysisMethod;
     private final Map<MethodReference, DalvikAnalysisResults> analysisResults;
     private final DiagnosticSink sink;
@@ -60,9 +59,9 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     private final MethodValueLookup methodValueLookup;
     private final FieldValueLookup fieldValueLookup;
     private final Set<Integer> explicitRegisters;
-    private Integer declaredRegisterCount;
     private int incomingRegisterCount;
     private CodeBuilder codeBuilder;
+    private @Nullable DalvikRegisterLayout.Layout registerLayout;
     private DalvikCodeVisitor codeVisitor;
     private boolean codeRejected;
 
@@ -88,7 +87,7 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
                                @NotNull FieldValueLookup fieldValueLookup) {
         super(member);
         this.source = processed.source();
-        this.methodData = processed.extensions().get(DalvikMethodData.class);
+        this.processed = processed;
         this.analysisMethod = analysisMethod;
         this.analysisResults = analysisResults;
         this.sink = sink;
@@ -157,32 +156,25 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     @Override
     public ASTInstructionVisitor visitCode(@NotNull DiagnosticSink sink) {
         if (codeVisitor == null && !codeRejected) {
-            declaredRegisterCount = methodData == null ? null : methodData.registers();
-
-            // The declaration is what every register-count problem is measured against, so it is used as the
-            // report location whenever the method declared one.
-            Location registerDeclaration = methodData == null ? null : methodData.source().location();
-            Location mismatchLocation = registerDeclaration == null ? source.location() : registerDeclaration;
-            codeBuilder = new CodeBuilder();
             incomingRegisterCount = incomingRegisterWords();
-            if (declaredRegisterCount == null && incomingRegisterCount > 0) {
+
+            // Calculate the register layout for the method, which includes the parameter registers and any additional registers
+            // required for the method's code. If the layout cannot be calculated, the method is rejected and no code is emitted.
+            Set<String> parameterAliases = Set.copyOf(parameterRegisters(0).keySet());
+            registerLayout = DalvikRegisterLayout.calculate(processed, incomingRegisterCount, explicitRegisters, parameterAliases, sink);
+            if (registerLayout == null) {
                 codeRejected = true;
-                sink.error(DiagnosticCode.REGISTER_DECLARATION, "Dalvik methods with parameters require registers", mismatchLocation);
                 return null;
             }
-            int registerLimit = declaredRegisterCount == null ? -1 : declaredRegisterCount;
-            int parameterBase = declaredRegisterCount == null ? -1 : declaredRegisterCount - incomingRegisterCount;
-            if (declaredRegisterCount != null && parameterBase < 0) {
-                codeRejected = true;
-                sink.error(DiagnosticCode.REGISTER_DECLARATION, "Declared register count is smaller than incoming parameters", mismatchLocation);
-                return null;
-            }
+
+            // Create the visitor that builds the actual output code.
+            int parameterBase = registerLayout.parameterBase();
+            codeBuilder = new CodeBuilder();
             codeVisitor = new DalvikCodeVisitor(
                     sink,
                     parameterRegisters(parameterBase),
-                    registerLimit,
+                    registerLayout.registerCount(),
                     parameterBase,
-                    registerDeclaration,
                     explicitRegisters
             );
         }
@@ -193,19 +185,11 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     public void visitEnd() {
         member.setParameterNames(parameterNames);
         boolean collided = reportParameterNameCollisions();
-        if (codeVisitor != null) {
-            int parameterBase = declaredRegisterCount == null ? -1 : declaredRegisterCount - incomingRegisterCount;
+        if (codeVisitor != null && registerLayout != null) {
+            int parameterBase = registerLayout.parameterBase();
             if (!collided)
                 codeVisitor.reportNumericReferences(declaredParameterSlots(parameterBase),
                         wideParameterSlots(parameterBase), receiverSlot(parameterBase));
-            int totalRegisters = Math.max(incomingRegisterCount, codeVisitor.getRegisterCount());
-            if (declaredRegisterCount != null && totalRegisters > declaredRegisterCount) {
-                // The visitor has already reported the register limit problem, so this method does not need to.
-                // What we do want to report is if the method declared a register count but the code used more than that, which is a separate problem.
-                if (!codeVisitor.hasReportedRegisterLimit())
-                    sink.error(DiagnosticCode.REGISTER_LIMIT, "Code uses more registers than declared", source.location());
-                return;
-            }
 
             // The named locals span the whole body, so the body has to start and end with a label. The labels go into a
             // copy before the code is built, because a built Code's instruction list is read-only.
@@ -221,7 +205,7 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
                 codeBuilder.add(instruction);
             Code code = codeBuilder
                     .arguments(incomingRegisterCount, codeVisitor.getOutRegisters())
-                    .registers(declaredRegisterCount == null ? totalRegisters : declaredRegisterCount)
+                    .registers(registerLayout.registerCount())
                     .build();
             codeVisitor.getTryCatches().forEach(code::addTryCatch);
             DebugInformation debugInfo = debugInformation(code, locals);
@@ -260,12 +244,11 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
     }
 
     /**
-     * @return Slot of the receiver, which is the first slot of the parameters, or {@code null} for a static method or a
-     * method that declares no register count.
+     * @return Slot of the receiver, which is the first slot of the parameters, or {@code null} for a static method.
      */
     private @Nullable Integer receiverSlot(int parameterBase) {
         boolean instance = (member.getAccess() & DalvikModifiers.ACC_STATIC) == 0;
-        return instance && parameterBase >= 0 ? parameterBase : null;
+        return instance ? parameterBase : null;
     }
 
     /**
@@ -286,7 +269,7 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
      */
     private @NotNull Map<String, Integer> parameterRegisters(int parameterBase) {
         Map<String, Integer> registers = new HashMap<>();
-        int aliasBase = Math.max(parameterBase, 0);
+        int aliasBase = parameterBase;
         int offset = 0;
         if ((member.getAccess() & DalvikModifiers.ACC_STATIC) == 0) {
             registers.put("this", aliasBase);
@@ -305,15 +288,13 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
 
     /**
      * @param parameterBase
-     *         Base register index for the first parameter, or {@code -1} when the method declared no register count.
+     *         Base register index for the first parameter.
      *
      * @return Declared parameter names keyed by the slot of each parameter's first word. The receiver and unnamed
      * parameters are absent.
      */
     private @NotNull Map<Integer, String> declaredParameterSlots(int parameterBase) {
         Map<Integer, String> slots = new HashMap<>();
-        if (parameterBase < 0)
-            return slots;
         int register = parameterBase;
         if ((member.getAccess() & DalvikModifiers.ACC_STATIC) == 0)
             register++;
@@ -328,14 +309,12 @@ public class DalvikMethodVisitor extends DalvikMemberVisitor<MethodMember> imple
 
     /**
      * @param parameterBase
-     *         Base register index for the first parameter, or {@code -1} when the method declared no register count.
+     *         Base register index for the first parameter.
      *
      * @return Slots of the wide parameters, whose high word follows the slot of the parameter.
      */
     private @NotNull Set<Integer> wideParameterSlots(int parameterBase) {
         Set<Integer> slots = new HashSet<>();
-        if (parameterBase < 0)
-            return slots;
         int register = parameterBase;
         if ((member.getAccess() & DalvikModifiers.ACC_STATIC) == 0)
             register++;

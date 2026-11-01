@@ -8,7 +8,6 @@ import me.darknet.assembler.ast.primitive.ASTNumber;
 import me.darknet.assembler.ast.primitive.ASTString;
 import me.darknet.assembler.backend.dalvik.compile.DalvikConstantMapper;
 import me.darknet.assembler.backend.dalvik.instructions.ArithmeticLowering;
-import static me.darknet.assembler.backend.dalvik.instructions.ArithmeticLowering.NONE;
 import me.darknet.assembler.backend.dalvik.instructions.ArrayData;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikArrayLiterals;
 import me.darknet.assembler.backend.dalvik.instructions.DalvikLowering;
@@ -97,6 +96,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import static me.darknet.assembler.backend.dalvik.instructions.ArithmeticLowering.NONE;
+
 /**
  * Visits Dalvik instruction syntax and collects the dex instructions and labels it emits, in code order.
  */
@@ -131,11 +132,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	private int nextLabelOrder;
 	private final int registerLimit;
 	private final int parameterBase;
-	private final @Nullable Location registerDeclaration;
 	private int nextLocalRegister;
-	private int registerCount;
 	private int outRegisters;
-	private boolean reportedRegisterLimit;
 	private int pendingLineNumber = Label.UNASSIGNED;
 
 	/**
@@ -144,31 +142,24 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @param initialRegisterMap
 	 * 		Registers already bound to names, which are the method's parameters.
 	 * @param registerLimit
-	 * 		Register count declared by the method, or {@code -1} when none was declared.
+	 * 		Computed maximum register count, which bounds the slots that locals may use.
 	 * @param parameterBase
-	 * 		First register slot holding a parameter, or {@code -1} when no register count was declared.
-	 * @param registerDeclaration
-	 * 		Location of the {@code registers} declaration, or {@code null} when the method declared no count.
+	 * 		First register slot holding a parameter.
 	 * @param explicitRegisters
 	 * 		Physical slots addressed by explicit {@code vN} operands in the whole method.
 	 */
 	public DalvikCodeVisitor(@NotNull DiagnosticSink sink,
 	                         @NotNull Map<String, Integer> initialRegisterMap,
 	                         int registerLimit, int parameterBase,
-	                         @Nullable Location registerDeclaration,
 	                         @NotNull Set<Integer> explicitRegisters) {
 		this.sink = sink;
 		this.registerLimit = registerLimit;
 		this.parameterBase = parameterBase;
-		this.registerDeclaration = registerDeclaration;
 		usedRegisters.addAll(explicitRegisters);
 		initialRegisterMap.forEach((name, index) -> {
 			registerMap.put(name, index);
 			usedRegisters.add(index);
-			registerCount = Math.max(registerCount, index + 1);
 		});
-		if (registerLimit >= 0)
-			registerCount = Math.max(registerCount, registerLimit);
 	}
 
 	/**
@@ -194,8 +185,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 				currentInstructionAst == null ? null : currentInstructionAst.location()));
 		ensureRegisterAllowed(numeric);
 		usedRegisters.add(numeric);
-		registerCount = Math.max(registerCount, numeric + 1);
-		// A wide value occupies the slot after its own, so the last declared slot cannot hold one.
+		// A wide value occupies the slot after its own, so the last slot cannot hold one.
 		if (wide)
 			reserveHighWord(numeric + 1);
 		return numeric;
@@ -219,10 +209,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		}
 
 		int ceiling = localCeiling();
-		int index = nextLocalRegister;
-		while (index + 1 < ceiling && (usedRegisters.contains(index) || usedRegisters.contains(index + 1)))
-			index++;
-		if (index + 1 >= ceiling) {
+		int index = DalvikRegisterAllocation.firstFreeWide(usedRegisters, nextLocalRegister, ceiling);
+		if ((long) index + 1 >= ceiling) {
 			reportNoFreePair(registerName, ceiling);
 			return index;
 		}
@@ -233,7 +221,6 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		usedRegisters.add(index + 1);
 		wideBases.add(index);
 		nextLocalRegister = index + 1;
-		registerCount = Math.max(registerCount, index + 2);
 		return index;
 	}
 
@@ -266,7 +253,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	/**
-	 * Reserves the high word of a wide value. It is an ordinary register of the method, so it must be within the declared
+	 * Reserves the high word of a wide value. It is an ordinary register of the method, so it must be within the computed
 	 * count like any other.
 	 *
 	 * @param high
@@ -275,7 +262,6 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	private void reserveHighWord(int high) {
 		ensureRegisterAllowed(high);
 		usedRegisters.add(high);
-		registerCount = Math.max(registerCount, high + 1);
 	}
 
 	/**
@@ -302,9 +288,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		sink.add(new Diagnostic(Severity.ERROR, DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.REGISTER_LIMIT,
 				"Wide register '" + registerName + "' (v" + index + ") needs v" + (index + 1)
 						+ " for its high word, which " + reason,
-				currentInstructionAst == null ? null : currentInstructionAst.location(),
-				registerDeclaration == null ? List.of() : List.of(registerDeclaration)));
-		reportedRegisterLimit = true;
+				currentInstructionAst == null ? null : currentInstructionAst.location(), List.of()));
 	}
 
 	/**
@@ -317,14 +301,11 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 */
 	private void reportNoFreePair(String registerName, int ceiling) {
 		String detail = ceiling < 2
-				? "fewer than two registers lie below the parameter base"
-				: "no two adjacent registers below the parameter base are free";
+				? "fewer than two local slots lie below the parameter base"
+				: "no two adjacent local slots below the parameter base are free";
 		sink.add(new Diagnostic(Severity.ERROR, DiagnosticPhase.BACKEND_EMISSION, DiagnosticCode.REGISTER_LIMIT,
-				"No register pair available for wide '" + registerName + "': " + detail
-						+ ", so a larger register count is required",
-				currentInstructionAst == null ? null : currentInstructionAst.location(),
-				registerDeclaration == null ? List.of() : List.of(registerDeclaration)));
-		reportedRegisterLimit = true;
+				"No register pair available for wide '" + registerName + "': " + detail,
+				currentInstructionAst == null ? null : currentInstructionAst.location(), List.of()));
 	}
 
 	/**
@@ -334,21 +315,17 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @return Slot index bound to the name. A name already bound keeps its slot; a new name takes the first
 	 * free slot below the parameter base that is not occupied by a parameter or explicit {@code vN} operand.
 	 * When no such slot exists the problem is reported and
-	 * {@link #localCeiling()} is returned, which is outside the declared count so the compile still fails.
+	 * {@link #localCeiling()} is returned, which is outside the computed local area so the compile still fails.
 	 */
 	public int getRegisterIndex(String registerName) {
 		Integer existing = registerMap.get(registerName);
 		if (existing != null)
 			return existing;
 
-		// The first free slot below the parameter base is the one to allocate.
-		// The allocator does not try to find a free slot above the base,
-		// because that would require a larger register count, which the method's declaration does not allow.
+		// The calculated parameter base bounds every local. Layout calculation has already grown it to fit all
+		// first-use allocations, so reaching the ceiling here indicates a layout/emission mismatch.
 		int ceiling = localCeiling();
-		int index = nextLocalRegister;
-		while (index < ceiling && usedRegisters.contains(index)) {
-			index++;
-		}
+		int index = DalvikRegisterAllocation.firstFree(usedRegisters, nextLocalRegister, ceiling);
 		if (index >= ceiling) {
 			reportNoFreeRegister(registerName, index, ceiling);
 			return index;
@@ -358,24 +335,18 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 		localNames.put(index, registerName);
 		usedRegisters.add(index);
 		nextLocalRegister = index + 1;
-		registerCount = Math.max(registerCount, index + 1);
 		return index;
 	}
 
 	/**
-	 * @return Highest slot index a local may use, exclusive: everything below the parameter base. Unbounded
-	 * when the method declared no register count, because slots are then allocated to fit.
+	 * @return Highest slot index a local may use, exclusive: everything below the parameter base.
 	 */
 	private int localCeiling() {
-		if (parameterBase >= 0)
-			return parameterBase;
-
-		// One below the maximum keeps 'index + 1' from wrapping when the count is unbounded.
-		return registerLimit >= 0 ? registerLimit : Integer.MAX_VALUE - 1;
+		return parameterBase;
 	}
 
 	/**
-	 * Reports that a name cannot be given a slot because the declared count leaves no room for a local.
+	 * Reports that a name cannot be given a slot inside the calculated local area.
 	 *
 	 * @param registerName
 	 * 		Name that needed a slot.
@@ -386,21 +357,18 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 */
 	private void reportNoFreeRegister(String registerName, int index, int ceiling) {
 		String detail = ceiling == 0
-				? "every declared register holds a parameter"
-				: "all " + ceiling + " slots below the parameter base are in use";
+				? "no local slots lie below the parameter base"
+				: "all " + ceiling + " local slots below the parameter base are in use";
 		sink.add(new Diagnostic(Severity.ERROR, DiagnosticPhase.BACKEND_EMISSION,
 				DiagnosticCode.REGISTER_LIMIT,
-				"No register available for '" + registerName + "': " + detail
-						+ ", so a larger register count is required",
-				currentInstructionAst == null ? null : currentInstructionAst.location(),
-				registerDeclaration == null ? List.of() : List.of(registerDeclaration)));
-		reportedRegisterLimit = true;
+				"No register available for '" + registerName + "': " + detail,
+				currentInstructionAst == null ? null : currentInstructionAst.location(), List.of()));
 		// Keep the allocator from handing the same unusable slot to the next name.
 		nextLocalRegister = Math.max(nextLocalRegister, index);
 	}
 
 	/**
-	 * Reports a register reference outside the declared register count.
+	 * Reports a register reference outside the computed register count.
 	 * <p>
 	 * The diagnostic is recorded and traversal continues so the instruction's other operands are validated.
 	 * Callers must therefore tolerate an out-of-range slot after this method reports an error.
@@ -409,22 +377,12 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * 		Slot index the instruction wants to use.
 	 */
 	private void ensureRegisterAllowed(int index) {
-		if (index >= 0 && (registerLimit < 0 || index < registerLimit))
+		if (index >= 0 && index < registerLimit)
 			return;
 
-		// The declared count is what makes the slot illegal, so it is reported alongside the instruction.
 		sink.add(new Diagnostic(Severity.ERROR, DiagnosticPhase.BACKEND_EMISSION,
-				DiagnosticCode.REGISTER_LIMIT, "Register exceeds declared register count: v" + index,
-				currentInstructionAst == null ? null : currentInstructionAst.location(),
-				registerDeclaration == null ? List.of() : List.of(registerDeclaration)));
-		reportedRegisterLimit = true;
-	}
-
-	/**
-	 * @return {@code true} when {@link #ensureRegisterAllowed(int)} already reported an overrun for this method.
-	 */
-	public boolean hasReportedRegisterLimit() {
-		return reportedRegisterLimit;
+				DiagnosticCode.REGISTER_LIMIT, "Register exceeds computed register count: v" + index,
+				currentInstructionAst == null ? null : currentInstructionAst.location(), List.of()));
 	}
 
 	/**
@@ -471,7 +429,6 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * 		Declared parameter names keyed by the slot of each parameter's first word.
 	 * @param wideParameterSlots
 	 * 		Slots of the declared wide parameters, whose high word follows them.
-	 *
 	 * @param receiverSlot
 	 * 		Slot of the receiver, or {@code null} for a static method.
 	 *
@@ -525,13 +482,13 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @param name
 	 * 		Source name of the parameter or local.
 	 * @param highWord
-	 * 		{@code true} when the slot is the high word of the wide value named by the slot before it.
+	 *        {@code true} when the slot is the high word of the wide value named by the slot before it.
 	 * @param role
 	 * 		Whether the name is the receiver, a declared parameter, or a local.
 	 */
 	private record NamedSlot(String name, boolean highWord, Role role) {
 		/** What a name claims: the receiver, a declared parameter, or a local. */
-		enum Role { RECEIVER, PARAMETER, LOCAL }
+		enum Role {RECEIVER, PARAMETER, LOCAL}
 	}
 
 	/**
@@ -540,18 +497,11 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @param register
 	 * 		Slot the operand names by number.
 	 * @param wide
-	 * 		{@code true} when the operand is wide, so the slot after {@code register} is part of it too.
+	 *        {@code true} when the operand is wide, so the slot after {@code register} is part of it too.
 	 * @param location
 	 * 		Location of the instruction that holds the operand, or {@code null} when it has none.
 	 */
 	private record NumericReference(int register, boolean wide, @Nullable Location location) {}
-
-	/**
-	 * @return Highest slot index used by the method.
-	 */
-	public int getRegisterCount() {
-		return registerCount;
-	}
 
 	/**
 	 * @return Highest slot index used by the method for outgoing arguments.
@@ -1205,7 +1155,7 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	 * @param elements
 	 * 		Register list of the instruction.
 	 *
-	 * @return The encoding of the list, or {@code null} after reporting a list that neither encoding can name. The declared
+	 * @return The encoding of the list, or {@code null} after reporting a list that neither encoding can name. The computed
 	 * register count is checked separately while the slots are allocated.
 	 */
 	private @Nullable Encoding encodeFilledArray(@NotNull RegisterList elements) {
@@ -1312,7 +1262,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 			case INVOKE_DIRECT -> INVOKE_DIRECT_RANGE;
 			case INVOKE_STATIC -> INVOKE_STATIC_RANGE;
 			case INVOKE_INTERFACE -> INVOKE_INTERFACE_RANGE;
-			default -> throw new IllegalStateException("Opcode 0x" + Integer.toHexString(opcode) + " has no range form");
+			default ->
+					throw new IllegalStateException("Opcode 0x" + Integer.toHexString(opcode) + " has no range form");
 		};
 	}
 
@@ -1438,8 +1389,8 @@ public class DalvikCodeVisitor implements ASTDalvikInstructionVisitor, Opcodes {
 	}
 
 	/**
-	 * Reports an operand its instruction's encoding cannot carry. This is not the declared register count being
-	 * exceeded, which {@link #ensureRegisterAllowed(int)} reports, so the two limits can be told apart.
+	 * Reports an operand its instruction's encoding cannot carry. The register count bound is checked separately by
+	 * {@link #ensureRegisterAllowed(int)}, so the two limits can be told apart.
 	 *
 	 * @param operand
 	 * 		Register or literal operand that cannot be encoded.

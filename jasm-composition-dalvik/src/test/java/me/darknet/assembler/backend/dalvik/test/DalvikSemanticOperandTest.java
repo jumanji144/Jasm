@@ -186,7 +186,6 @@ class DalvikSemanticOperandTest {
 		// Every one of these previously escaped processing as a raw exception wrapped at emission time.
 		assertDiagnostic("""
 				.method public static test ()V {
-				  registers: 4,
 				  code: {
 				    move v0 v99999999999
 				    return-void
@@ -196,7 +195,6 @@ class DalvikSemanticOperandTest {
 
 		assertDiagnostic("""
 				.method public static test ()V {
-				  registers: 4,
 				  code: {
 				    invoke-static { } java/lang/Math.abs (J)J
 				    return-void
@@ -206,7 +204,6 @@ class DalvikSemanticOperandTest {
 
 		assertDiagnostic("""
 				.method public static test ()V {
-				  registers: 4,
 				  code: {
 				    invoke-static { v0 } java/lang/Math (J)J
 				    return-void
@@ -216,7 +213,6 @@ class DalvikSemanticOperandTest {
 
 		assertDiagnostic("""
 				.method public static test ()V {
-				  registers: 4,
 				  code: {
 				    sparse-switch v0 { zz: L }
 				  L:

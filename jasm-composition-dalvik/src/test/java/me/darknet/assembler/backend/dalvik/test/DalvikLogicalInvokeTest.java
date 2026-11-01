@@ -47,7 +47,6 @@ class DalvikLogicalInvokeTest {
         // (JI)V takes two entries, so v0 names the long, whose tail is v1, and v2 names the int.
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static wide (JI)V {
-                    registers: 3,
                     parameters: { wide, count },
                     code: {
                         invoke-static { v0, v2 } demo/Target.call (JI)V
@@ -65,7 +64,6 @@ class DalvikLogicalInvokeTest {
         // (J)V takes one entry for its long, so a second entry is an error even though the long spans two words.
         List<Diagnostic> errors = semanticErrors(example("""
                 .method public static count (J)V {
-                    registers: 2,
                     parameters: { wide },
                     code: {
                         invoke-static { v0, v1 } demo/Target.call (J)V
@@ -83,7 +81,6 @@ class DalvikLogicalInvokeTest {
         // The receiver is one entry and the int argument is the next, so the call names v0 and v1.
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static receiver (Ljava/lang/Object;I)V {
-                    registers: 2,
                     parameters: { target, count },
                     code: {
                         invoke-virtual { target, count } demo/Target.call (I)V
@@ -133,9 +130,9 @@ class DalvikLogicalInvokeTest {
         // v16 does not fit a non-range field, so the consecutive pair v16 and v17 is named by a range.
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static highWide (J)V {
-                    registers: 18,
                     parameters: { wide },
                     code: {
+                        const v15 0
                         invoke-static { wide } demo/Target.call (J)V
                         return-void
                     }
@@ -152,7 +149,6 @@ class DalvikLogicalInvokeTest {
         // Six words are more than the non-range form names, and they are consecutive, so the range form carries them.
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static six (IIIIII)V {
-                    registers: 6,
                     parameters: { a, b, c, d, e, f },
                     code: {
                         invoke-static { v0, v1, v2, v3, v4, v5 } demo/Target.six (IIIIII)V
@@ -171,7 +167,6 @@ class DalvikLogicalInvokeTest {
         // Three long arguments are three entries and six words, which the non-range form cannot name, so they form a range.
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static longs (JJJ)V {
-                    registers: 6,
                     parameters: { a, b, c },
                     code: {
                         invoke-static { v0, v2, v4 } demo/Target.longs (JJJ)V
@@ -190,7 +185,6 @@ class DalvikLogicalInvokeTest {
         // Four low registers in any order fit the non-range form, which names them in the order they were written.
         InvokeInstruction invoke = invokes(decodedInstructions(example("""
                 .method public static gaps (IIIII)V {
-                    registers: 5,
                     parameters: { a, b, c, d, e },
                     code: {
                         invoke-static { v3, v0, v4, v2 } demo/Target.four (IIII)V
@@ -208,7 +202,6 @@ class DalvikLogicalInvokeTest {
         // A first-fit slot would be v0, whose high word v1 is an explicit register. The pair has to be v2 and v3.
         List<Instruction> instructions = decodedInstructions(example("""
                 .method public static pair (I)V {
-                    registers: 5,
                     parameters: { value },
                     code: {
                         const v1 9
@@ -229,7 +222,6 @@ class DalvikLogicalInvokeTest {
         // v0 is wide, so v1 is its tail and cannot hold the new local, which takes v2.
         List<Instruction> instructions = decodedInstructions(example("""
                 .method public static tail ()V {
-                    registers: 4,
                     code: {
                         const-wide v0 5
                         invoke-static { v0 } demo/Target.take (J)V
@@ -244,32 +236,26 @@ class DalvikLogicalInvokeTest {
     }
 
     @Test
-    void aWideEntryWhoseTailLiesBeyondTheDeclaredFileIsRejected() {
-        // A numeric high word past the declared count is a count problem. A named pair needs two registers below the
-        // declared count, and a one-register file has no room for one.
-        var numeric = compileRejected(example("""
+    void aWideEntryWhoseTailNeedsMoreRegistersIsAcceptedWithInferredRegisters() throws IOException {
+        List<InvokeInstruction> numeric = invokes(decodedInstructions(example("""
                 .method public static tail ()V {
-                    registers: 2,
                     code: {
                         invoke-static { v1 } demo/Target.take (J)V
                         return-void
                     }
                 }
-                """));
-        var named = compileRejected(example("""
+                """), "tail", "()V"));
+        List<InvokeInstruction> named = invokes(decodedInstructions(example("""
                 .method public static pair ()V {
-                    registers: 1,
                     code: {
                         invoke-static { wide } demo/Target.take (J)V
                         return-void
                     }
                 }
-                """));
+                """), "pair", "()V"));
 
-        assertFalse(errorsWithCode(numeric, DiagnosticCode.REGISTER_LIMIT).isEmpty(),
-                DiagnosticAssertions.formatErrors(numeric.errors()));
-        assertFalse(errorsWithCode(named, DiagnosticCode.REGISTER_LIMIT).isEmpty(),
-                DiagnosticAssertions.formatErrors(named.errors()));
+        assertArrayEquals(new int[] {1, 2}, numeric.getFirst().arguments());
+        assertArrayEquals(new int[] {0, 1}, named.getFirst().arguments());
     }
 
     @Test
@@ -277,7 +263,6 @@ class DalvikLogicalInvokeTest {
         // The parameter's name and its pN alias name the same pair, so both calls name v0 and v1 and neither needs a slot.
         List<InvokeInstruction> invokes = invokes(decodedInstructions(example("""
                 .method public static alias (J)V {
-                    registers: 2,
                     parameters: { wide },
                     code: {
                         invoke-static { wide } demo/Target.take (J)V
@@ -298,7 +283,6 @@ class DalvikLogicalInvokeTest {
         // printing lists their logical arguments, so reassembling must reproduce the same words.
         ClassDefinition definition = dexRoundTrip(compile(example("""
                 .method public static mixed (Ljava/lang/Object;JI)V {
-                    registers: 18,
                     parameters: { target, wide, count },
                     code: {
                         invoke-virtual { target, wide, count } demo/Target.call (JI)V
@@ -327,7 +311,6 @@ class DalvikLogicalInvokeTest {
         // The custom call takes only its call-site arguments, and the polymorphic call takes its receiver first.
         ClassDefinition definition = dexRoundTrip(compile(example("""
                 .method public static calls (Ljava/lang/Object;JI)V {
-                    registers: 4,
                     parameters: { receiver, wide, count },
                     code: {
                         invoke-custom { wide, count } callsite (JI)V ConstantBootstraps.nullConstant { "demo" }
@@ -385,7 +368,6 @@ class DalvikLogicalInvokeTest {
         // non-range form cannot name, and the call takes the range form without moving any of them.
         List<Instruction> instructions = decodedInstructions(example("""
                 .method public static pairs ()V {
-                    registers: 6,
                     code: {
                         const-wide first 1L
                         const-wide second 2L

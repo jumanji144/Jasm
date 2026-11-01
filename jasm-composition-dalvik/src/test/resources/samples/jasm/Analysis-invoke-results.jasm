@@ -1,7 +1,6 @@
 .super java/lang/Object
 .class public AnalysisInvokeResults {
     .method public static absolute (J)J {
-        registers: 4,
         parameters: { value },
         code: {
             invoke-static { v2 } java/lang/Math.abs (J)J

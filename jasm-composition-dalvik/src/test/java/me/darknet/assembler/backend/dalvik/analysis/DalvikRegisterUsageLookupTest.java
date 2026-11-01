@@ -35,7 +35,7 @@ class DalvikRegisterUsageLookupTest {
                 move v1 v0
                 add-int v1 v1 v0
                 return v1
-                """, "()I", 2);
+                """, "()I");
         List<DalvikRegisterUsage> usages = fixture.usages();
 
         DalvikRegisterUsage v0 = usage(usages, "v0");
@@ -59,7 +59,7 @@ class DalvikRegisterUsageLookupTest {
                 filled-new-array { v0, v1, v2 } [I
                 move-result-object v3
                 return-object v3
-                """, "()[I", 4);
+                """, "()[I");
         List<DalvikRegisterUsage> usages = fixture.usages();
 
         // Each listed register is its own usage, so no synthetic key stands for the list.
@@ -79,8 +79,8 @@ class DalvikRegisterUsageLookupTest {
                 move v1 v0
                 return v1
                 """;
-        Fixture compiled = compileMethod(code, "()I", 2);
-        Fixture reparsed = compileMethod(code, "()I", 2);
+        Fixture compiled = compileMethod(code, "()I");
+        Fixture reparsed = compileMethod(code, "()I");
         assertNotSame(compiled.method(), reparsed.method());
 
         DalvikRegisterUsage v0 = usage(compiled.lookup().getUsages(reparsed.method()), "v0");
@@ -97,7 +97,7 @@ class DalvikRegisterUsageLookupTest {
                 return-void
             done:
                 return-void
-                """, "()V", 1);
+                """, "()V");
         DalvikRegisterUsage v0 = usage(fixture.usages(), "v0");
 
         assertEquals(2, v0.readCount());
@@ -112,7 +112,7 @@ class DalvikRegisterUsageLookupTest {
                 invoke-static {v0, v1} LOwner;.call (II)V
                 invoke-static {v1, v2} LOwner;.call (II)V
                 return-void
-                """, "()V", 3);
+                """, "()V");
         List<DalvikRegisterUsage> usages = fixture.usages();
 
         assertEquals(1, usage(usages, "v0").readCount());
@@ -127,7 +127,7 @@ class DalvikRegisterUsageLookupTest {
         Fixture fixture = compileMethod("""
                 invoke-static { words: { v0, v2 } } LOwner;.call (J)V
                 return-void
-                """, "()V", 3);
+                """, "()V");
         List<DalvikRegisterUsage> usages = fixture.usages();
 
         assertEquals(1, usage(usages, "v0").readCount());
@@ -152,7 +152,7 @@ class DalvikRegisterUsageLookupTest {
             code.add("sput" + variant + " v6 LOwner;.static " + descriptor);
         }
         code.add("return-void");
-        Fixture fixture = compileMethod(String.join("\n", code), "()V", 8);
+        Fixture fixture = compileMethod(String.join("\n", code), "()V");
         List<DalvikRegisterUsage> usages = fixture.usages();
 
         assertEquals(14, usage(usages, "v1").readCount());
@@ -178,18 +178,17 @@ class DalvikRegisterUsageLookupTest {
         };
     }
 
-    private static Fixture compileMethod(String code, String descriptor, int registers) {
+    private static Fixture compileMethod(String code, String descriptor) {
         String source = """
                 .super java/lang/Object
                 .class public RegisterUsageFixture {
                     .method public static sample %s {
-                        registers: %d,
                         code: {
                 %s
                         }
                     }
                 }
-                """.formatted(descriptor, registers, indent(code));
+                """.formatted(descriptor, indent(code));
         List<ASTElement> ast = DiagnosticAssertions.requireSuccess(
                 AssemblyParseFixture.processDeclarations("<dalvik-register-usage-test>", source, DalvikTargetContext.INSTANCE),
                 "Dalvik register usage source should parse");

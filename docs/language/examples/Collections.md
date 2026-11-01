@@ -70,7 +70,6 @@ public class CollectionPatterns {
 .class public CollectionPatterns {
     .signature "(Ljava/util/List<Ljava/lang/String;>;)I"
     .method public static totalLength (Ljava/util/List;)I {
-        registers: 5,
         parameters: { names },
         code: {
         A: 

@@ -16,22 +16,21 @@ It can be represented by the following expressions:
 - `vN`: A numeric register, where `N` is the register index (`v0`, `v12`)
 - Any identifier: A named register, which is given a slot automatically
 
-Important: Named registers are allocated the lowest free slot below the method's parameters that no numeric `vN` operand of the same method uses, so the `registers`
-declaration has
-to leave room for every local a method uses.
+Numeric `vN` registers keep their absolute slots in the local area. They reserve those slots for the whole method, and a
+wide numeric operand also reserves its following slot. Named registers are allocated automatically to the lowest free
+local slots; the local area grows to fit every named local and any additional word required by a wide use. Incoming
+parameters follow all local slots at the end of the register file; no register count is written in the method source.
 
 A wide value (`long` or `double`) occupies two registers _(the one it names and the one directly after it)_.
 
-A method with parameters must declare its register count, which also decides where the parameters start, as the last
-[parameters](../Basics.md#method) of the register file:
+For example, the parameter slots in this method are placed after its locals automatically:
 
 ```
 .method public static sum (II)I {
-    registers: 4,
     parameters: { a, b },
     code: {
-        add-int v0 a b
-        return v0
+        add-int total a b
+        return total
     }
 }
 ```
@@ -101,7 +100,7 @@ cannot be described as logical arguments, and the disassembler uses it for such 
 - Any other words must be consecutive registers in the order written, and the range encoding names them by the first
   register and the count. Words that are neither, such as `{ words: { v0, v16 } }`, are a compile error. The words are
   never sorted, deduplicated, packed, or moved into other registers.
-- Each word is a register, which must be within the declared register count and must fit the encoding.
+- Each word is a register in the inferred method register file and must fit the encoding.
 - The object is accepted only by canonical invoke mnemonics. It is an error on `filled-new-array`, and an object with any
   key other than `words` is an error.
 
@@ -121,8 +120,8 @@ same words. The encoding may change, so a range whose words fit the non-range fo
 Each form stores its register operands in fields of a fixed width, so every register it names must fit those fields.
 A register outside the limit of its form is a compile error, which names the register and the form. It is never
 wrapped onto another register, and a rejected compile writes no DEX output. The limit applies to the slot a named
-register is allocated to as well as to a `vN` operand. The method's declared register count is a separate limit,
-so a register beyond it is reported as exceeding that count, in addition to any field limit it also breaks.
+register is allocated to as well as to a `vN` operand. Independently, the inferred register file must fit DEX's
+65,535-word register-file limit.
 
 | Form                                                                                                                    | Each register                   | Other limits                                                           |
 |-------------------------------------------------------------------------------------------------------------------------|---------------------------------|------------------------------------------------------------------------|

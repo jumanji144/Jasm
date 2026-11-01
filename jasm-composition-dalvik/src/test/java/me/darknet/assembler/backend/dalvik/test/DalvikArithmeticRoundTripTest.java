@@ -41,7 +41,6 @@ class DalvikArithmeticRoundTripTest {
             .super java/lang/Object
             .class public Example {
                 .method public static mix (II)I {
-                    registers: 6,
                     parameters: { a, b },
                     exceptions: {
                         { Start, End, Handler, java/lang/RuntimeException }

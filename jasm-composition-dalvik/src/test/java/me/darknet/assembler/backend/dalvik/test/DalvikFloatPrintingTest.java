@@ -24,14 +24,12 @@ class DalvikFloatPrintingTest {
     private static final String SOURCE = """
             .class public Example {
                 .method public static floatValue ()F {
-                    registers: 1,
                     code: {
                         const v0 #0x7FC00001
                         return v0
                     }
                 }
                 .method public static doubleValue ()D {
-                    registers: 2,
                     code: {
                         const-wide v0 #0x7FF8000000000001
                         return-wide v0
