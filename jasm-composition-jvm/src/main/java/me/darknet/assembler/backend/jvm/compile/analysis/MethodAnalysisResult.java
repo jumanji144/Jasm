@@ -10,10 +10,13 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LineNumberNode;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -24,6 +27,7 @@ public class MethodAnalysisResult implements AnalysisResults {
 	private final NavigableMap<Integer, Frame> terminalFrames = new TreeMap<>();
 	private final Map<AbstractInsnNode, Integer> instructionToIndex = new IdentityHashMap<>();
 	private final List<ASTInstruction> executableAstInstructions = new ArrayList<>();
+	private final Set<ASTInstruction> executableAstInstructionSet = new HashSet<>();
 	private final Map<ASTInstruction, AbstractInsnNode> astToExecutableInstruction = new IdentityHashMap<>();
 	private final Map<AbstractInsnNode, ASTInstruction> executableInstructionToAst = new IdentityHashMap<>();
 	private final Map<ASTLabel, LabelNode> astToLabel = new IdentityHashMap<>();
@@ -76,7 +80,7 @@ public class MethodAnalysisResult implements AnalysisResults {
 	}
 
 	public void recordExecutableInstruction(@NotNull ASTInstruction instruction) {
-		if (!executableAstInstructions.contains(instruction))
+		if (executableAstInstructionSet.add(instruction))
 			executableAstInstructions.add(instruction);
 	}
 
@@ -129,7 +133,7 @@ public class MethodAnalysisResult implements AnalysisResults {
 	}
 
 	public @NotNull List<ASTInstruction> getExecutableAstInstructions() {
-		return executableAstInstructions;
+		return Collections.unmodifiableList(executableAstInstructions);
 	}
 
 	@Override
